@@ -12,6 +12,10 @@ class Account extends Model
 
     protected $table = 'accounts';
 
+    protected $keyType = 'string';
+
+    public $incrementing = false;
+
     protected $fillable = [
         'name',
         'phone',
