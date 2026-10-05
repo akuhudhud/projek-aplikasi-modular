@@ -10,5 +10,8 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/me', [AuthController::class, 'me'])
     ->middleware(AuthenticateSession::class);
 
+Route::patch('/me', [AuthController::class, 'updateProfile'])
+    ->middleware(AuthenticateSession::class);
+
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware(AuthenticateSession::class);
