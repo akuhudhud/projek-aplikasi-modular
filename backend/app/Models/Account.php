@@ -17,6 +17,7 @@ class Account extends Model
     public $incrementing = false;
 
     protected $fillable = [
+        'id',
         'name',
         'phone',
         'email',
