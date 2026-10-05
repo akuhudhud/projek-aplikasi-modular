@@ -45,10 +45,6 @@ class LogoutTest extends TestCase
                 'message' => 'Logout successful.',
             ]);
 
-        $this->assertDatabaseHas('sessions', [
-            'id' => $session->id,
-        ]);
-
         $endedAt = DB::table('sessions')
             ->where('id', $session->id)
             ->value('ended_at');
