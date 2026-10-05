@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\Account;
 use App\Models\Session;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
@@ -54,5 +56,107 @@ class AuthController extends Controller
                 ],
             ], 201);
         });
+    }
+
+    public function login(LoginRequest $request): JsonResponse
+    {
+        $account = Account::query()
+            ->when(
+                $request->filled('phone'),
+                fn ($query) => $query->where('phone', $request->phone)
+            )
+            ->when(
+                $request->filled('email'),
+                fn ($query) => $query->where('email', $request->email)
+            )
+            ->first();
+
+        if (!$account) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid credentials.',
+            ], 401);
+        }
+
+        if ($account->locked_until !== null) {
+            if ($account->locked_until->isFuture()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Account is temporarily locked.',
+                ], 423);
+            }
+
+            $account->failed_login_attempts = 0;
+            $account->locked_until = null;
+            $account->save();
+        }
+
+        if (in_array($account->status, ['DEACTIVATED', 'DELETED'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Account is not available for login.',
+            ], 403);
+        }
+
+        if (!Hash::check($request->password, $account->password)) {
+            $account->failed_login_attempts++;
+
+            if ($account->failed_login_attempts >= 5) {
+                $account->locked_until = now()->addMinutes(30);
+            }
+
+            $account->save();
+
+            if ($account->locked_until !== null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Account is temporarily locked.',
+                ], 423);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid credentials.',
+            ], 401);
+        }
+
+        $account->failed_login_attempts = 0;
+        $account->locked_until = null;
+        $account->save();
+
+        Session::where('account_id', $account->id)
+            ->whereNull('ended_at')
+            ->update([
+                'ended_at' => now(),
+            ]);
+
+        $sessionToken = Str::random(64);
+
+        Session::create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $account->id,
+            'token_hash' => hash('sha256', $sessionToken),
+            'created_at' => now(),
+            'ended_at' => null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Login successful.',
+            'data' => [
+                'account' => [
+                    'id' => $account->id,
+                    'name' => $account->name,
+                    'phone' => $account->phone,
+                    'email' => $account->email,
+                    'profile_picture' => $account->profile_picture,
+                    'role' => $account->role,
+                    'status' => $account->status,
+                ],
+                'session' => [
+                    'token' => $sessionToken,
+                ],
+            ],
+        ], 200);
     }
 }
