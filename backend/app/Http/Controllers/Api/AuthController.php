@@ -161,6 +161,26 @@ class AuthController extends Controller
         ], 200);
     }
 
+    public function me(Request $request): JsonResponse
+    {
+        $account = $request->attributes->get('account');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'account' => [
+                    'id' => $account->id,
+                    'name' => $account->name,
+                    'phone' => $account->phone,
+                    'email' => $account->email,
+                    'profile_picture' => $account->profile_picture,
+                    'role' => $account->role,
+                    'status' => $account->status,
+                ],
+            ],
+        ], 200);
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $session = $request->attributes->get('session');
