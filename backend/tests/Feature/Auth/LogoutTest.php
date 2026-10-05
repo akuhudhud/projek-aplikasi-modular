@@ -5,6 +5,7 @@ namespace Tests\Feature\Auth;
 use App\Models\Account;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class LogoutTest extends TestCase
@@ -44,9 +45,15 @@ class LogoutTest extends TestCase
                 'message' => 'Logout successful.',
             ]);
 
-        $session->refresh();
+        $this->assertDatabaseHas('sessions', [
+            'id' => $session->id,
+        ]);
 
-        $this->assertNotNull($session->ended_at);
+        $endedAt = DB::table('sessions')
+            ->where('id', $session->id)
+            ->value('ended_at');
+
+        $this->assertNotNull($endedAt);
     }
 
     public function test_logged_out_session_token_cannot_be_used_again(): void
