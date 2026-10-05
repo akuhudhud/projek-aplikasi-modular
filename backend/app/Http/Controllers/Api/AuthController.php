@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Account\UpdateProfileRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\Account;
@@ -167,6 +168,35 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
+            'data' => [
+                'account' => [
+                    'id' => $account->id,
+                    'name' => $account->name,
+                    'phone' => $account->phone,
+                    'email' => $account->email,
+                    'profile_picture' => $account->profile_picture,
+                    'role' => $account->role,
+                    'status' => $account->status,
+                ],
+            ],
+        ], 200);
+    }
+
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
+    {
+        $account = $request->attributes->get('account');
+
+        $account->fill($request->only([
+            'name',
+            'phone',
+            'email',
+        ]));
+
+        $account->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Profile updated successfully.',
             'data' => [
                 'account' => [
                     'id' => $account->id,
