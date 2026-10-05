@@ -165,8 +165,11 @@ class AuthController extends Controller
     {
         $session = $request->attributes->get('session');
 
-        $session->ended_at = now();
-        $session->save();
+        Session::where('id', $session->id)
+            ->whereNull('ended_at')
+            ->update([
+                'ended_at' => now(),
+            ]);
 
         return response()->json([
             'success' => true,
