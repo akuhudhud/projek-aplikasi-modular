@@ -155,4 +155,224 @@ class LoginTest extends TestCase
                 'email',
             ]);
     }
+
+    public function test_suspended_account_can_login(): void
+    {
+        Account::create([
+            'id' => '66666666-6666-4666-8666-666666666666',
+            'name' => 'Suspended User',
+            'email' => 'suspended@example.com',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'SUSPENDED',
+        ]);
+
+        $response = $this->postJson('/api/login', [
+            'email' => 'suspended@example.com',
+            'password' => 'Password1',
+        ]);
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.account.status', 'SUSPENDED');
+
+        $this->assertNotNull($response->json('data.session.token'));
+    }
+
+    public function test_deactivated_account_cannot_login(): void
+    {
+        Account::create([
+            'id' => '77777777-7777-4777-8777-777777777777',
+            'name' => 'Deactivated User',
+            'email' => 'deactivated@example.com',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'DEACTIVATED',
+        ]);
+
+        $response = $this->postJson('/api/login', [
+            'email' => 'deactivated@example.com',
+            'password' => 'Password1',
+        ]);
+
+        $response
+            ->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Account is not available for login.',
+            ]);
+    }
+
+    public function test_deleted_account_cannot_login(): void
+    {
+        Account::create([
+            'id' => '88888888-8888-4888-8888-888888888888',
+            'name' => 'Deleted User',
+            'email' => 'deleted@example.com',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'DELETED',
+        ]);
+
+        $response = $this->postJson('/api/login', [
+            'email' => 'deleted@example.com',
+            'password' => 'Password1',
+        ]);
+
+        $response
+            ->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Account is not available for login.',
+            ]);
+    }
+
+    public function test_five_failed_login_attempts_lock_account_for_thirty_minutes(): void
+    {
+        Account::create([
+            'id' => '99999999-9999-4999-8999-999999999999',
+            'name' => 'Locked User',
+            'email' => 'locked@example.com',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'ACTIVE',
+        ]);
+
+        for ($attempt = 1; $attempt <= 4; $attempt++) {
+            $response = $this->postJson('/api/login', [
+                'email' => 'locked@example.com',
+                'password' => 'WrongPass1',
+            ]);
+
+            $response->assertStatus(401);
+        }
+
+        $response = $this->postJson('/api/login', [
+            'email' => 'locked@example.com',
+            'password' => 'WrongPass1',
+        ]);
+
+        $response
+            ->assertStatus(423)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Account is temporarily locked.',
+            ]);
+
+        $account = Account::where('email', 'locked@example.com')->firstOrFail();
+
+        $this->assertSame(5, $account->failed_login_attempts);
+        $this->assertNotNull($account->locked_until);
+        $this->assertTrue($account->locked_until->isFuture());
+        $this->assertTrue($account->locked_until->lte(now()->addMinutes(30)));
+    }
+
+    public function test_login_after_lock_expires_resets_login_security(): void
+    {
+        Account::create([
+            'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            'name' => 'Expired Lock User',
+            'email' => 'expiredlock@example.com',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'ACTIVE',
+            'failed_login_attempts' => 5,
+            'locked_until' => now()->subMinute(),
+        ]);
+
+        $response = $this->postJson('/api/login', [
+            'email' => 'expiredlock@example.com',
+            'password' => 'Password1',
+        ]);
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $account = Account::where('email', 'expiredlock@example.com')->firstOrFail();
+
+        $this->assertSame(0, $account->failed_login_attempts);
+        $this->assertNull($account->locked_until);
+    }
+
+    public function test_successful_login_resets_failed_login_attempts(): void
+    {
+        Account::create([
+            'id' => 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+            'name' => 'Reset User',
+            'email' => 'reset@example.com',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'ACTIVE',
+            'failed_login_attempts' => 3,
+        ]);
+
+        $response = $this->postJson('/api/login', [
+            'email' => 'reset@example.com',
+            'password' => 'Password1',
+        ]);
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $account = Account::where('email', 'reset@example.com')->firstOrFail();
+
+        $this->assertSame(0, $account->failed_login_attempts);
+        $this->assertNull($account->locked_until);
+    }
+
+    public function test_successful_login_ends_old_active_session_and_creates_new_session(): void
+    {
+        $account = Account::create([
+            'id' => 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            'name' => 'Session User',
+            'email' => 'session@example.com',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'ACTIVE',
+        ]);
+
+        Session::create([
+            'id' => 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            'account_id' => $account->id,
+            'token_hash' => hash('sha256', 'old-session-token'),
+            'created_at' => now()->subHour(),
+            'ended_at' => null,
+        ]);
+
+        $response = $this->postJson('/api/login', [
+            'email' => 'session@example.com',
+            'password' => 'Password1',
+        ]);
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('sessions', [
+            'id' => 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            'account_id' => $account->id,
+        ]);
+
+        $oldSession = Session::findOrFail('dddddddd-dddd-4ddd-8ddd-dddddddddddd');
+
+        $this->assertNotNull($oldSession->ended_at);
+
+        $this->assertSame(
+            1,
+            Session::where('account_id', $account->id)
+                ->whereNull('ended_at')
+                ->count()
+        );
+
+        $this->assertNotSame(
+            hash('sha256', 'old-session-token'),
+            Session::where('account_id', $account->id)
+                ->whereNull('ended_at')
+                ->firstOrFail()
+                ->token_hash
+        );
+    }
 }
