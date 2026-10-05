@@ -8,6 +8,7 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\Account;
 use App\Models\Session;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -157,6 +158,19 @@ class AuthController extends Controller
                     'token' => $sessionToken,
                 ],
             ],
+        ], 200);
+    }
+
+    public function logout(Request $request): JsonResponse
+    {
+        $session = $request->attributes->get('session');
+
+        $session->ended_at = now();
+        $session->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Logout successful.',
         ], 200);
     }
 }
