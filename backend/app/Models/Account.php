@@ -25,6 +25,8 @@ class Account extends Model
         'profile_picture',
         'role',
         'status',
+        'failed_login_attempts',
+        'locked_until',
     ];
 
     protected $hidden = [
@@ -33,6 +35,7 @@ class Account extends Model
 
     protected $casts = [
         'password' => 'hashed',
+        'locked_until' => 'datetime',
     ];
 
     public function sessions(): HasMany
