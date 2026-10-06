@@ -285,13 +285,23 @@ class AuthController extends Controller
             ], 422);
         }
 
+        $reason = trim((string) $request->input('reason'));
+
+        if ($reason === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Reason is required.',
+            ], 422);
+        }
+
         $account->status = 'ACTIVE';
         $account->save();
 
         app(AuditLogService::class)->record(
             $admin,
             $account,
-            'ACCOUNT_REACTIVATED'
+            'ACCOUNT_REACTIVATED',
+            $reason
         );
 
         return response()->json([
@@ -334,6 +344,15 @@ class AuthController extends Controller
             ], 422);
         }
 
+        $reason = trim((string) $request->input('reason'));
+
+        if ($reason === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Reason is required.',
+            ], 422);
+        }
+
         $account->status = 'SUSPENDED';
         $account->save();
 
@@ -346,7 +365,8 @@ class AuthController extends Controller
         app(AuditLogService::class)->record(
             $admin,
             $account,
-            'ACCOUNT_SUSPENDED'
+            'ACCOUNT_SUSPENDED',
+            $reason
         );
 
         return response()->json([
@@ -382,13 +402,23 @@ class AuthController extends Controller
             ], 422);
         }
 
+        $reason = trim((string) $request->input('reason'));
+
+        if ($reason === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Reason is required.',
+            ], 422);
+        }
+
         $account->status = 'ACTIVE';
         $account->save();
 
         app(AuditLogService::class)->record(
             $admin,
             $account,
-            'ACCOUNT_UNSUSPENDED'
+            'ACCOUNT_UNSUSPENDED',
+            $reason
         );
 
         return response()->json([
