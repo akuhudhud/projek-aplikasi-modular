@@ -30,6 +30,7 @@ class AuditLogController extends Controller
                 'actor_account_id',
                 'target_account_id',
                 'action',
+                'reason',
                 'created_at',
             ]);
 
