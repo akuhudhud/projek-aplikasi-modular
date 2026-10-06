@@ -33,6 +33,13 @@ class AuthenticateSession
             ], 401);
         }
 
+        if ($session->account->status === 'SUSPENDED') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Account is suspended.',
+            ], 403);
+        }
+
         $request->attributes->set('session', $session);
         $request->attributes->set('account', $session->account);
 
