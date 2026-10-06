@@ -69,7 +69,9 @@ class SuperAdminAccountManagementTest extends TestCase
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$user->id.'/suspend');
+        )->postJson('/api/admin/accounts/'.$user->id.'/suspend', [
+            'reason' => 'Administrative review required.',
+        ]);
 
         $response
             ->assertStatus(200)
@@ -100,8 +102,9 @@ class SuperAdminAccountManagementTest extends TestCase
         $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$user->id.'/suspend')
-            ->assertStatus(200);
+        )->postJson('/api/admin/accounts/'.$user->id.'/suspend', [
+            'reason' => 'Administrative review required.',
+        ])->assertStatus(200);
 
         $session = Session::where('account_id', $user->id)
             ->where('token_hash', hash('sha256', $userToken))
@@ -119,8 +122,9 @@ class SuperAdminAccountManagementTest extends TestCase
         $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$user->id.'/suspend')
-            ->assertStatus(200);
+        )->postJson('/api/admin/accounts/'.$user->id.'/suspend', [
+            'reason' => 'Administrative review required.',
+        ])->assertStatus(200);
 
         $login = $this->postJson('/api/login', [
             'phone' => '60222222222',
@@ -213,8 +217,9 @@ class SuperAdminAccountManagementTest extends TestCase
         $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$user->id.'/suspend')
-            ->assertStatus(200);
+        )->postJson('/api/admin/accounts/'.$user->id.'/suspend', [
+            'reason' => 'Administrative review required.',
+        ])->assertStatus(200);
 
         $response = $this->withHeader(
             'Authorization',
