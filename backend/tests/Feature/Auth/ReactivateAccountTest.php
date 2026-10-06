@@ -66,7 +66,9 @@ class ReactivateAccountTest extends TestCase
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$account->id.'/reactivate');
+        )->postJson('/api/admin/accounts/'.$account->id.'/reactivate', [
+            'reason' => 'Reactivation approved by administrator.',
+        ]);
 
         $response
             ->assertStatus(200)
@@ -89,8 +91,9 @@ class ReactivateAccountTest extends TestCase
         $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$account->id.'/reactivate')
-            ->assertStatus(200);
+        )->postJson('/api/admin/accounts/'.$account->id.'/reactivate', [
+            'reason' => 'Reactivation approved by administrator.',
+        ])->assertStatus(200);
 
         $response = $this->postJson('/api/login', [
             'phone' => '60222222222',
