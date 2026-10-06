@@ -9,6 +9,7 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\Account;
 use App\Models\Session;
+use App\Services\AuditLogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -287,6 +288,12 @@ class AuthController extends Controller
         $account->status = 'ACTIVE';
         $account->save();
 
+        app(AuditLogService::class)->record(
+            $admin,
+            $account,
+            'ACCOUNT_REACTIVATED'
+        );
+
         return response()->json([
             'success' => true,
             'message' => 'Account reactivated successfully.',
@@ -336,6 +343,12 @@ class AuthController extends Controller
                 'ended_at' => now(),
             ]);
 
+        app(AuditLogService::class)->record(
+            $admin,
+            $account,
+            'ACCOUNT_SUSPENDED'
+        );
+
         return response()->json([
             'success' => true,
             'message' => 'Account suspended successfully.',
@@ -371,6 +384,12 @@ class AuthController extends Controller
 
         $account->status = 'ACTIVE';
         $account->save();
+
+        app(AuditLogService::class)->record(
+            $admin,
+            $account,
+            'ACCOUNT_UNSUSPENDED'
+        );
 
         return response()->json([
             'success' => true,
