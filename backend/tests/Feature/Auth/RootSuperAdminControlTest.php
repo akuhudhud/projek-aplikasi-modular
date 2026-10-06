@@ -84,7 +84,9 @@ class RootSuperAdminControlTest extends TestCase
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$superAdmin->id.'/suspend');
+        )->postJson('/api/admin/accounts/'.$superAdmin->id.'/suspend', [
+            'reason' => 'Administrative review required.',
+        ]);
 
         $response
             ->assertStatus(200)
@@ -194,7 +196,9 @@ class RootSuperAdminControlTest extends TestCase
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$superAdmin->id.'/unsuspend');
+        )->postJson('/api/admin/accounts/'.$superAdmin->id.'/unsuspend', [
+            'reason' => 'Administrative review completed.',
+        ]);
 
         $response
             ->assertStatus(200)
@@ -266,7 +270,9 @@ class RootSuperAdminControlTest extends TestCase
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$superAdmin->id.'/reactivate');
+        )->postJson('/api/admin/accounts/'.$superAdmin->id.'/reactivate', [
+            'reason' => 'Reactivation approved by root administrator.',
+        ]);
 
         $response
             ->assertStatus(200)
