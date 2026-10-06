@@ -20,6 +20,9 @@ Route::post('/me/change-password', [AuthController::class, 'changePassword'])
 Route::post('/me/deactivate', [AuthController::class, 'deactivate'])
     ->middleware(AuthenticateSession::class);
 
+Route::post('/me/delete', [AuthController::class, 'delete'])
+    ->middleware(AuthenticateSession::class);
+
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware(AuthenticateSession::class);
 
