@@ -257,6 +257,42 @@ class AuthController extends Controller
         ], 200);
     }
 
+    public function reactivate(Request $request, string $accountId): JsonResponse
+    {
+        $admin = $request->attributes->get('account');
+
+        if (! $admin || $admin->role !== 'SUPER_ADMIN') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 403);
+        }
+
+        $account = Account::find($accountId);
+
+        if (! $account) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Account not found.',
+            ], 404);
+        }
+
+        if ($account->status === 'ACTIVE') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Account is already active.',
+            ], 422);
+        }
+
+        $account->status = 'ACTIVE';
+        $account->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Account reactivated successfully.',
+        ], 200);
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $session = $request->attributes->get('session');
