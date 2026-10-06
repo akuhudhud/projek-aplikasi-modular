@@ -31,3 +31,6 @@ Route::post('/admin/accounts/{accountId}/reactivate', [AuthController::class, 'r
 
 Route::post('/admin/accounts/{accountId}/suspend', [AuthController::class, 'suspend'])
     ->middleware(AuthenticateSession::class);
+
+Route::post('/admin/accounts/{accountId}/unsuspend', [AuthController::class, 'unsuspend'])
+    ->middleware(AuthenticateSession::class);
