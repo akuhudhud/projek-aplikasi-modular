@@ -249,4 +249,76 @@ class RootSuperAdminControlTest extends TestCase
             'status' => 'SUSPENDED',
         ]);
     }
+
+    public function test_root_super_admin_can_reactivate_super_admin(): void
+    {
+        [$root, $token] = $this->createRootSuperAdmin();
+
+        $superAdmin = $this->createAccount(
+            '55555555-5555-4555-8555-555555555555',
+            'Deactivated Super Admin',
+            '60777777777',
+            'deactivated-superadmin@example.com',
+            'SUPER_ADMIN',
+            'DEACTIVATED'
+        );
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson('/api/admin/accounts/'.$superAdmin->id.'/reactivate');
+
+        $response
+            ->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Account reactivated successfully.',
+            ]);
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $superAdmin->id,
+            'role' => 'SUPER_ADMIN',
+            'status' => 'ACTIVE',
+        ]);
+    }
+
+    public function test_super_admin_cannot_reactivate_another_super_admin(): void
+    {
+        $admin = $this->createSuperAdmin();
+
+        $target = $this->createAccount(
+            '66666666-6666-4666-8666-666666666666',
+            'Deactivated Target Super Admin',
+            '60888888888',
+            'deactivated-target@example.com',
+            'SUPER_ADMIN',
+            'DEACTIVATED'
+        );
+
+        $token = 'regular-super-admin-reactivate-token';
+
+        $this->createSessionForAccount(
+            $admin,
+            $token,
+            '77777777-7777-4777-8777-777777777777'
+        );
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson('/api/admin/accounts/'.$target->id.'/reactivate');
+
+        $response
+            ->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ]);
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $target->id,
+            'role' => 'SUPER_ADMIN',
+            'status' => 'DEACTIVATED',
+        ]);
+    }
 }
