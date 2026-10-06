@@ -27,7 +27,7 @@ Business Module belum dibangunkan dalam fasa ini.
 ## Tech Stack
 
 ### Backend
-- Laravel 10
+- Laravel 13
 - PHP 8.3
 - MySQL 8.x
 
