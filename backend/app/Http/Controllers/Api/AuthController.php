@@ -285,6 +285,13 @@ class AuthController extends Controller
             ], 422);
         }
 
+        if ($account->status !== 'DEACTIVATED') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only deactivated accounts can be reactivated.',
+            ], 422);
+        }
+
         $reason = trim((string) $request->input('reason'));
 
         if ($reason === '') {
