@@ -28,3 +28,6 @@ Route::post('/logout', [AuthController::class, 'logout'])
 
 Route::post('/admin/accounts/{accountId}/reactivate', [AuthController::class, 'reactivate'])
     ->middleware(AuthenticateSession::class);
+
+Route::post('/admin/accounts/{accountId}/suspend', [AuthController::class, 'suspend'])
+    ->middleware(AuthenticateSession::class);
