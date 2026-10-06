@@ -45,7 +45,9 @@ class UnsuspendAccountTest extends TestCase
         ]);
 
         $response = $this->withToken($adminToken)
-            ->postJson("/api/admin/accounts/{$user->id}/unsuspend");
+            ->postJson("/api/admin/accounts/{$user->id}/unsuspend", [
+                'reason' => 'Administrative review completed.',
+            ]);
 
         $response
             ->assertStatus(200)
@@ -193,7 +195,9 @@ class UnsuspendAccountTest extends TestCase
         ]);
 
         $response = $this->withToken($adminToken)
-            ->postJson('/api/admin/accounts/non-existent-account/unsuspend');
+            ->postJson(
+                '/api/admin/accounts/non-existent-account/unsuspend'
+            );
 
         $response
             ->assertStatus(404)
