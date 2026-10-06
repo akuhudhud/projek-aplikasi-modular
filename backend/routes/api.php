@@ -31,6 +31,9 @@ Route::post('/logout', [AuthController::class, 'logout'])
 Route::get('/admin/accounts', [AccountController::class, 'index'])
     ->middleware(AuthenticateSession::class);
 
+Route::post('/admin/accounts', [AccountController::class, 'createSuperAdmin'])
+    ->middleware(AuthenticateSession::class);
+
 Route::post('/admin/accounts/{accountId}/reactivate', [AuthController::class, 'reactivate'])
     ->middleware(AuthenticateSession::class);
 
