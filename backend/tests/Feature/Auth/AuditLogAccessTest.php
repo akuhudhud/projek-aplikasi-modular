@@ -108,24 +108,30 @@ class AuditLogAccessTest extends TestCase
         return [$user, $token];
     }
 
-    private function seedAuditLogs(Account $root, Account $admin, Account $user): void
-    {
+    private function seedAuditLogs(
+        Account $root,
+        Account $admin,
+        Account $user
+    ): void {
         AuditLog::create([
             'actor_account_id' => $root->id,
             'target_account_id' => $admin->id,
             'action' => 'ACCOUNT_SUSPENDED',
+            'reason' => 'Administrative review required.',
         ]);
 
         AuditLog::create([
             'actor_account_id' => $admin->id,
             'target_account_id' => $user->id,
             'action' => 'ACCOUNT_REACTIVATED',
+            'reason' => 'User reactivation approved.',
         ]);
 
         AuditLog::create([
             'actor_account_id' => $admin->id,
             'target_account_id' => $user->id,
             'action' => 'ACCOUNT_UNSUSPENDED',
+            'reason' => 'Suspension issue resolved.',
         ]);
     }
 
@@ -226,10 +232,15 @@ class AuditLogAccessTest extends TestCase
                         'actor_account_id',
                         'target_account_id',
                         'action',
+                        'reason',
                         'created_at',
                     ],
                 ],
             ],
+        ]);
+
+        $response->assertJsonFragment([
+            'reason' => 'Administrative review required.',
         ]);
     }
 }
