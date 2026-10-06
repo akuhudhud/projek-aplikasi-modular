@@ -17,5 +17,8 @@ Route::patch('/me', [AuthController::class, 'updateProfile'])
 Route::post('/me/change-password', [AuthController::class, 'changePassword'])
     ->middleware(AuthenticateSession::class);
 
+Route::post('/me/deactivate', [AuthController::class, 'deactivate'])
+    ->middleware(AuthenticateSession::class);
+
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware(AuthenticateSession::class);
