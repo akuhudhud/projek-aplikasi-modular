@@ -297,13 +297,6 @@ class AuthController extends Controller
     {
         $admin = $request->attributes->get('account');
 
-        if (!$admin || $admin->role !== 'SUPER_ADMIN') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized.',
-            ], 403);
-        }
-
         $account = Account::find($accountId);
 
         if (!$account) {
@@ -311,6 +304,13 @@ class AuthController extends Controller
                 'success' => false,
                 'message' => 'Account not found.',
             ], 404);
+        }
+
+        if (!$this->canManageAccount($admin, $account)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 403);
         }
 
         if ($account->status === 'SUSPENDED') {
@@ -346,13 +346,6 @@ class AuthController extends Controller
     {
         $admin = $request->attributes->get('account');
 
-        if (!$admin || $admin->role !== 'SUPER_ADMIN') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized.',
-            ], 403);
-        }
-
         $account = Account::find($accountId);
 
         if (!$account) {
@@ -360,6 +353,13 @@ class AuthController extends Controller
                 'success' => false,
                 'message' => 'Account not found.',
             ], 404);
+        }
+
+        if (!$this->canManageAccount($admin, $account)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 403);
         }
 
         if ($account->status !== 'SUSPENDED') {
@@ -376,6 +376,23 @@ class AuthController extends Controller
             'success' => true,
             'message' => 'Account unsuspended successfully.',
         ], 200);
+    }
+
+    private function canManageAccount(?Account $admin, Account $target): bool
+    {
+        if (!$admin) {
+            return false;
+        }
+
+        if ($admin->role === 'ROOT_SUPER_ADMIN') {
+            return $target->role !== 'ROOT_SUPER_ADMIN';
+        }
+
+        if ($admin->role === 'SUPER_ADMIN') {
+            return $target->role === 'USER';
+        }
+
+        return false;
     }
 
     public function delete(Request $request): JsonResponse
