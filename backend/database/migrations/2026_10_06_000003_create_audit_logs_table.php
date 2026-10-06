@@ -16,6 +16,7 @@ return new class extends Migration
             $table->uuid('actor_account_id');
             $table->uuid('target_account_id');
             $table->string('action');
+            $table->text('reason');
             $table->timestamps();
 
             $table->foreign('actor_account_id')
