@@ -97,15 +97,19 @@ class AuditLogTest extends TestCase
         );
     }
 
-    public function test_super_admin_action_creates_audit_log(): void
+    public function test_super_admin_action_creates_audit_log_with_reason(): void
     {
         [$admin, $token] = $this->createSuperAdmin();
         $user = $this->createUser();
 
+        $reason = 'Violation of usage policy.';
+
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$user->id.'/suspend');
+        )->postJson('/api/admin/accounts/'.$user->id.'/suspend', [
+            'reason' => $reason,
+        ]);
 
         $response->assertStatus(200);
 
@@ -113,10 +117,11 @@ class AuditLogTest extends TestCase
             'actor_account_id' => $admin->id,
             'target_account_id' => $user->id,
             'action' => 'ACCOUNT_SUSPENDED',
+            'reason' => $reason,
         ]);
     }
 
-    public function test_root_super_admin_action_creates_audit_log(): void
+    public function test_root_super_admin_action_creates_audit_log_with_reason(): void
     {
         [$root, $token] = $this->createRootSuperAdmin();
 
@@ -128,10 +133,14 @@ class AuditLogTest extends TestCase
             'SUPER_ADMIN'
         );
 
+        $reason = 'Administrative review required.';
+
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$admin->id.'/suspend');
+        )->postJson('/api/admin/accounts/'.$admin->id.'/suspend', [
+            'reason' => $reason,
+        ]);
 
         $response->assertStatus(200);
 
@@ -139,6 +148,7 @@ class AuditLogTest extends TestCase
             'actor_account_id' => $root->id,
             'target_account_id' => $admin->id,
             'action' => 'ACCOUNT_SUSPENDED',
+            'reason' => $reason,
         ]);
     }
 
@@ -157,7 +167,9 @@ class AuditLogTest extends TestCase
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$target->id.'/suspend');
+        )->postJson('/api/admin/accounts/'.$target->id.'/suspend', [
+            'reason' => 'Unauthorized suspension attempt.',
+        ]);
 
         $response->assertStatus(403);
 
@@ -168,7 +180,7 @@ class AuditLogTest extends TestCase
         ]);
     }
 
-    public function test_audit_log_records_created_at(): void
+    public function test_missing_reason_does_not_create_audit_log(): void
     {
         [$admin, $token] = $this->createSuperAdmin();
         $user = $this->createUser();
@@ -178,12 +190,57 @@ class AuditLogTest extends TestCase
             'Bearer '.$token
         )->postJson('/api/admin/accounts/'.$user->id.'/suspend');
 
+        $response->assertStatus(422);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $user->id,
+            'action' => 'ACCOUNT_SUSPENDED',
+        ]);
+    }
+
+    public function test_blank_reason_does_not_create_audit_log(): void
+    {
+        [$admin, $token] = $this->createSuperAdmin();
+        $user = $this->createUser();
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson('/api/admin/accounts/'.$user->id.'/suspend', [
+            'reason' => '   ',
+        ]);
+
+        $response->assertStatus(422);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $user->id,
+            'action' => 'ACCOUNT_SUSPENDED',
+        ]);
+    }
+
+    public function test_audit_log_records_created_at(): void
+    {
+        [$admin, $token] = $this->createSuperAdmin();
+        $user = $this->createUser();
+
+        $reason = 'Account requires administrative suspension.';
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson('/api/admin/accounts/'.$user->id.'/suspend', [
+            'reason' => $reason,
+        ]);
+
         $response->assertStatus(200);
 
         $this->assertDatabaseHas('audit_logs', [
             'actor_account_id' => $admin->id,
             'target_account_id' => $user->id,
             'action' => 'ACCOUNT_SUSPENDED',
+            'reason' => $reason,
         ]);
 
         $this->assertNotNull(
@@ -195,7 +252,7 @@ class AuditLogTest extends TestCase
         );
     }
 
-    public function test_reactivation_creates_audit_log(): void
+    public function test_reactivation_creates_audit_log_with_reason(): void
     {
         [$admin, $token] = $this->createSuperAdmin();
 
@@ -208,10 +265,14 @@ class AuditLogTest extends TestCase
             'DEACTIVATED'
         );
 
+        $reason = 'User reactivation approved.';
+
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$user->id.'/reactivate');
+        )->postJson('/api/admin/accounts/'.$user->id.'/reactivate', [
+            'reason' => $reason,
+        ]);
 
         $response->assertStatus(200);
 
@@ -219,10 +280,11 @@ class AuditLogTest extends TestCase
             'actor_account_id' => $admin->id,
             'target_account_id' => $user->id,
             'action' => 'ACCOUNT_REACTIVATED',
+            'reason' => $reason,
         ]);
     }
 
-    public function test_unsuspension_creates_audit_log(): void
+    public function test_unsuspension_creates_audit_log_with_reason(): void
     {
         [$admin, $token] = $this->createSuperAdmin();
 
@@ -235,14 +297,73 @@ class AuditLogTest extends TestCase
             'SUSPENDED'
         );
 
+        $reason = 'Suspension issue resolved.';
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson('/api/admin/accounts/'.$user->id.'/unsuspend', [
+            'reason' => $reason,
+        ]);
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $user->id,
+            'action' => 'ACCOUNT_UNSUSPENDED',
+            'reason' => $reason,
+        ]);
+    }
+
+    public function test_reactivation_requires_reason(): void
+    {
+        [$admin, $token] = $this->createSuperAdmin();
+
+        $user = $this->createAccount(
+            '44444444-4444-4444-8444-444444444444',
+            'Deactivated User Without Reason',
+            '60888888888',
+            'deactivated-no-reason@example.com',
+            'USER',
+            'DEACTIVATED'
+        );
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson('/api/admin/accounts/'.$user->id.'/reactivate');
+
+        $response->assertStatus(422);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $user->id,
+            'action' => 'ACCOUNT_REACTIVATED',
+        ]);
+    }
+
+    public function test_unsuspension_requires_reason(): void
+    {
+        [$admin, $token] = $this->createSuperAdmin();
+
+        $user = $this->createAccount(
+            '55555555-5555-4555-8555-555555555555',
+            'Suspended User Without Reason',
+            '60999999999',
+            'suspended-no-reason@example.com',
+            'USER',
+            'SUSPENDED'
+        );
+
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
         )->postJson('/api/admin/accounts/'.$user->id.'/unsuspend');
 
-        $response->assertStatus(200);
+        $response->assertStatus(422);
 
-        $this->assertDatabaseHas('audit_logs', [
+        $this->assertDatabaseMissing('audit_logs', [
             'actor_account_id' => $admin->id,
             'target_account_id' => $user->id,
             'action' => 'ACCOUNT_UNSUSPENDED',
