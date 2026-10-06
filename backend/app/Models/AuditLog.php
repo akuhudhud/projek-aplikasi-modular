@@ -11,6 +11,7 @@ class AuditLog extends Model
         'actor_account_id',
         'target_account_id',
         'action',
+        'reason',
     ];
 
     public function actor(): BelongsTo
