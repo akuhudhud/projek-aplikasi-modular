@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Middleware\AuthenticateSession;
 use Illuminate\Support\Facades\Route;
@@ -33,4 +34,7 @@ Route::post('/admin/accounts/{accountId}/suspend', [AuthController::class, 'susp
     ->middleware(AuthenticateSession::class);
 
 Route::post('/admin/accounts/{accountId}/unsuspend', [AuthController::class, 'unsuspend'])
+    ->middleware(AuthenticateSession::class);
+
+Route::get('/admin/audit-logs', [AuditLogController::class, 'index'])
     ->middleware(AuthenticateSession::class);
