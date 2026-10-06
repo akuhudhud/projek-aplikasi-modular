@@ -293,6 +293,25 @@ class AuthController extends Controller
         ], 200);
     }
 
+    public function delete(Request $request): JsonResponse
+    {
+        $account = $request->attributes->get('account');
+
+        $account->status = 'DELETED';
+        $account->save();
+
+        Session::where('account_id', $account->id)
+            ->whereNull('ended_at')
+            ->update([
+                'ended_at' => now(),
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Account deleted successfully.',
+        ], 200);
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $session = $request->attributes->get('session');
