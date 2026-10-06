@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Middleware\AuthenticateSession;
@@ -25,6 +26,9 @@ Route::post('/me/delete', [AuthController::class, 'delete'])
     ->middleware(AuthenticateSession::class);
 
 Route::post('/logout', [AuthController::class, 'logout'])
+    ->middleware(AuthenticateSession::class);
+
+Route::get('/admin/accounts', [AccountController::class, 'index'])
     ->middleware(AuthenticateSession::class);
 
 Route::post('/admin/accounts/{accountId}/reactivate', [AuthController::class, 'reactivate'])
