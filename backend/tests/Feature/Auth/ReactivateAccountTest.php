@@ -190,4 +190,72 @@ class ReactivateAccountTest extends TestCase
                 'message' => 'Account is already active.',
             ]);
     }
+
+    public function test_suspended_account_cannot_be_reactivated(): void
+    {
+        [$admin, $token] = $this->createSuperAdminWithSession();
+
+        $account = Account::create([
+            'id' => '11111111-1111-4111-8111-111111111111',
+            'name' => 'Suspended User',
+            'phone' => '60555555555',
+            'email' => 'suspended@example.com',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'SUSPENDED',
+        ]);
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson('/api/admin/accounts/'.$account->id.'/reactivate', [
+            'reason' => 'Attempted invalid lifecycle transition.',
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Only deactivated accounts can be reactivated.',
+            ]);
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $account->id,
+            'status' => 'SUSPENDED',
+        ]);
+    }
+
+    public function test_deleted_account_cannot_be_reactivated(): void
+    {
+        [$admin, $token] = $this->createSuperAdminWithSession();
+
+        $account = Account::create([
+            'id' => '22222222-2222-4222-8222-222222222222',
+            'name' => 'Deleted User',
+            'phone' => '60666666666',
+            'email' => 'deleted@example.com',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'DELETED',
+        ]);
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson('/api/admin/accounts/'.$account->id.'/reactivate', [
+            'reason' => 'Attempted invalid lifecycle transition.',
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Only deactivated accounts can be reactivated.',
+            ]);
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $account->id,
+            'status' => 'DELETED',
+        ]);
+    }
 }
