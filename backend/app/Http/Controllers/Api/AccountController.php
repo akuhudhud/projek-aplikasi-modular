@@ -119,6 +119,7 @@ class AccountController extends Controller
             'name' => $request->input('name'),
             'phone' => $request->input('phone'),
             'email' => $request->input('email'),
+            'profile_picture' => null,
             'password' => $request->input('password'),
             'role' => 'SUPER_ADMIN',
             'status' => 'ACTIVE',
