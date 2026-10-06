@@ -10,6 +10,8 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\Account;
 use App\Models\Session;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -17,11 +19,7 @@ class AuthController extends Controller
 {
     public function register(RegisterRequest $request): JsonResponse
     {
-        $account = null;
-
-        $session = null;
-
-        \DB::transaction(function () use ($request, &$account, &$session) {
+        return DB::transaction(function () use ($request) {
             $account = Account::create([
                 'id' => (string) Str::uuid(),
                 'name' => $request->name,
@@ -30,34 +28,37 @@ class AuthController extends Controller
                 'password' => $request->password,
                 'role' => 'USER',
                 'status' => 'ACTIVE',
-                'failed_login_attempts' => 0,
-                'locked_until' => null,
             ]);
 
-            $token = Str::random(64);
+            $sessionToken = Str::random(64);
 
-            $session = Session::create([
+            Session::create([
                 'id' => (string) Str::uuid(),
                 'account_id' => $account->id,
-                'token_hash' => hash('sha256', $token),
+                'token_hash' => hash('sha256', $sessionToken),
                 'created_at' => now(),
                 'ended_at' => null,
             ]);
 
-            $session->plain_token = $token;
-        });
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Registration successful.',
-            'data' => [
-                'account' => $account,
-                'session' => [
-                    'id' => $session->id,
-                    'token' => $session->plain_token,
+            return response()->json([
+                'success' => true,
+                'message' => 'Account registered successfully.',
+                'data' => [
+                    'account' => [
+                        'id' => $account->id,
+                        'name' => $account->name,
+                        'phone' => $account->phone,
+                        'email' => $account->email,
+                        'profile_picture' => $account->profile_picture,
+                        'role' => $account->role,
+                        'status' => $account->status,
+                    ],
+                    'session' => [
+                        'token' => $sessionToken,
+                    ],
                 ],
-            ],
-        ], 201);
+            ], 201);
+        });
     }
 
     public function login(LoginRequest $request): JsonResponse
@@ -73,21 +74,24 @@ class AuthController extends Controller
             )
             ->first();
 
-        if (! $account || ! Hash::check($request->password, $account->password)) {
-            if ($account) {
-                $account->failed_login_attempts++;
-
-                if ($account->failed_login_attempts >= 5) {
-                    $account->locked_until = now()->addMinutes(30);
-                }
-
-                $account->save();
-            }
-
+        if (!$account) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid credentials.',
             ], 401);
+        }
+
+        if ($account->locked_until !== null) {
+            if ($account->locked_until->isFuture()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Account is temporarily locked.',
+                ], 423);
+            }
+
+            $account->failed_login_attempts = 0;
+            $account->locked_until = null;
+            $account->save();
         }
 
         if (in_array($account->status, ['DEACTIVATED', 'DELETED'], true)) {
@@ -97,23 +101,31 @@ class AuthController extends Controller
             ], 403);
         }
 
-        if (
-            $account->locked_until !== null
-            && $account->locked_until->isFuture()
-        ) {
+        if (!Hash::check($request->password, $account->password)) {
+            $account->failed_login_attempts++;
+
+            if ($account->failed_login_attempts >= 5) {
+                $account->locked_until = now()->addMinutes(30);
+            }
+
+            $account->save();
+
+            if ($account->locked_until !== null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Account is temporarily locked.',
+                ], 423);
+            }
+
             return response()->json([
                 'success' => false,
-                'message' => 'Account is temporarily locked.',
-            ], 423);
+                'message' => 'Invalid credentials.',
+            ], 401);
         }
 
-        if (
-            $account->locked_until !== null
-            && $account->locked_until->isPast()
-        ) {
-            $account->failed_login_attempts = 0;
-            $account->locked_until = null;
-        }
+        $account->failed_login_attempts = 0;
+        $account->locked_until = null;
+        $account->save();
 
         Session::where('account_id', $account->id)
             ->whereNull('ended_at')
@@ -121,36 +133,39 @@ class AuthController extends Controller
                 'ended_at' => now(),
             ]);
 
-        $token = Str::random(64);
+        $sessionToken = Str::random(64);
 
-        $session = Session::create([
+        Session::create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'token_hash' => hash('sha256', $token),
+            'token_hash' => hash('sha256', $sessionToken),
             'created_at' => now(),
             'ended_at' => null,
         ]);
-
-        $account->failed_login_attempts = 0;
-        $account->locked_until = null;
-        $account->save();
 
         return response()->json([
             'success' => true,
             'message' => 'Login successful.',
             'data' => [
-                'account' => $account,
+                'account' => [
+                    'id' => $account->id,
+                    'name' => $account->name,
+                    'phone' => $account->phone,
+                    'email' => $account->email,
+                    'profile_picture' => $account->profile_picture,
+                    'role' => $account->role,
+                    'status' => $account->status,
+                ],
                 'session' => [
-                    'id' => $session->id,
-                    'token' => $token,
+                    'token' => $sessionToken,
                 ],
             ],
         ], 200);
     }
 
-    public function me(): JsonResponse
+    public function me(Request $request): JsonResponse
     {
-        $account = request()->attributes->get('account');
+        $account = $request->attributes->get('account');
 
         return response()->json([
             'success' => true,
@@ -170,23 +185,13 @@ class AuthController extends Controller
 
     public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
-        $account = request()->attributes->get('account');
+        $account = $request->attributes->get('account');
 
-        if ($request->has('name')) {
-            $account->name = $request->name;
-        }
-
-        if ($request->has('phone')) {
-            $account->phone = $request->phone;
-        }
-
-        if ($request->has('email')) {
-            $account->email = $request->email;
-        }
-
-        if ($request->has('profile_picture')) {
-            $account->profile_picture = $request->profile_picture;
-        }
+        $account->fill($request->only([
+            'name',
+            'phone',
+            'email',
+        ]));
 
         $account->save();
 
@@ -211,7 +216,7 @@ class AuthController extends Controller
     {
         $account = $request->attributes->get('account');
 
-        if (! Hash::check($request->current_password, $account->password)) {
+        if (!Hash::check($request->current_password, $account->password)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Current password is incorrect.',
@@ -233,9 +238,9 @@ class AuthController extends Controller
         ], 200);
     }
 
-    public function deactivate(): JsonResponse
+    public function deactivate(Request $request): JsonResponse
     {
-        $account = request()->attributes->get('account');
+        $account = $request->attributes->get('account');
 
         $account->status = 'DEACTIVATED';
         $account->save();
@@ -252,12 +257,15 @@ class AuthController extends Controller
         ], 200);
     }
 
-    public function logout(): JsonResponse
+    public function logout(Request $request): JsonResponse
     {
-        $session = request()->attributes->get('session');
+        $session = $request->attributes->get('session');
 
-        $session->ended_at = now();
-        $session->save();
+        Session::where('id', $session->id)
+            ->whereNull('ended_at')
+            ->update([
+                'ended_at' => now(),
+            ]);
 
         return response()->json([
             'success' => true,
