@@ -22,3 +22,6 @@ Route::post('/me/deactivate', [AuthController::class, 'deactivate'])
 
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware(AuthenticateSession::class);
+
+Route::post('/admin/accounts/{accountId}/reactivate', [AuthController::class, 'reactivate'])
+    ->middleware(AuthenticateSession::class);
