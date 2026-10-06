@@ -261,7 +261,7 @@ class AuthController extends Controller
     {
         $admin = $request->attributes->get('account');
 
-        if (! $admin || $admin->role !== 'SUPER_ADMIN') {
+        if (!$admin || $admin->role !== 'SUPER_ADMIN') {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized.',
@@ -270,7 +270,7 @@ class AuthController extends Controller
 
         $account = Account::find($accountId);
 
-        if (! $account) {
+        if (!$account) {
             return response()->json([
                 'success' => false,
                 'message' => 'Account not found.',
@@ -290,6 +290,55 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Account reactivated successfully.',
+        ], 200);
+    }
+
+    public function suspend(Request $request, string $accountId): JsonResponse
+    {
+        $admin = $request->attributes->get('account');
+
+        if (!$admin || $admin->role !== 'SUPER_ADMIN') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 403);
+        }
+
+        $account = Account::find($accountId);
+
+        if (!$account) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Account not found.',
+            ], 404);
+        }
+
+        if ($account->status === 'SUSPENDED') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Account is already suspended.',
+            ], 422);
+        }
+
+        if ($account->status !== 'ACTIVE') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only active accounts can be suspended.',
+            ], 422);
+        }
+
+        $account->status = 'SUSPENDED';
+        $account->save();
+
+        Session::where('account_id', $account->id)
+            ->whereNull('ended_at')
+            ->update([
+                'ended_at' => now(),
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Account suspended successfully.',
         ], 200);
     }
 
