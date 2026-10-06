@@ -254,4 +254,14 @@ class AuthController extends Controller
 
     public function logout(): JsonResponse
     {
-        $session
+        $session = request()->attributes->get('session');
+
+        $session->ended_at = now();
+        $session->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Logout successful.',
+        ], 200);
+    }
+}
