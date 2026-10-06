@@ -76,6 +76,72 @@ class ChangePasswordTest extends TestCase
             ]);
     }
 
+    public function test_user_can_login_with_new_password_after_changing_password(): void
+    {
+        [$account, $token] = $this->createAccountWithSession();
+
+        $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson('/api/me/change-password', [
+            'current_password' => 'Password1',
+            'new_password' => 'NewPassword2',
+            'new_password_confirmation' => 'NewPassword2',
+        ])->assertStatus(200);
+
+        $response = $this->postJson('/api/login', [
+            'phone' => '60111111111',
+            'password' => 'NewPassword2',
+        ]);
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'data' => [
+                    'account',
+                    'session' => [
+                        'token',
+                    ],
+                ],
+            ]);
+
+        $newToken = $response->json('data.session.token');
+
+        $this->assertNotEmpty($newToken);
+        $this->assertNotSame($token, $newToken);
+
+        $this->assertDatabaseHas('sessions', [
+            'id' => 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+            'account_id' => $account->id,
+        ]);
+
+        $this->assertNotNull(
+            Session::find('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')->ended_at
+        );
+
+        $this->assertDatabaseCount('sessions', 2);
+
+        $activeSessions = Session::query()
+            ->where('account_id', $account->id)
+            ->whereNull('ended_at')
+            ->get();
+
+        $this->assertCount(1, $activeSessions);
+
+        $this->withHeader(
+            'Authorization',
+            'Bearer '.$newToken
+        )->getJson('/api/me')
+            ->assertStatus(200)
+            ->assertJsonPath(
+                'data.account.id',
+                $account->id
+            );
+    }
+
     public function test_change_password_rejects_incorrect_current_password(): void
     {
         [$account, $token] = $this->createAccountWithSession();
