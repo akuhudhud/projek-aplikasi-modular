@@ -194,4 +194,58 @@ class AuditLogTest extends TestCase
                 ->value('created_at')
         );
     }
+
+    public function test_reactivation_creates_audit_log(): void
+    {
+        [$admin, $token] = $this->createSuperAdmin();
+
+        $user = $this->createAccount(
+            '22222222-2222-4222-8222-222222222222',
+            'Deactivated User',
+            '60666666666',
+            'deactivated-user@example.com',
+            'USER',
+            'DEACTIVATED'
+        );
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson('/api/admin/accounts/'.$user->id.'/reactivate');
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $user->id,
+            'action' => 'ACCOUNT_REACTIVATED',
+        ]);
+    }
+
+    public function test_unsuspension_creates_audit_log(): void
+    {
+        [$admin, $token] = $this->createSuperAdmin();
+
+        $user = $this->createAccount(
+            '33333333-3333-4333-8333-333333333333',
+            'Suspended User',
+            '60777777777',
+            'suspended-user@example.com',
+            'USER',
+            'SUSPENDED'
+        );
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson('/api/admin/accounts/'.$user->id.'/unsuspend');
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $user->id,
+            'action' => 'ACCOUNT_UNSUSPENDED',
+        ]);
+    }
 }
