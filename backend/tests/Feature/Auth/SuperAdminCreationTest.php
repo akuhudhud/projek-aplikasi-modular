@@ -275,7 +275,7 @@ class SuperAdminCreationTest extends TestCase
         ]);
     }
 
-    public function test_public_registration_creates_user_not_super_admin(): void
+    public function test_public_registration_requires_otp_verification(): void
     {
         $response = $this->postJson('/api/register', [
             'name' => 'Public Registered User',
@@ -285,17 +285,15 @@ class SuperAdminCreationTest extends TestCase
             'password_confirmation' => 'Password1',
         ]);
 
-        $response->assertStatus(201);
-
-        $this->assertDatabaseHas('accounts', [
-            'email' => 'publicuser@example.com',
-            'role' => 'USER',
-            'status' => 'ACTIVE',
-        ]);
+        $response
+            ->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'OTP verification is required before registration can be completed.',
+            ]);
 
         $this->assertDatabaseMissing('accounts', [
             'email' => 'publicuser@example.com',
-            'role' => 'SUPER_ADMIN',
         ]);
     }
 
