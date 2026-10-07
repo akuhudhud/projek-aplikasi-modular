@@ -26,6 +26,7 @@ class RegistrationVerification extends Model
         'verified_at',
         'verification_token_hash',
         'token_expires_at',
+        'consumed_at',
     ];
 
     protected $hidden = [
@@ -37,5 +38,6 @@ class RegistrationVerification extends Model
         'expires_at' => 'datetime',
         'verified_at' => 'datetime',
         'token_expires_at' => 'datetime',
+        'consumed_at' => 'datetime',
     ];
 }
