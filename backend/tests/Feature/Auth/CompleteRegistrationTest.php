@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Auth;
 
-use App\Models\Account;
 use App\Models\RegistrationVerification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -53,7 +52,9 @@ class CompleteRegistrationTest extends TestCase
                 'success',
                 'data' => [
                     'account',
-                    'token',
+                    'session' => [
+                        'token',
+                    ],
                 ],
             ]);
 
@@ -62,10 +63,6 @@ class CompleteRegistrationTest extends TestCase
             'phone' => '60123456789',
             'role' => 'USER',
             'status' => 'ACTIVE',
-        ]);
-
-        $this->assertDatabaseHas('registration_verifications', [
-            'purpose' => 'REGISTRATION',
         ]);
 
         $verification = RegistrationVerification::query()
