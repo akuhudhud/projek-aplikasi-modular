@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\OtpResendException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RequestOtpRequest;
 use App\Http\Requests\Auth\VerifyOtpRequest;
@@ -33,12 +34,26 @@ class OtpController extends Controller
             $accountId = $account->id;
         }
 
-        $verification = $otpService->request(
-            $request->channel,
-            $request->contact,
-            $request->purpose,
-            $accountId
-        );
+        try {
+            $verification = $otpService->request(
+                $request->channel,
+                $request->contact,
+                $request->purpose,
+                $accountId
+            );
+        } catch (OtpResendException $exception) {
+            $response = [
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ];
+
+            if ($exception->retryAfterSeconds > 0) {
+                $response['retry_after_seconds'] =
+                    $exception->retryAfterSeconds;
+            }
+
+            return response()->json($response, 429);
+        }
 
         return response()->json([
             'success' => true,
