@@ -59,15 +59,17 @@ class ProfilePictureTest extends TestCase
 
         $response
             ->assertStatus(200)
-            ->assertJsonPath('success', true)
-            ->assertJsonPath(
-                'data.account.profile_picture',
-                $account->fresh()->profile_picture
-            );
+            ->assertJsonPath('success', true);
 
         $path = $account->fresh()->profile_picture;
 
         $this->assertNotNull($path);
+
+        $response->assertJsonPath(
+            'data.account.profile_picture',
+            $path
+        );
+
         Storage::disk('public')->assertExists($path);
     }
 
@@ -136,7 +138,9 @@ class ProfilePictureTest extends TestCase
                 'profile_picture',
             ]);
 
-        $this->assertNull($account->fresh()->profile_picture);
+        $this->assertNull(
+            $account->fresh()->profile_picture
+        );
     }
 
     public function test_profile_picture_rejects_unsupported_file_type(): void
@@ -164,7 +168,9 @@ class ProfilePictureTest extends TestCase
                 'profile_picture',
             ]);
 
-        $this->assertNull($account->fresh()->profile_picture);
+        $this->assertNull(
+            $account->fresh()->profile_picture
+        );
     }
 
     public function test_profile_picture_rejects_file_over_5_mb(): void
@@ -179,4 +185,46 @@ class ProfilePictureTest extends TestCase
             'image/jpeg'
         );
 
-        $response =
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->post('/api/me/profile-picture', [
+            'profile_picture' => $file,
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors([
+                'profile_picture',
+            ]);
+
+        $this->assertNull(
+            $account->fresh()->profile_picture
+        );
+    }
+
+    public function test_profile_picture_requires_session(): void
+    {
+        Storage::fake('public');
+
+        $file = UploadedFile::fake()->image(
+            'profile.jpg',
+            200,
+            200
+        );
+
+        $response = $this->post(
+            '/api/me/profile-picture',
+            [
+                'profile_picture' => $file,
+            ]
+        );
+
+        $response
+            ->assertStatus(401)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+            ]);
+    }
+}
