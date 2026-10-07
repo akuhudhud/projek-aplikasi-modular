@@ -3,7 +3,6 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\Account;
-use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -11,7 +10,7 @@ class RegisterTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_user_can_register_with_phone(): void
+    public function test_user_registration_with_phone_requires_otp_verification(): void
     {
         $response = $this->postJson('/api/register', [
             'name' => 'Test User',
@@ -21,48 +20,20 @@ class RegisterTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(201)
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('data.account.name', 'Test User')
-            ->assertJsonPath('data.account.phone', '60123456789')
-            ->assertJsonPath('data.account.role', 'USER')
-            ->assertJsonPath('data.account.status', 'ACTIVE')
-            ->assertJsonStructure([
-                'success',
-                'message',
-                'data' => [
-                    'account' => [
-                        'id',
-                        'name',
-                        'phone',
-                        'email',
-                        'profile_picture',
-                        'role',
-                        'status',
-                    ],
-                    'session' => [
-                        'token',
-                    ],
-                ],
+            ->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'OTP verification is required before registration can be completed.',
             ]);
 
-        $this->assertDatabaseHas('accounts', [
+        $this->assertDatabaseMissing('accounts', [
             'phone' => '60123456789',
-            'role' => 'USER',
-            'status' => 'ACTIVE',
         ]);
 
-        $account = Account::where('phone', '60123456789')->firstOrFail();
-
-        $this->assertDatabaseHas('sessions', [
-            'account_id' => $account->id,
-            'ended_at' => null,
-        ]);
-
-        $this->assertNotNull($response->json('data.session.token'));
+        $this->assertDatabaseCount('sessions', 0);
     }
 
-    public function test_user_can_register_with_email(): void
+    public function test_user_registration_with_email_requires_otp_verification(): void
     {
         $response = $this->postJson('/api/register', [
             'name' => 'Email User',
@@ -72,24 +43,17 @@ class RegisterTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(201)
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('data.account.email', 'email@example.com')
-            ->assertJsonPath('data.account.role', 'USER')
-            ->assertJsonPath('data.account.status', 'ACTIVE');
+            ->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'OTP verification is required before registration can be completed.',
+            ]);
 
-        $this->assertDatabaseHas('accounts', [
+        $this->assertDatabaseMissing('accounts', [
             'email' => 'email@example.com',
-            'role' => 'USER',
-            'status' => 'ACTIVE',
         ]);
 
-        $account = Account::where('email', 'email@example.com')->firstOrFail();
-
-        $this->assertDatabaseHas('sessions', [
-            'account_id' => $account->id,
-            'ended_at' => null,
-        ]);
+        $this->assertDatabaseCount('sessions', 0);
     }
 
     public function test_registration_requires_phone_or_email(): void
