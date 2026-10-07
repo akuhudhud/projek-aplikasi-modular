@@ -8,6 +8,7 @@ use App\Http\Middleware\AuthenticateSession;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
+Route::post('/register/complete', [AuthController::class, 'completeRegistration']);
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::post('/otp/request', [OtpController::class, 'request']);
