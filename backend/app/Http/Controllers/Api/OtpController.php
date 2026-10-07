@@ -15,10 +15,29 @@ class OtpController extends Controller
         RequestOtpRequest $request,
         OtpService $otpService
     ): JsonResponse {
+        $account = $request->attributes->get('account');
+
+        $accountId = null;
+
+        if (in_array($request->purpose, [
+            'CHANGE_PHONE',
+            'CHANGE_EMAIL',
+        ], true)) {
+            if (!$account) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthenticated.',
+                ], 401);
+            }
+
+            $accountId = $account->id;
+        }
+
         $verification = $otpService->request(
             $request->channel,
             $request->contact,
-            $request->purpose
+            $request->purpose,
+            $accountId
         );
 
         return response()->json([
