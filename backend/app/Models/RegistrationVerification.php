@@ -24,6 +24,8 @@ class RegistrationVerification extends Model
         'otp_hash',
         'expires_at',
         'attempts',
+        'last_sent_at',
+        'resend_count',
         'verified_at',
         'verification_token_hash',
         'token_expires_at',
@@ -37,6 +39,7 @@ class RegistrationVerification extends Model
 
     protected $casts = [
         'expires_at' => 'datetime',
+        'last_sent_at' => 'datetime',
         'verified_at' => 'datetime',
         'token_expires_at' => 'datetime',
         'consumed_at' => 'datetime',
