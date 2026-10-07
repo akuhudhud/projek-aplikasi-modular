@@ -346,4 +346,46 @@ class OtpServiceTest extends TestCase
             )
         );
     }
+
+    public function test_otp_verification_reloads_database_state_before_verifying(): void
+    {
+        $service = app(OtpService::class);
+
+        $verification = $service->request(
+            'phone',
+            '60123456789',
+            'REGISTRATION'
+        );
+
+        $staleVerification = $verification->replicate();
+        $staleVerification->id = $verification->id;
+
+        RegistrationVerification::query()
+            ->whereKey($verification->id)
+            ->update([
+                'verified_at' => now(),
+            ]);
+
+        $this->assertNull(
+            $staleVerification->verified_at
+        );
+
+        $this->assertFalse(
+            $service->verify(
+                $staleVerification,
+                '123456'
+            )
+        );
+
+        $verification->refresh();
+
+        $this->assertNotNull(
+            $verification->verified_at
+        );
+
+        $this->assertSame(
+            0,
+            $verification->attempts
+        );
+    }
 }
