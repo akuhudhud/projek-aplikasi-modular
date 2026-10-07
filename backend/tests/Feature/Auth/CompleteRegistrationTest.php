@@ -16,8 +16,8 @@ class CompleteRegistrationTest extends TestCase
     {
         $response = $this->postJson('/api/register/complete', [
             'name' => 'Test User',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'Password1',
+            'password_confirmation' => 'Password1',
         ]);
 
         $response->assertStatus(422);
@@ -44,8 +44,8 @@ class CompleteRegistrationTest extends TestCase
         $response = $this->postJson('/api/register/complete', [
             'verification_token' => $verificationToken,
             'name' => 'Test User',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'Password1',
+            'password_confirmation' => 'Password1',
         ]);
 
         $response->assertStatus(201)
@@ -96,8 +96,8 @@ class CompleteRegistrationTest extends TestCase
         $response = $this->postJson('/api/register/complete', [
             'verification_token' => $verificationToken,
             'name' => 'Test User',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'Password1',
+            'password_confirmation' => 'Password1',
         ]);
 
         $response->assertStatus(422);
@@ -125,8 +125,8 @@ class CompleteRegistrationTest extends TestCase
         $response = $this->postJson('/api/register/complete', [
             'verification_token' => $verificationToken,
             'name' => 'Test User',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'Password1',
+            'password_confirmation' => 'Password1',
         ]);
 
         $response->assertStatus(422);
