@@ -37,6 +37,7 @@ class OtpService
                 'verified_at' => null,
                 'verification_token_hash' => null,
                 'token_expires_at' => null,
+                'consumed_at' => null,
             ]);
         } else {
             $verification = RegistrationVerification::create([
@@ -103,8 +104,52 @@ class OtpService
         $verification->update([
             'verification_token_hash' => hash('sha256', $token),
             'token_expires_at' => now()->addMinutes(10),
+            'consumed_at' => null,
         ]);
 
         return $token;
+    }
+
+    public function consumeVerificationToken(
+        string $token,
+        string $purpose = 'REGISTRATION'
+    ): RegistrationVerification {
+        $verification = RegistrationVerification::query()
+            ->where('purpose', $purpose)
+            ->where('verification_token_hash', hash('sha256', $token))
+            ->first();
+
+        if (!$verification) {
+            throw new RuntimeException(
+                'Invalid registration verification token.'
+            );
+        }
+
+        if ($verification->verified_at === null) {
+            throw new RuntimeException(
+                'OTP verification is required before using the verification token.'
+            );
+        }
+
+        if ($verification->consumed_at !== null) {
+            throw new RuntimeException(
+                'Registration verification token has already been used.'
+            );
+        }
+
+        if (
+            $verification->token_expires_at === null
+            || $verification->token_expires_at->isPast()
+        ) {
+            throw new RuntimeException(
+                'Registration verification token has expired.'
+            );
+        }
+
+        $verification->update([
+            'consumed_at' => now(),
+        ]);
+
+        return $verification->fresh();
     }
 }
