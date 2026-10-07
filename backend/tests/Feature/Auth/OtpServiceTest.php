@@ -357,8 +357,7 @@ class OtpServiceTest extends TestCase
             'REGISTRATION'
         );
 
-        $staleVerification = $verification->replicate();
-        $staleVerification->id = $verification->id;
+        $staleVerification = clone $verification;
 
         RegistrationVerification::query()
             ->whereKey($verification->id)
