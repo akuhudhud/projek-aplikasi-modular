@@ -21,6 +21,8 @@ class Account extends Model
         'name',
         'phone',
         'email',
+        'phone_verified_at',
+        'email_verified_at',
         'password',
         'profile_picture',
         'role',
@@ -35,6 +37,8 @@ class Account extends Model
 
     protected $casts = [
         'password' => 'hashed',
+        'phone_verified_at' => 'datetime',
+        'email_verified_at' => 'datetime',
         'locked_until' => 'datetime',
     ];
 
