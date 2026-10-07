@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\OtpController;
+use App\Http\Controllers\Api\ProfilePictureController;
 use App\Http\Middleware\AuthenticateSession;
 use Illuminate\Support\Facades\Route;
 
@@ -18,6 +19,9 @@ Route::get('/me', [AuthController::class, 'me'])
     ->middleware(AuthenticateSession::class);
 
 Route::patch('/me', [AuthController::class, 'updateProfile'])
+    ->middleware(AuthenticateSession::class);
+
+Route::post('/me/profile-picture', [ProfilePictureController::class, 'update'])
     ->middleware(AuthenticateSession::class);
 
 Route::post('/me/change-password', [AuthController::class, 'changePassword'])
