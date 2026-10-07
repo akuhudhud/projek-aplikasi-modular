@@ -237,8 +237,6 @@ class AuthController extends Controller
 
         $account->fill($request->only([
             'name',
-            'phone',
-            'email',
         ]));
 
         $account->save();
