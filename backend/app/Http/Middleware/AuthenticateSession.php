@@ -3,14 +3,18 @@
 namespace App\Http\Middleware;
 
 use App\Models\Session;
+use App\Services\Session\SessionService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class AuthenticateSession
 {
-    public function handle(Request $request, Closure $next): Response
-    {
+    public function handle(
+        Request $request,
+        Closure $next,
+        SessionService $sessionService
+    ): Response {
         $token = $request->bearerToken();
 
         if (!$token) {
@@ -33,15 +37,35 @@ class AuthenticateSession
             ], 401);
         }
 
-        if ($session->account->status === 'SUSPENDED') {
+        if (!$session->account) {
             return response()->json([
                 'success' => false,
-                'message' => 'Account is suspended.',
-            ], 403);
+                'message' => 'Unauthenticated.',
+            ], 401);
         }
 
-        $request->attributes->set('session', $session);
-        $request->attributes->set('account', $session->account);
+        if (in_array(
+            $session->account->status,
+            ['SUSPENDED', 'DEACTIVATED', 'DELETED'],
+            true
+        )) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        $sessionService->touch($session);
+
+        $request->attributes->set(
+            'session',
+            $session->fresh()
+        );
+
+        $request->attributes->set(
+            'account',
+            $session->account
+        );
 
         return $next($request);
     }
