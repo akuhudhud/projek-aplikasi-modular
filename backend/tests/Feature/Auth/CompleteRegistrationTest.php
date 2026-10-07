@@ -27,6 +27,8 @@ class CompleteRegistrationTest extends TestCase
 
     public function test_registration_completion_creates_active_user_and_session(): void
     {
+        $verificationToken = str_repeat('a', 64);
+
         RegistrationVerification::create([
             'id' => (string) Str::uuid(),
             'channel' => 'phone',
@@ -35,12 +37,12 @@ class CompleteRegistrationTest extends TestCase
             'otp_hash' => Hash::make('123456'),
             'expires_at' => now()->addMinutes(5),
             'verified_at' => now(),
-            'verification_token_hash' => hash('sha256', 'registration-token'),
+            'verification_token_hash' => hash('sha256', $verificationToken),
             'token_expires_at' => now()->addMinutes(10),
         ]);
 
         $response = $this->postJson('/api/register/complete', [
-            'verification_token' => 'registration-token',
+            'verification_token' => $verificationToken,
             'name' => 'Test User',
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -76,6 +78,8 @@ class CompleteRegistrationTest extends TestCase
 
     public function test_registration_completion_cannot_reuse_verification_token(): void
     {
+        $verificationToken = str_repeat('b', 64);
+
         RegistrationVerification::create([
             'id' => (string) Str::uuid(),
             'channel' => 'phone',
@@ -84,13 +88,13 @@ class CompleteRegistrationTest extends TestCase
             'otp_hash' => Hash::make('123456'),
             'expires_at' => now()->addMinutes(5),
             'verified_at' => now(),
-            'verification_token_hash' => hash('sha256', 'registration-token'),
+            'verification_token_hash' => hash('sha256', $verificationToken),
             'token_expires_at' => now()->addMinutes(10),
             'consumed_at' => now(),
         ]);
 
         $response = $this->postJson('/api/register/complete', [
-            'verification_token' => 'registration-token',
+            'verification_token' => $verificationToken,
             'name' => 'Test User',
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -104,6 +108,8 @@ class CompleteRegistrationTest extends TestCase
 
     public function test_registration_completion_rejects_expired_verification_token(): void
     {
+        $verificationToken = str_repeat('c', 64);
+
         RegistrationVerification::create([
             'id' => (string) Str::uuid(),
             'channel' => 'phone',
@@ -112,12 +118,12 @@ class CompleteRegistrationTest extends TestCase
             'otp_hash' => Hash::make('123456'),
             'expires_at' => now()->addMinutes(5),
             'verified_at' => now(),
-            'verification_token_hash' => hash('sha256', 'registration-token'),
+            'verification_token_hash' => hash('sha256', $verificationToken),
             'token_expires_at' => now()->subMinute(),
         ]);
 
         $response = $this->postJson('/api/register/complete', [
-            'verification_token' => 'registration-token',
+            'verification_token' => $verificationToken,
             'name' => 'Test User',
             'password' => 'password123',
             'password_confirmation' => 'password123',
