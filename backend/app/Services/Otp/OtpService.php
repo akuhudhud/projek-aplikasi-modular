@@ -3,6 +3,7 @@
 namespace App\Services\Otp;
 
 use App\Contracts\OtpProviderInterface;
+use App\Exceptions\OtpResendException;
 use App\Models\RegistrationVerification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -11,6 +12,14 @@ use RuntimeException;
 
 class OtpService
 {
+    private const OTP = '123456';
+
+    private const OTP_EXPIRY_MINUTES = 5;
+
+    private const RESEND_COOLDOWN_SECONDS = 60;
+
+    private const MAX_RESENDS = 5;
+
     public function __construct(
         private readonly OtpProviderInterface $provider
     ) {
@@ -22,55 +31,102 @@ class OtpService
         string $purpose,
         ?string $accountId = null
     ): RegistrationVerification {
-        $otp = '123456';
+        return DB::transaction(function () use (
+            $channel,
+            $contact,
+            $purpose,
+            $accountId
+        ) {
+            $query = RegistrationVerification::query()
+                ->where('channel', $channel)
+                ->where('contact', $contact)
+                ->where('purpose', $purpose);
 
-        $query = RegistrationVerification::query()
-            ->where('channel', $channel)
-            ->where('contact', $contact)
-            ->where('purpose', $purpose);
+            if ($accountId === null) {
+                $query->whereNull('account_id');
+            } else {
+                $query->where('account_id', $accountId);
+            }
 
-        if ($accountId === null) {
-            $query->whereNull('account_id');
-        } else {
-            $query->where('account_id', $accountId);
-        }
+            $verification = $query
+                ->latest('created_at')
+                ->lockForUpdate()
+                ->first();
 
-        $verification = $query
-            ->latest('created_at')
-            ->first();
+            if ($verification) {
+                if ($verification->last_sent_at !== null) {
+                    $cooldownEndsAt = $verification->last_sent_at
+                        ->copy()
+                        ->addSeconds(self::RESEND_COOLDOWN_SECONDS);
 
-        if ($verification) {
-            $verification->update([
-                'account_id' => $accountId,
-                'otp_hash' => Hash::make($otp),
-                'expires_at' => now()->addMinutes(5),
-                'attempts' => 0,
-                'verified_at' => null,
-                'verification_token_hash' => null,
-                'token_expires_at' => null,
-                'consumed_at' => null,
-            ]);
-        } else {
-            $verification = RegistrationVerification::create([
+                    if ($cooldownEndsAt->isFuture()) {
+                        throw new OtpResendException(
+                            'Please wait before requesting another OTP.',
+                            max(
+                                1,
+                                now()->diffInSeconds(
+                                    $cooldownEndsAt,
+                                    false
+                                )
+                            )
+                        );
+                    }
+                }
+
+                if ($verification->resend_count >= self::MAX_RESENDS) {
+                    throw new OtpResendException(
+                        'OTP resend limit reached. Please start a new verification request.',
+                        0
+                    );
+                }
+
+                $this->provider->send(
+                    $channel,
+                    $contact,
+                    $purpose,
+                    self::OTP
+                );
+
+                $verification->update([
+                    'account_id' => $accountId,
+                    'otp_hash' => Hash::make(self::OTP),
+                    'expires_at' => now()->addMinutes(
+                        self::OTP_EXPIRY_MINUTES
+                    ),
+                    'attempts' => 0,
+                    'last_sent_at' => now(),
+                    'resend_count' => $verification->resend_count + 1,
+                    'verified_at' => null,
+                    'verification_token_hash' => null,
+                    'token_expires_at' => null,
+                    'consumed_at' => null,
+                ]);
+
+                return $verification->fresh();
+            }
+
+            $this->provider->send(
+                $channel,
+                $contact,
+                $purpose,
+                self::OTP
+            );
+
+            return RegistrationVerification::create([
                 'id' => (string) Str::uuid(),
                 'account_id' => $accountId,
                 'channel' => $channel,
                 'contact' => $contact,
                 'purpose' => $purpose,
-                'otp_hash' => Hash::make($otp),
-                'expires_at' => now()->addMinutes(5),
+                'otp_hash' => Hash::make(self::OTP),
+                'expires_at' => now()->addMinutes(
+                    self::OTP_EXPIRY_MINUTES
+                ),
                 'attempts' => 0,
+                'last_sent_at' => now(),
+                'resend_count' => 0,
             ]);
-        }
-
-        $this->provider->send(
-            $channel,
-            $contact,
-            $purpose,
-            $otp
-        );
-
-        return $verification;
+        });
     }
 
     public function verify(
