@@ -5,6 +5,7 @@ namespace Tests\Feature\Auth;
 use App\Models\Account;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class OtpControllerTest extends TestCase
@@ -67,8 +68,86 @@ class OtpControllerTest extends TestCase
             [
                 'account_id' => null,
                 'purpose' => 'REGISTRATION',
+                'resend_count' => 0,
             ]
         );
+    }
+
+    public function test_otp_request_returns_429_during_resend_cooldown(): void
+    {
+        $payload = [
+            'channel' => 'phone',
+            'contact' => '60123456789',
+            'purpose' => 'REGISTRATION',
+        ];
+
+        Carbon::setTestNow('2026-10-07 23:00:00');
+
+        $this->postJson(
+            '/api/otp/request',
+            $payload
+        )->assertOk();
+
+        Carbon::setTestNow('2026-10-07 23:00:30');
+
+        $this->postJson(
+            '/api/otp/request',
+            $payload
+        )
+            ->assertStatus(429)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Please wait before requesting another OTP.',
+                'retry_after_seconds' => 30,
+            ]);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_otp_request_returns_429_after_resend_limit(): void
+    {
+        $payload = [
+            'channel' => 'phone',
+            'contact' => '60123456789',
+            'purpose' => 'REGISTRATION',
+        ];
+
+        Carbon::setTestNow('2026-10-07 23:00:00');
+
+        $this->postJson(
+            '/api/otp/request',
+            $payload
+        )->assertOk();
+
+        for ($resend = 1; $resend <= 5; $resend++) {
+            Carbon::setTestNow(
+                '2026-10-07 23:'.str_pad(
+                    (string) $resend,
+                    2,
+                    '0',
+                    STR_PAD_LEFT
+                ).':00'
+            );
+
+            $this->postJson(
+                '/api/otp/request',
+                $payload
+            )->assertOk();
+        }
+
+        Carbon::setTestNow('2026-10-07 23:06:00');
+
+        $this->postJson(
+            '/api/otp/request',
+            $payload
+        )
+            ->assertStatus(429)
+            ->assertJson([
+                'success' => false,
+                'message' => 'OTP resend limit reached. Please start a new verification request.',
+            ]);
+
+        Carbon::setTestNow();
     }
 
     public function test_otp_request_rejects_invalid_channel(): void
@@ -310,7 +389,8 @@ class OtpControllerTest extends TestCase
     public function test_otp_verify_returns_not_found_for_unknown_verification(): void
     {
         $response = $this->postJson('/api/otp/verify', [
-            'verification_id' => '00000000-0000-0000-0000-000000000000',
+            'verification_id' =>
+                '00000000-0000-0000-0000-000000000000',
             'otp' => '123456',
         ]);
 
