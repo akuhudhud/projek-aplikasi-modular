@@ -53,19 +53,14 @@ class ContactChangeTest extends TestCase
         $accountId = '11111111-1111-4111-8111-111111111111';
         $token = 'change-phone-request-token';
 
-        $this->createAccountWithSession(
-            $accountId,
-            $token
-        );
+        $this->createAccountWithSession($accountId, $token);
 
-        $response = $this->withHeaders(
-            $this->authHeaders($token)
-        )->postJson('/api/me/change-phone/request', [
-            'phone' => '60199999999',
-        ]);
+        $response = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-phone/request', [
+                'phone' => '60199999999',
+            ]);
 
-        $response
-            ->assertOk()
+        $response->assertOk()
             ->assertJson([
                 'success' => true,
                 'message' => 'OTP sent successfully.',
@@ -77,28 +72,21 @@ class ContactChangeTest extends TestCase
                 ],
             ]);
 
-        $this->assertDatabaseHas(
-            'registration_verifications',
-            [
-                'account_id' => $accountId,
-                'channel' => 'phone',
-                'contact' => '60199999999',
-                'purpose' => 'CHANGE_PHONE',
-            ]
-        );
+        $this->assertDatabaseHas('registration_verifications', [
+            'account_id' => $accountId,
+            'channel' => 'phone',
+            'contact' => '60199999999',
+            'purpose' => 'CHANGE_PHONE',
+        ]);
     }
 
     public function test_change_phone_request_requires_authentication(): void
     {
-        $response = $this->postJson(
-            '/api/me/change-phone/request',
-            [
-                'phone' => '60199999999',
-            ]
-        );
+        $response = $this->postJson('/api/me/change-phone/request', [
+            'phone' => '60199999999',
+        ]);
 
-        $response
-            ->assertStatus(401)
+        $response->assertStatus(401)
             ->assertJson([
                 'success' => false,
                 'message' => 'Unauthenticated.',
@@ -110,16 +98,12 @@ class ContactChangeTest extends TestCase
         $accountId = '22222222-2222-4222-8222-222222222222';
         $token = 'change-phone-invalid-token';
 
-        $this->createAccountWithSession(
-            $accountId,
-            $token
-        );
+        $this->createAccountWithSession($accountId, $token);
 
-        $response = $this->withHeaders(
-            $this->authHeaders($token)
-        )->postJson('/api/me/change-phone/request', [
-            'phone' => 'invalid-phone',
-        ]);
+        $response = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-phone/request', [
+                'phone' => 'invalid-phone',
+            ]);
 
         $response->assertStatus(422);
     }
@@ -129,10 +113,7 @@ class ContactChangeTest extends TestCase
         $accountId = '33333333-3333-4333-8333-333333333333';
         $token = 'change-phone-existing-token';
 
-        $this->createAccountWithSession(
-            $accountId,
-            $token
-        );
+        $this->createAccountWithSession($accountId, $token);
 
         $otherId = '44444444-4444-4444-8444-444444444444';
 
@@ -144,14 +125,12 @@ class ContactChangeTest extends TestCase
             ]
         );
 
-        $response = $this->withHeaders(
-            $this->authHeaders($token)
-        )->postJson('/api/me/change-phone/request', [
-            'phone' => '60199999999',
-        ]);
+        $response = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-phone/request', [
+                'phone' => '60199999999',
+            ]);
 
-        $response
-            ->assertStatus(422)
+        $response->assertStatus(422)
             ->assertJson([
                 'success' => false,
                 'message' => 'This contact is already in use.',
@@ -171,14 +150,12 @@ class ContactChangeTest extends TestCase
             ]
         );
 
-        $response = $this->withHeaders(
-            $this->authHeaders($token)
-        )->postJson('/api/me/change-phone/request', [
-            'phone' => '60198888888',
-        ]);
+        $response = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-phone/request', [
+                'phone' => '60198888888',
+            ]);
 
-        $response
-            ->assertStatus(403)
+        $response->assertStatus(403)
             ->assertJson([
                 'success' => false,
                 'message' => 'Account is suspended.',
@@ -190,32 +167,24 @@ class ContactChangeTest extends TestCase
         $accountId = '55555555-5555-4555-8555-555555555555';
         $token = 'change-phone-complete-token';
 
-        $this->createAccountWithSession(
-            $accountId,
-            $token
-        );
+        $this->createAccountWithSession($accountId, $token);
 
-        $request = $this->withHeaders(
-            $this->authHeaders($token)
-        )->postJson('/api/me/change-phone/request', [
-            'phone' => '60198888888',
-        ]);
+        $request = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-phone/request', [
+                'phone' => '60198888888',
+            ]);
 
         $request->assertOk();
 
-        $verificationId = $request->json(
-            'data.verification_id'
-        );
+        $verificationId = $request->json('data.verification_id');
 
-        $verify = $this->withHeaders(
-            $this->authHeaders($token)
-        )->postJson('/api/me/change-phone/verify', [
-            'verification_id' => $verificationId,
-            'otp' => '123456',
-        ]);
+        $verify = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-phone/verify', [
+                'verification_id' => $verificationId,
+                'otp' => '123456',
+            ]);
 
-        $verify
-            ->assertOk()
+        $verify->assertOk()
             ->assertJson([
                 'success' => true,
                 'message' => 'OTP verified successfully.',
@@ -225,26 +194,21 @@ class ContactChangeTest extends TestCase
             'data.verification_token'
         );
 
-        $complete = $this->withHeaders(
-            $this->authHeaders($token)
-        )->postJson('/api/me/change-phone/complete', [
-            'verification_token' => $verificationToken,
-        ]);
+        $complete = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-phone/complete', [
+                'verification_token' => $verificationToken,
+            ]);
 
-        $complete
-            ->assertOk()
+        $complete->assertOk()
             ->assertJson([
                 'success' => true,
                 'message' => 'Contact information updated successfully.',
             ]);
 
-        $this->assertDatabaseHas(
-            'accounts',
-            [
-                'id' => $accountId,
-                'phone' => '60198888888',
-            ]
-        );
+        $this->assertDatabaseHas('accounts', [
+            'id' => $accountId,
+            'phone' => '60198888888',
+        ]);
 
         $this->assertNotNull(
             Account::find($accountId)->phone_verified_at
@@ -259,37 +223,25 @@ class ContactChangeTest extends TestCase
         $otherId = '77777777-7777-4777-8777-777777777777';
         $otherToken = 'change-phone-other-token';
 
-        $this->createAccountWithSession(
-            $ownerId,
-            $ownerToken
-        );
+        $this->createAccountWithSession($ownerId, $ownerToken);
+        $this->createAccountWithSession($otherId, $otherToken);
 
-        $this->createAccountWithSession(
-            $otherId,
-            $otherToken
-        );
-
-        $request = $this->withHeaders(
-            $this->authHeaders($ownerToken)
-        )->postJson('/api/me/change-phone/request', [
-            'phone' => '60197777777',
-        ]);
+        $request = $this->withHeaders($this->authHeaders($ownerToken))
+            ->postJson('/api/me/change-phone/request', [
+                'phone' => '60197777777',
+            ]);
 
         $request->assertOk();
 
-        $verificationId = $request->json(
-            'data.verification_id'
-        );
+        $verificationId = $request->json('data.verification_id');
 
-        $response = $this->withHeaders(
-            $this->authHeaders($otherToken)
-        )->postJson('/api/me/change-phone/verify', [
-            'verification_id' => $verificationId,
-            'otp' => '123456',
-        ]);
+        $response = $this->withHeaders($this->authHeaders($otherToken))
+            ->postJson('/api/me/change-phone/verify', [
+                'verification_id' => $verificationId,
+                'otp' => '123456',
+            ]);
 
-        $response
-            ->assertStatus(403)
+        $response->assertStatus(403)
             ->assertJson([
                 'success' => false,
                 'message' => 'Verification request does not belong to the authenticated account.',
@@ -304,34 +256,242 @@ class ContactChangeTest extends TestCase
         $otherId = '99999999-9999-4999-8999-999999999999';
         $otherToken = 'change-phone-complete-other-token';
 
-        $this->createAccountWithSession(
-            $ownerId,
-            $ownerToken
-        );
+        $this->createAccountWithSession($ownerId, $ownerToken);
+        $this->createAccountWithSession($otherId, $otherToken);
 
-        $this->createAccountWithSession(
-            $otherId,
-            $otherToken
-        );
-
-        $request = $this->withHeaders(
-            $this->authHeaders($ownerToken)
-        )->postJson('/api/me/change-phone/request', [
-            'phone' => '60196666666',
-        ]);
+        $request = $this->withHeaders($this->authHeaders($ownerToken))
+            ->postJson('/api/me/change-phone/request', [
+                'phone' => '60196666666',
+            ]);
 
         $request->assertOk();
 
-        $verificationId = $request->json(
-            'data.verification_id'
+        $verificationId = $request->json('data.verification_id');
+
+        $verify = $this->withHeaders($this->authHeaders($ownerToken))
+            ->postJson('/api/me/change-phone/verify', [
+                'verification_id' => $verificationId,
+                'otp' => '123456',
+            ]);
+
+        $verify->assertOk();
+
+        $verificationToken = $verify->json(
+            'data.verification_token'
+        );
+                $response = $this->withHeaders($this->authHeaders($otherToken))
+            ->postJson('/api/me/change-phone/complete', [
+                'verification_token' => $verificationToken,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Invalid verification token.',
+            ]);
+    }
+
+    public function test_change_email_request_sends_otp(): void
+    {
+        $accountId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+        $token = 'change-email-request-token';
+
+        $this->createAccountWithSession($accountId, $token);
+
+        $response = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-email/request', [
+                'email' => 'new@example.com',
+            ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'success' => true,
+                'message' => 'OTP sent successfully.',
+            ])
+            ->assertJsonStructure([
+                'data' => [
+                    'verification_id',
+                    'expires_at',
+                ],
+            ]);
+
+        $this->assertDatabaseHas('registration_verifications', [
+            'account_id' => $accountId,
+            'channel' => 'email',
+            'contact' => 'new@example.com',
+            'purpose' => 'CHANGE_EMAIL',
+        ]);
+    }
+
+    public function test_change_email_request_requires_authentication(): void
+    {
+        $response = $this->postJson('/api/me/change-email/request', [
+            'email' => 'new@example.com',
+        ]);
+
+        $response->assertStatus(401)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+            ]);
+    }
+
+    public function test_change_email_request_rejects_invalid_email(): void
+    {
+        $accountId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+        $token = 'change-email-invalid-token';
+
+        $this->createAccountWithSession($accountId, $token);
+
+        $response = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-email/request', [
+                'email' => 'invalid-email',
+            ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_change_email_request_rejects_existing_email(): void
+    {
+        $accountId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+        $token = 'change-email-existing-token';
+
+        $this->createAccountWithSession($accountId, $token);
+
+        $otherId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+
+        $this->createAccountWithSession(
+            $otherId,
+            'change-email-other-token',
+            [
+                'email' => 'existing@example.com',
+            ]
         );
 
-        $verify = $this->withHeaders(
-            $this->authHeaders($ownerToken)
-        )->postJson('/api/me/change-phone/verify', [
-            'verification_id' => $verificationId,
-            'otp' => '123456',
+        $response = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-email/request', [
+                'email' => 'existing@example.com',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'This contact is already in use.',
+            ]);
+    }
+
+    public function test_suspended_account_cannot_request_email_change(): void
+    {
+        $accountId = '13131313-1313-4131-8131-131313131313';
+        $token = 'suspended-email-token';
+
+        $this->createAccountWithSession(
+            $accountId,
+            $token,
+            [
+                'status' => 'SUSPENDED',
+            ]
+        );
+
+        $response = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-email/request', [
+                'email' => 'suspended@example.com',
+            ]);
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Account is suspended.',
+            ]);
+    }
+
+    public function test_change_email_can_be_verified_and_completed(): void
+    {
+        $accountId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+        $token = 'change-email-complete-token';
+
+        $this->createAccountWithSession($accountId, $token);
+
+        $request = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-email/request', [
+                'email' => 'new-email@example.com',
+            ]);
+
+        $request->assertOk();
+
+        $verificationId = $request->json('data.verification_id');
+
+        $verify = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-email/verify', [
+                'verification_id' => $verificationId,
+                'otp' => '123456',
+            ]);
+
+        $verify->assertOk()
+            ->assertJson([
+                'success' => true,
+                'message' => 'OTP verified successfully.',
+            ]);
+
+        $verificationToken = $verify->json(
+            'data.verification_token'
+        );
+
+        $complete = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-email/complete', [
+                'verification_token' => $verificationToken,
+            ]);
+
+        $complete->assertOk()
+            ->assertJson([
+                'success' => true,
+                'message' => 'Contact information updated successfully.',
+            ]);
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $accountId,
+            'email' => 'new-email@example.com',
         ]);
+
+        $this->assertNotNull(
+            Account::find($accountId)->email_verified_at
+        );
+    }
+
+    public function test_change_contact_completion_requires_authentication(): void
+    {
+        $response = $this->postJson('/api/me/change-phone/complete', [
+            'verification_token' => str_repeat('a', 64),
+        ]);
+
+        $response->assertStatus(401)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+            ]);
+    }
+
+    public function test_change_contact_verification_token_is_one_time(): void
+    {
+        $accountId = 'abababab-abab-4aba-8aba-abababababab';
+        $token = 'change-contact-one-time-token';
+
+        $this->createAccountWithSession($accountId, $token);
+
+        $request = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-phone/request', [
+                'phone' => '60195555555',
+            ]);
+
+        $request->assertOk();
+
+        $verificationId = $request->json('data.verification_id');
+
+        $verify = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-phone/verify', [
+                'verification_id' => $verificationId,
+                'otp' => '123456',
+            ]);
 
         $verify->assertOk();
 
@@ -339,4 +499,66 @@ class ContactChangeTest extends TestCase
             'data.verification_token'
         );
 
-       
+        $firstComplete = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-phone/complete', [
+                'verification_token' => $verificationToken,
+            ]);
+
+        $firstComplete->assertOk()
+            ->assertJson([
+                'success' => true,
+                'message' => 'Contact information updated successfully.',
+            ]);
+
+        $secondComplete = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-phone/complete', [
+                'verification_token' => $verificationToken,
+            ]);
+
+        $secondComplete->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Verification token has already been used.',
+            ]);
+    }
+
+    public function test_change_phone_cannot_use_email_verification_token(): void
+    {
+        $accountId = 'acacacac-acac-4aca-8aca-acacacacacac';
+        $token = 'change-channel-mismatch-token';
+
+        $this->createAccountWithSession($accountId, $token);
+
+        $request = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-email/request', [
+                'email' => 'channel-mismatch@example.com',
+            ]);
+
+        $request->assertOk();
+
+        $verificationId = $request->json('data.verification_id');
+
+        $verify = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-email/verify', [
+                'verification_id' => $verificationId,
+                'otp' => '123456',
+            ]);
+
+        $verify->assertOk();
+
+        $verificationToken = $verify->json(
+            'data.verification_token'
+        );
+
+        $response = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-phone/complete', [
+                'verification_token' => $verificationToken,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Invalid verification token.',
+            ]);
+    }
+}
