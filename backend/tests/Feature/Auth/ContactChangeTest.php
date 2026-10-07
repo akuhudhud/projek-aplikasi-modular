@@ -185,4 +185,158 @@ class ContactChangeTest extends TestCase
             ]);
     }
 
-    public function test_change_phone_can_be_verified_and
+    public function test_change_phone_can_be_verified_and_completed(): void
+    {
+        $accountId = '55555555-5555-4555-8555-555555555555';
+        $token = 'change-phone-complete-token';
+
+        $this->createAccountWithSession(
+            $accountId,
+            $token
+        );
+
+        $request = $this->withHeaders(
+            $this->authHeaders($token)
+        )->postJson('/api/me/change-phone/request', [
+            'phone' => '60198888888',
+        ]);
+
+        $request->assertOk();
+
+        $verificationId = $request->json(
+            'data.verification_id'
+        );
+
+        $verify = $this->withHeaders(
+            $this->authHeaders($token)
+        )->postJson('/api/me/change-phone/verify', [
+            'verification_id' => $verificationId,
+            'otp' => '123456',
+        ]);
+
+        $verify
+            ->assertOk()
+            ->assertJson([
+                'success' => true,
+                'message' => 'OTP verified successfully.',
+            ]);
+
+        $verificationToken = $verify->json(
+            'data.verification_token'
+        );
+
+        $complete = $this->withHeaders(
+            $this->authHeaders($token)
+        )->postJson('/api/me/change-phone/complete', [
+            'verification_token' => $verificationToken,
+        ]);
+
+        $complete
+            ->assertOk()
+            ->assertJson([
+                'success' => true,
+                'message' => 'Contact information updated successfully.',
+            ]);
+
+        $this->assertDatabaseHas(
+            'accounts',
+            [
+                'id' => $accountId,
+                'phone' => '60198888888',
+            ]
+        );
+
+        $this->assertNotNull(
+            Account::find($accountId)->phone_verified_at
+        );
+    }
+
+    public function test_change_phone_cannot_be_verified_by_another_account(): void
+    {
+        $ownerId = '66666666-6666-4666-8666-666666666666';
+        $ownerToken = 'change-phone-owner-token';
+
+        $otherId = '77777777-7777-4777-8777-777777777777';
+        $otherToken = 'change-phone-other-token';
+
+        $this->createAccountWithSession(
+            $ownerId,
+            $ownerToken
+        );
+
+        $this->createAccountWithSession(
+            $otherId,
+            $otherToken
+        );
+
+        $request = $this->withHeaders(
+            $this->authHeaders($ownerToken)
+        )->postJson('/api/me/change-phone/request', [
+            'phone' => '60197777777',
+        ]);
+
+        $request->assertOk();
+
+        $verificationId = $request->json(
+            'data.verification_id'
+        );
+
+        $response = $this->withHeaders(
+            $this->authHeaders($otherToken)
+        )->postJson('/api/me/change-phone/verify', [
+            'verification_id' => $verificationId,
+            'otp' => '123456',
+        ]);
+
+        $response
+            ->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Verification request does not belong to the authenticated account.',
+            ]);
+    }
+
+    public function test_change_phone_cannot_complete_with_token_from_another_account(): void
+    {
+        $ownerId = '88888888-8888-4888-8888-888888888888';
+        $ownerToken = 'change-phone-complete-owner-token';
+
+        $otherId = '99999999-9999-4999-8999-999999999999';
+        $otherToken = 'change-phone-complete-other-token';
+
+        $this->createAccountWithSession(
+            $ownerId,
+            $ownerToken
+        );
+
+        $this->createAccountWithSession(
+            $otherId,
+            $otherToken
+        );
+
+        $request = $this->withHeaders(
+            $this->authHeaders($ownerToken)
+        )->postJson('/api/me/change-phone/request', [
+            'phone' => '60196666666',
+        ]);
+
+        $request->assertOk();
+
+        $verificationId = $request->json(
+            'data.verification_id'
+        );
+
+        $verify = $this->withHeaders(
+            $this->authHeaders($ownerToken)
+        )->postJson('/api/me/change-phone/verify', [
+            'verification_id' => $verificationId,
+            'otp' => '123456',
+        ]);
+
+        $verify->assertOk();
+
+        $verificationToken = $verify->json(
+            'data.verification_token'
+        );
+
+       
