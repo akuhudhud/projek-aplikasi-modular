@@ -62,7 +62,7 @@ class UpdateProfileTest extends TestCase
         ]);
     }
 
-    public function test_user_can_update_phone_only(): void
+    public function test_user_cannot_update_phone_through_profile_endpoint(): void
     {
         [$account, $token] = $this->createAccountWithSession();
 
@@ -73,46 +73,38 @@ class UpdateProfileTest extends TestCase
             'phone' => '60222222222',
         ]);
 
-        $response
-            ->assertStatus(200)
-            ->assertJsonPath('data.account.name', 'Original Name')
-            ->assertJsonPath('data.account.phone', '60222222222')
-            ->assertJsonPath('data.account.email', 'original@example.com');
-
-        $this->assertDatabaseHas('accounts', [
-            'id' => $account->id,
-            'name' => 'Original Name',
-            'phone' => '60222222222',
-            'email' => 'original@example.com',
-        ]);
-    }
-
-    public function test_user_can_update_email_only(): void
-    {
-        [$account, $token] = $this->createAccountWithSession();
-
-        $response = $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
-        )->patchJson('/api/me', [
-            'email' => 'updated@example.com',
-        ]);
-
-        $response
-            ->assertStatus(200)
-            ->assertJsonPath('data.account.name', 'Original Name')
-            ->assertJsonPath('data.account.phone', '60111111111')
-            ->assertJsonPath('data.account.email', 'updated@example.com');
+        $response->assertStatus(200);
 
         $this->assertDatabaseHas('accounts', [
             'id' => $account->id,
             'name' => 'Original Name',
             'phone' => '60111111111',
-            'email' => 'updated@example.com',
+            'email' => 'original@example.com',
         ]);
     }
 
-    public function test_user_can_update_multiple_profile_fields(): void
+    public function test_user_cannot_update_email_through_profile_endpoint(): void
+    {
+        [$account, $token] = $this->createAccountWithSession();
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->patchJson('/api/me', [
+            'email' => 'updated@example.com',
+        ]);
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $account->id,
+            'name' => 'Original Name',
+            'phone' => '60111111111',
+            'email' => 'original@example.com',
+        ]);
+    }
+
+    public function test_user_cannot_update_phone_and_email_through_profile_endpoint(): void
     {
         [$account, $token] = $this->createAccountWithSession();
 
@@ -128,75 +120,13 @@ class UpdateProfileTest extends TestCase
         $response
             ->assertStatus(200)
             ->assertJsonPath('data.account.name', 'Updated Name')
-            ->assertJsonPath('data.account.phone', '60222222222')
-            ->assertJsonPath('data.account.email', 'updated@example.com');
+            ->assertJsonPath('data.account.phone', '60111111111')
+            ->assertJsonPath('data.account.email', 'original@example.com');
 
         $this->assertDatabaseHas('accounts', [
             'id' => $account->id,
             'name' => 'Updated Name',
-            'phone' => '60222222222',
-            'email' => 'updated@example.com',
-        ]);
-    }
-
-    public function test_update_profile_rejects_duplicate_phone(): void
-    {
-        [$account, $token] = $this->createAccountWithSession();
-
-        Account::create([
-            'id' => 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-            'name' => 'Other User',
-            'phone' => '60333333333',
-            'email' => 'other@example.com',
-            'password' => 'Password1',
-            'role' => 'USER',
-            'status' => 'ACTIVE',
-        ]);
-
-        $response = $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
-        )->patchJson('/api/me', [
-            'phone' => '60333333333',
-        ]);
-
-        $response
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['phone']);
-
-        $this->assertDatabaseHas('accounts', [
-            'id' => $account->id,
             'phone' => '60111111111',
-        ]);
-    }
-
-    public function test_update_profile_rejects_duplicate_email(): void
-    {
-        [$account, $token] = $this->createAccountWithSession();
-
-        Account::create([
-            'id' => 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-            'name' => 'Other User',
-            'phone' => '60444444444',
-            'email' => 'other@example.com',
-            'password' => 'Password1',
-            'role' => 'USER',
-            'status' => 'ACTIVE',
-        ]);
-
-        $response = $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
-        )->patchJson('/api/me', [
-            'email' => 'other@example.com',
-        ]);
-
-        $response
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['email']);
-
-        $this->assertDatabaseHas('accounts', [
-            'id' => $account->id,
             'email' => 'original@example.com',
         ]);
     }
