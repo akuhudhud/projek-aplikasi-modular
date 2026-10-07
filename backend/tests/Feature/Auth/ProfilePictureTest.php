@@ -38,22 +38,29 @@ class ProfilePictureTest extends TestCase
         return [$account, $token];
     }
 
+    private function fakeImage(
+        string $name = 'profile.jpg',
+        int $kilobytes = 100
+    ): UploadedFile {
+        return UploadedFile::fake()->create(
+            $name,
+            $kilobytes,
+            'image/jpeg'
+        );
+    }
+
     public function test_user_can_update_profile_picture(): void
     {
         Storage::fake('public');
 
         [$account, $token] = $this->createAccountWithSession();
 
-        $file = UploadedFile::fake()->image(
-            'profile.jpg',
-            200,
-            200
-        );
+        $file = $this->fakeImage();
 
-        $response = $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
-        )->post('/api/me/profile-picture', [
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+        ])->post('/api/me/profile-picture', [
             'profile_picture' => $file,
         ]);
 
@@ -79,11 +86,7 @@ class ProfilePictureTest extends TestCase
 
         [$account, $token] = $this->createAccountWithSession();
 
-        $oldFile = UploadedFile::fake()->image(
-            'old-profile.jpg',
-            200,
-            200
-        );
+        $oldFile = $this->fakeImage('old-profile.jpg');
 
         $oldPath = $oldFile->store(
             'profile-pictures/'.$account->id,
@@ -95,16 +98,12 @@ class ProfilePictureTest extends TestCase
 
         Storage::disk('public')->assertExists($oldPath);
 
-        $newFile = UploadedFile::fake()->image(
-            'new-profile.jpg',
-            300,
-            300
-        );
+        $newFile = $this->fakeImage('new-profile.jpg');
 
-        $response = $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
-        )->post('/api/me/profile-picture', [
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+        ])->post('/api/me/profile-picture', [
             'profile_picture' => $newFile,
         ]);
 
@@ -125,10 +124,10 @@ class ProfilePictureTest extends TestCase
 
         [$account, $token] = $this->createAccountWithSession();
 
-        $response = $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
-        )->post('/api/me/profile-picture', [
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+        ])->post('/api/me/profile-picture', [
             'profile_picture' => 'not-an-image',
         ]);
 
@@ -155,10 +154,10 @@ class ProfilePictureTest extends TestCase
             'application/pdf'
         );
 
-        $response = $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
-        )->post('/api/me/profile-picture', [
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+        ])->post('/api/me/profile-picture', [
             'profile_picture' => $file,
         ]);
 
@@ -185,10 +184,10 @@ class ProfilePictureTest extends TestCase
             'image/jpeg'
         );
 
-        $response = $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
-        )->post('/api/me/profile-picture', [
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+        ])->post('/api/me/profile-picture', [
             'profile_picture' => $file,
         ]);
 
@@ -207,18 +206,13 @@ class ProfilePictureTest extends TestCase
     {
         Storage::fake('public');
 
-        $file = UploadedFile::fake()->image(
-            'profile.jpg',
-            200,
-            200
-        );
+        $file = $this->fakeImage();
 
-        $response = $this->post(
-            '/api/me/profile-picture',
-            [
-                'profile_picture' => $file,
-            ]
-        );
+        $response = $this->withHeaders([
+            'Accept' => 'application/json',
+        ])->post('/api/me/profile-picture', [
+            'profile_picture' => $file,
+        ]);
 
         $response
             ->assertStatus(401)
