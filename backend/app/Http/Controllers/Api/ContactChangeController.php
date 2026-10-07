@@ -1,0 +1,248 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Services\Contact\ContactChangeService;
+use App\Services\Otp\OtpService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use RuntimeException;
+
+class ContactChangeController extends Controller
+{
+    public function __construct(
+        private readonly ContactChangeService $contactChangeService,
+        private readonly OtpService $otpService
+    ) {
+    }
+
+    public function requestPhone(
+        Request $request
+    ): JsonResponse {
+        $account = $request->attributes->get('account');
+
+        if (!$account) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        try {
+            $verification = $this->contactChangeService->request(
+                $account,
+                'phone',
+                $request->input('phone')
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'OTP sent successfully.',
+                'data' => [
+                    'verification_id' => $verification->id,
+                    'expires_at' => $verification->expires_at,
+                ],
+            ], 200);
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function verifyPhone(
+        Request $request
+    ): JsonResponse {
+        return $this->verify(
+            $request,
+            'phone',
+            'CHANGE_PHONE'
+        );
+    }
+
+    public function completePhone(
+        Request $request
+    ): JsonResponse {
+        return $this->complete(
+            $request,
+            'phone'
+        );
+    }
+
+    public function requestEmail(
+        Request $request
+    ): JsonResponse {
+        $account = $request->attributes->get('account');
+
+        if (!$account) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        try {
+            $verification = $this->contactChangeService->request(
+                $account,
+                'email',
+                $request->input('email')
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'OTP sent successfully.',
+                'data' => [
+                    'verification_id' => $verification->id,
+                    'expires_at' => $verification->expires_at,
+                ],
+            ], 200);
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function verifyEmail(
+        Request $request
+    ): JsonResponse {
+        return $this->verify(
+            $request,
+            'email',
+            'CHANGE_EMAIL'
+        );
+    }
+
+    public function completeEmail(
+        Request $request
+    ): JsonResponse {
+        return $this->complete(
+            $request,
+            'email'
+        );
+    }
+
+    private function verify(
+        Request $request,
+        string $channel,
+        string $purpose
+    ): JsonResponse {
+        $account = $request->attributes->get('account');
+
+        if (!$account) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        $verification = \App\Models\RegistrationVerification::query()
+            ->where('id', $request->input('verification_id'))
+            ->first();
+
+        if (!$verification) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Verification request not found.',
+            ], 404);
+        }
+
+        if ($verification->account_id !== $account->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Verification request does not belong to the authenticated account.',
+            ], 403);
+        }
+
+        if ($verification->channel !== $channel) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Verification channel does not match the requested contact change.',
+            ], 422);
+        }
+
+        if ($verification->purpose !== $purpose) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Verification purpose does not match the requested contact change.',
+            ], 422);
+        }
+
+        if (!$this->otpService->verify(
+            $verification,
+            $request->input('otp')
+        )) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid or expired OTP.',
+            ], 422);
+        }
+
+        try {
+            $verificationToken = $this->otpService
+                ->issueVerificationToken($verification);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'OTP verified successfully.',
+                'data' => [
+                    'verification_token' => $verificationToken,
+                    'expires_at' => $verification->token_expires_at,
+                ],
+            ], 200);
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+    }
+
+    private function complete(
+        Request $request,
+        string $channel
+    ): JsonResponse {
+        $account = $request->attributes->get('account');
+
+        if (!$account) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        try {
+            $account = $this->contactChangeService->complete(
+                $account,
+                $channel,
+                $request->input('verification_token')
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Contact updated successfully.',
+                'data' => [
+                    'account' => [
+                        'id' => $account->id,
+                        'name' => $account->name,
+                        'phone' => $account->phone,
+                        'email' => $account->email,
+                        'phone_verified_at' => $account->phone_verified_at,
+                        'email_verified_at' => $account->email_verified_at,
+                        'profile_picture' => $account->profile_picture,
+                        'role' => $account->role,
+                        'status' => $account->status,
+                    ],
+                ],
+            ], 200);
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+    }
+}
