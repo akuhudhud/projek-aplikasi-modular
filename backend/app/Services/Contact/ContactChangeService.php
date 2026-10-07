@@ -3,6 +3,7 @@
 namespace App\Services\Contact;
 
 use App\Models\Account;
+use App\Models\RegistrationVerification;
 use App\Services\Otp\OtpService;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -18,7 +19,13 @@ class ContactChangeService
         Account $account,
         string $channel,
         string $contact
-    ) {
+    ): RegistrationVerification {
+        if ($account->status !== 'ACTIVE') {
+            throw new RuntimeException(
+                'Only active accounts can change contact information.'
+            );
+        }
+
         $purpose = $channel === 'phone'
             ? 'CHANGE_PHONE'
             : 'CHANGE_EMAIL';
@@ -56,6 +63,12 @@ class ContactChangeService
         string $channel,
         string $verificationToken
     ): Account {
+        if ($account->status !== 'ACTIVE') {
+            throw new RuntimeException(
+                'Only active accounts can change contact information.'
+            );
+        }
+
         $purpose = $channel === 'phone'
             ? 'CHANGE_PHONE'
             : 'CHANGE_EMAIL';
