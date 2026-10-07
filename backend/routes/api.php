@@ -3,12 +3,15 @@
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\OtpController;
 use App\Http\Middleware\AuthenticateSession;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
-
 Route::post('/login', [AuthController::class, 'login']);
+
+Route::post('/otp/request', [OtpController::class, 'request']);
+Route::post('/otp/verify', [OtpController::class, 'verify']);
 
 Route::get('/me', [AuthController::class, 'me'])
     ->middleware(AuthenticateSession::class);
