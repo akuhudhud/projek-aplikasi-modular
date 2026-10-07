@@ -28,7 +28,14 @@ class CompleteRegistrationRequest extends FormRequest
                 'required',
                 'string',
                 'min:8',
-                'confirmed',
+                'max:12',
+                'regex:/[A-Z]/',
+                'regex:/[a-z]/',
+                'regex:/[0-9]/',
+            ],
+            'password_confirmation' => [
+                'required',
+                'same:password',
             ],
         ];
     }
