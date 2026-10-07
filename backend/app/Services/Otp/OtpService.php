@@ -4,6 +4,7 @@ namespace App\Services\Otp;
 
 use App\Contracts\OtpProviderInterface;
 use App\Models\RegistrationVerification;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -126,52 +127,60 @@ class OtpService
         string $purpose = 'REGISTRATION',
         ?string $accountId = null
     ): RegistrationVerification {
-        $query = RegistrationVerification::query()
-            ->where('purpose', $purpose)
-            ->where(
-                'verification_token_hash',
-                hash('sha256', $token)
-            );
-
-        if ($accountId === null) {
-            $query->whereNull('account_id');
-        } else {
-            $query->where('account_id', $accountId);
-        }
-
-        $verification = $query->first();
-
-        if (!$verification) {
-            throw new RuntimeException(
-                'Invalid verification token.'
-            );
-        }
-
-        if ($verification->verified_at === null) {
-            throw new RuntimeException(
-                'OTP verification is required before using the verification token.'
-            );
-        }
-
-        if ($verification->consumed_at !== null) {
-            throw new RuntimeException(
-                'Verification token has already been used.'
-            );
-        }
-
-        if (
-            $verification->token_expires_at === null
-            || $verification->token_expires_at->isPast()
+        return DB::transaction(function () use (
+            $token,
+            $purpose,
+            $accountId
         ) {
-            throw new RuntimeException(
-                'Verification token has expired.'
-            );
-        }
+            $query = RegistrationVerification::query()
+                ->where('purpose', $purpose)
+                ->where(
+                    'verification_token_hash',
+                    hash('sha256', $token)
+                );
 
-        $verification->update([
-            'consumed_at' => now(),
-        ]);
+            if ($accountId === null) {
+                $query->whereNull('account_id');
+            } else {
+                $query->where('account_id', $accountId);
+            }
 
-        return $verification->fresh();
+            $verification = $query
+                ->lockForUpdate()
+                ->first();
+
+            if (!$verification) {
+                throw new RuntimeException(
+                    'Invalid verification token.'
+                );
+            }
+
+            if ($verification->verified_at === null) {
+                throw new RuntimeException(
+                    'OTP verification is required before using the verification token.'
+                );
+            }
+
+            if ($verification->consumed_at !== null) {
+                throw new RuntimeException(
+                    'Verification token has already been used.'
+                );
+            }
+
+            if (
+                $verification->token_expires_at === null
+                || $verification->token_expires_at->isPast()
+            ) {
+                throw new RuntimeException(
+                    'Verification token has expired.'
+                );
+            }
+
+            $verification->update([
+                'consumed_at' => now(),
+            ]);
+
+            return $verification->fresh();
+        });
     }
 }
