@@ -5,61 +5,108 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Account\UpdateProfileRequest;
 use App\Http\Requests\Auth\ChangePasswordRequest;
+use App\Http\Requests\Auth\CompleteRegistrationRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\Account;
 use App\Models\Session;
 use App\Services\AuditLogService;
+use App\Services\Otp\OtpService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class AuthController extends Controller
 {
     public function register(RegisterRequest $request): JsonResponse
     {
-        return DB::transaction(function () use ($request) {
-            $account = Account::create([
-                'id' => (string) Str::uuid(),
-                'name' => $request->name,
-                'phone' => $request->phone,
-                'email' => $request->email,
-                'password' => $request->password,
-                'role' => 'USER',
-                'status' => 'ACTIVE',
-            ]);
+        return response()->json([
+            'success' => false,
+            'message' => 'OTP verification is required before registration can be completed.',
+        ], 422);
+    }
 
-            $sessionToken = Str::random(64);
+    public function completeRegistration(
+        CompleteRegistrationRequest $request
+    ): JsonResponse {
+        try {
+            return DB::transaction(function () use ($request) {
+                $verification = app(OtpService::class)
+                    ->consumeVerificationToken(
+                        $request->verification_token,
+                        'REGISTRATION'
+                    );
 
-            Session::create([
-                'id' => (string) Str::uuid(),
-                'account_id' => $account->id,
-                'token_hash' => hash('sha256', $sessionToken),
-                'created_at' => now(),
-                'ended_at' => null,
-            ]);
+                $contactField = $verification->channel === 'phone'
+                    ? 'phone'
+                    : 'email';
 
+                $existingAccount = Account::query()
+                    ->where($contactField, $verification->contact)
+                    ->first();
+
+                if ($existingAccount) {
+                    throw new RuntimeException(
+                        'An account already exists for this contact.'
+                    );
+                }
+
+                $accountData = [
+                    'id' => (string) Str::uuid(),
+                    'name' => $request->name,
+                    'password' => $request->password,
+                    'role' => 'USER',
+                    'status' => 'ACTIVE',
+                ];
+
+                if ($verification->channel === 'phone') {
+                    $accountData['phone'] = $verification->contact;
+                    $accountData['phone_verified_at'] = now();
+                } else {
+                    $accountData['email'] = $verification->contact;
+                    $accountData['email_verified_at'] = now();
+                }
+
+                $account = Account::create($accountData);
+
+                $sessionToken = Str::random(64);
+
+                Session::create([
+                    'id' => (string) Str::uuid(),
+                    'account_id' => $account->id,
+                    'token_hash' => hash('sha256', $sessionToken),
+                    'created_at' => now(),
+                    'ended_at' => null,
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Account registered successfully.',
+                    'data' => [
+                        'account' => [
+                            'id' => $account->id,
+                            'name' => $account->name,
+                            'phone' => $account->phone,
+                            'email' => $account->email,
+                            'profile_picture' => $account->profile_picture,
+                            'role' => $account->role,
+                            'status' => $account->status,
+                        ],
+                        'session' => [
+                            'token' => $sessionToken,
+                        ],
+                    ],
+                ], 201);
+            });
+        } catch (RuntimeException $exception) {
             return response()->json([
-                'success' => true,
-                'message' => 'Account registered successfully.',
-                'data' => [
-                    'account' => [
-                        'id' => $account->id,
-                        'name' => $account->name,
-                        'phone' => $account->phone,
-                        'email' => $account->email,
-                        'profile_picture' => $account->profile_picture,
-                        'role' => $account->role,
-                        'status' => $account->status,
-                    ],
-                    'session' => [
-                        'token' => $sessionToken,
-                    ],
-                ],
-            ], 201);
-        });
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
     }
 
     public function login(LoginRequest $request): JsonResponse
