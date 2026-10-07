@@ -133,29 +133,36 @@ class OtpService
         RegistrationVerification $verification,
         string $otp
     ): bool {
-        if ($verification->verified_at !== null) {
-            return false;
-        }
+        return DB::transaction(function () use (
+            $verification,
+            $otp
+        ) {
+            $verification->refreshForUpdate();
 
-        if ($verification->expires_at->isPast()) {
-            return false;
-        }
+            if ($verification->verified_at !== null) {
+                return false;
+            }
 
-        if ($verification->attempts >= 5) {
-            return false;
-        }
+            if ($verification->expires_at->isPast()) {
+                return false;
+            }
 
-        $verification->increment('attempts');
+            if ($verification->attempts >= 5) {
+                return false;
+            }
 
-        if (!Hash::check($otp, $verification->otp_hash)) {
-            return false;
-        }
+            $verification->increment('attempts');
 
-        $verification->update([
-            'verified_at' => now(),
-        ]);
+            if (!Hash::check($otp, $verification->otp_hash)) {
+                return false;
+            }
 
-        return true;
+            $verification->update([
+                'verified_at' => now(),
+            ]);
+
+            return true;
+        });
     }
 
     public function issueVerificationToken(
