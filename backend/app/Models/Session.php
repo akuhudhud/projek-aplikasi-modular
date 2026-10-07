@@ -23,7 +23,9 @@ class Session extends Model
         'account_id',
         'token_hash',
         'created_at',
+        'last_activity_at',
         'ended_at',
+        'end_reason',
     ];
 
     protected $hidden = [
@@ -32,6 +34,7 @@ class Session extends Model
 
     protected $casts = [
         'created_at' => 'datetime',
+        'last_activity_at' => 'datetime',
         'ended_at' => 'datetime',
     ];
 
