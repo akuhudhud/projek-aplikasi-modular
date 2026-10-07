@@ -9,18 +9,23 @@ use App\Http\Requests\Auth\CompleteRegistrationRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\Account;
-use App\Models\Session;
 use App\Services\AuditLogService;
 use App\Services\Otp\OtpService;
+use App\Services\Session\SessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Str;
 use RuntimeException;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private SessionService $sessionService
+    ) {
+    }
+
     public function register(RegisterRequest $request): JsonResponse
     {
         return response()->json([
@@ -72,15 +77,8 @@ class AuthController extends Controller
 
                 $account = Account::create($accountData);
 
-                $sessionToken = Str::random(64);
-
-                Session::create([
-                    'id' => (string) Str::uuid(),
-                    'account_id' => $account->id,
-                    'token_hash' => hash('sha256', $sessionToken),
-                    'created_at' => now(),
-                    'ended_at' => null,
-                ]);
+                $sessionData = $this->sessionService
+                    ->createForAccount($account);
 
                 return response()->json([
                     'success' => true,
@@ -96,7 +94,7 @@ class AuthController extends Controller
                             'status' => $account->status,
                         ],
                         'session' => [
-                            'token' => $sessionToken,
+                            'token' => $sessionData['token'],
                         ],
                     ],
                 ], 201);
@@ -175,21 +173,10 @@ class AuthController extends Controller
         $account->locked_until = null;
         $account->save();
 
-        Session::where('account_id', $account->id)
-            ->whereNull('ended_at')
-            ->update([
-                'ended_at' => now(),
-            ]);
+        $sessionData = $this->sessionService
+            ->replaceActiveSessionsAndCreate($account);
 
-        $sessionToken = Str::random(64);
-
-        Session::create([
-            'id' => (string) Str::uuid(),
-            'account_id' => $account->id,
-            'token_hash' => hash('sha256', $sessionToken),
-            'created_at' => now(),
-            'ended_at' => null,
-        ]);
+        $account->refresh();
 
         return response()->json([
             'success' => true,
@@ -205,7 +192,7 @@ class AuthController extends Controller
                     'status' => $account->status,
                 ],
                 'session' => [
-                    'token' => $sessionToken,
+                    'token' => $sessionData['token'],
                 ],
             ],
         ], 200);
@@ -272,11 +259,10 @@ class AuthController extends Controller
         $account->password = $request->new_password;
         $account->save();
 
-        Session::where('account_id', $account->id)
-            ->whereNull('ended_at')
-            ->update([
-                'ended_at' => now(),
-            ]);
+        $this->sessionService->endAllForAccount(
+            $account,
+            SessionService::END_REASON_PASSWORD_CHANGED
+        );
 
         return response()->json([
             'success' => true,
@@ -291,11 +277,10 @@ class AuthController extends Controller
         $account->status = 'DEACTIVATED';
         $account->save();
 
-        Session::where('account_id', $account->id)
-            ->whereNull('ended_at')
-            ->update([
-                'ended_at' => now(),
-            ]);
+        $this->sessionService->endAllForAccount(
+            $account,
+            SessionService::END_REASON_ACCOUNT_DEACTIVATED
+        );
 
         return response()->json([
             'success' => true,
@@ -408,11 +393,10 @@ class AuthController extends Controller
         $account->status = 'SUSPENDED';
         $account->save();
 
-        Session::where('account_id', $account->id)
-            ->whereNull('ended_at')
-            ->update([
-                'ended_at' => now(),
-            ]);
+        $this->sessionService->endAllForAccount(
+            $account,
+            SessionService::END_REASON_ACCOUNT_SUSPENDED
+        );
 
         app(AuditLogService::class)->record(
             $admin,
@@ -503,11 +487,10 @@ class AuthController extends Controller
         $account->status = 'DELETED';
         $account->save();
 
-        Session::where('account_id', $account->id)
-            ->whereNull('ended_at')
-            ->update([
-                'ended_at' => now(),
-            ]);
+        $this->sessionService->endAllForAccount(
+            $account,
+            SessionService::END_REASON_ACCOUNT_DELETED
+        );
 
         return response()->json([
             'success' => true,
@@ -519,11 +502,10 @@ class AuthController extends Controller
     {
         $session = $request->attributes->get('session');
 
-        Session::where('id', $session->id)
-            ->whereNull('ended_at')
-            ->update([
-                'ended_at' => now(),
-            ]);
+        $this->sessionService->end(
+            $session,
+            SessionService::END_REASON_LOGOUT
+        );
 
         return response()->json([
             'success' => true,
