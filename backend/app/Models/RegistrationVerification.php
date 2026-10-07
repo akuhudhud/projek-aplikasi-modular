@@ -17,6 +17,7 @@ class RegistrationVerification extends Model
 
     protected $fillable = [
         'id',
+        'account_id',
         'channel',
         'contact',
         'purpose',
