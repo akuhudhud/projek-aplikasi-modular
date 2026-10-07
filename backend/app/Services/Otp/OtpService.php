@@ -123,16 +123,27 @@ class OtpService
 
     public function consumeVerificationToken(
         string $token,
-        string $purpose = 'REGISTRATION'
+        string $purpose = 'REGISTRATION',
+        ?string $accountId = null
     ): RegistrationVerification {
-        $verification = RegistrationVerification::query()
+        $query = RegistrationVerification::query()
             ->where('purpose', $purpose)
-            ->where('verification_token_hash', hash('sha256', $token))
-            ->first();
+            ->where(
+                'verification_token_hash',
+                hash('sha256', $token)
+            );
+
+        if ($accountId === null) {
+            $query->whereNull('account_id');
+        } else {
+            $query->where('account_id', $accountId);
+        }
+
+        $verification = $query->first();
 
         if (!$verification) {
             throw new RuntimeException(
-                'Invalid registration verification token.'
+                'Invalid verification token.'
             );
         }
 
@@ -144,7 +155,7 @@ class OtpService
 
         if ($verification->consumed_at !== null) {
             throw new RuntimeException(
-                'Registration verification token has already been used.'
+                'Verification token has already been used.'
             );
         }
 
@@ -153,7 +164,7 @@ class OtpService
             || $verification->token_expires_at->isPast()
         ) {
             throw new RuntimeException(
-                'Registration verification token has expired.'
+                'Verification token has expired.'
             );
         }
 
