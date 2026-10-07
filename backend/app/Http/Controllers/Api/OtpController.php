@@ -65,6 +65,27 @@ class OtpController extends Controller
             ], 404);
         }
 
+        $account = $request->attributes->get('account');
+
+        if (in_array($verification->purpose, [
+            'CHANGE_PHONE',
+            'CHANGE_EMAIL',
+        ], true)) {
+            if (!$account) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthenticated.',
+                ], 401);
+            }
+
+            if ($verification->account_id !== $account->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Verification request does not belong to the authenticated account.',
+                ], 403);
+            }
+        }
+
         if (!$otpService->verify(
             $verification,
             $request->otp
