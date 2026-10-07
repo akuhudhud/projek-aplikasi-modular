@@ -18,19 +18,26 @@ class RequestOtpRequest extends FormRequest
             'channel' => [
                 'required',
                 'string',
-                Rule::in(['phone', 'email']),
+                Rule::in([
+                    'phone',
+                    'email',
+                ]),
             ],
+
             'contact' => [
                 'required',
                 'string',
                 'max:255',
             ],
+
             'purpose' => [
                 'required',
                 'string',
                 Rule::in([
                     'REGISTRATION',
                     'PASSWORD_RESET',
+                    'CHANGE_PHONE',
+                    'CHANGE_EMAIL',
                 ]),
             ],
         ];
