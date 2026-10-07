@@ -3,6 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\VerifyOtpRequest;
+use App\Http\Requests\Account\ChangeEmailRequest;
+use App\Http\Requests\Account\ChangePhoneRequest;
+use App\Http\Requests\Account\CompleteContactChangeRequest;
+use App\Models\RegistrationVerification;
 use App\Services\Contact\ContactChangeService;
 use App\Services\Otp\OtpService;
 use Illuminate\Http\JsonResponse;
@@ -18,7 +23,7 @@ class ContactChangeController extends Controller
     }
 
     public function requestPhone(
-        Request $request
+        ChangePhoneRequest $request
     ): JsonResponse {
         $account = $request->attributes->get('account');
 
@@ -33,7 +38,7 @@ class ContactChangeController extends Controller
             $verification = $this->contactChangeService->request(
                 $account,
                 'phone',
-                $request->input('phone')
+                $request->phone
             );
 
             return response()->json([
@@ -53,7 +58,7 @@ class ContactChangeController extends Controller
     }
 
     public function verifyPhone(
-        Request $request
+        VerifyOtpRequest $request
     ): JsonResponse {
         return $this->verify(
             $request,
@@ -63,7 +68,7 @@ class ContactChangeController extends Controller
     }
 
     public function completePhone(
-        Request $request
+        CompleteContactChangeRequest $request
     ): JsonResponse {
         return $this->complete(
             $request,
@@ -72,7 +77,7 @@ class ContactChangeController extends Controller
     }
 
     public function requestEmail(
-        Request $request
+        ChangeEmailRequest $request
     ): JsonResponse {
         $account = $request->attributes->get('account');
 
@@ -87,7 +92,7 @@ class ContactChangeController extends Controller
             $verification = $this->contactChangeService->request(
                 $account,
                 'email',
-                $request->input('email')
+                $request->email
             );
 
             return response()->json([
@@ -107,7 +112,7 @@ class ContactChangeController extends Controller
     }
 
     public function verifyEmail(
-        Request $request
+        VerifyOtpRequest $request
     ): JsonResponse {
         return $this->verify(
             $request,
@@ -117,7 +122,7 @@ class ContactChangeController extends Controller
     }
 
     public function completeEmail(
-        Request $request
+        CompleteContactChangeRequest $request
     ): JsonResponse {
         return $this->complete(
             $request,
@@ -126,7 +131,7 @@ class ContactChangeController extends Controller
     }
 
     private function verify(
-        Request $request,
+        VerifyOtpRequest $request,
         string $channel,
         string $purpose
     ): JsonResponse {
@@ -139,9 +144,9 @@ class ContactChangeController extends Controller
             ], 401);
         }
 
-        $verification = \App\Models\RegistrationVerification::query()
-            ->where('id', $request->input('verification_id'))
-            ->first();
+        $verification = RegistrationVerification::find(
+            $request->verification_id
+        );
 
         if (!$verification) {
             return response()->json([
@@ -160,20 +165,20 @@ class ContactChangeController extends Controller
         if ($verification->channel !== $channel) {
             return response()->json([
                 'success' => false,
-                'message' => 'Verification channel does not match the requested contact change.',
+                'message' => 'Verification channel does not match.',
             ], 422);
         }
 
         if ($verification->purpose !== $purpose) {
             return response()->json([
                 'success' => false,
-                'message' => 'Verification purpose does not match the requested contact change.',
+                'message' => 'Verification purpose does not match.',
             ], 422);
         }
 
         if (!$this->otpService->verify(
             $verification,
-            $request->input('otp')
+            $request->otp
         )) {
             return response()->json([
                 'success' => false,
@@ -181,28 +186,21 @@ class ContactChangeController extends Controller
             ], 422);
         }
 
-        try {
-            $verificationToken = $this->otpService
-                ->issueVerificationToken($verification);
+        $verificationToken = $this->otpService
+            ->issueVerificationToken($verification);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'OTP verified successfully.',
-                'data' => [
-                    'verification_token' => $verificationToken,
-                    'expires_at' => $verification->token_expires_at,
-                ],
-            ], 200);
-        } catch (RuntimeException $exception) {
-            return response()->json([
-                'success' => false,
-                'message' => $exception->getMessage(),
-            ], 422);
-        }
+        return response()->json([
+            'success' => true,
+            'message' => 'OTP verified successfully.',
+            'data' => [
+                'verification_token' => $verificationToken,
+                'expires_at' => $verification->token_expires_at,
+            ],
+        ], 200);
     }
 
     private function complete(
-        Request $request,
+        CompleteContactChangeRequest $request,
         string $channel
     ): JsonResponse {
         $account = $request->attributes->get('account');
@@ -218,12 +216,12 @@ class ContactChangeController extends Controller
             $account = $this->contactChangeService->complete(
                 $account,
                 $channel,
-                $request->input('verification_token')
+                $request->verification_token
             );
 
             return response()->json([
                 'success' => true,
-                'message' => 'Contact updated successfully.',
+                'message' => 'Contact information updated successfully.',
                 'data' => [
                     'account' => [
                         'id' => $account->id,
