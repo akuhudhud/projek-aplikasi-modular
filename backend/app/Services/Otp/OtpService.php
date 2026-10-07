@@ -18,19 +18,29 @@ class OtpService
     public function request(
         string $channel,
         string $contact,
-        string $purpose
+        string $purpose,
+        ?string $accountId = null
     ): RegistrationVerification {
         $otp = '123456';
 
-        $verification = RegistrationVerification::query()
+        $query = RegistrationVerification::query()
             ->where('channel', $channel)
             ->where('contact', $contact)
-            ->where('purpose', $purpose)
+            ->where('purpose', $purpose);
+
+        if ($accountId === null) {
+            $query->whereNull('account_id');
+        } else {
+            $query->where('account_id', $accountId);
+        }
+
+        $verification = $query
             ->latest('created_at')
             ->first();
 
         if ($verification) {
             $verification->update([
+                'account_id' => $accountId,
                 'otp_hash' => Hash::make($otp),
                 'expires_at' => now()->addMinutes(5),
                 'attempts' => 0,
@@ -42,6 +52,7 @@ class OtpService
         } else {
             $verification = RegistrationVerification::create([
                 'id' => (string) Str::uuid(),
+                'account_id' => $accountId,
                 'channel' => $channel,
                 'contact' => $contact,
                 'purpose' => $purpose,
