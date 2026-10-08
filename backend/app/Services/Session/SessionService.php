@@ -52,7 +52,11 @@ class SessionService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($lockedAccount->status !== 'ACTIVE') {
+            if (!in_array(
+                $lockedAccount->status,
+                ['ACTIVE', 'SUSPENDED'],
+                true
+            )) {
                 return null;
             }
 
