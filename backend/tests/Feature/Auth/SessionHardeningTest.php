@@ -452,4 +452,32 @@ class SessionHardeningTest extends TestCase
             $newSession->token_hash
         );
     }
+
+    public function test_login_does_not_create_session_when_account_is_no_longer_active(): void
+    {
+        $account = Account::create([
+            'id' => 'eeeeeeee-ffff-4eee-8fff-eeeeeeeeeeee',
+            'name' => 'Inactive Login User',
+            'email' => 'inactive-login@example.com',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'SUSPENDED',
+        ]);
+
+        $response = $this->postJson('/api/login', [
+            'email' => 'inactive-login@example.com',
+            'password' => 'Password1',
+        ]);
+
+        $response
+            ->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Account is not available for login.',
+            ]);
+
+        $this->assertDatabaseMissing('sessions', [
+            'account_id' => $account->id,
+        ]);
+    }
 }
