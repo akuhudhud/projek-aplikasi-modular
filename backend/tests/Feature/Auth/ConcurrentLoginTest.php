@@ -8,7 +8,7 @@ use Tests\TestCase;
 
 class ConcurrentLoginTest extends TestCase
 {
-    private ?resource $workerProcess = null;
+    private mixed $workerProcess = null;
 
     private array $workerPipes = [];
 
