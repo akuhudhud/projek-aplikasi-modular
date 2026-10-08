@@ -176,6 +176,13 @@ class AuthController extends Controller
         $sessionData = $this->sessionService
             ->replaceActiveSessionsAndCreate($account);
 
+        if ($sessionData === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Account is not available for login.',
+            ], 403);
+        }
+
         $account->refresh();
 
         return response()->json([
