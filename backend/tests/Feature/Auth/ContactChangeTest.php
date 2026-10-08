@@ -4,8 +4,10 @@ namespace Tests\Feature\Auth;
 
 use App\Models\Account;
 use App\Models\Session;
+use App\Services\Contact\ContactChangeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Tests\TestCase;
 
 class ContactChangeTest extends TestCase
@@ -279,7 +281,8 @@ class ContactChangeTest extends TestCase
         $verificationToken = $verify->json(
             'data.verification_token'
         );
-                $response = $this->withHeaders($this->authHeaders($otherToken))
+
+        $response = $this->withHeaders($this->authHeaders($otherToken))
             ->postJson('/api/me/change-phone/complete', [
                 'verification_token' => $verificationToken,
             ]);
@@ -471,16 +474,81 @@ class ContactChangeTest extends TestCase
             ]);
     }
 
-    public function test_change_contact_verification_token_is_one_time(): void
+    public function test_change_contact_completion_rechecks_locked_account_state(): void
     {
         $accountId = 'abababab-abab-4aba-8aba-abababababab';
+        $token = 'change-contact-state-recheck-token';
+        $newPhone = '60195555555';
+
+        $account = $this->createAccountWithSession(
+            $accountId,
+            $token
+        );
+
+        $request = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-phone/request', [
+                'phone' => $newPhone,
+            ]);
+
+        $request->assertOk();
+
+        $verificationId = $request->json('data.verification_id');
+
+        $verify = $this->withHeaders($this->authHeaders($token))
+            ->postJson('/api/me/change-phone/verify', [
+                'verification_id' => $verificationId,
+                'otp' => '123456',
+            ]);
+
+        $verify->assertOk();
+
+        $verificationToken = $verify->json(
+            'data.verification_token'
+        );
+
+        Account::query()
+            ->whereKey($accountId)
+            ->update([
+                'status' => 'SUSPENDED',
+            ]);
+
+        $service = app(ContactChangeService::class);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage(
+            'Only active accounts can change contact information.'
+        );
+
+        try {
+            $service->complete(
+                $account,
+                'phone',
+                $verificationToken
+            );
+        } finally {
+            $this->assertDatabaseHas('accounts', [
+                'id' => $accountId,
+                'phone' => $account->phone,
+                'status' => 'SUSPENDED',
+            ]);
+
+            $this->assertDatabaseHas('registration_verifications', [
+                'id' => $verificationId,
+                'consumed_at' => null,
+            ]);
+        }
+    }
+
+    public function test_change_contact_verification_token_is_one_time(): void
+    {
+        $accountId = 'acacacac-acac-4aca-8aca-acacacacacac';
         $token = 'change-contact-one-time-token';
 
         $this->createAccountWithSession($accountId, $token);
 
         $request = $this->withHeaders($this->authHeaders($token))
             ->postJson('/api/me/change-phone/request', [
-                'phone' => '60195555555',
+                'phone' => '60195555556',
             ]);
 
         $request->assertOk();
@@ -524,7 +592,7 @@ class ContactChangeTest extends TestCase
 
     public function test_change_phone_cannot_use_email_verification_token(): void
     {
-        $accountId = 'acacacac-acac-4aca-8aca-acacacacacac';
+        $accountId = 'adadadad-adad-4ada-8ada-adadadadadad';
         $token = 'change-channel-mismatch-token';
 
         $this->createAccountWithSession($accountId, $token);
