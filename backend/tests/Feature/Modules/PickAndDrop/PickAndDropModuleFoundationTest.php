@@ -7,13 +7,10 @@ use Tests\TestCase;
 
 class PickAndDropModuleFoundationTest extends TestCase
 {
-    public function test_pick_and_drop_service_provider_can_be_resolved(): void
+    public function test_pick_and_drop_service_provider_is_loaded(): void
     {
-        $provider = app()->resolve(PickAndDropServiceProvider::class);
-
-        $this->assertInstanceOf(
-            PickAndDropServiceProvider::class,
-            $provider
+        $this->assertTrue(
+            app()->getLoadedProviders()[PickAndDropServiceProvider::class] ?? false
         );
     }
 
