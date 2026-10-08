@@ -462,7 +462,7 @@ class SessionHardeningTest extends TestCase
             'email' => 'inactive-login@example.com',
             'password' => 'Password1',
             'role' => 'USER',
-            'status' => 'SUSPENDED',
+            'status' => 'DEACTIVATED',
         ]);
 
         $response = $this->postJson('/api/login', [
@@ -490,7 +490,7 @@ class SessionHardeningTest extends TestCase
             'email' => 'session-service-state@example.com',
             'password' => 'Password1',
             'role' => 'USER',
-            'status' => 'SUSPENDED',
+            'status' => 'DEACTIVATED',
         ]);
 
         $sessionService = app(SessionService::class);
