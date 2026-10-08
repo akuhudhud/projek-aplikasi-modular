@@ -30,4 +30,17 @@ class PickAndDropModuleFoundationTest extends TestCase
             config('modules.pick_and_drop.enabled')
         );
     }
+
+    public function test_pick_and_drop_foundation_status_endpoint_is_available(): void
+    {
+        $response = $this->getJson('/api/pick-and-drop/foundation/status');
+
+        $response
+            ->assertOk()
+            ->assertJson([
+                'module' => 'PickAndDrop',
+                'version' => '0.1.0',
+                'status' => 'ready',
+            ]);
+    }
 }
