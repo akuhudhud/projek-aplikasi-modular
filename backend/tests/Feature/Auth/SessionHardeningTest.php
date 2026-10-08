@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\Account;
 use App\Models\Session;
+use App\Services\Session\SessionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -475,6 +476,30 @@ class SessionHardeningTest extends TestCase
                 'success' => false,
                 'message' => 'Account is not available for login.',
             ]);
+
+        $this->assertDatabaseMissing('sessions', [
+            'account_id' => $account->id,
+        ]);
+    }
+
+    public function test_session_service_rechecks_account_status_before_creating_session(): void
+    {
+        $account = Account::create([
+            'id' => 'ffffffff-aaaa-4fff-8aaa-ffffffffffff',
+            'name' => 'Session Service State User',
+            'email' => 'session-service-state@example.com',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'SUSPENDED',
+        ]);
+
+        $sessionService = app(SessionService::class);
+
+        $result = $sessionService->replaceActiveSessionsAndCreate(
+            $account
+        );
+
+        $this->assertNull($result);
 
         $this->assertDatabaseMissing('sessions', [
             'account_id' => $account->id,
