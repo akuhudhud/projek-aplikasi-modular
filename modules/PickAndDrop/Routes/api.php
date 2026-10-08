@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\PickAndDrop\Http\Controllers\PickAndDropFoundationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -9,12 +10,18 @@ use Illuminate\Support\Facades\Route;
 |
 | Business routes for the Pick & Drop module belong here.
 |
-| The module must remain independent from Core route definitions.
-| Actual business endpoints will be added in later implementation phases.
+| The module remains independent from Core route definitions.
+| The API boundary is registered by the module Service Provider and
+| receives the application's API middleware through the module route
+| registration.
 |
 */
 
-Route::prefix('pick-and-drop')
+Route::middleware('api')
+    ->prefix('api/pick-and-drop')
     ->group(function (): void {
-        //
+        Route::get(
+            '/foundation/status',
+            [PickAndDropFoundationController::class, 'status']
+        );
     });
