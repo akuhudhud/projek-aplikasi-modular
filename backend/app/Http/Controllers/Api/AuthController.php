@@ -256,13 +256,20 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $account->password = $request->new_password;
-        $account->save();
+        DB::transaction(function () use ($account, $request) {
+            $lockedAccount = Account::query()
+                ->whereKey($account->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $this->sessionService->endAllForAccount(
-            $account,
-            SessionService::END_REASON_PASSWORD_CHANGED
-        );
+            $lockedAccount->password = $request->new_password;
+            $lockedAccount->save();
+
+            $this->sessionService->endAllForAccount(
+                $lockedAccount,
+                SessionService::END_REASON_PASSWORD_CHANGED
+            );
+        });
 
         return response()->json([
             'success' => true,
@@ -274,13 +281,20 @@ class AuthController extends Controller
     {
         $account = $request->attributes->get('account');
 
-        $account->status = 'DEACTIVATED';
-        $account->save();
+        DB::transaction(function () use ($account) {
+            $lockedAccount = Account::query()
+                ->whereKey($account->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $this->sessionService->endAllForAccount(
-            $account,
-            SessionService::END_REASON_ACCOUNT_DEACTIVATED
-        );
+            $lockedAccount->status = 'DEACTIVATED';
+            $lockedAccount->save();
+
+            $this->sessionService->endAllForAccount(
+                $lockedAccount,
+                SessionService::END_REASON_ACCOUNT_DEACTIVATED
+            );
+        });
 
         return response()->json([
             'success' => true,
@@ -331,8 +345,15 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $account->status = 'ACTIVE';
-        $account->save();
+        DB::transaction(function () use ($account) {
+            $lockedAccount = Account::query()
+                ->whereKey($account->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $lockedAccount->status = 'ACTIVE';
+            $lockedAccount->save();
+        });
 
         app(AuditLogService::class)->record(
             $admin,
@@ -390,13 +411,20 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $account->status = 'SUSPENDED';
-        $account->save();
+        DB::transaction(function () use ($account) {
+            $lockedAccount = Account::query()
+                ->whereKey($account->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $this->sessionService->endAllForAccount(
-            $account,
-            SessionService::END_REASON_ACCOUNT_SUSPENDED
-        );
+            $lockedAccount->status = 'SUSPENDED';
+            $lockedAccount->save();
+
+            $this->sessionService->endAllForAccount(
+                $lockedAccount,
+                SessionService::END_REASON_ACCOUNT_SUSPENDED
+            );
+        });
 
         app(AuditLogService::class)->record(
             $admin,
@@ -447,8 +475,15 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $account->status = 'ACTIVE';
-        $account->save();
+        DB::transaction(function () use ($account) {
+            $lockedAccount = Account::query()
+                ->whereKey($account->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $lockedAccount->status = 'ACTIVE';
+            $lockedAccount->save();
+        });
 
         app(AuditLogService::class)->record(
             $admin,
@@ -484,13 +519,20 @@ class AuthController extends Controller
     {
         $account = $request->attributes->get('account');
 
-        $account->status = 'DELETED';
-        $account->save();
+        DB::transaction(function () use ($account) {
+            $lockedAccount = Account::query()
+                ->whereKey($account->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $this->sessionService->endAllForAccount(
-            $account,
-            SessionService::END_REASON_ACCOUNT_DELETED
-        );
+            $lockedAccount->status = 'DELETED';
+            $lockedAccount->save();
+
+            $this->sessionService->endAllForAccount(
+                $lockedAccount,
+                SessionService::END_REASON_ACCOUNT_DELETED
+            );
+        });
 
         return response()->json([
             'success' => true,
