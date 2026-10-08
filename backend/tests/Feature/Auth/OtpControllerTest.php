@@ -152,6 +152,26 @@ class OtpControllerTest extends TestCase
         $response->assertStatus(422);
     }
 
+    public function test_otp_request_rejects_password_reset_purpose(): void
+    {
+        $response = $this->postJson('/api/otp/request', [
+            'channel' => 'phone',
+            'contact' => '60123456789',
+            'purpose' => 'PASSWORD_RESET',
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors([
+                'purpose',
+            ]);
+
+        $this->assertDatabaseCount(
+            'registration_verifications',
+            0
+        );
+    }
+
     public function test_change_phone_otp_request_requires_authentication(): void
     {
         $response = $this->postJson('/api/otp/request', [
