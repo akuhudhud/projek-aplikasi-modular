@@ -63,12 +63,6 @@ class ContactChangeService
         string $channel,
         string $verificationToken
     ): Account {
-        if ($account->status !== 'ACTIVE') {
-            throw new RuntimeException(
-                'Only active accounts can change contact information.'
-            );
-        }
-
         $purpose = $channel === 'phone'
             ? 'CHANGE_PHONE'
             : 'CHANGE_EMAIL';
@@ -84,11 +78,28 @@ class ContactChangeService
             $purpose,
             $contactField
         ) {
+            $lockedAccount = Account::query()
+                ->whereKey($account->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$lockedAccount) {
+                throw new RuntimeException(
+                    'Account not found.'
+                );
+            }
+
+            if ($lockedAccount->status !== 'ACTIVE') {
+                throw new RuntimeException(
+                    'Only active accounts can change contact information.'
+                );
+            }
+
             $verification = $this->otpService
                 ->consumeVerificationToken(
                     $verificationToken,
                     $purpose,
-                    $account->id
+                    $lockedAccount->id
                 );
 
             if ($verification->channel !== $channel) {
@@ -99,7 +110,7 @@ class ContactChangeService
 
             $exists = Account::query()
                 ->where($contactField, $verification->contact)
-                ->where('id', '!=', $account->id)
+                ->where('id', '!=', $lockedAccount->id)
                 ->exists();
 
             if ($exists) {
@@ -108,17 +119,17 @@ class ContactChangeService
                 );
             }
 
-            $account->{$contactField} = $verification->contact;
+            $lockedAccount->{$contactField} = $verification->contact;
 
             if ($channel === 'phone') {
-                $account->phone_verified_at = now();
+                $lockedAccount->phone_verified_at = now();
             } else {
-                $account->email_verified_at = now();
+                $lockedAccount->email_verified_at = now();
             }
 
-            $account->save();
+            $lockedAccount->save();
 
-            return $account->fresh();
+            return $lockedAccount->fresh();
         });
     }
 }
