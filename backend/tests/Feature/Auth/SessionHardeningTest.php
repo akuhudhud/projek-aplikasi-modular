@@ -372,4 +372,84 @@ class SessionHardeningTest extends TestCase
             $session->end_reason
         );
     }
+
+    public function test_login_replacement_ends_all_existing_active_sessions(): void
+    {
+        $account = Account::create([
+            'id' => 'bbbbbbbb-cccc-4bbb-8ccc-bbbbbbbbbbbb',
+            'name' => 'Multiple Session User',
+            'email' => 'multiple-session@example.com',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'ACTIVE',
+        ]);
+
+        Session::create([
+            'id' => 'cccccccc-dddd-4ccc-8ddd-cccccccccccc',
+            'account_id' => $account->id,
+            'token_hash' => hash('sha256', 'first-old-token'),
+            'created_at' => now()->subHours(2),
+            'last_activity_at' => now()->subHour(),
+            'ended_at' => null,
+            'end_reason' => null,
+        ]);
+
+        Session::create([
+            'id' => 'dddddddd-eeee-4ddd-8eee-dddddddddddd',
+            'account_id' => $account->id,
+            'token_hash' => hash('sha256', 'second-old-token'),
+            'created_at' => now()->subHour(),
+            'last_activity_at' => now()->subMinutes(30),
+            'ended_at' => null,
+            'end_reason' => null,
+        ]);
+
+        $response = $this->postJson('/api/login', [
+            'email' => 'multiple-session@example.com',
+            'password' => 'Password1',
+        ]);
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $oldSessions = Session::query()
+            ->where('account_id', $account->id)
+            ->whereIn('id', [
+                'cccccccc-dddd-4ccc-8ddd-cccccccccccc',
+                'dddddddd-eeee-4ddd-8eee-dddddddddddd',
+            ])
+            ->get();
+
+        $this->assertCount(2, $oldSessions);
+
+        foreach ($oldSessions as $oldSession) {
+            $this->assertNotNull($oldSession->ended_at);
+            $this->assertSame(
+                'LOGIN_REPLACED',
+                $oldSession->end_reason
+            );
+        }
+
+        $activeSessions = Session::query()
+            ->where('account_id', $account->id)
+            ->whereNull('ended_at')
+            ->get();
+
+        $this->assertCount(1, $activeSessions);
+
+        $newSession = $activeSessions->first();
+
+        $this->assertNotNull($newSession->last_activity_at);
+        $this->assertNull($newSession->end_reason);
+        $this->assertSame(
+            $response->json('data.session.token')
+                ? hash(
+                    'sha256',
+                    $response->json('data.session.token')
+                )
+                : null,
+            $newSession->token_hash
+        );
+    }
 }
