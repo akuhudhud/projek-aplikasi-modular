@@ -6,9 +6,6 @@ use Illuminate\Support\ServiceProvider;
 
 class PickAndDropServiceProvider extends ServiceProvider
 {
-    /**
-     * Register module services.
-     */
     public function register(): void
     {
         $this->mergeConfigFrom(
@@ -17,9 +14,6 @@ class PickAndDropServiceProvider extends ServiceProvider
         );
     }
 
-    /**
-     * Bootstrap module services.
-     */
     public function boot(): void
     {
         $this->loadRoutesFrom(
