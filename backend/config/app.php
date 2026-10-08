@@ -111,6 +111,11 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
         App\Providers\OtpServiceProvider::class,
+
+        /*
+         * Business Module Service Providers...
+         */
+        Modules\PickAndDrop\Providers\PickAndDropServiceProvider::class,
     ])->toArray(),
 
     /*
