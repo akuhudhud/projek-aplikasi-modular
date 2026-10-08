@@ -52,21 +52,29 @@ class SessionService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if (!in_array(
-                $lockedAccount->status,
-                ['ACTIVE', 'SUSPENDED'],
-                true
-            )) {
-                return null;
-            }
-
-            $this->endAllForAccount(
-                $lockedAccount,
-                self::END_REASON_LOGIN_REPLACED
+            return $this->replaceActiveSessionsAndCreateLocked(
+                $lockedAccount
             );
-
-            return $this->createForAccount($lockedAccount);
         });
+    }
+
+    public function replaceActiveSessionsAndCreateLocked(
+        Account $lockedAccount
+    ): ?array {
+        if (!in_array(
+            $lockedAccount->status,
+            ['ACTIVE', 'SUSPENDED'],
+            true
+        )) {
+            return null;
+        }
+
+        $this->endAllForAccount(
+            $lockedAccount,
+            self::END_REASON_LOGIN_REPLACED
+        );
+
+        return $this->createForAccount($lockedAccount);
     }
 
     public function end(
