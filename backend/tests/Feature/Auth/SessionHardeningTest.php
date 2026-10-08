@@ -208,4 +208,168 @@ class SessionHardeningTest extends TestCase
             )
         );
     }
+
+    public function test_deactivation_sets_explicit_end_reason(): void
+    {
+        $account = Account::create([
+            'id' => '33333333-3333-4333-8333-333333333333',
+            'name' => 'Deactivation Reason User',
+            'email' => 'deactivation-reason@example.com',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'ACTIVE',
+        ]);
+
+        $token = 'deactivation-reason-token';
+
+        Session::create([
+            'id' => '44444444-4444-4444-8444-444444444444',
+            'account_id' => $account->id,
+            'token_hash' => hash('sha256', $token),
+            'created_at' => now()->subHour(),
+            'last_activity_at' => now()->subMinute(),
+            'ended_at' => null,
+            'end_reason' => null,
+        ]);
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson('/api/me/deactivate');
+
+        $response
+            ->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Account deactivated successfully.',
+            ]);
+
+        $session = Session::findOrFail(
+            '44444444-4444-4444-8444-444444444444'
+        );
+
+        $this->assertNotNull($session->ended_at);
+        $this->assertSame(
+            'ACCOUNT_DEACTIVATED',
+            $session->end_reason
+        );
+    }
+
+    public function test_suspension_sets_explicit_end_reason(): void
+    {
+        $admin = Account::create([
+            'id' => '55555555-5555-4555-8555-555555555555',
+            'name' => 'Session Admin',
+            'email' => 'session-admin@example.com',
+            'password' => 'Password1',
+            'role' => 'SUPER_ADMIN',
+            'status' => 'ACTIVE',
+        ]);
+
+        $adminToken = 'session-admin-token';
+
+        Session::create([
+            'id' => '66666666-6666-4666-8666-666666666666',
+            'account_id' => $admin->id,
+            'token_hash' => hash('sha256', $adminToken),
+            'created_at' => now(),
+            'last_activity_at' => now()->subMinute(),
+            'ended_at' => null,
+            'end_reason' => null,
+        ]);
+
+        $account = Account::create([
+            'id' => '77777777-7777-4777-8777-777777777777',
+            'name' => 'Suspension Reason User',
+            'email' => 'suspension-reason@example.com',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'ACTIVE',
+        ]);
+
+        $userToken = 'suspension-reason-token';
+
+        Session::create([
+            'id' => '88888888-8888-4888-8888-888888888888',
+            'account_id' => $account->id,
+            'token_hash' => hash('sha256', $userToken),
+            'created_at' => now()->subHour(),
+            'last_activity_at' => now()->subMinute(),
+            'ended_at' => null,
+            'end_reason' => null,
+        ]);
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$adminToken
+        )->postJson(
+            '/api/admin/accounts/'.$account->id.'/suspend',
+            [
+                'reason' => 'Security review required.',
+            ]
+        );
+
+        $response
+            ->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Account suspended successfully.',
+            ]);
+
+        $session = Session::findOrFail(
+            '88888888-8888-4888-8888-888888888888'
+        );
+
+        $this->assertNotNull($session->ended_at);
+        $this->assertSame(
+            'ACCOUNT_SUSPENDED',
+            $session->end_reason
+        );
+    }
+
+    public function test_deletion_sets_explicit_end_reason(): void
+    {
+        $account = Account::create([
+            'id' => '99999999-9999-4999-8999-999999999999',
+            'name' => 'Deletion Reason User',
+            'email' => 'deletion-reason@example.com',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'ACTIVE',
+        ]);
+
+        $token = 'deletion-reason-token';
+
+        Session::create([
+            'id' => 'aaaaaaaa-bbbb-4aaa-8bbb-aaaaaaaaaaaa',
+            'account_id' => $account->id,
+            'token_hash' => hash('sha256', $token),
+            'created_at' => now()->subHour(),
+            'last_activity_at' => now()->subMinute(),
+            'ended_at' => null,
+            'end_reason' => null,
+        ]);
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson('/api/me/delete');
+
+        $response
+            ->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Account deleted successfully.',
+            ]);
+
+        $session = Session::findOrFail(
+            'aaaaaaaa-bbbb-4aaa-8bbb-aaaaaaaaaaaa'
+        );
+
+        $this->assertNotNull($session->ended_at);
+        $this->assertSame(
+            'ACCOUNT_DELETED',
+            $session->end_reason
+        );
+    }
 }
