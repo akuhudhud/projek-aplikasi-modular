@@ -35,7 +35,6 @@ class RequestOtpRequest extends FormRequest
                 'string',
                 Rule::in([
                     'REGISTRATION',
-                    'PASSWORD_RESET',
                     'CHANGE_PHONE',
                     'CHANGE_EMAIL',
                 ]),
