@@ -45,12 +45,16 @@ class SessionService
 
     public function replaceActiveSessionsAndCreate(
         Account $account
-    ): array {
+    ): ?array {
         return DB::transaction(function () use ($account) {
             $lockedAccount = Account::query()
                 ->whereKey($account->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            if ($lockedAccount->status !== 'ACTIVE') {
+                return null;
+            }
 
             $this->endAllForAccount(
                 $lockedAccount,
