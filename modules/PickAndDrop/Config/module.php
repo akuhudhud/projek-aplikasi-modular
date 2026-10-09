@@ -30,6 +30,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Module Provider
+    |--------------------------------------------------------------------------
+    |
+    | The module declares its own service provider.
+    | Core discovers providers through a generic mechanism.
+    |
+    */
+
+    'provider' => \Modules\PickAndDrop\Providers\PickAndDropServiceProvider::class,
+
+    /*
+    |--------------------------------------------------------------------------
     | Module Boundaries
     |--------------------------------------------------------------------------
     |
