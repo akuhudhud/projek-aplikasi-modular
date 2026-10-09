@@ -24,7 +24,10 @@ class StorePickAndDropRequest extends FormRequest
             'category' => [
                 'required',
                 'string',
-                Rule::in(['BARANG', 'DOKUMEN']),
+                Rule::in([
+                    'BARANG',
+                    'DOKUMEN',
+                ]),
             ],
 
             'item_type' => [
@@ -48,7 +51,7 @@ class StorePickAndDropRequest extends FormRequest
 
             'pickup_location' => [
                 'required',
-                'array',
+                'array:label,address',
             ],
 
             'pickup_location.label' => [
@@ -77,7 +80,7 @@ class StorePickAndDropRequest extends FormRequest
 
             'delivery_location' => [
                 'required',
-                'array',
+                'array:label,address',
             ],
 
             'delivery_location.label' => [
