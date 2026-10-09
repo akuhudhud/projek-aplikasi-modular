@@ -1,7 +1,11 @@
+FROM composer:2 AS composer_bin
+
 FROM php:8.4-cli
 
+COPY --from=composer_bin /usr/bin/composer /usr/bin/composer
+
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends default-mysql-client \
+    && apt-get install -y --no-install-recommends default-mysql-client git unzip \
     && docker-php-ext-install pdo_mysql \
     && rm -rf /var/lib/apt/lists/*
 
