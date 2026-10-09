@@ -1,7 +1,7 @@
 {
     "name": "laravel/laravel",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "The skeleton application for Laravel framework",
     "keywords": [
         "laravel",
         "framework"
@@ -24,7 +24,7 @@
     "autoload": {
         "psr-4": {
             "App\\": "app/",
-            "Modules\\PickAndDrop\\": "../modules/PickAndDrop/",
+            "Modules\\": "../modules/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
