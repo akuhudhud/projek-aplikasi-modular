@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Modules\PickAndDrop;
 
+use App\Providers\ModuleDiscoveryServiceProvider;
 use Modules\PickAndDrop\Providers\PickAndDropServiceProvider;
 use Tests\TestCase;
 
@@ -12,6 +13,38 @@ class PickAndDropModuleFoundationTest extends TestCase
         $this->assertTrue(
             app()->getLoadedProviders()[PickAndDropServiceProvider::class] ?? false
         );
+    }
+
+    public function test_generic_module_discovery_provider_is_registered(): void
+    {
+        $providers = config('app.providers', []);
+
+        $this->assertContains(
+            ModuleDiscoveryServiceProvider::class,
+            $providers
+        );
+    }
+
+    public function test_core_configuration_does_not_directly_register_business_module_provider(): void
+    {
+        $providers = config('app.providers', []);
+
+        $this->assertNotContains(
+            PickAndDropServiceProvider::class,
+            $providers
+        );
+    }
+
+    public function test_pick_and_drop_provider_is_declared_in_module_metadata(): void
+    {
+        $module = require base_path('../modules/PickAndDrop/Config/module.php');
+
+        $this->assertSame(
+            PickAndDropServiceProvider::class,
+            $module['provider'] ?? null
+        );
+
+        $this->assertTrue($module['enabled'] ?? false);
     }
 
     public function test_pick_and_drop_module_configuration_is_available(): void
