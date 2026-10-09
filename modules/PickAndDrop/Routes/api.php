@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Middleware\AuthenticateSession;
 use Illuminate\Support\Facades\Route;
 use Modules\PickAndDrop\Http\Controllers\PickAndDropFoundationController;
+use Modules\PickAndDrop\Http\Controllers\PickAndDropRequestController;
 
 /*
 |--------------------------------------------------------------------------
@@ -9,11 +11,7 @@ use Modules\PickAndDrop\Http\Controllers\PickAndDropFoundationController;
 |--------------------------------------------------------------------------
 |
 | Business routes for the Pick & Drop module belong here.
-|
-| The module remains independent from Core route definitions.
-| The API boundary is registered by the module Service Provider and
-| receives the application's API middleware through the module route
-| registration.
+| Core authentication is reused through AuthenticateSession.
 |
 */
 
@@ -24,4 +22,9 @@ Route::middleware('api')
             '/foundation/status',
             [PickAndDropFoundationController::class, 'status']
         );
+
+        Route::post(
+            '/requests',
+            [PickAndDropRequestController::class, 'store']
+        )->middleware(AuthenticateSession::class);
     });
