@@ -106,6 +106,7 @@ return [
         /*
          * Application Service Providers...
          */
+
         App\Providers\AppServiceProvider::class,
         // App\Providers\BroadcastServiceProvider::class,
         App\Providers\EventServiceProvider::class,
@@ -113,9 +114,10 @@ return [
         App\Providers\OtpServiceProvider::class,
 
         /*
-         * Business Module Service Providers...
+         * Generic Business Module Discovery...
          */
-        Modules\PickAndDrop\Providers\PickAndDropServiceProvider::class,
+
+        App\Providers\ModuleDiscoveryServiceProvider::class,
     ])->toArray(),
 
     /*
