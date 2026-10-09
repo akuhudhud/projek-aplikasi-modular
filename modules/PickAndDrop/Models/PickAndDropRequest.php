@@ -2,9 +2,7 @@
 
 namespace Modules\PickAndDrop\Models;
 
-use App\Models\Account;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class PickAndDropRequest extends Model
@@ -35,14 +33,6 @@ class PickAndDropRequest extends Model
         'pickup_location_snapshot' => 'array',
         'delivery_location_snapshot' => 'array',
     ];
-
-    public function customer(): BelongsTo
-    {
-        return $this->belongsTo(
-            Account::class,
-            'customer_account_id'
-        );
-    }
 
     public function task(): HasOne
     {
