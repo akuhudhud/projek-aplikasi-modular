@@ -11,7 +11,7 @@ class SuperAdminProtectionTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_root_super_admin_cannot_suspend_another_root_super_admin(): void
+    public function test_root_super_admin_cannot_suspend_own_account(): void
     {
         [$root, $token] = $this->createAccountWithSession(
             'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -21,21 +21,11 @@ class SuperAdminProtectionTest extends TestCase
             'ROOT_SUPER_ADMIN'
         );
 
-        $target = Account::create([
-            'id' => 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-            'name' => 'Second Root Super Admin',
-            'phone' => '60222222222',
-            'email' => 'root-two@example.com',
-            'password' => 'Password1',
-            'role' => 'ROOT_SUPER_ADMIN',
-            'status' => 'ACTIVE',
-        ]);
-
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
         )->postJson(
-            '/api/admin/accounts/'.$target->id.'/suspend',
+            '/api/admin/accounts/'.$root->id.'/suspend',
             [
                 'reason' => 'Protection test.',
             ]
@@ -49,7 +39,7 @@ class SuperAdminProtectionTest extends TestCase
             ]);
 
         $this->assertDatabaseHas('accounts', [
-            'id' => $target->id,
+            'id' => $root->id,
             'role' => 'ROOT_SUPER_ADMIN',
             'status' => 'ACTIVE',
         ]);
