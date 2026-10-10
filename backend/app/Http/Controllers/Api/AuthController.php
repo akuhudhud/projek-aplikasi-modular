@@ -330,6 +330,13 @@ class AuthController extends Controller
                 $lockedAccount,
                 SessionService::END_REASON_ACCOUNT_DEACTIVATED
             );
+
+            app(AuditLogService::class)->record(
+                $lockedAccount,
+                $lockedAccount,
+                'ACCOUNT_DEACTIVATED',
+                'Account deactivated by account owner.'
+            );
         });
 
         return response()->json([
@@ -381,7 +388,7 @@ class AuthController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($account) {
+        DB::transaction(function () use ($account, $admin, $reason) {
             $lockedAccount = Account::query()
                 ->whereKey($account->id)
                 ->lockForUpdate()
@@ -389,14 +396,14 @@ class AuthController extends Controller
 
             $lockedAccount->status = 'ACTIVE';
             $lockedAccount->save();
-        });
 
-        app(AuditLogService::class)->record(
-            $admin,
-            $account,
-            'ACCOUNT_REACTIVATED',
-            $reason
-        );
+            app(AuditLogService::class)->record(
+                $admin,
+                $lockedAccount,
+                'ACCOUNT_REACTIVATED',
+                $reason
+            );
+        });
 
         return response()->json([
             'success' => true,
@@ -447,7 +454,7 @@ class AuthController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($account) {
+        DB::transaction(function () use ($account, $admin, $reason) {
             $lockedAccount = Account::query()
                 ->whereKey($account->id)
                 ->lockForUpdate()
@@ -460,14 +467,14 @@ class AuthController extends Controller
                 $lockedAccount,
                 SessionService::END_REASON_ACCOUNT_SUSPENDED
             );
-        });
 
-        app(AuditLogService::class)->record(
-            $admin,
-            $account,
-            'ACCOUNT_SUSPENDED',
-            $reason
-        );
+            app(AuditLogService::class)->record(
+                $admin,
+                $lockedAccount,
+                'ACCOUNT_SUSPENDED',
+                $reason
+            );
+        });
 
         return response()->json([
             'success' => true,
@@ -511,7 +518,7 @@ class AuthController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($account) {
+        DB::transaction(function () use ($account, $admin, $reason) {
             $lockedAccount = Account::query()
                 ->whereKey($account->id)
                 ->lockForUpdate()
@@ -519,14 +526,14 @@ class AuthController extends Controller
 
             $lockedAccount->status = 'ACTIVE';
             $lockedAccount->save();
-        });
 
-        app(AuditLogService::class)->record(
-            $admin,
-            $account,
-            'ACCOUNT_UNSUSPENDED',
-            $reason
-        );
+            app(AuditLogService::class)->record(
+                $admin,
+                $lockedAccount,
+                'ACCOUNT_UNSUSPENDED',
+                $reason
+            );
+        });
 
         return response()->json([
             'success' => true,
@@ -567,6 +574,13 @@ class AuthController extends Controller
             $this->sessionService->endAllForAccount(
                 $lockedAccount,
                 SessionService::END_REASON_ACCOUNT_DELETED
+            );
+
+            app(AuditLogService::class)->record(
+                $lockedAccount,
+                $lockedAccount,
+                'ACCOUNT_DELETED',
+                'Account marked as deleted by account owner.'
             );
         });
 
