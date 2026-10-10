@@ -7,6 +7,7 @@ use App\Models\Account;
 use App\Services\AuditLogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class AccountController extends Controller
@@ -114,23 +115,32 @@ class AccountController extends Controller
             ],
         ]);
 
-        $newSuperAdmin = Account::create([
-            'id' => (string) Str::uuid(),
-            'name' => $request->input('name'),
-            'phone' => $request->input('phone'),
-            'email' => $request->input('email'),
-            'profile_picture' => null,
-            'password' => $request->input('password'),
-            'role' => 'SUPER_ADMIN',
-            'status' => 'ACTIVE',
-        ]);
-
-        $auditLogService->record(
+        $newSuperAdmin = DB::transaction(function () use (
+            $request,
             $actor,
-            $newSuperAdmin,
-            'SUPER_ADMIN_CREATED',
-            $reason
-        );
+            $reason,
+            $auditLogService
+        ) {
+            $account = Account::create([
+                'id' => (string) Str::uuid(),
+                'name' => $request->input('name'),
+                'phone' => $request->input('phone'),
+                'email' => $request->input('email'),
+                'profile_picture' => null,
+                'password' => $request->input('password'),
+                'role' => 'SUPER_ADMIN',
+                'status' => 'ACTIVE',
+            ]);
+
+            $auditLogService->record(
+                $actor,
+                $account,
+                'SUPER_ADMIN_CREATED',
+                $reason
+            );
+
+            return $account;
+        });
 
         return response()->json([
             'success' => true,
