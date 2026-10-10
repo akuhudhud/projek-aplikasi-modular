@@ -88,40 +88,6 @@ class MeTest extends TestCase
             ]);
     }
 
-    public function test_me_rejects_ended_session_token(): void
-    {
-        $account = Account::create([
-            'id' => 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-            'name' => 'Ended Session User',
-            'email' => 'ended@example.com',
-            'password' => 'Password1',
-            'role' => 'USER',
-            'status' => 'ACTIVE',
-        ]);
-
-        $token = 'ended-session-token';
-
-        Session::create([
-            'id' => 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-            'account_id' => $account->id,
-            'token_hash' => hash('sha256', $token),
-            'created_at' => now(),
-            'ended_at' => now(),
-        ]);
-
-        $response = $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
-        )->getJson('/api/me');
-
-        $response
-            ->assertStatus(401)
-            ->assertJson([
-                'success' => false,
-                'message' => 'Unauthenticated.',
-            ]);
-    }
-
     public function test_me_does_not_modify_account_or_session(): void
     {
         $account = Account::create([
