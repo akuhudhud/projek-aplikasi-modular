@@ -98,7 +98,7 @@ Urutan pelaksanaan terperinci tertakluk kepada baseline, keputusan dan rekod pem
 
 ### Backend
 
-- Laravel 10
+- Laravel 13
 - PHP 8.3
 - MySQL 8.x
 
