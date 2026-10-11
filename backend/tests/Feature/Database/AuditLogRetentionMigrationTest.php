@@ -244,6 +244,23 @@ class AuditLogRetentionMigrationTest extends TestCase
         $this->assertSame('cascade', $targetForeignKey->onDelete);
     }
 
+    public function test_actual_schema_does_not_have_account_foreign_keys_on_audit_logs(): void
+    {
+        $foreignKeys = Schema::getForeignKeys('audit_logs');
+
+        $foreignKeyNames = array_column($foreignKeys, 'name');
+
+        $this->assertNotContains(
+            'audit_logs_actor_account_id_foreign',
+            $foreignKeyNames
+        );
+
+        $this->assertNotContains(
+            'audit_logs_target_account_id_foreign',
+            $foreignKeyNames
+        );
+    }
+
     private function assertRollbackIsRejected(): void
     {
         $migration = $this->loadRetentionMigration();
