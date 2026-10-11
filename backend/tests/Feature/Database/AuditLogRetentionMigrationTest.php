@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\AuditLog;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 use Tests\TestCase;
@@ -156,7 +157,10 @@ class AuditLogRetentionMigrationTest extends TestCase
                 function (string $table, \Closure $callback) use (
                     &$capturedBlueprint
                 ): void {
-                    $capturedBlueprint = new Blueprint($table);
+                    $capturedBlueprint = new Blueprint(
+                        DB::connection(),
+                        $table
+                    );
 
                     $callback($capturedBlueprint);
                 }
