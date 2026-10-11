@@ -3,6 +3,8 @@
 namespace App\Services\Otp;
 
 use App\Contracts\OtpProviderInterface;
+use Illuminate\Support\Facades\Log;
+use RuntimeException;
 
 class LocalOtpProvider implements OtpProviderInterface
 {
@@ -12,8 +14,20 @@ class LocalOtpProvider implements OtpProviderInterface
         string $purpose,
         string $otp
     ): void {
-        // Development provider.
-        // The OTP is intentionally not sent through an external
-        // SMS/email service during local development.
+        if (!app()->environment(['local', 'testing'])) {
+            throw new RuntimeException(
+                'Local OTP provider cannot be used outside local or testing environments.'
+            );
+        }
+
+        if (app()->environment('testing')) {
+            return;
+        }
+
+        Log::channel('single')->debug('Local development OTP', [
+            'channel' => $channel,
+            'purpose' => $purpose,
+            'otp' => $otp,
+        ]);
     }
 }
