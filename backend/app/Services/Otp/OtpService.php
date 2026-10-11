@@ -54,6 +54,32 @@ class OtpService
                 ->first();
 
             if ($verification) {
+                if ($verification->expires_at->isPast()) {
+                    $this->provider->send(
+                        $channel,
+                        $contact,
+                        $purpose,
+                        self::OTP
+                    );
+
+                    $verification->update([
+                        'account_id' => $accountId,
+                        'otp_hash' => Hash::make(self::OTP),
+                        'expires_at' => now()->addMinutes(
+                            self::OTP_EXPIRY_MINUTES
+                        ),
+                        'attempts' => 0,
+                        'last_sent_at' => now(),
+                        'resend_count' => 0,
+                        'verified_at' => null,
+                        'verification_token_hash' => null,
+                        'token_expires_at' => null,
+                        'consumed_at' => null,
+                    ]);
+
+                    return $verification->fresh();
+                }
+
                 if ($verification->last_sent_at !== null) {
                     $cooldownEndsAt = $verification->last_sent_at
                         ->copy()
