@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 use Throwable;
 
@@ -20,13 +21,32 @@ class ModuleDiscoveryServiceProvider extends ServiceProvider
         sort($moduleConfigFiles);
 
         foreach ($moduleConfigFiles as $moduleConfigFile) {
+            $moduleName = basename(
+                dirname(dirname($moduleConfigFile))
+            );
+
             try {
                 $module = require $moduleConfigFile;
             } catch (Throwable $exception) {
+                Log::warning(
+                    'Module discovery skipped unreadable module metadata.',
+                    [
+                        'module' => $moduleName,
+                        'error_type' => get_class($exception),
+                    ]
+                );
+
                 continue;
             }
 
             if (! is_array($module)) {
+                Log::warning(
+                    'Module discovery skipped non-array module metadata.',
+                    [
+                        'module' => $moduleName,
+                    ]
+                );
+
                 continue;
             }
 
@@ -41,6 +61,16 @@ class ModuleDiscoveryServiceProvider extends ServiceProvider
                 || ! class_exists($providerClass)
                 || ! is_subclass_of($providerClass, ServiceProvider::class)
             ) {
+                Log::warning(
+                    'Module discovery skipped invalid provider declaration.',
+                    [
+                        'module' => $moduleName,
+                        'provider' => is_string($providerClass)
+                            ? $providerClass
+                            : get_debug_type($providerClass),
+                    ]
+                );
+
                 continue;
             }
 
