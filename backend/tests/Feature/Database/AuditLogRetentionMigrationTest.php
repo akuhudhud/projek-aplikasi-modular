@@ -102,7 +102,7 @@ class AuditLogRetentionMigrationTest extends TestCase
         $this->assertRollbackIsRejected();
     }
 
-    public function test_migration_allows_rollback_when_all_referenced_accounts_exist(): void
+    public function test_migration_restores_expected_foreign_keys_when_all_referenced_accounts_exist(): void
     {
         $actor = $this->createAccount(
             'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
@@ -140,20 +140,58 @@ class AuditLogRetentionMigrationTest extends TestCase
         ]);
 
         /*
-         * Prevent actual DDL changes to the test database.
-         * The migration must pass its orphan checks and request
-         * restoration of the audit_logs foreign keys.
+         * Capture the Blueprint callback without executing actual DDL.
+         * This verifies the foreign-key definitions requested by the
+         * migration while keeping the test database schema unchanged.
          */
+        $capturedBlueprint = null;
+
         Schema::shouldReceive('table')
             ->once()
             ->with(
                 'audit_logs',
                 \Mockery::type(\Closure::class)
+            )
+            ->andReturnUsing(
+                function (string $table, \Closure $callback) use (
+                    &$capturedBlueprint
+                ): void {
+                    $capturedBlueprint = new Blueprint($table);
+
+                    $callback($capturedBlueprint);
+                }
             );
 
         $migration = $this->loadRetentionMigration();
 
         $migration->down();
+
+        $this->assertInstanceOf(Blueprint::class, $capturedBlueprint);
+
+        $commands = $capturedBlueprint->getCommands();
+
+        $this->assertCount(2, $commands);
+
+        $actorForeignKey = $commands[0];
+        $targetForeignKey = $commands[1];
+
+        $this->assertSame('foreign', $actorForeignKey->name);
+        $this->assertSame(
+            ['actor_account_id'],
+            $actorForeignKey->columns
+        );
+        $this->assertSame(['id'], $actorForeignKey->references);
+        $this->assertSame('accounts', $actorForeignKey->on);
+        $this->assertSame('cascade', $actorForeignKey->onDelete);
+
+        $this->assertSame('foreign', $targetForeignKey->name);
+        $this->assertSame(
+            ['target_account_id'],
+            $targetForeignKey->columns
+        );
+        $this->assertSame(['id'], $targetForeignKey->references);
+        $this->assertSame('accounts', $targetForeignKey->on);
+        $this->assertSame('cascade', $targetForeignKey->onDelete);
     }
 
     private function assertRollbackIsRejected(): void
