@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Services\Otp;
@@ -53,56 +54,45 @@ class OtpService
                 ->lockForUpdate()
                 ->first();
 
-            if ($verification) {
-                if ($verification->last_sent_at !== null) {
-                    $cooldownEndsAt = $verification->last_sent_at
-                        ->copy()
-                        ->addSeconds(self::RESEND_COOLDOWN_SECONDS);
+            $isNewCycle = $verification === null;
 
-                    if ($cooldownEndsAt->isFuture()) {
-                        throw new OtpResendException(
-                            'Please wait before requesting another OTP.',
-                            max(
-                                1,
-                                now()->diffInSeconds(
-                                    $cooldownEndsAt,
-                                    false
+            if ($verification !== null) {
+                $isExpired = $verification->expires_at->isPast();
+
+                if ($isExpired) {
+                    // OTP lama sudah luput. Mulakan kitaran baharu
+                    // pada rekod yang sama supaya token lama dibatalkan.
+                    $isNewCycle = true;
+                } else {
+                    if ($verification->last_sent_at !== null) {
+                        $cooldownEndsAt = $verification->last_sent_at
+                            ->copy()
+                            ->addSeconds(self::RESEND_COOLDOWN_SECONDS);
+
+                        if ($cooldownEndsAt->isFuture()) {
+                            throw new OtpResendException(
+                                'Please wait before requesting another OTP.',
+                                max(
+                                    1,
+                                    now()->diffInSeconds(
+                                        $cooldownEndsAt,
+                                        false
+                                    )
                                 )
-                            )
+                            );
+                        }
+                    }
+
+                    if (
+                        $verification->resend_count
+                        >= self::MAX_RESENDS
+                    ) {
+                        throw new OtpResendException(
+                            'OTP resend limit reached. Please start a new verification request.',
+                            0
                         );
                     }
                 }
-
-                if ($verification->resend_count >= self::MAX_RESENDS) {
-                    throw new OtpResendException(
-                        'OTP resend limit reached. Please start a new verification request.',
-                        0
-                    );
-                }
-
-                $this->provider->send(
-                    $channel,
-                    $contact,
-                    $purpose,
-                    self::OTP
-                );
-
-                $verification->update([
-                    'account_id' => $accountId,
-                    'otp_hash' => Hash::make(self::OTP),
-                    'expires_at' => now()->addMinutes(
-                        self::OTP_EXPIRY_MINUTES
-                    ),
-                    'attempts' => 0,
-                    'last_sent_at' => now(),
-                    'resend_count' => $verification->resend_count + 1,
-                    'verified_at' => null,
-                    'verification_token_hash' => null,
-                    'token_expires_at' => null,
-                    'consumed_at' => null,
-                ]);
-
-                return $verification->fresh();
             }
 
             $this->provider->send(
@@ -111,6 +101,27 @@ class OtpService
                 $purpose,
                 self::OTP
             );
+
+            if ($verification !== null) {
+                $verification->update([
+                    'account_id' => $accountId,
+                    'otp_hash' => Hash::make(self::OTP),
+                    'expires_at' => now()->addMinutes(
+                        self::OTP_EXPIRY_MINUTES
+                    ),
+                    'attempts' => 0,
+                    'last_sent_at' => now(),
+                    'resend_count' => $isNewCycle
+                        ? 0
+                        : $verification->resend_count + 1,
+                    'verified_at' => null,
+                    'verification_token_hash' => null,
+                    'token_expires_at' => null,
+                    'consumed_at' => null,
+                ]);
+
+                return $verification->fresh();
+            }
 
             return RegistrationVerification::create([
                 'id' => (string) Str::uuid(),
