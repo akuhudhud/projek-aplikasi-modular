@@ -194,21 +194,28 @@ class OtpService
     public function issueVerificationToken(
         RegistrationVerification $verification
     ): string {
-        if ($verification->verified_at === null) {
-            throw new RuntimeException(
-                'OTP verification is required before issuing a verification token.'
-            );
-        }
+        return DB::transaction(function () use ($verification) {
+            $verification->refreshForUpdate();
 
-        $token = Str::random(64);
+            if (
+                $verification->verified_at === null
+                || $verification->expires_at->isPast()
+            ) {
+                throw new RuntimeException(
+                    'OTP verification is required before issuing a verification token.'
+                );
+            }
 
-        $verification->update([
-            'verification_token_hash' => hash('sha256', $token),
-            'token_expires_at' => now()->addMinutes(10),
-            'consumed_at' => null,
-        ]);
+            $token = Str::random(64);
 
-        return $token;
+            $verification->update([
+                'verification_token_hash' => hash('sha256', $token),
+                'token_expires_at' => now()->addMinutes(10),
+                'consumed_at' => null,
+            ]);
+
+            return $token;
+        });
     }
 
     public function consumeVerificationToken(
