@@ -1,3 +1,4 @@
+
 <?php
 
 namespace Tests\Feature\Auth;
@@ -12,7 +13,7 @@ class ConcurrentLoginTest extends TestCase
 
     private array $workerPipes = [];
 
-    public function test_login_waits_for_account_row_lock_before_making_login_security_decision(): void
+    public function test_waiting_login_uses_latest_failed_attempt_count_before_locking_account(): void
     {
         if (DB::getDriverName() !== 'mysql') {
             $this->markTestSkipped(
@@ -79,9 +80,18 @@ class ConcurrentLoginTest extends TestCase
             $this->assertTrue(
                 $status['running'],
                 'The login request completed while the account row was locked. '
-                . 'This indicates that the login-security transaction is not '
-                . 'serializing the account decision with SELECT ... FOR UPDATE.'
+                . 'The login-security decision may not be serialized '
+                . 'with SELECT ... FOR UPDATE.'
             );
+
+            // Simulate another completed login attempt while this request
+            // is waiting for the account row lock.
+            Account::query()
+                ->whereKey($accountId)
+                ->update([
+                    'failed_login_attempts' => 4,
+                    'locked_until' => null,
+                ]);
 
             DB::commit();
             $transactionStarted = false;
@@ -104,9 +114,9 @@ class ConcurrentLoginTest extends TestCase
                 JSON_THROW_ON_ERROR
             );
 
-            $this->assertSame(401, $result['status']);
+            $this->assertSame(423, $result['status']);
             $this->assertSame(
-                'Invalid credentials.',
+                'Account is temporarily locked.',
                 $result['message']
             );
 
@@ -114,12 +124,12 @@ class ConcurrentLoginTest extends TestCase
                 ->whereKey($accountId)
                 ->firstOrFail();
 
-            $this->assertSame(
-                1,
-                $account->failed_login_attempts
+            $this->assertSame(5, $account->failed_login_attempts);
+            $this->assertNotNull($account->locked_until);
+            $this->assertTrue($account->locked_until->isFuture());
+            $this->assertTrue(
+                $account->locked_until->lte(now()->addMinutes(30))
             );
-
-            $this->assertNull($account->locked_until);
         } finally {
             if ($transactionStarted) {
                 DB::rollBack();
