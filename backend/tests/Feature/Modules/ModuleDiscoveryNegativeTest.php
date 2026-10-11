@@ -3,6 +3,7 @@
 namespace Tests\Feature\Modules;
 
 use App\Providers\ModuleDiscoveryServiceProvider;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -20,11 +21,11 @@ class ModuleDiscoveryNegativeTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_disabled_module_provider_is_not_registered(): void
+    public function test_disabled_module_provider_is_not_registered_and_does_not_log_warning(): void
     {
-        $this->assertProviderIsNotLoaded(
-            DiscoveryFixtureServiceProvider::class
-        );
+        Log::spy();
+
+        DiscoveryFixtureServiceProvider::$registrationCount = 0;
 
         $this->createModuleFixture(
             'disabled',
@@ -44,11 +45,15 @@ class ModuleDiscoveryNegativeTest extends TestCase
             0,
             DiscoveryFixtureServiceProvider::$registrationCount
         );
+
+        Log::shouldNotHaveReceived('warning');
     }
 
-    public function test_non_array_module_metadata_is_ignored(): void
+    public function test_non_array_module_metadata_is_ignored_and_logged(): void
     {
-        $this->createModuleFixture(
+        Log::spy();
+
+        $directory = $this->createModuleFixture(
             'non_array',
             "'invalid metadata'"
         );
@@ -58,11 +63,22 @@ class ModuleDiscoveryNegativeTest extends TestCase
         $this->assertProviderIsNotLoaded(
             DiscoveryFixtureServiceProvider::class
         );
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->with(
+                'Module discovery skipped non-array module metadata.',
+                [
+                    'module' => basename($directory),
+                ]
+            );
     }
 
-    public function test_malformed_module_metadata_is_ignored(): void
+    public function test_malformed_module_metadata_is_ignored_and_logged(): void
     {
-        $this->createModuleFixture(
+        Log::spy();
+
+        $directory = $this->createModuleFixture(
             'malformed',
             '<?php this is invalid PHP syntax'
         );
@@ -72,15 +88,30 @@ class ModuleDiscoveryNegativeTest extends TestCase
         $this->assertProviderIsNotLoaded(
             DiscoveryFixtureServiceProvider::class
         );
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->with(
+                'Module discovery skipped unreadable module metadata.',
+                [
+                    'module' => basename($directory),
+                    'error_type' => \ParseError::class,
+                ]
+            );
     }
 
-    public function test_nonexistent_provider_is_ignored(): void
+    public function test_nonexistent_provider_is_ignored_and_logged(): void
     {
-        $this->createModuleFixture(
+        Log::spy();
+
+        $providerClass =
+            'Tests\\Feature\\Modules\\MissingDiscoveryProvider';
+
+        $directory = $this->createModuleFixture(
             'missing_provider',
             [
                 'enabled' => true,
-                'provider' => 'Tests\\Feature\\Modules\\MissingDiscoveryProvider',
+                'provider' => $providerClass,
             ]
         );
 
@@ -89,11 +120,23 @@ class ModuleDiscoveryNegativeTest extends TestCase
         $this->assertProviderIsNotLoaded(
             DiscoveryFixtureServiceProvider::class
         );
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->with(
+                'Module discovery skipped invalid provider declaration.',
+                [
+                    'module' => basename($directory),
+                    'provider' => $providerClass,
+                ]
+            );
     }
 
-    public function test_class_that_is_not_a_service_provider_is_ignored(): void
+    public function test_class_that_is_not_a_service_provider_is_ignored_and_logged(): void
     {
-        $this->createModuleFixture(
+        Log::spy();
+
+        $directory = $this->createModuleFixture(
             'invalid_provider_type',
             [
                 'enabled' => true,
@@ -106,10 +149,22 @@ class ModuleDiscoveryNegativeTest extends TestCase
         $this->assertProviderIsNotLoaded(
             DiscoveryFixtureServiceProvider::class
         );
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->with(
+                'Module discovery skipped invalid provider declaration.',
+                [
+                    'module' => basename($directory),
+                    'provider' => \stdClass::class,
+                ]
+            );
     }
 
     public function test_duplicate_provider_declarations_register_provider_once(): void
     {
+        Log::spy();
+
         DiscoveryFixtureServiceProvider::$registrationCount = 0;
 
         $metadata = [
@@ -136,6 +191,8 @@ class ModuleDiscoveryNegativeTest extends TestCase
             DiscoveryFixtureServiceProvider::$registrationCount,
             'A provider declared by multiple modules must register only once.'
         );
+
+        Log::shouldNotHaveReceived('warning');
     }
 
     private function runDiscovery(): void
@@ -165,8 +222,13 @@ class ModuleDiscoveryNegativeTest extends TestCase
 
         $configDirectory = $directory . '/Config';
 
-        if (! mkdir($configDirectory, 0777, true) && ! is_dir($configDirectory)) {
-            $this->fail("Could not create fixture directory: {$configDirectory}");
+        if (
+            ! mkdir($configDirectory, 0777, true)
+            && ! is_dir($configDirectory)
+        ) {
+            $this->fail(
+                "Could not create fixture directory: {$configDirectory}"
+            );
         }
 
         $this->fixtureDirectories[] = $directory;
@@ -177,7 +239,10 @@ class ModuleDiscoveryNegativeTest extends TestCase
                 . ';'
                 . PHP_EOL;
         } elseif ($suffix === 'non_array') {
-            $contents = '<?php return ' . $metadata . ';' . PHP_EOL;
+            $contents = '<?php return '
+                . $metadata
+                . ';'
+                . PHP_EOL;
         } else {
             $contents = $metadata . PHP_EOL;
         }
@@ -188,7 +253,10 @@ class ModuleDiscoveryNegativeTest extends TestCase
         );
 
         if ($written === false) {
-            $this->fail("Could not write fixture metadata: {$configDirectory}/module.php");
+            $this->fail(
+                "Could not write fixture metadata: "
+                . "{$configDirectory}/module.php"
+            );
         }
 
         return $directory;
