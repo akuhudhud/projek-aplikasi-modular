@@ -103,6 +103,52 @@ class AuditLogRetentionMigrationTest extends TestCase
         $this->assertRollbackIsRejected();
     }
 
+    public function test_migration_drops_only_the_expected_audit_log_foreign_keys(): void
+    {
+        $capturedBlueprint = null;
+
+        Schema::shouldReceive('table')
+            ->once()
+            ->with(
+                'audit_logs',
+                \Mockery::type(\Closure::class)
+            )
+            ->andReturnUsing(
+                function (string $table, \Closure $callback) use (
+                    &$capturedBlueprint
+                ): void {
+                    $capturedBlueprint = new Blueprint(
+                        DB::connection(),
+                        $table
+                    );
+
+                    $callback($capturedBlueprint);
+                }
+            );
+
+        $migration = $this->loadRetentionMigration();
+
+        $migration->up();
+
+        $this->assertInstanceOf(Blueprint::class, $capturedBlueprint);
+
+        $commands = $capturedBlueprint->getCommands();
+
+        $this->assertCount(2, $commands);
+
+        $this->assertSame('dropForeign', $commands[0]->name);
+        $this->assertSame(
+            'audit_logs_actor_account_id_foreign',
+            $commands[0]->index
+        );
+
+        $this->assertSame('dropForeign', $commands[1]->name);
+        $this->assertSame(
+            'audit_logs_target_account_id_foreign',
+            $commands[1]->index
+        );
+    }
+
     public function test_migration_restores_expected_foreign_keys_when_all_referenced_accounts_exist(): void
     {
         $actor = $this->createAccount(
