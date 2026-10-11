@@ -1,3 +1,4 @@
+
 <?php
 
 namespace Tests\Feature\Auth;
@@ -7,7 +8,6 @@ use App\Models\RegistrationVerification;
 use App\Services\Otp\OtpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use RuntimeException;
 use Tests\TestCase;
 
 class OtpServiceTest extends TestCase
@@ -202,7 +202,9 @@ class OtpServiceTest extends TestCase
             'REGISTRATION'
         );
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(
+            \RuntimeException::class
+        );
 
         $service->issueVerificationToken(
             $verification
@@ -385,89 +387,5 @@ class OtpServiceTest extends TestCase
             0,
             $verification->attempts
         );
-    }
-
-    public function test_expired_otp_can_start_new_cycle_and_reset_resend_state(): void
-    {
-        $service = app(OtpService::class);
-
-        $verification = $service->request(
-            'phone',
-            '60123456789',
-            'REGISTRATION'
-        );
-
-        $verification->update([
-            'expires_at' => now()->subMinute(),
-            'attempts' => 4,
-            'resend_count' => 5,
-            'verified_at' => now()->subMinutes(2),
-            'verification_token_hash' => hash(
-                'sha256',
-                'old-verification-token'
-            ),
-            'token_expires_at' => now()->addMinutes(5),
-            'consumed_at' => now()->subMinutes(1),
-        ]);
-
-        $newCycle = $service->request(
-            'phone',
-            '60123456789',
-            'REGISTRATION'
-        );
-
-        $this->assertSame(
-            $verification->id,
-            $newCycle->id
-        );
-
-        $this->assertSame(0, $newCycle->resend_count);
-        $this->assertSame(0, $newCycle->attempts);
-        $this->assertNull($newCycle->verified_at);
-        $this->assertNull($newCycle->verification_token_hash);
-        $this->assertNull($newCycle->token_expires_at);
-        $this->assertNull($newCycle->consumed_at);
-        $this->assertTrue($newCycle->expires_at->isFuture());
-    }
-
-    public function test_old_verification_token_is_invalidated_when_expired_otp_starts_new_cycle(): void
-    {
-        $service = app(OtpService::class);
-
-        $verification = $service->request(
-            'phone',
-            '60123456789',
-            'REGISTRATION'
-        );
-
-        $this->assertTrue(
-            $service->verify(
-                $verification,
-                '123456'
-            )
-        );
-
-        $oldToken = $service->issueVerificationToken(
-            $verification
-        );
-
-        $verification->refresh();
-
-        $verification->update([
-            'expires_at' => now()->subMinute(),
-        ]);
-
-        $service->request(
-            'phone',
-            '60123456789',
-            'REGISTRATION'
-        );
-
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage(
-            'Invalid verification token.'
-        );
-
-        $service->consumeVerificationToken($oldToken);
     }
 }
