@@ -144,7 +144,7 @@ class AdminStatusAuditIntegrityTest extends TestCase
             'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
             'Deactivated User',
             '60222222222',
-            'deactivated-user-test@example.com',
+            'deactivated-user@example.com',
             'USER',
             'DEACTIVATED'
         );
@@ -199,6 +199,78 @@ class AdminStatusAuditIntegrityTest extends TestCase
             'actor_account_id' => $admin->id,
             'target_account_id' => $target->id,
             'action' => 'ACCOUNT_REACTIVATED',
+        ]);
+    }
+
+    public function test_unsuspension_is_rolled_back_when_audit_recording_fails(): void
+    {
+        $admin = $this->createAccount(
+            'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            'Root Super Admin',
+            '60111111111',
+            'root-unsuspend-test@example.com',
+            'ROOT_SUPER_ADMIN'
+        );
+
+        $target = $this->createAccount(
+            'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+            'Suspended User',
+            '60222222222',
+            'suspended-user@example.com',
+            'USER',
+            'SUSPENDED'
+        );
+
+        $adminToken = 'admin-status-unsuspend-token';
+
+        $this->createSession(
+            $admin,
+            $adminToken,
+            'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+        );
+
+        $this->mock(AuditLogService::class, function ($mock) {
+            $mock->shouldReceive('record')
+                ->once()
+                ->andThrow(
+                    new RuntimeException(
+                        'Simulated audit recording failure.'
+                    )
+                );
+        });
+
+        $this->withoutExceptionHandling();
+
+        try {
+            $this->withHeader(
+                'Authorization',
+                'Bearer '.$adminToken
+            )->postJson(
+                '/api/admin/accounts/'.$target->id.'/unsuspend',
+                [
+                    'reason' => 'Unsuspension transaction integrity test.',
+                ]
+            );
+
+            $this->fail(
+                'The audit recording failure should abort the transaction.'
+            );
+        } catch (RuntimeException $exception) {
+            $this->assertSame(
+                'Simulated audit recording failure.',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $target->id,
+            'status' => 'SUSPENDED',
+        ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $target->id,
+            'action' => 'ACCOUNT_UNSUSPENDED',
         ]);
     }
 }
