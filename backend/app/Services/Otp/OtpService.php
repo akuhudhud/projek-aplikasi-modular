@@ -12,8 +12,6 @@ use RuntimeException;
 
 class OtpService
 {
-    private const OTP = '123456';
-
     private const OTP_EXPIRY_MINUTES = 5;
 
     private const RESEND_COOLDOWN_SECONDS = 60;
@@ -23,6 +21,15 @@ class OtpService
     public function __construct(
         private readonly OtpProviderInterface $provider
     ) {
+    }
+
+    private function generateOtp(): string
+    {
+        if (app()->environment('testing')) {
+            return '123456';
+        }
+
+        return (string) random_int(100000, 999999);
     }
 
     public function request(
@@ -55,16 +62,18 @@ class OtpService
 
             if ($verification) {
                 if ($verification->expires_at->isPast()) {
+                    $otp = $this->generateOtp();
+
                     $this->provider->send(
                         $channel,
                         $contact,
                         $purpose,
-                        self::OTP
+                        $otp
                     );
 
                     $verification->update([
                         'account_id' => $accountId,
-                        'otp_hash' => Hash::make(self::OTP),
+                        'otp_hash' => Hash::make($otp),
                         'expires_at' => now()->addMinutes(
                             self::OTP_EXPIRY_MINUTES
                         ),
@@ -106,16 +115,18 @@ class OtpService
                     );
                 }
 
+                $otp = $this->generateOtp();
+
                 $this->provider->send(
                     $channel,
                     $contact,
                     $purpose,
-                    self::OTP
+                    $otp
                 );
 
                 $verification->update([
                     'account_id' => $accountId,
-                    'otp_hash' => Hash::make(self::OTP),
+                    'otp_hash' => Hash::make($otp),
                     'expires_at' => now()->addMinutes(
                         self::OTP_EXPIRY_MINUTES
                     ),
@@ -131,11 +142,13 @@ class OtpService
                 return $verification->fresh();
             }
 
+            $otp = $this->generateOtp();
+
             $this->provider->send(
                 $channel,
                 $contact,
                 $purpose,
-                self::OTP
+                $otp
             );
 
             return RegistrationVerification::create([
@@ -144,7 +157,7 @@ class OtpService
                 'channel' => $channel,
                 'contact' => $contact,
                 'purpose' => $purpose,
-                'otp_hash' => Hash::make(self::OTP),
+                'otp_hash' => Hash::make($otp),
                 'expires_at' => now()->addMinutes(
                     self::OTP_EXPIRY_MINUTES
                 ),
