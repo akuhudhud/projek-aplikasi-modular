@@ -171,4 +171,69 @@ class AuditTransactionIntegrityTest extends TestCase
             'action' => 'SUPER_ADMIN_CREATED',
         ]);
     }
+
+    public function test_deletion_is_rolled_back_when_audit_recording_fails(): void
+    {
+        $account = $this->createAccount(
+            'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            'Delete Transaction User',
+            '60333333333',
+            'delete-transaction-user@example.com',
+            'USER'
+        );
+
+        $token = 'audit-transaction-deletion-token';
+
+        $sessionId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+
+        $this->createSession(
+            $account,
+            $token,
+            $sessionId
+        );
+
+        $this->mock(AuditLogService::class, function ($mock) {
+            $mock->shouldReceive('record')
+                ->once()
+                ->andThrow(
+                    new RuntimeException(
+                        'Simulated audit recording failure.'
+                    )
+                );
+        });
+
+        $this->withoutExceptionHandling();
+
+        try {
+            $this->withHeader(
+                'Authorization',
+                'Bearer '.$token
+            )->postJson('/api/me/delete');
+
+            $this->fail(
+                'The audit recording failure should abort the transaction.'
+            );
+        } catch (RuntimeException $exception) {
+            $this->assertSame(
+                'Simulated audit recording failure.',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $account->id,
+            'status' => 'ACTIVE',
+        ]);
+
+        $this->assertDatabaseHas('sessions', [
+            'id' => $sessionId,
+            'ended_at' => null,
+        ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $account->id,
+            'target_account_id' => $account->id,
+            'action' => 'ACCOUNT_DELETED',
+        ]);
+    }
 }
