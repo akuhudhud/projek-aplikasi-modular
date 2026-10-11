@@ -184,7 +184,7 @@ class AuditLogRetentionMigrationTest extends TestCase
             ['actor_account_id'],
             $actorForeignKey->columns
         );
-        $this->assertSame(['id'], $actorForeignKey->references);
+        $this->assertSame('id', $actorForeignKey->references);
         $this->assertSame('accounts', $actorForeignKey->on);
         $this->assertSame('cascade', $actorForeignKey->onDelete);
 
@@ -193,7 +193,7 @@ class AuditLogRetentionMigrationTest extends TestCase
             ['target_account_id'],
             $targetForeignKey->columns
         );
-        $this->assertSame(['id'], $targetForeignKey->references);
+        $this->assertSame('id', $targetForeignKey->references);
         $this->assertSame('accounts', $targetForeignKey->on);
         $this->assertSame('cascade', $targetForeignKey->onDelete);
     }
