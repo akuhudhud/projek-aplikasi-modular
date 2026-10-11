@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Modules\PickAndDrop\Models\PickAndDropRequest;
 use Modules\PickAndDrop\Models\PickAndDropTask;
+use RuntimeException;
 use Tests\TestCase;
 
 class PickAndDropRequestTest extends TestCase
@@ -165,6 +166,50 @@ class PickAndDropRequestTest extends TestCase
             ]);
 
         $response->assertUnprocessable();
+
+        $this->assertDatabaseCount('pick_and_drop_requests', 0);
+        $this->assertDatabaseCount('pick_and_drop_tasks', 0);
+    }
+
+    public function test_request_creation_is_rolled_back_when_task_creation_fails(): void
+    {
+        PickAndDropTask::creating(function (): void {
+            throw new RuntimeException(
+                'Simulated task creation failure.'
+            );
+        });
+
+        $this->withoutExceptionHandling();
+
+        try {
+            $this->withToken($this->token)
+                ->postJson('/api/pick-and-drop/requests', [
+                    'category' => 'BARANG',
+                    'item_type' => 'PARCEL',
+                    'item_description' => 'Parcel untuk ujian transaksi',
+                    'pickup_location' => [
+                        'label' => 'Lokasi Pickup',
+                        'address' => 'Tuaran, Sabah',
+                    ],
+                    'pickup_contact_name' => 'Pengirim',
+                    'pickup_contact_phone' => '60111111111',
+                    'delivery_location' => [
+                        'label' => 'Lokasi Delivery',
+                        'address' => 'Kota Kinabalu, Sabah',
+                    ],
+                    'recipient_name' => 'Penerima',
+                    'recipient_phone' => '60222222222',
+                ]);
+
+            $this->fail(
+                'Task creation failure should abort the transaction.'
+            );
+        } catch (RuntimeException $exception) {
+            $this->assertSame(
+                'Simulated task creation failure.',
+                $exception->getMessage()
+            );
+        }
 
         $this->assertDatabaseCount('pick_and_drop_requests', 0);
         $this->assertDatabaseCount('pick_and_drop_tasks', 0);
