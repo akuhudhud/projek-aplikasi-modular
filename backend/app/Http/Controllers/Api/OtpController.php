@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\OtpDeliveryException;
 use App\Exceptions\OtpResendException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RequestOtpRequest;
@@ -53,6 +54,13 @@ class OtpController extends Controller
             }
 
             return response()->json($response, 429);
+        } catch (OtpDeliveryException $exception) {
+            report($exception);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'OTP tidak dapat dihantar buat masa ini. Sila cuba semula.',
+            ], 503);
         }
 
         return response()->json([
