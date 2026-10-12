@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\OtpDeliveryException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\VerifyOtpRequest;
 use App\Http\Requests\Account\ChangeEmailRequest;
@@ -11,7 +12,6 @@ use App\Models\RegistrationVerification;
 use App\Services\Contact\ContactChangeService;
 use App\Services\Otp\OtpService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use RuntimeException;
 
 class ContactChangeController extends Controller
@@ -49,6 +49,13 @@ class ContactChangeController extends Controller
                     'expires_at' => $verification->expires_at,
                 ],
             ], 200);
+        } catch (OtpDeliveryException $exception) {
+            report($exception);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'OTP tidak dapat dihantar buat masa ini. Sila cuba semula.',
+            ], 503);
         } catch (RuntimeException $exception) {
             return response()->json([
                 'success' => false,
@@ -103,6 +110,13 @@ class ContactChangeController extends Controller
                     'expires_at' => $verification->expires_at,
                 ],
             ], 200);
+        } catch (OtpDeliveryException $exception) {
+            report($exception);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'OTP tidak dapat dihantar buat masa ini. Sila cuba semula.',
+            ], 503);
         } catch (RuntimeException $exception) {
             return response()->json([
                 'success' => false,
