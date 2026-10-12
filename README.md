@@ -1,3 +1,4 @@
+
 # Projek Aplikasi Modular
 
 Platform aplikasi modular dengan teras bersama dan modul perniagaan yang boleh dipasang, dikembangkan dan diurus secara berasingan.
@@ -47,9 +48,9 @@ Core v0.3.0 telah melengkapkan asas kesediaan Core untuk seni bina aplikasi modu
 
 - Repository: `akuhudhud/projek-aplikasi-modular`
 - Branch: `main`
-- Verified HEAD: `905b2fc95b7991e8adea8d2c2f56de11fd3bd069`
-- Commit: `test: cover OTP delivery failure paths`
-- CI Run: [#52 — success](https://github.com/akuhudhud/projek-aplikasi-modular/actions/runs/38212591257)
+- Verified HEAD: `8911c8ab46b7b27e2052018447a2496f4ec518f6`
+- Commit: `docs: reconcile README with current development state`
+- CI Run: [#53 — success](https://github.com/akuhudhud/projek-aplikasi-modular/actions/runs/38215571674)
 
 Keputusan ujian pada HEAD tersebut:
 
@@ -57,7 +58,7 @@ Keputusan ujian pada HEAD tersebut:
 - Full feature suite: 229 tests / 955 assertions / 0 failures
 - MySQL concurrency regression: 1 test / 10 assertions / 0 failures
 
-Bukti ini terpakai kepada HEAD yang dinyatakan sahaja. CI hijau tidak bermaksud v0.3.1 telah diluluskan atau dilepaskan.
+CI #53 mengesahkan commit HEAD di atas, termasuk perubahan README ini. Bukti tersebut mengesahkan ujian automatik yang dijalankan; ia tidak dengan sendirinya meluluskan atau melepaskan v0.3.1.
 
 ### v0.3.1 — Architecture Audit & Design Lock
 
@@ -74,7 +75,9 @@ Kerja semasa merangkumi:
 
 Audit diff dan urutan migration terkini tidak menemui kecacatan konkrit yang memerlukan source patch segera. Semakan tersebut bukan analisis statik PHP menyeluruh atau latihan migration di production.
 
-v0.3.1 kekal **IN PROGRESS — NOT RELEASED** sehingga semua acceptance gates disahkan.
+Kerja v0.3.1 masih memerlukan penyelesaian acceptance gates yang belum disahkan, termasuk analisis statik PHP menyeluruh dan latihan migration pada persekitaran production-like.
+
+v0.3.1 kekal **IN PROGRESS — NOT RELEASED** sehingga semua acceptance gates disahkan dan keputusan penutupan dibuat.
 
 ## Core Scope
 
