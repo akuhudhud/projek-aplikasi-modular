@@ -13,8 +13,17 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/register/complete', [AuthController::class, 'completeRegistration']);
 Route::post('/login', [AuthController::class, 'login']);
 
-Route::post('/otp/request', [OtpController::class, 'request']);
-Route::post('/otp/verify', [OtpController::class, 'verify']);
+Route::post('/otp/request', [OtpController::class, 'request'])
+    ->middleware([
+        'throttle:otp-request-ip',
+        'throttle:otp-request-contact',
+    ]);
+
+Route::post('/otp/verify', [OtpController::class, 'verify'])
+    ->middleware([
+        'throttle:otp-verify-ip',
+        'throttle:otp-verify-id',
+    ]);
 
 Route::get('/me', [AuthController::class, 'me'])
     ->middleware(AuthenticateSession::class);
