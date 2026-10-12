@@ -3,12 +3,14 @@
 namespace App\Services\Otp;
 
 use App\Contracts\OtpProviderInterface;
+use App\Exceptions\OtpDeliveryException;
 use App\Exceptions\OtpResendException;
 use App\Models\RegistrationVerification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 
 class OtpService
 {
@@ -30,6 +32,24 @@ class OtpService
         }
 
         return (string) random_int(100000, 999999);
+    }
+
+    private function deliverOtp(
+        string $channel,
+        string $contact,
+        string $purpose,
+        string $otp
+    ): void {
+        try {
+            $this->provider->send(
+                $channel,
+                $contact,
+                $purpose,
+                $otp
+            );
+        } catch (Throwable $exception) {
+            throw new OtpDeliveryException($exception);
+        }
     }
 
     public function request(
@@ -64,7 +84,7 @@ class OtpService
                 if ($verification->expires_at->isPast()) {
                     $otp = $this->generateOtp();
 
-                    $this->provider->send(
+                    $this->deliverOtp(
                         $channel,
                         $contact,
                         $purpose,
@@ -117,7 +137,7 @@ class OtpService
 
                 $otp = $this->generateOtp();
 
-                $this->provider->send(
+                $this->deliverOtp(
                     $channel,
                     $contact,
                     $purpose,
@@ -144,7 +164,7 @@ class OtpService
 
             $otp = $this->generateOtp();
 
-            $this->provider->send(
+            $this->deliverOtp(
                 $channel,
                 $contact,
                 $purpose,
