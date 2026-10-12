@@ -11,21 +11,17 @@ class OtpRateLimitConfigurationTest extends TestCase
 {
     public function test_otp_rate_limit_policies_are_registered(): void
     {
-        $this->assertNotNull(
-            RateLimiter::limiter('otp-request-ip')
-        );
-
-        $this->assertNotNull(
-            RateLimiter::limiter('otp-request-contact')
-        );
-
-        $this->assertNotNull(
-            RateLimiter::limiter('otp-verify-ip')
-        );
-
-        $this->assertNotNull(
-            RateLimiter::limiter('otp-verify-id')
-        );
+        foreach ([
+            'otp-request-ip',
+            'otp-request-contact',
+            'otp-verify-ip',
+            'otp-verify-id',
+        ] as $name) {
+            $this->assertNotNull(
+                RateLimiter::limiter($name),
+                "Limiter {$name} must be registered."
+            );
+        }
     }
 
     public function test_otp_routes_use_their_dedicated_rate_limiters(): void
@@ -47,25 +43,25 @@ class OtpRateLimitConfigurationTest extends TestCase
         $this->assertNotNull($requestRoute);
         $this->assertNotNull($verifyRoute);
 
-        $this->assertContains(
+        foreach ([
             'throttle:otp-request-ip',
-            $requestRoute->gatherMiddleware()
-        );
-
-        $this->assertContains(
             'throttle:otp-request-contact',
-            $requestRoute->gatherMiddleware()
-        );
+        ] as $middleware) {
+            $this->assertContains(
+                $middleware,
+                $requestRoute->gatherMiddleware()
+            );
+        }
 
-        $this->assertContains(
+        foreach ([
             'throttle:otp-verify-ip',
-            $verifyRoute->gatherMiddleware()
-        );
-
-        $this->assertContains(
             'throttle:otp-verify-id',
-            $verifyRoute->gatherMiddleware()
-        );
+        ] as $middleware) {
+            $this->assertContains(
+                $middleware,
+                $verifyRoute->gatherMiddleware()
+            );
+        }
     }
 
     public function test_otp_rate_limit_policies_have_expected_thresholds(): void
@@ -79,7 +75,7 @@ class OtpRateLimitConfigurationTest extends TestCase
                 'otp-request-ip' => [
                     Request::create('/api/otp/request', 'POST'),
                     10,
-                    1,
+                    60,
                 ],
                 'otp-request-contact' => [
                     Request::create('/api/otp/request', 'POST', [
@@ -87,12 +83,12 @@ class OtpRateLimitConfigurationTest extends TestCase
                         'contact' => '60123456789',
                     ]),
                     6,
-                    10,
+                    600,
                 ],
                 'otp-verify-ip' => [
                     Request::create('/api/otp/verify', 'POST'),
                     20,
-                    1,
+                    60,
                 ],
                 'otp-verify-id' => [
                     Request::create('/api/otp/verify', 'POST', [
@@ -100,11 +96,11 @@ class OtpRateLimitConfigurationTest extends TestCase
                             '00000000-0000-0000-0000-000000000001',
                     ]),
                     5,
-                    5,
+                    300,
                 ],
             ];
 
-            foreach ($policies as $name => [$request, $attempts, $minutes]) {
+            foreach ($policies as $name => [$request, $attempts, $seconds]) {
                 $limiter = RateLimiter::limiter($name);
 
                 $this->assertNotNull($limiter);
@@ -124,8 +120,8 @@ class OtpRateLimitConfigurationTest extends TestCase
                 );
 
                 $this->assertSame(
-                    $minutes,
-                    $limit->decayMinutes,
+                    $seconds,
+                    $limit->decaySeconds,
                     "Unexpected decay period for {$name}."
                 );
             }
