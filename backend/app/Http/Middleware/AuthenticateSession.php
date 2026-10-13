@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Account;
 use App\Models\Session;
 use App\Services\Session\SessionService;
 use Closure;
@@ -41,7 +42,9 @@ class AuthenticateSession
             ], 401);
         }
 
-        if (!$session->account) {
+        $account = $session->account;
+
+        if (!$account instanceof Account) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthenticated.',
@@ -49,7 +52,7 @@ class AuthenticateSession
         }
 
         if (in_array(
-            $session->account->status,
+            $account->status,
             ['DEACTIVATED', 'DELETED'],
             true
         )) {
@@ -59,7 +62,7 @@ class AuthenticateSession
             ], 401);
         }
 
-        if ($session->account->status === 'SUSPENDED') {
+        if ($account->status === 'SUSPENDED') {
             return response()->json([
                 'success' => false,
                 'message' => 'Account is suspended.',
@@ -75,7 +78,7 @@ class AuthenticateSession
 
         $request->attributes->set(
             'account',
-            $session->account
+            $account
         );
 
         return $next($request);
