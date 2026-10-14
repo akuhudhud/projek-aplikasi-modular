@@ -64,7 +64,7 @@ class PickAndDropRequestController extends Controller
             'message' => 'Pick and Drop request created successfully.',
             'data' => [
                 'request' => [
-                    'id' => $pickAndDropRequest->id,
+                    'id' => $pickAndDropRequest->getAttribute('id'),
                     'customer_account_id' => $pickAndDropRequest->customer_account_id,
                     'category' => $pickAndDropRequest->category,
                     'item_type' => $pickAndDropRequest->item_type,
@@ -80,10 +80,10 @@ class PickAndDropRequestController extends Controller
                     'created_at' => $pickAndDropRequest->created_at,
                 ],
                 'task' => [
-                    'id' => $pickAndDropRequest->task->id,
-                    'request_id' => $pickAndDropRequest->task->request_id,
-                    'status' => $pickAndDropRequest->task->status,
-                    'created_at' => $pickAndDropRequest->task->created_at,
+                    'id' => $pickAndDropRequest->task?->getAttribute('id'),
+                    'request_id' => $pickAndDropRequest->task?->getAttribute('request_id'),
+                    'status' => $pickAndDropRequest->task?->getAttribute('status'),
+                    'created_at' => $pickAndDropRequest->task?->getAttribute('created_at'),
                 ],
             ],
         ], 201);
