@@ -1,3 +1,4 @@
+
 <?php
 
 namespace Tests\Feature\Modules;
@@ -105,7 +106,7 @@ class ModuleDiscoveryNegativeTest extends TestCase
         Log::spy();
 
         $providerClass =
-            'Tests\\\\Feature\\\\Modules\\\\MissingDiscoveryProvider';
+            'Tests\\Feature\\Modules\\MissingDiscoveryProvider';
 
         $directory = $this->createModuleFixture(
             'missing_provider',
