@@ -1,3 +1,4 @@
+
 <?php
 
 namespace Tests\Feature\Modules;
@@ -105,7 +106,7 @@ class ModuleDiscoveryNegativeTest extends TestCase
         Log::spy();
 
         $providerClass =
-            'Tests\\Feature\\Modules\\MissingDiscoveryProvider';
+            'Tests\\\\Feature\\\\Modules\\\\MissingDiscoveryProvider';
 
         $directory = $this->createModuleFixture(
             'missing_provider',
@@ -127,7 +128,7 @@ class ModuleDiscoveryNegativeTest extends TestCase
                 'Module discovery skipped invalid provider declaration.',
                 [
                     'module' => basename($directory),
-                    'provider' => $providerClass,
+                    'error_type' => 'invalid_provider_declaration',
                 ]
             );
     }
@@ -156,7 +157,7 @@ class ModuleDiscoveryNegativeTest extends TestCase
                 'Module discovery skipped invalid provider declaration.',
                 [
                     'module' => basename($directory),
-                    'provider' => \stdClass::class,
+                    'error_type' => 'invalid_provider_declaration',
                 ]
             );
     }
