@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Providers;
@@ -65,9 +66,7 @@ class ModuleDiscoveryServiceProvider extends ServiceProvider
                     'Module discovery skipped invalid provider declaration.',
                     [
                         'module' => $moduleName,
-                        'provider' => is_string($providerClass)
-                            ? $providerClass
-                            : get_debug_type($providerClass),
+                        'error_type' => 'invalid_provider_declaration',
                     ]
                 );
 
