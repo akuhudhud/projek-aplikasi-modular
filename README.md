@@ -1,17 +1,51 @@
-
-# Projek Aplikasi Modular
+Projek Aplikasi Modular
 
 Platform aplikasi modular dengan teras bersama dan modul perniagaan yang boleh dipasang, dikembangkan dan diurus secara berasingan.
 
-## Current Release
+Current Release
 
-**v0.3.0 — Core Readiness Baseline**
+v0.3.1 — Architecture Audit & Design Lock
 
-**Status: RELEASED / VERIFIED**
+Status: RELEASED / VERIFIED
 
-Core v0.3.0 telah melengkapkan asas kesediaan Core untuk seni bina aplikasi modular dan sempadan Core–Module. Release ini bukan pelepasan keseluruhan produk Pick & Drop.
+Release ini memfokuskan pengesahan seni bina Core, sempadan Core–Module, audit teknikal, keselamatan dan kebolehpercayaan backend.
 
-### Release Verification
+Release Verification
+
+- CI Run: "#64 — success" (https://github.com/akuhudhud/projek-aplikasi-modular/actions/runs/38568276517)
+- Verified CI commit: "53629b0380a1757a141968409713db7f05da8acf"
+- PHPStan/Larastan: "[OK] No errors"
+- Migration exercise: selesai berdasarkan rekod pembangunan.
+- A-15 Module Discovery Logging: "CLOSED / VERIFIED".
+- GitBook DEV-094: diselaraskan dengan bukti CI dan rekod static analysis.
+
+CI #64 mengesahkan langkah ujian automatik yang dijalankan pada commit yang dinyatakan. PHPStan/Larastan dijalankan secara berasingan dalam Codespace menggunakan konfigurasi "phpstan.neon" dengan had memori 512 MB.
+
+Release Tag
+
+"v0.3.1"
+
+Release Commit
+
+Rekodkan SHA commit sebenar yang ditetapkan sebagai tag "v0.3.1" selepas tag diwujudkan.
+
+Release History
+
+Versi| Skop| Status
+v0.1.0| Core Basic Foundation| RELEASED
+v0.2.0| Authentication, verification dan security hardening| RELEASED / VERIFIED
+v0.3.0| Modular architecture readiness dan Core–Module boundaries| RELEASED / VERIFIED
+v0.3.1| Architecture Audit & Design Lock| RELEASED / VERIFIED
+v0.3.2| Core TASK Contract & Registry| PLANNED — NOT IMPLEMENTED
+v0.4.0| Pick & Drop Business Workflow MVP| DEFERRED
+
+Previous Release — v0.3.0
+
+Release Tag: "v0.3.0"
+
+Release Commit: "46d16edacf96395d3f233c8c63e2cd06c4ae4b3b"
+
+Release Verification
 
 - 191 ujian lulus
 - 712 assertions
@@ -19,148 +53,106 @@ Core v0.3.0 telah melengkapkan asas kesediaan Core untuk seni bina aplikasi modu
 - MySQL 8.x
 - PHP 8.3
 
-### Focused Test Verification
+Focused Test Verification
 
 - 6 ujian pengesanan modul
 - 9 assertions
 - 0 kegagalan
 
-### Release Tag
+v0.3.0 melengkapkan asas kesediaan Core dan sempadan Core–Module. Ia bukan pelepasan keseluruhan workflow Pick & Drop.
 
-`v0.3.0`
+v0.3.1 — Architecture Audit & Design Lock
 
-### Release Commit
+Skop pembangunan merangkumi:
 
-`46d16edacf96395d3f233c8c63e2cd06c4ae4b3b`
-
-## Current Development State
-
-| Versi | Skop | Status |
-|---|---|---|
-| v0.1.0 | Core Basic Foundation | RELEASED |
-| v0.2.0 | Authentication, verification dan security hardening | RELEASED / VERIFIED |
-| v0.3.0 | Modular architecture readiness dan Core–Module boundaries | RELEASED / VERIFIED |
-| v0.3.1 | Architecture Audit & Design Lock | IN PROGRESS — NOT RELEASED |
-| v0.3.2 | Core TASK Contract & Registry | PLANNED — NOT IMPLEMENTED |
-| v0.4.0 | Pick & Drop Business Workflow MVP | DEFERRED |
-
-### Latest Development Verification
-
-- Repository: `akuhudhud/projek-aplikasi-modular`
-- Branch: `main`
-- Verified HEAD: `8911c8ab46b7b27e2052018447a2496f4ec518f6`
-- Commit: `docs: reconcile README with current development state`
-- CI Run: [#53 — success](https://github.com/akuhudhud/projek-aplikasi-modular/actions/runs/38215571674)
-
-Keputusan ujian pada HEAD tersebut:
-
-- Registration diagnostic: 1 test / 10 assertions
-- Full feature suite: 229 tests / 955 assertions / 0 failures
-- MySQL concurrency regression: 1 test / 10 assertions / 0 failures
-
-CI #53 mengesahkan commit HEAD di atas, termasuk perubahan README ini. Bukti tersebut mengesahkan ujian automatik yang dijalankan; ia tidak dengan sendirinya meluluskan atau melepaskan v0.3.1.
-
-### v0.3.1 — Architecture Audit & Design Lock
-
-Kerja semasa merangkumi:
-
-- Audit source dan daftar keputusan fail berasaskan bukti.
+- Audit source dan rekod keputusan berdasarkan bukti.
 - Semakan integriti audit log dan lifecycle akaun.
 - Semakan migration sequence dan rollback safety.
 - Pengesahan ujian registration, authentication, profile, session, contact verification dan account lifecycle.
 - Pengesahan Module Discovery dan sempadan Core–Module.
-- Pengesahan kegagalan penghantaran OTP melalui ujian.
-- Penyelarasan README, GitBook dan bukti CI.
-- Semakan acceptance gates sebelum keputusan release.
+- Pengesahan pengendalian kegagalan penghantaran OTP melalui ujian.
+- Pembetulan dan pengesahan isu registration dan Module Discovery.
+- Static analysis PHP dan latihan migrasi.
+- Penyelarasan README, GitBook dan bukti pengesahan.
 
-Audit diff dan urutan migration terkini tidak menemui kecacatan konkrit yang memerlukan source patch segera. Semakan tersebut bukan analisis statik PHP menyeluruh atau latihan migration di production.
+Core Scope
 
-Kerja v0.3.1 masih memerlukan penyelesaian acceptance gates yang belum disahkan, termasuk analisis statik PHP menyeluruh dan latihan migration pada persekitaran production-like.
+- Account dan identiti akaun menggunakan UUID.
+- Registration dan verification gate.
+- Authentication dan session.
+- Profile dan profile picture.
+- Account lifecycle.
+- Super Admin dan kawalan akaun istimewa.
+- Audit Log.
+- Security Foundation.
+- Generic Module Discovery.
+- Core–Module boundary.
+- Rujukan akaun modul tanpa kebergantungan terus kepada model Account dalaman Core.
 
-v0.3.1 kekal **IN PROGRESS — NOT RELEASED** sehingga semua acceptance gates disahkan dan keputusan penutupan dibuat.
-
-## Core Scope
-
-- Account dan identiti akaun menggunakan UUID
-- Registration dan verification gate
-- Authentication dan session
-- Profile dan profile picture
-- Account lifecycle
-- Super Admin dan kawalan akaun istimewa
-- Audit Log
-- Security Foundation
-- Generic Module Discovery
-- Core–Module boundary
-- Rujukan akaun modul tanpa kebergantungan terus kepada model Account dalaman Core
-
-## OTP Delivery
+OTP Delivery
 
 Penghantaran OTP sebenar ditangguhkan sehingga peringkat akhir production readiness.
 
-Provider SMS/e-mel sebenar, konfigurasi production dan rahsia provider tidak termasuk dalam bukti CI semasa. Ujian kegagalan provider mengesahkan bahawa kegagalan penghantaran dikendalikan dengan selamat; ia bukan bukti bahawa penghantaran OTP production telah tersedia.
+Provider SMS/e-mel sebenar, konfigurasi production dan rahsia provider tidak termasuk dalam bukti CI semasa. Ujian kegagalan provider mengesahkan pengendalian kegagalan penghantaran dengan selamat; ia bukan bukti bahawa penghantaran OTP production telah tersedia.
 
-## Business Module
-
-Business Module dibangunkan secara berasingan daripada Core dengan mematuhi kontrak dan sempadan integrasi yang diluluskan.
+Business Module — Pick & Drop
 
 Pick & Drop ialah Business Module pertama yang dirancang.
 
-Asas Pick & Drop yang telah dibangunkan bukan keseluruhan workflow operasi. Runner, pengagihan tugasan, bukti pickup/delivery dan aliran operasi lengkap tidak boleh dianggap siap hanya berdasarkan release Core v0.3.0.
+Asas Pick & Drop yang telah dibangunkan bukan keseluruhan workflow operasi. Runner, pengagihan tugasan, bukti pickup/delivery dan aliran operasi lengkap tidak boleh dianggap siap hanya berdasarkan release Core.
 
-## Planned Core TASK Contract & Registry — v0.3.2
+Planned Core TASK Contract & Registry — v0.3.2
 
-Skop yang dirancang selepas v0.3.1 ditutup dan batch implementation diluluskan:
+Skop yang dirancang:
 
 - TASK registry generik dengan UUID.
 - Kontrak atau adapter modul tanpa akses terus Core kepada jadual dalaman modul.
-- Pendaftaran TASK idempotent berdasarkan `module_key`, `task_type` dan `source_id`.
+- Pendaftaran TASK idempotent berdasarkan "module_key", "task_type" dan "source_id".
 - Task List generik dengan kawalan authorization.
-- Status generik `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `COMPLETED` dan `CANCELLED`.
-- Primitive assignment yang hanya merekod assignment selepas pengesahan eligibility dan policy modul.
+- Status generik "OPEN", "ASSIGNED", "IN_PROGRESS", "COMPLETED" dan "CANCELLED".
+- Primitive assignment selepas pengesahan eligibility dan policy modul.
 
 v0.3.2 masih dirancang dan belum diimplementasikan atau dilepaskan.
 
-## Deferred Scope
+Deferred Scope
 
-Perkara berikut bukan sebahagian daripada release Core v0.3.0:
+Perkara berikut bukan sebahagian daripada release Core v0.3.1:
 
-- Aliran operasi lengkap Pick & Drop
-- Runner dan tuntutan tugasan
-- Aplikasi Flutter
-- Aplikasi web
-- Enjin harga dan fi platform
-- Pembayaran dan penyelesaian kewangan
-- Pengagihan tugasan
-- Penghantaran OTP sebenar untuk persekitaran produksi
+- Workflow operasi lengkap Pick & Drop.
+- Runner dan tuntutan tugasan.
+- Aplikasi Flutter.
+- Aplikasi web.
+- Enjin harga dan fi platform.
+- Pembayaran dan penyelesaian kewangan.
+- Pengagihan tugasan.
+- Penghantaran OTP sebenar untuk production.
 
-Pick & Drop Business Workflow MVP v0.4.0 kekal ditangguhkan sehingga kerja v0.3.2 selesai, disahkan dan skop seterusnya diluluskan semula.
+Pick & Drop Business Workflow MVP v0.4.0 kekal ditangguhkan sehingga kerja Core TASK Contract & Registry selesai dan skop seterusnya diluluskan.
 
-## Development Order
+Development Order
 
-1. Backend / Core API
-2. Backend Testing & Review
-3. Core Readiness dan Core–Module Contract
-4. Architecture Audit & Design Lock
-5. Core TASK Contract & Registry
-6. Pick & Drop Business Workflow MVP
-7. Flutter User App
-8. Web App
+1. Backend / Core API.
+2. Backend Testing & Review.
+3. Core Readiness dan Core–Module Contract.
+4. Architecture Audit & Design Lock.
+5. Core TASK Contract & Registry.
+6. Pick & Drop Business Workflow MVP.
+7. Flutter User App.
+8. Web App.
 
-Urutan terperinci tertakluk kepada baseline, keputusan dan rekod pembangunan terkini dalam GitBook.
+Tech Stack
 
-## Tech Stack
-
-### Backend
+Backend
 
 - Laravel 13
 - PHP 8.3
 - MySQL 8.x
 
-### User App
+User App
 
 - Flutter
 
-## Source of Truth
+Source of Truth
 
 GitHub ialah Source of Truth untuk source code dan technical artifacts yang telah diterima.
 
@@ -168,15 +160,14 @@ GitBook digunakan untuk project knowledge, baseline, keputusan, requirements, ar
 
 GitHub dan GitBook hendaklah dikekalkan selari selepas setiap keputusan atau release rasmi.
 
-## Versioning and Release Control
+Versioning and Release Control
 
-- v0.3.0 kekal release rasmi.
-- v0.3.1 belum RELEASED.
-- v0.3.2 masih PLANNED.
-- v0.4.0 kekal DEFERRED.
-- Jangan pindahkan, tulis semula atau mengubah tag release sejarah.
-- Jangan menandakan versi sebagai RELEASED sebelum release sebenar diwujudkan dan disahkan.
+- v0.3.0 ialah release terdahulu.
+- v0.3.1 ialah release Architecture Audit & Design Lock.
+- v0.3.2 masih "PLANNED — NOT IMPLEMENTED".
+- v0.4.0 kekal "DEFERRED".
+- Tag release sejarah tidak boleh dipindahkan atau ditulis semula.
 
-## Development Control
+Development Control
 
-**AUDIT → DESIGN LOCK → BATCH PLAN → IMPLEMENT → TEST → COMMIT → VERIFY → DOCUMENT → CLOSE**
+AUDIT → DESIGN LOCK → BATCH PLAN → IMPLEMENT → TEST → COMMIT → VERIFY → DOCUMENT → CLOSE
