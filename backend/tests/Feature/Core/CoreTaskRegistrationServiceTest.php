@@ -72,15 +72,52 @@ class CoreTaskRegistrationServiceTest extends TestCase
         );
     }
 
-    public function test_empty_source_identity_is_rejected(): void
+    public static function emptyIdentityFieldsProvider(): array
     {
+        return [
+            'empty module key' => [
+                '',
+                'PICK_AND_DROP_REQUEST',
+                'pick_and_drop_request',
+                'request-empty-module',
+            ],
+            'empty task type' => [
+                'PickAndDrop',
+                '',
+                'pick_and_drop_request',
+                'request-empty-type',
+            ],
+            'empty source type' => [
+                'PickAndDrop',
+                'PICK_AND_DROP_REQUEST',
+                '',
+                'request-empty-source-type',
+            ],
+            'empty source id' => [
+                'PickAndDrop',
+                'PICK_AND_DROP_REQUEST',
+                'pick_and_drop_request',
+                '',
+            ],
+        ];
+    }
+
+    /**
+     * @dataProvider emptyIdentityFieldsProvider
+     */
+    public function test_empty_identity_fields_are_rejected(
+        string $moduleKey,
+        string $taskType,
+        string $sourceType,
+        string $sourceId
+    ): void {
         $this->expectException(InvalidArgumentException::class);
 
         $this->registry->register(
-            'PickAndDrop',
-            'PICK_AND_DROP_REQUEST',
-            'pick_and_drop_request',
-            ' '
+            $moduleKey,
+            $taskType,
+            $sourceType,
+            $sourceId
         );
     }
 
