@@ -6,6 +6,7 @@ use App\Models\CoreTask;
 use App\Services\CoreTaskRegistryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use InvalidArgumentException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class CoreTaskRegistrationServiceTest extends TestCase
@@ -102,9 +103,7 @@ class CoreTaskRegistrationServiceTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider emptyIdentityFieldsProvider
-     */
+    #[DataProvider('emptyIdentityFieldsProvider')]
     public function test_empty_identity_fields_are_rejected(
         string $moduleKey,
         string $taskType,
