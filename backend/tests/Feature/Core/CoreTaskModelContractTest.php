@@ -21,6 +21,8 @@ class CoreTaskModelContractTest extends TestCase
             'source_id' => 'model-contract-001',
         ]);
 
+        $task->refresh();
+
         $this->assertSame(CoreTask::STATUS_OPEN, $task->generic_status);
         $this->assertNull($task->assigned_account_id);
         $this->assertNull($task->assigned_at);
