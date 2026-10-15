@@ -2,20 +2,15 @@
 
 namespace App\Services;
 
+use App\Contracts\CoreTaskRegistry;
 use App\Models\CoreTask;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Throwable;
 
-class CoreTaskRegistryService
+class CoreTaskRegistryService implements CoreTaskRegistry
 {
-    /**
-     * Register a module-owned task in the generic Core registry.
-     *
-     * The identity is module_key + task_type + source_id.
-     * Repeated registration returns the existing record.
-     */
     public function register(
         string $moduleKey,
         string $taskType,
@@ -68,9 +63,6 @@ class CoreTaskRegistryService
         });
     }
 
-    /**
-     * Resolve module capabilities from module-owned metadata.
-     */
     private function supportsTaskType(
         string $moduleKey,
         string $taskType
