@@ -5,9 +5,6 @@ return [
     |--------------------------------------------------------------------------
     | Module Identity
     |--------------------------------------------------------------------------
-    |
-    | Basic identity information for the Pick & Drop business module.
-    |
     */
 
     'name' => 'PickAndDrop',
@@ -20,22 +17,28 @@ return [
     |--------------------------------------------------------------------------
     | Module Status
     |--------------------------------------------------------------------------
-    |
-    | The module is initially registered as an internal foundation.
-    | Business functionality will be enabled in later implementation phases.
-    |
     */
 
     'enabled' => true,
 
     /*
     |--------------------------------------------------------------------------
-    | Module Provider
+    | Supported Core Task Types
     |--------------------------------------------------------------------------
     |
-    | The module declares its own service provider.
-    | Core discovers providers through a generic mechanism.
+    | The module declares task types it can register with Core.
+    | Core reads this metadata without depending on module classes or tables.
     |
+    */
+
+    'task_types' => [
+        'PICK_AND_DROP_REQUEST',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Module Provider
+    |--------------------------------------------------------------------------
     */
 
     'provider' => \Modules\PickAndDrop\Providers\PickAndDropServiceProvider::class,
