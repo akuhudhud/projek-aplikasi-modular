@@ -61,6 +61,18 @@ class CoreTaskRegistrationServiceTest extends TestCase
         );
     }
 
+    public function test_module_key_matching_is_case_sensitive(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->registry->register(
+            'pickanddrop',
+            'PICK_AND_DROP_REQUEST',
+            'pick_and_drop_request',
+            'request-wrong-module-case'
+        );
+    }
+
     public function test_unsupported_task_type_is_rejected(): void
     {
         $this->expectException(InvalidArgumentException::class);
@@ -70,6 +82,18 @@ class CoreTaskRegistrationServiceTest extends TestCase
             'UNDECLARED_TASK',
             'pick_and_drop_request',
             'request-002'
+        );
+    }
+
+    public function test_task_type_matching_is_case_sensitive(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->registry->register(
+            'PickAndDrop',
+            'pick_and_drop_request',
+            'pick_and_drop_request',
+            'request-wrong-task-case'
         );
     }
 
