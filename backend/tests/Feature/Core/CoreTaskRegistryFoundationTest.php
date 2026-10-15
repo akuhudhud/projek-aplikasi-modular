@@ -88,6 +88,62 @@ class CoreTaskRegistryFoundationTest extends TestCase
         ]);
     }
 
+    public function test_same_source_id_is_allowed_for_different_module_or_task_type(): void
+    {
+        $now = now();
+        $sourceId = 'shared-source-001';
+
+        $records = [
+            [
+                'module_key' => 'module-alpha',
+                'task_type' => 'TASK_ALPHA',
+            ],
+            [
+                'module_key' => 'module-beta',
+                'task_type' => 'TASK_ALPHA',
+            ],
+            [
+                'module_key' => 'module-alpha',
+                'task_type' => 'TASK_BETA',
+            ],
+        ];
+
+        foreach ($records as $record) {
+            DB::table('core_tasks')->insert([
+                'task_id' => (string) Str::uuid(),
+                'module_key' => $record['module_key'],
+                'task_type' => $record['task_type'],
+                'source_type' => 'test-source',
+                'source_id' => $sourceId,
+                'created_by_account_id' => null,
+                'assigned_account_id' => null,
+                'generic_status' => CoreTask::STATUS_OPEN,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
+        $this->assertDatabaseCount('core_tasks', 3);
+
+        $this->assertDatabaseHas('core_tasks', [
+            'module_key' => 'module-alpha',
+            'task_type' => 'TASK_ALPHA',
+            'source_id' => $sourceId,
+        ]);
+
+        $this->assertDatabaseHas('core_tasks', [
+            'module_key' => 'module-beta',
+            'task_type' => 'TASK_ALPHA',
+            'source_id' => $sourceId,
+        ]);
+
+        $this->assertDatabaseHas('core_tasks', [
+            'module_key' => 'module-alpha',
+            'task_type' => 'TASK_BETA',
+            'source_id' => $sourceId,
+        ]);
+    }
+
     public function test_core_task_model_declares_uuid_primary_key_and_statuses(): void
     {
         $task = new CoreTask();
