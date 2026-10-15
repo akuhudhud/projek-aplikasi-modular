@@ -101,7 +101,6 @@ class CoreTaskRegistrationServiceTest extends TestCase
         );
 
         $this->assertSame($first->task_id, $second->task_id);
-
         $this->assertDatabaseCount('core_tasks', 1);
 
         $this->assertSame(
@@ -128,5 +127,82 @@ class CoreTaskRegistrationServiceTest extends TestCase
 
         $this->assertNotSame($first->task_id, $second->task_id);
         $this->assertDatabaseCount('core_tasks', 2);
+    }
+
+    public function test_identity_fields_are_trimmed_before_registration(): void
+    {
+        $task = $this->registry->register(
+            ' PickAndDrop ',
+            ' PICK_AND_DROP_REQUEST ',
+            ' pick_and_drop_request ',
+            ' request-trim-001 '
+        );
+
+        $this->assertSame('PickAndDrop', $task->module_key);
+        $this->assertSame(
+            'PICK_AND_DROP_REQUEST',
+            $task->task_type
+        );
+        $this->assertSame(
+            'pick_and_drop_request',
+            $task->source_type
+        );
+        $this->assertSame('request-trim-001', $task->source_id);
+
+        $this->assertDatabaseHas('core_tasks', [
+            'task_id' => $task->task_id,
+            'module_key' => 'PickAndDrop',
+            'task_type' => 'PICK_AND_DROP_REQUEST',
+            'source_id' => 'request-trim-001',
+        ]);
+    }
+
+    public function test_created_by_account_id_is_stored_on_registration(): void
+    {
+        $accountId = '11111111-1111-4111-8111-111111111111';
+
+        $task = $this->registry->register(
+            'PickAndDrop',
+            'PICK_AND_DROP_REQUEST',
+            'pick_and_drop_request',
+            'request-creator-001',
+            $accountId
+        );
+
+        $this->assertSame($accountId, $task->created_by_account_id);
+
+        $this->assertDatabaseHas('core_tasks', [
+            'task_id' => $task->task_id,
+            'created_by_account_id' => $accountId,
+        ]);
+    }
+
+    public function test_repeated_registration_does_not_overwrite_original_creator(): void
+    {
+        $originalCreator = '11111111-1111-4111-8111-111111111111';
+        $secondCreator = '22222222-2222-4222-8222-222222222222';
+
+        $first = $this->registry->register(
+            'PickAndDrop',
+            'PICK_AND_DROP_REQUEST',
+            'pick_and_drop_request',
+            'request-creator-idempotent-001',
+            $originalCreator
+        );
+
+        $second = $this->registry->register(
+            'PickAndDrop',
+            'PICK_AND_DROP_REQUEST',
+            'pick_and_drop_request',
+            'request-creator-idempotent-001',
+            $secondCreator
+        );
+
+        $this->assertSame($first->task_id, $second->task_id);
+        $this->assertSame(
+            $originalCreator,
+            $second->created_by_account_id
+        );
+        $this->assertDatabaseCount('core_tasks', 1);
     }
 }
