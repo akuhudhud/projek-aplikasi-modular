@@ -3,7 +3,6 @@
 namespace Tests\Feature\Core;
 
 use App\Models\Account;
-use App\Models\AuditLog;
 use App\Services\RunnerStatusService;
 use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -133,6 +132,82 @@ class RunnerStatusServiceTest extends TestCase
             'target_account_id' => $applicant->id,
             'action' => 'RUNNER_APPLICATION_APPROVED',
             'reason' => 'Application reviewed and approved.',
+        ]);
+    }
+
+    public function test_inactive_pending_account_cannot_be_approved_as_runner(): void
+    {
+        $admin = $this->createAccount('SUPER_ADMIN');
+
+        $applicant = $this->createAccount(
+            'USER',
+            'SUSPENDED',
+            Account::RUNNER_STATUS_PENDING
+        );
+
+        try {
+            $this->runnerStatusService->changeStatus(
+                $admin,
+                $applicant->id,
+                Account::RUNNER_STATUS_APPROVED,
+                'Attempted approval of inactive account.'
+            );
+
+            $this->fail('An inactive account must not be approved.');
+        } catch (DomainException $exception) {
+            $this->assertSame(
+                'Only active accounts can be approved as a Runner.',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $applicant->id,
+            'status' => 'SUSPENDED',
+            'runner_status' => Account::RUNNER_STATUS_PENDING,
+        ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'target_account_id' => $applicant->id,
+            'action' => 'RUNNER_APPLICATION_APPROVED',
+        ]);
+    }
+
+    public function test_inactive_suspended_runner_cannot_be_restored(): void
+    {
+        $admin = $this->createAccount('SUPER_ADMIN');
+
+        $runner = $this->createAccount(
+            'USER',
+            'SUSPENDED',
+            Account::RUNNER_STATUS_SUSPENDED
+        );
+
+        try {
+            $this->runnerStatusService->changeStatus(
+                $admin,
+                $runner->id,
+                Account::RUNNER_STATUS_APPROVED,
+                'Attempted restoration of inactive account.'
+            );
+
+            $this->fail('An inactive Runner must not be restored.');
+        } catch (DomainException $exception) {
+            $this->assertSame(
+                'Only active accounts can be approved as a Runner.',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $runner->id,
+            'status' => 'SUSPENDED',
+            'runner_status' => Account::RUNNER_STATUS_SUSPENDED,
+        ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'target_account_id' => $runner->id,
+            'action' => 'RUNNER_ELIGIBILITY_RESTORED',
         ]);
     }
 
