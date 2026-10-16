@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ContactChangeController;
+use App\Http\Controllers\Api\CoreTaskController;
 use App\Http\Controllers\Api\OtpController;
 use App\Http\Controllers\Api\ProfilePictureController;
 use App\Http\Middleware\AuthenticateSession;
@@ -62,6 +63,9 @@ Route::post('/me/delete', [AuthController::class, 'delete'])
     ->middleware(AuthenticateSession::class);
 
 Route::post('/logout', [AuthController::class, 'logout'])
+    ->middleware(AuthenticateSession::class);
+
+Route::get('/core/tasks', [CoreTaskController::class, 'index'])
     ->middleware(AuthenticateSession::class);
 
 Route::get('/admin/accounts', [AccountController::class, 'index'])
