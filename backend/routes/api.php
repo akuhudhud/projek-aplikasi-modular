@@ -68,6 +68,16 @@ Route::post('/logout', [AuthController::class, 'logout'])
 Route::get('/core/tasks', [CoreTaskController::class, 'index'])
     ->middleware(AuthenticateSession::class);
 
+Route::post('/core/tasks/{taskId}/start', [
+    CoreTaskController::class,
+    'start',
+])->middleware(AuthenticateSession::class);
+
+Route::post('/core/tasks/{taskId}/complete', [
+    CoreTaskController::class,
+    'complete',
+])->middleware(AuthenticateSession::class);
+
 Route::get('/admin/accounts', [AccountController::class, 'index'])
     ->middleware(AuthenticateSession::class);
 
