@@ -45,6 +45,15 @@ class CoreTaskAssignmentService implements CoreTaskAssigner
                 );
             }
 
+            if (
+                $account->runner_status
+                !== Account::RUNNER_STATUS_APPROVED
+            ) {
+                throw new DomainException(
+                    'Only approved runners can be assigned to a task.'
+                );
+            }
+
             if ($task->generic_status !== CoreTask::STATUS_OPEN) {
                 throw new DomainException(
                     'Only open tasks can be assigned.'
