@@ -1,0 +1,358 @@
+<?php
+
+namespace Tests\Feature\Core;
+
+use App\Models\Account;
+use App\Models\AuditLog;
+use App\Services\RunnerStatusService;
+use DomainException;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
+use Tests\TestCase;
+
+class RunnerStatusServiceTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private RunnerStatusService $runnerStatusService;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->runnerStatusService = app(RunnerStatusService::class);
+    }
+
+    private function createAccount(
+        string $role = 'USER',
+        string $status = 'ACTIVE',
+        string $runnerStatus = Account::RUNNER_STATUS_NOT_RUNNER
+    ): Account {
+        $account = Account::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Runner Status Test',
+            'phone' => null,
+            'email' => null,
+            'password' => 'Password1',
+            'role' => $role,
+            'status' => $status,
+        ]);
+
+        $account->runner_status = $runnerStatus;
+        $account->save();
+
+        return $account->fresh();
+    }
+
+    public function test_user_can_apply_and_status_becomes_pending(): void
+    {
+        $account = $this->createAccount();
+
+        $result = $this->runnerStatusService->apply($account);
+
+        $this->assertSame(
+            Account::RUNNER_STATUS_PENDING,
+            $result->runner_status
+        );
+
+        $this->assertSame('USER', $result->role);
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $account->id,
+            'runner_status' => Account::RUNNER_STATUS_PENDING,
+            'role' => 'USER',
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $account->id,
+            'target_account_id' => $account->id,
+            'action' => 'RUNNER_APPLICATION_SUBMITTED',
+        ]);
+    }
+
+    public function test_application_cannot_be_submitted_twice(): void
+    {
+        $account = $this->createAccount();
+
+        $this->runnerStatusService->apply($account);
+
+        try {
+            $this->runnerStatusService->apply($account);
+
+            $this->fail('A duplicate application must be rejected.');
+        } catch (DomainException $exception) {
+            $this->assertSame(
+                'A Runner application cannot be submitted from the current status.',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseCount('audit_logs', 1);
+    }
+
+    public function test_inactive_account_cannot_apply(): void
+    {
+        $account = $this->createAccount(
+            'USER',
+            'SUSPENDED'
+        );
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage(
+            'Only active accounts can apply to become a Runner.'
+        );
+
+        $this->runnerStatusService->apply($account);
+    }
+
+    public function test_super_admin_can_approve_user_application(): void
+    {
+        $admin = $this->createAccount('SUPER_ADMIN');
+
+        $applicant = $this->createAccount(
+            'USER',
+            'ACTIVE',
+            Account::RUNNER_STATUS_PENDING
+        );
+
+        $result = $this->runnerStatusService->changeStatus(
+            $admin,
+            $applicant->id,
+            Account::RUNNER_STATUS_APPROVED,
+            'Application reviewed and approved.'
+        );
+
+        $this->assertSame(
+            Account::RUNNER_STATUS_APPROVED,
+            $result->runner_status
+        );
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
+            'action' => 'RUNNER_APPLICATION_APPROVED',
+            'reason' => 'Application reviewed and approved.',
+        ]);
+    }
+
+    public function test_root_super_admin_can_manage_super_admin_runner_status(): void
+    {
+        $root = $this->createAccount('ROOT_SUPER_ADMIN');
+
+        $target = $this->createAccount(
+            'SUPER_ADMIN',
+            'ACTIVE',
+            Account::RUNNER_STATUS_PENDING
+        );
+
+        $result = $this->runnerStatusService->changeStatus(
+            $root,
+            $target->id,
+            Account::RUNNER_STATUS_REJECTED,
+            'Application did not meet requirements.'
+        );
+
+        $this->assertSame(
+            Account::RUNNER_STATUS_REJECTED,
+            $result->runner_status
+        );
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $root->id,
+            'target_account_id' => $target->id,
+            'action' => 'RUNNER_APPLICATION_REJECTED',
+        ]);
+    }
+
+    public function test_super_admin_cannot_manage_another_super_admin(): void
+    {
+        $admin = $this->createAccount('SUPER_ADMIN');
+
+        $target = $this->createAccount(
+            'SUPER_ADMIN',
+            'ACTIVE',
+            Account::RUNNER_STATUS_PENDING
+        );
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->runnerStatusService->changeStatus(
+            $admin,
+            $target->id,
+            Account::RUNNER_STATUS_APPROVED,
+            'Approval attempt.'
+        );
+    }
+
+    public function test_root_super_admin_cannot_manage_another_root(): void
+    {
+        $root = $this->createAccount('ROOT_SUPER_ADMIN');
+
+        $anotherRoot = $this->createAccount(
+            'ROOT_SUPER_ADMIN',
+            'ACTIVE',
+            Account::RUNNER_STATUS_PENDING
+        );
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->runnerStatusService->changeStatus(
+            $root,
+            $anotherRoot->id,
+            Account::RUNNER_STATUS_APPROVED,
+            'Approval attempt.'
+        );
+    }
+
+    public function test_administrator_cannot_change_own_runner_status(): void
+    {
+        $admin = $this->createAccount(
+            'SUPER_ADMIN',
+            'ACTIVE',
+            Account::RUNNER_STATUS_PENDING
+        );
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->runnerStatusService->changeStatus(
+            $admin,
+            $admin->id,
+            Account::RUNNER_STATUS_APPROVED,
+            'Self-approval attempt.'
+        );
+    }
+
+    public function test_reason_is_required_for_admin_decision(): void
+    {
+        $admin = $this->createAccount('SUPER_ADMIN');
+
+        $target = $this->createAccount(
+            'USER',
+            'ACTIVE',
+            Account::RUNNER_STATUS_PENDING
+        );
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Reason is required.');
+
+        $this->runnerStatusService->changeStatus(
+            $admin,
+            $target->id,
+            Account::RUNNER_STATUS_APPROVED,
+            '   '
+        );
+    }
+
+    public function test_invalid_status_transition_is_rejected(): void
+    {
+        $admin = $this->createAccount('SUPER_ADMIN');
+        $target = $this->createAccount();
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage(
+            'The requested Runner status transition is not allowed.'
+        );
+
+        $this->runnerStatusService->changeStatus(
+            $admin,
+            $target->id,
+            Account::RUNNER_STATUS_APPROVED,
+            'Attempted to skip application review.'
+        );
+    }
+
+    public function test_approved_runner_can_be_suspended_and_restored(): void
+    {
+        $admin = $this->createAccount('SUPER_ADMIN');
+
+        $runner = $this->createAccount(
+            'USER',
+            'ACTIVE',
+            Account::RUNNER_STATUS_APPROVED
+        );
+
+        $suspended = $this->runnerStatusService->changeStatus(
+            $admin,
+            $runner->id,
+            Account::RUNNER_STATUS_SUSPENDED,
+            'Runner eligibility temporarily suspended.'
+        );
+
+        $this->assertSame(
+            Account::RUNNER_STATUS_SUSPENDED,
+            $suspended->runner_status
+        );
+
+        $restored = $this->runnerStatusService->changeStatus(
+            $admin,
+            $runner->id,
+            Account::RUNNER_STATUS_APPROVED,
+            'Runner eligibility restored after review.'
+        );
+
+        $this->assertSame(
+            Account::RUNNER_STATUS_APPROVED,
+            $restored->runner_status
+        );
+
+        $this->assertDatabaseHas('audit_logs', [
+            'target_account_id' => $runner->id,
+            'action' => 'RUNNER_ELIGIBILITY_SUSPENDED',
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'target_account_id' => $runner->id,
+            'action' => 'RUNNER_ELIGIBILITY_RESTORED',
+        ]);
+    }
+
+    public function test_pending_application_list_is_limited_by_admin_role(): void
+    {
+        $root = $this->createAccount('ROOT_SUPER_ADMIN');
+        $superAdmin = $this->createAccount('SUPER_ADMIN');
+
+        $userApplication = $this->createAccount(
+            'USER',
+            'ACTIVE',
+            Account::RUNNER_STATUS_PENDING
+        );
+
+        $superAdminApplication = $this->createAccount(
+            'SUPER_ADMIN',
+            'ACTIVE',
+            Account::RUNNER_STATUS_PENDING
+        );
+
+        $rootResults = $this->runnerStatusService
+            ->pendingApplications($root);
+
+        $this->assertTrue(
+            $rootResults->contains('id', $userApplication->id)
+        );
+
+        $this->assertTrue(
+            $rootResults->contains('id', $superAdminApplication->id)
+        );
+
+        $superAdminResults = $this->runnerStatusService
+            ->pendingApplications($superAdmin);
+
+        $this->assertTrue(
+            $superAdminResults->contains('id', $userApplication->id)
+        );
+
+        $this->assertFalse(
+            $superAdminResults->contains('id', $superAdminApplication->id)
+        );
+    }
+
+    public function test_regular_user_cannot_review_runner_applications(): void
+    {
+        $user = $this->createAccount();
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->runnerStatusService->pendingApplications($user);
+    }
+}
