@@ -7,7 +7,6 @@ use App\Models\AuditLog;
 use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 
 class RunnerStatusService
@@ -17,9 +16,6 @@ class RunnerStatusService
     ) {
     }
 
-    /**
-     * Submit a Runner application for the authenticated account.
-     */
     public function apply(Account $applicant): Account
     {
         return DB::transaction(function () use ($applicant): Account {
@@ -63,9 +59,6 @@ class RunnerStatusService
         });
     }
 
-    /**
-     * Return pending applications visible to the authenticated administrator.
-     */
     public function pendingApplications(Account $actor): Collection
     {
         $this->assertAdministrator($actor);
@@ -97,9 +90,6 @@ class RunnerStatusService
             ]);
     }
 
-    /**
-     * Approve, reject, suspend, or restore Runner eligibility.
-     */
     public function changeStatus(
         Account $actor,
         string $targetAccountId,
@@ -141,6 +131,16 @@ class RunnerStatusService
                 ->firstOrFail();
 
             $this->assertCanManageTarget($currentActor, $target);
+
+            // Only ACTIVE accounts may be approved or restored as Runners.
+            if (
+                $nextStatus === Account::RUNNER_STATUS_APPROVED
+                && $target->status !== 'ACTIVE'
+            ) {
+                throw new DomainException(
+                    'Only active accounts can be approved as a Runner.'
+                );
+            }
 
             $currentStatus = $target->runner_status;
 
