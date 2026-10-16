@@ -10,6 +10,16 @@ class Account extends Model
 {
     use HasFactory;
 
+    public const RUNNER_STATUS_NOT_RUNNER = 'NOT_RUNNER';
+
+    public const RUNNER_STATUS_PENDING = 'PENDING';
+
+    public const RUNNER_STATUS_APPROVED = 'APPROVED';
+
+    public const RUNNER_STATUS_REJECTED = 'REJECTED';
+
+    public const RUNNER_STATUS_SUSPENDED = 'SUSPENDED';
+
     protected $table = 'accounts';
 
     protected $keyType = 'string';
