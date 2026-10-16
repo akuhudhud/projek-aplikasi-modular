@@ -70,17 +70,32 @@ class RunnerStatusSecurityApiTest extends TestCase
         ]);
     }
 
-    public function test_unapproved_account_cannot_become_task_assignee(): void
+    public function test_pending_applicant_cannot_self_approve_through_profile_update(): void
     {
         $account = $this->createAccount();
+        $token = 'runner-pending-security-token';
 
-        $this->assertSame(
-            Account::RUNNER_STATUS_NOT_RUNNER,
-            $account->runner_status
-        );
+        $this->authenticate($account, $token);
 
-        $this->assertDatabaseMissing('core_tasks', [
-            'assigned_account_id' => $account->id,
+        $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson('/api/me/runner-application')
+            ->assertCreated();
+
+        $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->patchJson('/api/me', [
+            'name' => 'Pending Runner Security Test',
+            'runner_status' => Account::RUNNER_STATUS_APPROVED,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $account->id,
+            'name' => 'Pending Runner Security Test',
+            'role' => 'USER',
+            'runner_status' => Account::RUNNER_STATUS_PENDING,
         ]);
     }
 }
