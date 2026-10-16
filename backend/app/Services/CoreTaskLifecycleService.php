@@ -31,7 +31,7 @@ class CoreTaskLifecycleService implements CoreTaskLifecycle
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $this->assertAssignedActiveAccount($task, $account);
+            $this->assertAssignedApprovedRunner($task, $account);
 
             if ($task->generic_status !== CoreTask::STATUS_ASSIGNED) {
                 throw new DomainException(
@@ -73,7 +73,7 @@ class CoreTaskLifecycleService implements CoreTaskLifecycle
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $this->assertAssignedActiveAccount($task, $account);
+            $this->assertAssignedApprovedRunner($task, $account);
 
             if ($task->generic_status !== CoreTask::STATUS_IN_PROGRESS) {
                 throw new DomainException(
@@ -109,13 +109,22 @@ class CoreTaskLifecycleService implements CoreTaskLifecycle
         }
     }
 
-    private function assertAssignedActiveAccount(
+    private function assertAssignedApprovedRunner(
         CoreTask $task,
         Account $account
     ): void {
         if ($account->status !== 'ACTIVE') {
             throw new DomainException(
                 'Only active accounts can perform task actions.'
+            );
+        }
+
+        if (
+            $account->runner_status
+            !== Account::RUNNER_STATUS_APPROVED
+        ) {
+            throw new DomainException(
+                'Only approved runners can perform task actions.'
             );
         }
 
