@@ -15,9 +15,10 @@ class CoreTaskLifecycleApiTest extends TestCase
 
     private function createAccount(
         string $status = 'ACTIVE',
-        string $role = 'USER'
+        string $role = 'USER',
+        string $runnerStatus = Account::RUNNER_STATUS_APPROVED
     ): Account {
-        return Account::create([
+        $account = Account::create([
             'id' => (string) Str::uuid(),
             'name' => 'Lifecycle API Account',
             'phone' => null,
@@ -26,6 +27,11 @@ class CoreTaskLifecycleApiTest extends TestCase
             'role' => $role,
             'status' => $status,
         ]);
+
+        $account->runner_status = $runnerStatus;
+        $account->save();
+
+        return $account->fresh();
     }
 
     private function authenticate(
