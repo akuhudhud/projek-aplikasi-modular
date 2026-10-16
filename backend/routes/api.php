@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ContactChangeController;
 use App\Http\Controllers\Api\CoreTaskController;
 use App\Http\Controllers\Api\OtpController;
 use App\Http\Controllers\Api\ProfilePictureController;
+use App\Http\Controllers\Api\RunnerController;
 use App\Http\Middleware\AuthenticateSession;
 use Illuminate\Support\Facades\Route;
 
@@ -65,6 +66,28 @@ Route::post('/me/delete', [AuthController::class, 'delete'])
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware(AuthenticateSession::class);
 
+/*
+|--------------------------------------------------------------------------
+| Core Runner Application
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/me/runner-application', [
+    RunnerController::class,
+    'showMyApplication',
+])->middleware(AuthenticateSession::class);
+
+Route::post('/me/runner-application', [
+    RunnerController::class,
+    'apply',
+])->middleware(AuthenticateSession::class);
+
+/*
+|--------------------------------------------------------------------------
+| Core Tasks
+|--------------------------------------------------------------------------
+*/
+
 Route::get('/core/tasks', [CoreTaskController::class, 'index'])
     ->middleware(AuthenticateSession::class);
 
@@ -77,6 +100,12 @@ Route::post('/core/tasks/{taskId}/complete', [
     CoreTaskController::class,
     'complete',
 ])->middleware(AuthenticateSession::class);
+
+/*
+|--------------------------------------------------------------------------
+| Administration
+|--------------------------------------------------------------------------
+*/
 
 Route::get('/admin/accounts', [AccountController::class, 'index'])
     ->middleware(AuthenticateSession::class);
@@ -95,3 +124,34 @@ Route::post('/admin/accounts/{accountId}/unsuspend', [AuthController::class, 'un
 
 Route::get('/admin/audit-logs', [AuditLogController::class, 'index'])
     ->middleware(AuthenticateSession::class);
+
+/*
+|--------------------------------------------------------------------------
+| Core Runner Administration
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/admin/runner-applications', [
+    RunnerController::class,
+    'pendingApplications',
+])->middleware(AuthenticateSession::class);
+
+Route::post('/admin/runner-applications/{accountId}/approve', [
+    RunnerController::class,
+    'approve',
+])->middleware(AuthenticateSession::class);
+
+Route::post('/admin/runner-applications/{accountId}/reject', [
+    RunnerController::class,
+    'reject',
+])->middleware(AuthenticateSession::class);
+
+Route::post('/admin/runners/{accountId}/suspend', [
+    RunnerController::class,
+    'suspend',
+])->middleware(AuthenticateSession::class);
+
+Route::post('/admin/runners/{accountId}/restore', [
+    RunnerController::class,
+    'restore',
+])->middleware(AuthenticateSession::class);
