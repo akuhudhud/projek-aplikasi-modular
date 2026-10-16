@@ -27,9 +27,10 @@ class CoreTaskLifecycleServiceTest extends TestCase
     }
 
     private function createAccount(
-        string $status = 'ACTIVE'
+        string $status = 'ACTIVE',
+        string $runnerStatus = Account::RUNNER_STATUS_APPROVED
     ): Account {
-        return Account::create([
+        $account = Account::create([
             'id' => (string) Str::uuid(),
             'name' => 'Lifecycle Test Account',
             'phone' => null,
@@ -38,6 +39,11 @@ class CoreTaskLifecycleServiceTest extends TestCase
             'role' => 'USER',
             'status' => $status,
         ]);
+
+        $account->runner_status = $runnerStatus;
+        $account->save();
+
+        return $account->fresh();
     }
 
     private function createTask(
@@ -66,7 +72,7 @@ class CoreTaskLifecycleServiceTest extends TestCase
         );
     }
 
-    public function test_assigned_task_can_be_started_by_assignee(): void
+    public function test_assigned_approved_runner_can_start_task(): void
     {
         $account = $this->createAccount();
 
@@ -94,7 +100,7 @@ class CoreTaskLifecycleServiceTest extends TestCase
         ]);
     }
 
-    public function test_in_progress_task_can_be_completed_by_assignee(): void
+    public function test_in_progress_task_can_be_completed_by_assigned_approved_runner(): void
     {
         $account = $this->createAccount();
 
@@ -121,6 +127,53 @@ class CoreTaskLifecycleServiceTest extends TestCase
             'task_id' => $task->task_id,
             'generic_status' => CoreTask::STATUS_COMPLETED,
         ]);
+    }
+
+    public function test_pending_runner_cannot_start_assigned_task(): void
+    {
+        $account = $this->createAccount(
+            'ACTIVE',
+            Account::RUNNER_STATUS_PENDING
+        );
+
+        $task = $this->createTask(
+            CoreTask::STATUS_ASSIGNED,
+            $account->id
+        );
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage(
+            'Only approved runners can perform task actions.'
+        );
+
+        $this->lifecycle->start(
+            $task->task_id,
+            $account->id
+        );
+    }
+
+    public function test_suspended_runner_cannot_complete_assigned_task(): void
+    {
+        $account = $this->createAccount(
+            'ACTIVE',
+            Account::RUNNER_STATUS_SUSPENDED
+        );
+
+        $task = $this->createTask(
+            CoreTask::STATUS_IN_PROGRESS,
+            $account->id,
+            true
+        );
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage(
+            'Only approved runners can perform task actions.'
+        );
+
+        $this->lifecycle->complete(
+            $task->task_id,
+            $account->id
+        );
     }
 
     public function test_unassigned_account_cannot_start_task(): void
