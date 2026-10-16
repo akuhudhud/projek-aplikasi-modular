@@ -227,6 +227,94 @@ class CoreTaskLifecycleServiceTest extends TestCase
         );
     }
 
+    public function test_start_rejects_assigned_task_without_assigned_timestamp(): void
+    {
+        $account = $this->createAccount();
+
+        $task = $this->createTask(
+            CoreTask::STATUS_ASSIGNED,
+            $account->id
+        );
+
+        $task->assigned_at = null;
+        $task->save();
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage(
+            'Task assignment fields are inconsistent.'
+        );
+
+        $this->lifecycle->start(
+            $task->task_id,
+            $account->id
+        );
+    }
+
+    public function test_start_rejects_task_that_already_has_started_timestamp(): void
+    {
+        $account = $this->createAccount();
+
+        $task = $this->createTask(
+            CoreTask::STATUS_ASSIGNED,
+            $account->id,
+            true
+        );
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage(
+            'Task assignment fields are inconsistent.'
+        );
+
+        $this->lifecycle->start(
+            $task->task_id,
+            $account->id
+        );
+    }
+
+    public function test_complete_rejects_in_progress_task_without_started_timestamp(): void
+    {
+        $account = $this->createAccount();
+
+        $task = $this->createTask(
+            CoreTask::STATUS_IN_PROGRESS,
+            $account->id
+        );
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage(
+            'Task lifecycle timestamps are inconsistent.'
+        );
+
+        $this->lifecycle->complete(
+            $task->task_id,
+            $account->id
+        );
+    }
+
+    public function test_complete_rejects_task_that_already_has_completed_timestamp(): void
+    {
+        $account = $this->createAccount();
+
+        $task = $this->createTask(
+            CoreTask::STATUS_IN_PROGRESS,
+            $account->id,
+            true
+        );
+
+        $task->completed_at = now();
+        $task->save();
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage(
+            'Task lifecycle timestamps are inconsistent.'
+        );
+
+        $this->lifecycle->complete(
+            $task->task_id,
+            $account->id
+        );
+    }
+
     public function test_unknown_task_is_rejected(): void
     {
         $account = $this->createAccount();
