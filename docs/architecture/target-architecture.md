@@ -13,16 +13,25 @@ This document defines the target architecture for evolving the
 existing modular application into a universal task platform with
 a Direct Runner Marketplace.
 
+The marketplace follows a direct request-and-quotation model:
+customers submit service requests, eligible runners provide
+quotations, and customers choose the quotation they accept.
+
+The platform must support a customer requesting a service from
+the general marketplace or directly through an approved runner's
+public profile link.
+
 This is a target architecture decision document. It does not
 authorize changes to an existing release scope by itself.
 
-Implementation must follow the approved batch plan, preserve
-existing Core security guarantees, and pass regression tests.
+Implementation must follow an explicitly approved implementation
+baseline and batch plan, preserve existing Core security
+guarantees, and pass applicable regression tests.
 
 ## 2. Architecture Principles
 
 1. Core owns universal task identity and lifecycle.
-2. Marketplace Engine owns quotation and offer-selection workflows.
+2. Marketplace Engine owns requests, quotations and offer selection.
 3. Business Modules own service-specific data and business rules.
 4. Identity integration must use an explicit contract.
 5. Core must not read private Business Module tables directly.
@@ -36,6 +45,12 @@ existing Core security guarantees, and pass regression tests.
    Microservices are not required for this architecture.
 10. Architecture decisions and implementation scope must be
     documented separately.
+11. A public profile link must not bypass authentication,
+    authorization, runner eligibility or task validation.
+12. The same quotation and selection rules must apply whether a
+    request originates from the marketplace or a runner profile.
+13. Architecture and implementation progress must be tracked
+    against explicit acceptance criteria, not assumptions.
 
 ## 3. Target Components
 
@@ -55,28 +70,37 @@ Core is responsible for:
 Core must not implement service-specific pricing rules or read
 module-private business records directly.
 
+Marketplace Engine must use Core contracts for task assignment
+and lifecycle operations.
+
 ### 3.2 Marketplace Engine
 
 Marketplace Engine is a shared internal component responsible for:
 
-- Receiving or coordinating quotation requests.
+- Receiving and managing service requests.
+- Managing request availability and eligible recipients.
 - Recording runner quotations.
 - Validating quotation eligibility and status.
 - Accepting or rejecting quotations.
 - Selecting the successful runner.
-- Assigning the selected runner to the corresponding task.
+- Assigning the selected runner to the corresponding task
+  through Core contracts.
 - Closing competing quotations after successful acceptance.
 - Preventing multiple successful assignments.
 - Recording quotation and selection history.
+- Recording request acquisition source and attribution metadata.
+- Enforcing the same selection rules for all request entry points.
 
-Marketplace Engine must use Core contracts for task assignment
-and lifecycle operations rather than bypassing Core invariants.
+Marketplace Engine must not create a second, independent task
+lifecycle that competes with Core.
 
 ### 3.3 Business Modules
 
 Business Modules provide service-specific capabilities.
 
-The initial business module is PickAndDrop.
+PickAndDrop is the intended initial business module, but the
+universal marketplace architecture must not depend exclusively
+on PickAndDrop.
 
 A module may own:
 
@@ -100,25 +124,137 @@ Do not remove or replace these models until identity ownership,
 authentication delegation, session validation, authorization,
 account status and migration compatibility are explicitly resolved.
 
+### 3.5 Public Runner Profile
+
+The platform must support a public-facing profile for an approved
+runner who is eligible to offer delivery services.
+
+The public profile is a marketplace entry point, not a separate
+task or quotation system.
+
+The profile capability is part of the intended Marketplace MVP
+from the initial launch, not a feature automatically deferred
+until after launch.
+
+The public profile must:
+
+- Have a unique, shareable public URL.
+- Identify the runner and display approved public profile data.
+- Display only fields explicitly approved for public exposure.
+- Keep private account data, credentials, security information
+  and non-public contact information protected.
+- Reflect the runner's current eligibility and availability state.
+- Provide a way for a customer to initiate a request targeted
+  specifically to that runner.
+
+A public profile or shareable URL must not itself grant permission
+to perform protected account or marketplace actions.
+
+The exact public fields, URL format, visibility rules and profile
+editing permissions must be finalized during detailed design.
+
 ## 4. Direct Runner Marketplace
 
 The marketplace follows a direct request-and-quotation model.
 
-1. A customer creates a service request.
-2. Eligible runners can discover or receive the request.
-3. A runner submits a quotation.
-4. The customer reviews available quotations.
+### 4.1 Standard Marketplace Request
+
+1. A customer creates a service request through the marketplace.
+2. The request is made available to eligible runners according
+   to the approved distribution policy.
+3. An eligible runner submits a quotation.
+4. The customer reviews the available quotations.
 5. The customer accepts one quotation.
-6. The accepted runner is assigned to the corresponding task.
+6. The selected runner is assigned to the corresponding task
+   through Core.
 7. Competing quotations are closed after successful acceptance.
 8. The task proceeds through Core's generic lifecycle.
 9. The relevant Business Module handles service-specific execution.
 
+### 4.2 Request Through a Runner Profile Link
+
+A customer must also be able to enter the same marketplace
+workflow through an approved runner's public profile URL.
+
+Expected flow:
+
+1. An approved runner shares their public profile link.
+2. A customer opens the public profile.
+3. The customer initiates a service request targeted at that
+   specific runner.
+4. The system validates the runner's current eligibility and
+   whether the targeted request can be accepted.
+5. The request enters the Marketplace Engine.
+6. The targeted runner submits a quotation through the same
+   quotation workflow used by the marketplace.
+7. The customer reviews and accepts or rejects the quotation.
+8. Acceptance follows the same atomic selection and Core
+   assignment guarantees as a standard marketplace request.
+9. The resulting task follows Core's generic lifecycle.
+10. The request records that its acquisition source was the
+    runner profile link.
+
+A profile link must not directly assign a task, automatically
+accept a quotation or bypass customer acceptance.
+
+A request targeted at one runner must not silently become a
+general marketplace request. Any fallback or redirection policy
+must be explicitly designed and disclosed to the customer.
+
+If the runner is suspended, no longer approved, ineligible or
+unable to receive new requests, the system must reject or block
+the targeted request safely and communicate the outcome.
+
+Authentication and authorization requirements still apply.
+Public profile viewing does not imply anonymous permission to
+create protected records, submit quotations or accept offers.
+
+### 4.3 Runner Eligibility
+
 Only eligible delivery runners may offer delivery services.
 
-Quotation status and task status are separate state machines.
-Accepting a quotation must not be treated as equivalent to
-completing the task.
+Runner eligibility must be checked at the relevant operation,
+not assumed from a previously generated profile URL.
+
+The design must define how runner approval, suspension,
+availability and changes in eligibility affect:
+
+- Public profile visibility.
+- New targeted requests.
+- Quotation submission.
+- Quotation acceptance.
+- Existing assigned tasks.
+
+A runner profile link must not allow an ineligible runner to
+receive new assignments.
+
+### 4.4 Acquisition Source and Attribution
+
+The marketplace must distinguish at least these request sources:
+
+- `marketplace`
+- `runner_profile_link`
+
+The detailed schema may use a different representation if the
+same distinction is preserved and testable.
+
+Where appropriate, the system should support attribution to
+the originating runner profile without trusting user-supplied
+identifiers as proof of authorization.
+
+The design should identify the minimum useful analytics, such as:
+
+- Public profile views.
+- Requests initiated from a profile.
+- Quotations submitted.
+- Accepted quotations.
+- Completed tasks.
+
+Analytics must respect privacy, data minimization and access
+control requirements.
+
+The objective is to measure whether runners can attract their
+own customers and bring organic demand into the platform.
 
 ## 5. Transaction and Concurrency Guarantees
 
@@ -133,29 +269,38 @@ The successful operation must ensure that:
 - The selected runner is assigned exactly once.
 - Competing quotations are closed consistently.
 - A failed transaction does not leave partial selection state.
+- Repeated requests do not create duplicate assignments.
 
 The implementation must use database transactions, suitable
 locking or equivalent concurrency controls, database constraints
 where appropriate, and regression tests.
 
-Retries must not create duplicate successful assignments.
+The same guarantees apply to requests originating from a
+runner profile link. The entry point must not create a weaker
+assignment path.
 
 ## 6. Component Boundaries
 
 Core owns generic task state and assignment invariants.
 
-Marketplace Engine owns quotation state and selection policy.
+Marketplace Engine owns request, quotation and selection policy.
 
 Business Modules own service-specific request records and rules.
 
 Identity owns account identity according to the approved
 identity integration contract.
 
+Public Runner Profile exposes only approved public information
+and initiates requests through Marketplace Engine contracts.
+
 Cross-component communication must use explicit contracts.
 Private module tables must not become implicit public APIs.
 
 The mapping between a business request, marketplace request,
 quotation and Core task must be explicit and traceable.
+
+Request source and runner-profile attribution must be represented
+without duplicating task lifecycle ownership.
 
 ## 7. Target Data Concepts
 
@@ -165,78 +310,176 @@ Expected conceptual entities include:
 
 - Core Task
 - Service Request
-- Runner Service Profile or Service Listing
+- Runner Service Profile
+- Public Profile URL or equivalent stable public identifier
 - Quotation
 - Quotation Selection History
+- Request Acquisition Source or Attribution
 - Module-specific service record
+- Relevant marketplace audit records
 
 These concepts do not mandate one table per entity.
+
 The physical schema must be determined after relationship,
-ownership, uniqueness, retention and concurrency requirements
-are documented.
+ownership, uniqueness, privacy, retention and concurrency
+requirements are documented.
 
 Do not create migrations solely from this conceptual list.
 
-## 8. Implementation Strategy
+## 8. Implementation Planning and Work Breakdown
 
-Phase 1 — Architecture and Gap Audit
-- Confirm the actual GitHub HEAD.
-- Inventory existing Core TASK contracts and services.
-- Inspect module boundaries and module discovery.
-- Audit current migrations and test coverage.
-- Confirm the SIDCORE integration boundary.
-- Record the gap between current implementation and target design.
+Work must be organized into approved batches with clear
+dependencies, files or components in scope, and acceptance gates.
 
-Phase 2 — Design Lock
-- Finalize component responsibilities.
-- Define request, quotation and task relationships.
-- Define state machines and allowed transitions.
-- Define concurrency and idempotency guarantees.
-- Define API contracts and authorization requirements.
-- Approve the batch implementation plan.
+The following is the target planning sequence, not authorization
+to start implementation or change an existing release.
 
-Phase 3 — Core Compatibility
-- Preserve existing Core behavior.
-- Extend universal task contracts only where necessary.
-- Maintain backward compatibility where practical.
-- Add migrations instead of rewriting migration history.
+### Batch 0 — Repository and Scope Baseline
 
-Phase 4 — Marketplace Engine
-- Implement quotation lifecycle.
-- Implement customer selection.
-- Implement atomic runner assignment and competing-offer closure.
-- Add authorization, audit and concurrency regression tests.
+- Confirm the actual GitHub HEAD and current release status.
+- Audit existing Core task contracts and services.
+- Audit current request and runner approval flows.
+- Audit migrations, tests and CI evidence.
+- Audit SIDCORE integration boundaries.
+- Record existing capabilities and verified gaps.
+- Identify files and behaviors that must remain unchanged.
 
-Phase 5 — Business Module Integration
-- Integrate PickAndDrop through explicit contracts.
-- Keep service-specific rules inside the module.
-- Verify end-to-end task and quotation consistency.
+Exit criteria:
+- Audit findings are tied to the actual repository state.
+- Current release scope is distinguished from target architecture.
+- No implementation begins on the basis of assumed functionality.
 
-Phase 6 — Verification and Release
-- Run the relevant automated test suite.
-- Verify MySQL behavior and concurrency cases.
-- Run static analysis and CI.
-- Audit the final diff and migration safety.
-- Update README, GitBook and release records.
-- Release only after the approved acceptance gates pass.
+### Batch 1 — Architecture and Contract Design
 
-## 9. Scope and Release Protection
+- Finalize Core, Marketplace Engine, Business Module and
+  Identity responsibilities.
+- Define service request and quotation relationships.
+- Define task mapping and assignment contracts.
+- Define runner eligibility and public profile boundaries.
+- Define request source and attribution.
+- Define authorization and privacy requirements.
+- Define state machines, error behavior and idempotency.
+- Define the API contracts and acceptance tests.
+
+Exit criteria:
+- Component ownership is unambiguous.
+- Public profile requests use the same quotation workflow.
+- Security and concurrency requirements are documented.
+- The design and implementation baseline are explicitly approved.
+
+### Batch 2 — Runner Profile and Entry Points
+
+- Define public profile fields and visibility.
+- Define stable, shareable profile URLs.
+- Define profile eligibility and unavailable-runner behavior.
+- Define request initiation from a profile.
+- Define acquisition-source recording and minimum analytics.
+- Define authentication and authorization for each action.
+
+Exit criteria:
+- Approved runners can expose only permitted public information.
+- Profile-origin requests target the intended runner.
+- Profile links do not bypass eligibility or authorization.
+- Request source is recorded and can be verified by tests.
+
+### Batch 3 — Marketplace Request and Quotation Engine
+
+- Implement or integrate the shared service-request workflow.
+- Implement quotation submission and status transitions.
+- Implement customer review and selection.
+- Implement rejection, expiry and cancellation rules as approved.
+- Implement atomic acceptance and competing-offer closure.
+- Add audit records, authorization and idempotency controls.
+
+Exit criteria:
+- A valid request can receive eligible quotations.
+- The customer can select only one valid quotation.
+- Concurrent acceptance cannot produce multiple winners.
+- Failed or repeated operations cannot leave inconsistent state.
+
+### Batch 4 — Core and Business Module Integration
+
+- Integrate marketplace selection with Core assignment contracts.
+- Map accepted requests to one corresponding Core task.
+- Integrate the initial Business Module through explicit contracts.
+- Preserve Core's generic lifecycle and module ownership.
+- Verify service-specific request data remains module-owned.
+
+Exit criteria:
+- Accepted quotations result in exactly one valid assignment.
+- Core remains the authority for generic task lifecycle.
+- Business Module execution does not bypass Marketplace rules.
+- Existing Core behavior and security remain intact.
+
+### Batch 5 — End-to-End Verification
+
+- Test standard marketplace request flow.
+- Test runner-profile-link request flow.
+- Test runner approval, suspension and eligibility changes.
+- Test unauthorized and invalid operations.
+- Test concurrent acceptance, retries and duplicate submissions.
+- Test database constraints and migration safety on MySQL.
+- Run automated tests, static analysis and CI.
+- Audit the complete diff and verify documentation consistency.
+
+Exit criteria:
+- All approved acceptance gates pass with recorded evidence.
+- No unresolved critical security or consistency defects remain.
+- The tested commit and release candidate are explicitly identified.
+
+### Batch 6 — Release and Operational Readiness
+
+- Confirm release scope and version.
+- Update README and release records.
+- Align GitBook with the approved architecture and verified state.
+- Document operational monitoring and support requirements.
+- Release only after the authorized release gates pass.
+
+Exit criteria:
+- Documentation matches the verified implementation.
+- Release notes and version status are accurate.
+- No deferred feature is represented as delivered.
+
+## 9. Implementation Strategy
+
+The detailed batch plan must be approved before implementation.
+
+Implementation should proceed in this order:
+
+1. Audit actual repository state and current scope.
+2. Finalize and approve architecture and contracts.
+3. Approve a batch plan with explicit acceptance gates.
+4. Implement only the approved batch.
+5. Run relevant automated tests and static analysis.
+6. Review the complete diff and migration safety.
+7. Commit and verify the exact resulting HEAD.
+8. Update GitHub and GitBook documentation.
+9. Close the batch only when evidence supports completion.
+
+The batch sequence may be adjusted only through an explicit
+dependency or design decision. Any adjustment must be documented.
+
+## 10. Scope and Release Protection
 
 The existing v0.3.2 scope remains governed by its current
 acceptance criteria until formally closed or revised.
 
 The deferred v0.4.0 scope must not be silently redefined.
 
-The new marketplace architecture requires an explicit approved
-implementation baseline and version plan before feature work
-begins.
+The Direct Runner Marketplace, including public runner profiles
+and profile-origin requests, describes the intended target MVP.
+It does not automatically add these features to an in-progress
+release or authorize immediate implementation.
+
+Before feature work begins, approve an explicit implementation
+baseline, version plan, dependency map and batch plan.
 
 Historical release tags must not be moved or rewritten.
 
-## 10. Acceptance Gates
+## 11. Acceptance Gates
 
-The architecture is not considered implemented merely because
-the document or database tables exist.
+The target architecture is not considered implemented merely
+because documentation, endpoints or database tables exist.
 
 Acceptance requires evidence that:
 
@@ -249,10 +492,17 @@ Acceptance requires evidence that:
 - Runner assignment and competing-offer closure are atomic.
 - Task lifecycle transitions remain valid.
 - Service-specific data remains owned by the appropriate module.
+- Approved runners have shareable public profiles.
+- Public profiles expose only approved information.
+- Customers can initiate requests targeted at a runner's profile.
+- Profile-origin requests use the common quotation workflow.
+- Profile links cannot bypass authorization or eligibility checks.
+- Request acquisition source is recorded accurately.
+- Runner suspension or loss of eligibility is handled safely.
 - Automated tests, static analysis and CI pass.
 - Documentation matches the verified implementation.
 
-## 11. Change Control
+## 12. Change Control
 
 Required workflow:
 
@@ -261,3 +511,6 @@ AUDIT → DESIGN LOCK → BATCH PLAN → IMPLEMENT → TEST
 
 No implementation batch may be marked complete without
 evidence from the actual repository state and applicable tests.
+
+A documentation update does not by itself constitute design
+approval, implementation approval or a release.
