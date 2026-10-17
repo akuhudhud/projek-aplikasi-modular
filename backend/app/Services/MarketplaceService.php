@@ -407,6 +407,13 @@ class MarketplaceService
 
             if (
                 $quotation->status
+                === MarketplaceQuotation::STATUS_EXPIRED
+            ) {
+                throw new DomainException('This quotation has expired.');
+            }
+
+            if (
+                $quotation->status
                 !== MarketplaceQuotation::STATUS_SUBMITTED
             ) {
                 throw new DomainException(
@@ -519,6 +526,13 @@ class MarketplaceService
                 throw new DomainException(
                     'This request cannot be awarded in its current state.'
                 );
+            }
+
+            if (
+                $quotation->status
+                === MarketplaceQuotation::STATUS_EXPIRED
+            ) {
+                throw new DomainException('This quotation has expired.');
             }
 
             if (
