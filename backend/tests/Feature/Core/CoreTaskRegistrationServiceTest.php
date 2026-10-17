@@ -26,6 +26,17 @@ class CoreTaskRegistrationServiceTest extends TestCase
         parent::setUp();
 
         $this->registry = new CoreTaskRegistryService();
+
+        // Test fixture only. This does not enable the module provider
+        // or change the production runtime configuration.
+        config([
+            'core_task_types.PickAndDrop' => [
+                'enabled' => true,
+                'task_types' => [
+                    'PICK_AND_DROP_REQUEST',
+                ],
+            ],
+        ]);
     }
 
     public function test_registry_contract_resolves_to_service(): void
