@@ -1,3 +1,4 @@
+
 <?php
 
 namespace Tests\Feature\Marketplace;
@@ -7,6 +8,7 @@ use App\Models\Account;
 use App\Models\CoreTask;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
+use App\Models\RunnerPublicProfile;
 use App\Services\MarketplaceService;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -217,20 +219,69 @@ class MarketplaceServiceTest extends TestCase
             runnerStatus: Account::RUNNER_STATUS_APPROVED
         );
 
+        $this->createPublicProfile(
+            $targetRunner,
+            'target-runner-profile'
+        );
+
         $request = $this->marketplace->createRequest($customer, [
             'source_type' => MarketplaceRequest::SOURCE_RUNNER_PROFILE_LINK,
-            'target_runner_account_id' => $targetRunner->id,
+            'target_runner_slug' => 'target-runner-profile',
             'service_type' => 'GENERAL_SERVICE',
             'description' => 'Request through runner profile.',
         ]);
 
-        $this->expectException(DomainException::class);
-
-        $this->marketplace->submitQuotation(
-            $otherRunner,
-            $request->request_id,
-            18.00
+        $this->assertSame(
+            $targetRunner->id,
+            $request->target_runner_account_id
         );
+        $this->assertSame(
+            MarketplaceRequest::STATUS_OPEN,
+            $request->status
+        );
+        $this->assertDatabaseCount('core_tasks', 0);
+
+        try {
+            $this->marketplace->submitQuotation(
+                $otherRunner,
+                $request->request_id,
+                18.00
+            );
+
+            $this->fail('A different runner must not quote this request.');
+        } catch (DomainException $exception) {
+            $this->assertSame(
+                'This request is targeted at another runner.',
+                $exception->getMessage()
+            );
+        }
+
+        $quotation = $this->marketplace->submitQuotation(
+            $targetRunner,
+            $request->request_id,
+            19.00
+        );
+
+        $this->assertSame(
+            MarketplaceQuotation::STATUS_SUBMITTED,
+            $quotation->status
+        );
+        $this->assertDatabaseCount('core_tasks', 0);
+    }
+
+    private function createPublicProfile(
+        Account $runner,
+        string $slug
+    ): RunnerPublicProfile {
+        return RunnerPublicProfile::query()->create([
+            'profile_id' => (string) Str::uuid(),
+            'account_id' => $runner->id,
+            'public_slug' => $slug,
+            'display_name' => 'Test Runner',
+            'service_area' => 'Tuaran',
+            'services' => ['General service'],
+            'is_published' => true,
+        ]);
     }
 
     private function makeAccount(
