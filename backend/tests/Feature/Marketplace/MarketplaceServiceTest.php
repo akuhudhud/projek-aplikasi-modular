@@ -177,6 +177,58 @@ class MarketplaceServiceTest extends TestCase
         );
     }
 
+    public function test_runner_who_loses_approval_cannot_be_awarded_a_quotation(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(
+            runnerStatus: Account::RUNNER_STATUS_APPROVED
+        );
+
+        $request = $this->marketplace->createRequest($customer, [
+            'service_type' => 'GENERAL_SERVICE',
+            'description' => 'Deliver an item after runner approval changes.',
+        ]);
+
+        $quotation = $this->marketplace->submitQuotation(
+            $runner,
+            $request->request_id,
+            21.00
+        );
+
+        $runner->forceFill([
+            'runner_status' => Account::RUNNER_STATUS_PENDING,
+        ])->save();
+
+        try {
+            $this->marketplace->awardQuotation(
+                $customer,
+                $request->request_id,
+                $quotation->quotation_id
+            );
+
+            $this->fail(
+                'A runner who is no longer approved must not receive the task.'
+            );
+        } catch (DomainException $exception) {
+            $this->assertSame(
+                'The quoted runner is no longer active and approved.',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertSame(
+            MarketplaceRequest::STATUS_OPEN,
+            $request->fresh()->status
+        );
+
+        $this->assertSame(
+            MarketplaceQuotation::STATUS_SUBMITTED,
+            $quotation->fresh()->status
+        );
+
+        $this->assertDatabaseCount('core_tasks', 0);
+    }
+
     public function test_only_request_owner_can_award_a_quotation(): void
     {
         $customer = $this->makeAccount();
