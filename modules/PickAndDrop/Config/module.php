@@ -17,18 +17,20 @@ return [
     |--------------------------------------------------------------------------
     | Module Status
     |--------------------------------------------------------------------------
+    |
+    | Pick & Drop is disabled for GIGAVERSE v0.4.0.
+    | The Direct Runner Marketplace must remain service-agnostic.
+    | Keep the module files and migration history intact until the
+    | dependency and database impact audit is complete.
+    |
     */
 
-    'enabled' => true,
+    'enabled' => false,
 
     /*
     |--------------------------------------------------------------------------
     | Supported Core Task Types
     |--------------------------------------------------------------------------
-    |
-    | The module declares task types it can register with Core.
-    | Core reads this metadata without depending on module classes or tables.
-    |
     */
 
     'task_types' => [
@@ -47,10 +49,6 @@ return [
     |--------------------------------------------------------------------------
     | Module Boundaries
     |--------------------------------------------------------------------------
-    |
-    | Pick & Drop owns business behaviour and must consume Core through
-    | approved contracts/services. Core must never depend on this module.
-    |
     */
 
     'namespace' => 'Modules\\PickAndDrop',
