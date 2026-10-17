@@ -67,6 +67,34 @@ class CoreTaskRegistryService implements CoreTaskRegistry
         string $moduleKey,
         string $taskType
     ): bool {
+        /*
+         * Platform-owned engines are registered through Core configuration.
+         * They must not depend on optional business module metadata.
+         */
+        $coreTaskTypes = config('core_task_types', []);
+
+        if (
+            is_array($coreTaskTypes)
+            && array_key_exists($moduleKey, $coreTaskTypes)
+        ) {
+            $metadata = $coreTaskTypes[$moduleKey];
+
+            if (
+                ! is_array($metadata)
+                || ($metadata['enabled'] ?? false) !== true
+            ) {
+                return false;
+            }
+
+            $taskTypes = $metadata['task_types'] ?? [];
+
+            return is_array($taskTypes)
+                && in_array($taskType, $taskTypes, true);
+        }
+
+        /*
+         * Optional business modules continue declaring their own task types.
+         */
         $moduleConfigFiles = glob(
             base_path('../modules/*/Config/module.php')
         );
