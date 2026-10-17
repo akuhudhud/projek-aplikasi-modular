@@ -20,6 +20,55 @@ class MarketplaceService
     ) {
     }
 
+    public function expireDueItems(): void
+    {
+        DB::transaction(function (): void {
+            $now = now();
+
+            $expiredRequests = MarketplaceRequest::query()
+                ->where('status', MarketplaceRequest::STATUS_OPEN)
+                ->whereNotNull('expires_at')
+                ->where('expires_at', '<=', $now)
+                ->lockForUpdate()
+                ->get();
+
+            $requestIds = $expiredRequests
+                ->pluck('request_id')
+                ->all();
+
+            foreach ($expiredRequests as $request) {
+                $request->forceFill([
+                    'status' => MarketplaceRequest::STATUS_EXPIRED,
+                ])->save();
+            }
+
+            if ($requestIds !== []) {
+                MarketplaceQuotation::query()
+                    ->whereIn('request_id', $requestIds)
+                    ->where(
+                        'status',
+                        MarketplaceQuotation::STATUS_SUBMITTED
+                    )
+                    ->update([
+                        'status' => MarketplaceQuotation::STATUS_EXPIRED,
+                        'updated_at' => $now,
+                    ]);
+            }
+
+            MarketplaceQuotation::query()
+                ->where(
+                    'status',
+                    MarketplaceQuotation::STATUS_SUBMITTED
+                )
+                ->whereNotNull('expires_at')
+                ->where('expires_at', '<=', $now)
+                ->update([
+                    'status' => MarketplaceQuotation::STATUS_EXPIRED,
+                    'updated_at' => $now,
+                ]);
+        });
+    }
+
     public function createRequest(
         Account $customer,
         array $data
@@ -132,6 +181,60 @@ class MarketplaceService
         });
     }
 
+    public function cancelRequest(
+        Account $customer,
+        string $requestId
+    ): MarketplaceRequest {
+        $this->expireDueItems();
+
+        return DB::transaction(function () use (
+            $customer,
+            $requestId
+        ): MarketplaceRequest {
+            $request = MarketplaceRequest::query()
+                ->whereKey($requestId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$request) {
+                throw (new ModelNotFoundException())
+                    ->setModel(MarketplaceRequest::class, [$requestId]);
+            }
+
+            if ($request->customer_account_id !== $customer->id) {
+                throw new DomainException(
+                    'Only the request owner may cancel this request.'
+                );
+            }
+
+            if ($request->status !== MarketplaceRequest::STATUS_OPEN) {
+                throw new DomainException(
+                    'Only open requests can be cancelled.'
+                );
+            }
+
+            $now = now();
+
+            $request->forceFill([
+                'status' => MarketplaceRequest::STATUS_CANCELLED,
+                'cancelled_at' => $now,
+            ])->save();
+
+            MarketplaceQuotation::query()
+                ->where('request_id', $request->request_id)
+                ->where(
+                    'status',
+                    MarketplaceQuotation::STATUS_SUBMITTED
+                )
+                ->update([
+                    'status' => MarketplaceQuotation::STATUS_NOT_SELECTED,
+                    'updated_at' => $now,
+                ]);
+
+            return $request->refresh();
+        });
+    }
+
     public function submitQuotation(
         Account $runner,
         string $requestId,
@@ -139,6 +242,8 @@ class MarketplaceService
         string $currency = 'MYR',
         ?string $message = null
     ): MarketplaceQuotation {
+        $this->expireDueItems();
+
         if ($amount <= 0) {
             throw new DomainException(
                 'Quotation amount must be greater than zero.'
@@ -233,11 +338,85 @@ class MarketplaceService
         });
     }
 
+    public function withdrawQuotation(
+        Account $runner,
+        string $requestId,
+        string $quotationId
+    ): MarketplaceQuotation {
+        $this->expireDueItems();
+
+        return DB::transaction(function () use (
+            $runner,
+            $requestId,
+            $quotationId
+        ): MarketplaceQuotation {
+            $request = MarketplaceRequest::query()
+                ->whereKey($requestId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$request) {
+                throw (new ModelNotFoundException())
+                    ->setModel(MarketplaceRequest::class, [$requestId]);
+            }
+
+            if ($request->status !== MarketplaceRequest::STATUS_OPEN) {
+                throw new DomainException(
+                    'Quotations can only be withdrawn while the request is open.'
+                );
+            }
+
+            $quotation = MarketplaceQuotation::query()
+                ->whereKey($quotationId)
+                ->where('request_id', $request->request_id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$quotation) {
+                throw (new ModelNotFoundException())
+                    ->setModel(MarketplaceQuotation::class, [$quotationId]);
+            }
+
+            if ($quotation->runner_account_id !== $runner->id) {
+                throw new DomainException(
+                    'Only the quotation owner may withdraw it.'
+                );
+            }
+
+            if (
+                $quotation->status
+                !== MarketplaceQuotation::STATUS_SUBMITTED
+            ) {
+                throw new DomainException(
+                    'Only submitted quotations can be withdrawn.'
+                );
+            }
+
+            if (
+                $quotation->expires_at
+                && $quotation->expires_at->isPast()
+            ) {
+                throw new DomainException(
+                    'This quotation has expired.'
+                );
+            }
+
+            $quotation->forceFill([
+                'status' => MarketplaceQuotation::STATUS_WITHDRAWN,
+                'withdrawn_at' => now(),
+            ])->save();
+
+            return $quotation->refresh();
+        });
+    }
+
     public function awardQuotation(
         Account $customer,
         string $requestId,
         string $quotationId
     ): CoreTask {
+        $this->expireDueItems();
+
         return DB::transaction(function () use (
             $customer,
             $requestId,
@@ -270,10 +449,6 @@ class MarketplaceService
                     ->setModel(MarketplaceQuotation::class, [$quotationId]);
             }
 
-            /*
-             * A retry of the same winning quotation returns the existing task.
-             * A different quotation can never replace an awarded quotation.
-             */
             if ($request->status === MarketplaceRequest::STATUS_AWARDED) {
                 if (
                     $request->winning_quotation_id
@@ -338,10 +513,6 @@ class MarketplaceService
                 );
             }
 
-            /*
-             * All state changes and Core Task registration occur inside
-             * this outer transaction.
-             */
             $task = $this->coreTaskRegistry->register(
                 'Marketplace',
                 'MARKETPLACE_SERVICE_REQUEST',
@@ -350,13 +521,13 @@ class MarketplaceService
                 $customer->id
             );
 
+            $now = now();
+
             $task->forceFill([
                 'assigned_account_id' => $runner->id,
                 'generic_status' => CoreTask::STATUS_ASSIGNED,
-                'assigned_at' => now(),
+                'assigned_at' => $now,
             ])->save();
-
-            $now = now();
 
             $request->forceFill([
                 'status' => MarketplaceRequest::STATUS_AWARDED,
