@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Marketplace;
 
-use App\Contracts\CoreTaskRegistry;
 use App\Models\Account;
 use App\Models\CoreTask;
 use App\Models\MarketplaceQuotation;
@@ -25,9 +24,7 @@ class MarketplaceServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->marketplace = new MarketplaceService(
-            $this->app->make(CoreTaskRegistry::class)
-        );
+        $this->marketplace = $this->app->make(MarketplaceService::class);
     }
 
     public function test_request_stays_open_until_a_quotation_is_awarded(): void
