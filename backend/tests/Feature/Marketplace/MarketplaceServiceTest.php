@@ -263,7 +263,7 @@ class MarketplaceServiceTest extends TestCase
             );
         } catch (DomainException $exception) {
             $this->assertSame(
-                'Only active accounts can be assigned to a task.',
+                'The quoted runner is no longer active and approved.',
                 $exception->getMessage()
             );
         }
