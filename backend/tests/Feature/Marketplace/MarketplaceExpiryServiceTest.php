@@ -99,6 +99,58 @@ class MarketplaceExpiryServiceTest extends TestCase
         $this->assertDatabaseCount('core_tasks', 0);
     }
 
+    public function test_expired_quotation_cannot_be_awarded(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED
+        );
+
+        $request = $this->marketplace->createRequest($customer, [
+            'service_type' => 'GENERAL_SERVICE',
+            'description' => 'An expired quotation must not be awarded.',
+        ]);
+
+        $quotation = $this->marketplace->submitQuotation(
+            $runner,
+            $request->request_id,
+            22.00
+        );
+
+        $quotation->forceFill([
+            'expires_at' => now()->subMinute(),
+        ])->save();
+
+        try {
+            $this->marketplace->awardQuotation(
+                $customer,
+                $request->request_id,
+                $quotation->quotation_id
+            );
+
+            $this->fail(
+                'An expired quotation must not be awarded.'
+            );
+        } catch (DomainException $exception) {
+            $this->assertSame(
+                'The selected quotation is no longer available.',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertSame(
+            MarketplaceRequest::STATUS_OPEN,
+            $request->fresh()->status
+        );
+
+        $this->assertSame(
+            MarketplaceQuotation::STATUS_EXPIRED,
+            $quotation->fresh()->status
+        );
+
+        $this->assertDatabaseCount('core_tasks', 0);
+    }
+
     public function test_expired_request_cannot_be_awarded(): void
     {
         $customer = $this->makeAccount();
