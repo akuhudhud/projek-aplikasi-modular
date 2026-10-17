@@ -9,6 +9,7 @@ use App\Models\MarketplaceRequest;
 use App\Models\RunnerPublicProfile;
 use App\Services\MarketplaceService;
 use DomainException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -281,6 +282,64 @@ class MarketplaceServiceTest extends TestCase
         $this->assertSame(
             'SUSPENDED',
             $runner->fresh()->status
+        );
+
+        $this->assertDatabaseCount('core_tasks', 0);
+    }
+
+    public function test_quotation_from_another_request_cannot_be_awarded(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(
+            runnerStatus: Account::RUNNER_STATUS_APPROVED
+        );
+
+        $firstRequest = $this->marketplace->createRequest($customer, [
+            'service_type' => 'GENERAL_SERVICE',
+            'description' => 'First independent customer request.',
+        ]);
+
+        $secondRequest = $this->marketplace->createRequest($customer, [
+            'service_type' => 'GENERAL_SERVICE',
+            'description' => 'Second independent customer request.',
+        ]);
+
+        $quotation = $this->marketplace->submitQuotation(
+            $runner,
+            $secondRequest->request_id,
+            31.00
+        );
+
+        try {
+            $this->marketplace->awardQuotation(
+                $customer,
+                $firstRequest->request_id,
+                $quotation->quotation_id
+            );
+
+            $this->fail(
+                'A quotation belonging to another request must not be awarded.'
+            );
+        } catch (ModelNotFoundException $exception) {
+            $this->assertSame(
+                MarketplaceQuotation::class,
+                $exception->getModel()
+            );
+        }
+
+        $this->assertSame(
+            MarketplaceRequest::STATUS_OPEN,
+            $firstRequest->fresh()->status
+        );
+
+        $this->assertSame(
+            MarketplaceRequest::STATUS_OPEN,
+            $secondRequest->fresh()->status
+        );
+
+        $this->assertSame(
+            MarketplaceQuotation::STATUS_SUBMITTED,
+            $quotation->fresh()->status
         );
 
         $this->assertDatabaseCount('core_tasks', 0);
