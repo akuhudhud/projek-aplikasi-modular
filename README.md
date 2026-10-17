@@ -1,214 +1,176 @@
 
-# Projek Aplikasi Modular
+# Projek Aplikasi Modular — GIGAVERSE
 
-Platform aplikasi modular dengan teras bersama dan modul perniagaan yang boleh dipasang, dikembangkan dan diurus secara berasingan.
+GIGAVERSE ialah platform aplikasi modular dengan Core bersama,
+Marketplace Engine dan Business Modules yang boleh dikembangkan
+secara berasingan.
 
-## Current Release
+## Current Verified Release
 
 **v0.3.1 — Architecture Audit & Design Lock**
 
 Status: RELEASED / VERIFIED
 
-Release ini memfokuskan pengesahan seni bina Core, sempadan Core–Module, audit teknikal, keselamatan dan kebolehpercayaan backend.
+Release ini memfokuskan pengesahan seni bina Core, sempadan
+Core–Module, audit teknikal, keselamatan dan kebolehpercayaan
+backend.
 
 ### Release Verification
 
 - CI Run: [#64 — success](https://github.com/akuhudhud/projek-aplikasi-modular/actions/runs/38568276517)
 - Verified CI commit: `53629b0380a1757a141968409713db7f05da8acf`
-- PHPStan/Larastan: `[OK] No errors`
-- Migration exercise: selesai berdasarkan rekod pembangunan.
+- PHPStan/Larastan: `[OK] No errors` berdasarkan rekod pembangunan.
 - A-15 Module Discovery Logging: `CLOSED / VERIFIED`.
-- GitBook DEV-094: diselaraskan dengan bukti CI dan rekod static analysis.
+- GitBook DEV-094: diselaraskan berdasarkan rekod pengesahan terdahulu.
 
-CI #64 mengesahkan ujian automatik yang dijalankan pada commit yang dinyatakan. PHPStan/Larastan dijalankan secara berasingan dalam Codespace menggunakan konfigurasi `phpstan.neon` dengan had memori 512 MB.
+CI #64 mengesahkan ujian pada commit yang dinyatakan. Ia tidak
+membuktikan bahawa fungsi Marketplace telah dibangunkan.
 
 ### Release Tag
 
 `v0.3.1`
 
-### Release Commit
+Tag dan sejarah release terdahulu mesti dikekalkan. Jangan
+memindahkan atau menulis semula tag release.
 
-Rekodkan SHA commit sebenar yang ditetapkan sebagai tag `v0.3.1`.
+## Major Change — v0.4.0 Direct Runner Marketplace
 
-## Development Status
+**Status: APPROVED DIRECTION / IMPLEMENTATION BASELINE IN PREPARATION**
 
-### v0.3.2 — Core TASK Contract & Registry
+v0.4.0 ialah baseline pembangunan baharu untuk Major Change
+GIGAVERSE berdasarkan hala tuju Direct Runner Marketplace.
 
-**Status: IN PROGRESS — NOT RELEASED**
+Skop lama v0.4.0 yang berfokus pada Pick & Drop Business
+Workflow MVP telah dibatalkan dan digantikan oleh hala tuju ini.
 
-Pembangunan Core TASK telah bergerak daripada perancangan kepada pelaksanaan. Komponen yang telah dibangunkan termasuk:
+### Product Model
 
-- TASK registry generik menggunakan UUID.
-- Pendaftaran TASK idempotent berdasarkan `module_key`, `task_type` dan `source_id`.
-- Task List API generik dengan kawalan authorization.
-- Primitive assignment kepada akaun aktif.
-- Lifecycle service untuk memulakan dan menyelesaikan tugasan.
-- API yang memerlukan authenticated session untuk tindakan `start` dan `complete`.
-- Ujian automatik bagi registry, assignment, lifecycle dan API.
+1. Pelanggan membuat permintaan servis.
+2. Runner yang diluluskan dan layak boleh memberikan sebut harga.
+3. Pelanggan memilih satu sebut harga.
+4. Sistem memastikan hanya satu sebut harga berjaya dipilih
+   bagi setiap permintaan.
+5. Runner terpilih ditugaskan melalui kontrak Core yang sah.
 
-### Latest Verification
+### Public Runner Profile
 
-- CI Run: [#114 — success](https://github.com/akuhudhud/projek-aplikasi-modular/actions/runs/38847824095)
-- Verified commit: `a1941f72f3f06ae1d0261ae227580f46fa4edb28`
-- Commit message: `feat: expose core task lifecycle API`
-- Laravel Backend Tests: success.
-- Full feature test suite: success.
-- MySQL concurrency regression test: success.
+- Runner yang diluluskan dan layak boleh mempunyai profil awam.
+- Setiap profil mempunyai URL unik yang boleh dikongsi.
+- Pelanggan boleh memulakan permintaan khusus kepada runner itu.
+- Permintaan melalui profil mesti menggunakan aliran sebut harga
+  Marketplace yang sama.
+- Pautan profil tidak boleh menetapkan tugasan secara automatik
+  atau memintas kebenaran dan kelayakan runner.
+- Maklumat peribadi yang tidak diluluskan untuk paparan awam
+  mesti kekal dilindungi.
 
-Keputusan CI ini mengesahkan ujian automatik pada commit yang dinyatakan. Ia tidak dengan sendirinya bermaksud keseluruhan skop v0.3.2 telah ditutup atau release telah diterbitkan.
+### Target Component Ownership
 
-Kerja v0.3.2 mesti melalui audit akhir, pengesahan skop, penyelarasan dokumentasi dan pengesahan release sebelum ditutup secara rasmi.
+- **Core:** Identiti TASK generik, lifecycle dan penugasan.
+- **Marketplace Engine:** Permintaan, sebut harga, pemilihan,
+  penutupan sebut harga bersaing dan atribusi sumber permintaan.
+- **Business Modules:** Data dan peraturan khusus bagi setiap servis.
+- **Identity / SIDCORE:** Mengikut kontrak integrasi yang perlu
+  diaudit dan diluluskan sebelum pelaksanaan.
 
-## Release History
+Marketplace tidak boleh bergantung sepenuhnya pada Pick & Drop.
+Pick & Drop boleh menjadi Business Module awal selepas kontrak
+integrasi disahkan.
 
-| Versi | Skop | Status |
-|---|---|---|
-| v0.1.0 | Core Basic Foundation | RELEASED |
-| v0.2.0 | Authentication, verification dan security hardening | RELEASED / VERIFIED |
-| v0.3.0 | Modular architecture readiness dan Core–Module boundaries | RELEASED / VERIFIED |
-| v0.3.1 | Architecture Audit & Design Lock | RELEASED / VERIFIED |
-| v0.3.2 | Core TASK Contract & Registry | IN PROGRESS — NOT RELEASED |
-| v0.4.0 | Pick & Drop Business Workflow MVP | DEFERRED |
+### v0.4.0 Acceptance Direction
 
-## Previous Release — v0.3.0
+- Permintaan servis boleh dicipta dan dijejak.
+- Runner yang layak boleh memberikan sebut harga.
+- Pelanggan boleh memilih hanya satu sebut harga yang sah.
+- Penerimaan sebut harga dan penugasan TASK selamat terhadap
+  operasi serentak dan permintaan berulang.
+- Permintaan daripada marketplace dan pautan profil menggunakan
+  peraturan pemilihan yang sama.
+- Core kekal pemilik lifecycle TASK generik.
+- Data khusus servis kekal di bawah Business Module.
+- Ujian automatik, static analysis dan CI yang berkaitan lulus.
+- Dokumentasi sepadan dengan kod yang benar-benar disahkan.
 
-Release Tag: `v0.3.0`
+Senarai ini ialah arah penerimaan. Ia bukan bukti bahawa
+pelaksanaan sudah lengkap.
 
-Release Commit: `46d16edacf96395d3f233c8c63e2cd06c4ae4b3b`
+## Version and Scope Decisions
 
-### Release Verification
+| Versi | Keputusan |
+|---|---|
+| v0.1.0 | RELEASED |
+| v0.2.0 | RELEASED / VERIFIED |
+| v0.3.0 | RELEASED / VERIFIED |
+| v0.3.1 | RELEASED / VERIFIED |
+| v0.3.2 | SKOP LAMA DIBATALKAN — BUKAN RELEASE |
+| v0.4.0 lama | Skop Pick & Drop MVP DIBATALKAN |
+| v0.4.0 baharu | Direct Runner Marketplace — baseline baharu |
 
-- 191 ujian lulus.
-- 712 assertions.
-- 0 kegagalan.
-- MySQL 8.x.
-- PHP 8.3.
+Pembatalan skop pembangunan tidak memadam kod, migration,
+commit atau tag sejarah secara automatik. Komponen lama mesti
+diaudit untuk menentukan sama ada ia dikekalkan, digunakan
+semula, diganti atau dipadam.
 
-### Focused Test Verification
+## Repository Audit Findings
 
-- 6 ujian pengesanan modul.
-- 9 assertions.
-- 0 kegagalan.
+Pada HEAD `d09a9bb6447d8bdcbe19fc67fc2ef48de6427358`, audit awal
+mengesahkan kewujudan:
 
-v0.3.0 melengkapkan asas kesediaan Core dan sempadan Core–Module. Ia bukan pelepasan keseluruhan workflow Pick & Drop.
+- Account, session, authentication dan security foundation.
+- Runner application dan status approval.
+- Core TASK registry, assignment dan lifecycle.
+- Modul Pick & Drop dengan request dan task dalaman.
+- Ujian untuk Core TASK, runner, authentication dan Pick & Drop.
 
-## v0.3.1 — Architecture Audit & Design Lock
+Audit awal belum menemui pelaksanaan Marketplace Engine,
+quotation workflow, public runner profile atau frontend Flutter/Web
+dalam struktur repositori yang diperiksa.
 
-Skop pembangunan merangkumi:
+Penemuan ini perlu disahkan semula apabila audit dan pelaksanaan
+berikutnya dijalankan pada HEAD terkini.
 
-- Audit source dan rekod keputusan berdasarkan bukti.
-- Semakan integriti audit log dan lifecycle akaun.
-- Semakan migration sequence dan rollback safety.
-- Pengesahan ujian registration, authentication, profile, session, contact verification dan account lifecycle.
-- Pengesahan Module Discovery dan sempadan Core–Module.
-- Pengesahan pengendalian kegagalan penghantaran OTP melalui ujian.
-- Pembetulan dan pengesahan isu registration dan Module Discovery.
-- Static analysis PHP dan latihan migrasi.
-- Penyelarasan README, GitBook dan bukti pengesahan.
-
-## Core Scope
-
-- Account dan identiti akaun menggunakan UUID.
-- Registration dan verification gate.
-- Authentication dan session.
-- Profile dan profile picture.
-- Account lifecycle.
-- Super Admin dan kawalan akaun istimewa.
-- Audit Log.
-- Security Foundation.
-- Generic Module Discovery.
-- Core–Module boundary.
-- Rujukan akaun modul tanpa kebergantungan terus kepada model Account dalaman Core.
-
-## OTP Delivery
-
-Penghantaran OTP sebenar ditangguhkan sehingga peringkat akhir production readiness.
-
-Provider SMS/e-mel sebenar, konfigurasi production dan rahsia provider tidak termasuk dalam bukti CI semasa. Ujian kegagalan provider mengesahkan pengendalian kegagalan penghantaran dengan selamat; ia bukan bukti bahawa penghantaran OTP production telah tersedia.
-
-## Core TASK Contract & Registry — v0.3.2
-
-Skop pembangunan:
-
-- TASK registry generik dengan UUID.
-- Kontrak dan service Core untuk pendaftaran TASK.
-- Pendaftaran idempotent berdasarkan `module_key`, `task_type` dan `source_id`.
-- Task List API dengan kawalan authorization.
-- Status generik `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `COMPLETED` dan `CANCELLED`.
-- Primitive assignment yang mengesahkan akaun aktif dan keadaan TASK.
-- Lifecycle service bagi peralihan `ASSIGNED` kepada `IN_PROGRESS`, dan `IN_PROGRESS` kepada `COMPLETED`.
-- API authenticated untuk tindakan `start` dan `complete`.
-- Ujian automatik bagi komponen registry, assignment, lifecycle dan API.
-
-Core memiliki generic TASK registry dan generic status. Modul perniagaan kekal memiliki rekod sumber serta polisi perniagaannya sendiri.
-
-Core tidak boleh membaca jadual dalaman modul atau bergantung pada business logic modul secara langsung.
-
-Status generik Core tidak boleh dianggap sama dengan status dalaman sesuatu modul tanpa kontrak pemetaan yang jelas.
-
-v0.3.2 masih dalam pembangunan. Skop ini belum ditutup atau diterbitkan sebagai release rasmi.
-
-## Business Module — Pick & Drop
-
-Pick & Drop ialah Business Module pertama yang dirancang.
-
-Asas Pick & Drop yang telah dibangunkan bukan keseluruhan workflow operasi. Runner, pengagihan tugasan, bukti pickup/delivery dan aliran operasi lengkap tidak boleh dianggap siap hanya berdasarkan release Core.
-
-Pick & Drop Business Workflow MVP v0.4.0 kekal ditangguhkan sehingga kerja Core TASK selesai dan skop seterusnya diluluskan.
-
-## Deferred Scope
-
-Perkara berikut bukan sebahagian daripada release Core v0.3.1:
-
-- Workflow operasi lengkap Pick & Drop.
-- Runner dan tuntutan tugasan.
-- Aplikasi Flutter.
-- Aplikasi web.
-- Enjin harga dan fi platform.
-- Pembayaran dan penyelesaian kewangan.
-- Pengagihan tugasan.
-- Penghantaran OTP sebenar untuk production.
-
-## Development Order
-
-1. Backend / Core API.
-2. Backend Testing & Review.
-3. Core Readiness dan Core–Module Contract.
-4. Architecture Audit & Design Lock.
-5. Core TASK Contract & Registry.
-6. Audit akhir dan pengesahan release v0.3.2.
-7. Pick & Drop Business Workflow MVP.
-8. Flutter User App.
-9. Web App.
-
-## Tech Stack
+## Technology Stack
 
 ### Backend
 
 - Laravel
-- PHP 8.3
+- PHP `^8.3`
 - MySQL 8.x
+- PHPUnit
+- Larastan / PHPStan
 
-### User App
+Database production dan pengesahan migrasi hendaklah menggunakan
+MySQL yang disokong. Jangan menulis semula sejarah migration;
+gunakan migration baharu untuk perubahan skema.
 
-- Flutter
+### Client Applications
+
+Flutter User App dan aplikasi web belum dianggap siap berdasarkan
+keadaan repositori yang diaudit.
 
 ## Source of Truth
 
-GitHub ialah Source of Truth untuk source code dan technical artifacts yang telah diterima.
+- GitHub: source code, migration, ujian dan technical artifacts
+  yang telah diterima.
+- GitBook: project knowledge, keputusan, requirements, architecture,
+  audit records dan Development Activity Log.
 
-GitBook digunakan untuk project knowledge, baseline, keputusan, requirements, architecture, audit records dan Development Activity Log.
-
-GitHub dan GitBook hendaklah dikekalkan selari selepas setiap keputusan atau release rasmi.
-
-## Versioning and Release Control
-
-- v0.3.0 ialah release terdahulu.
-- v0.3.1 ialah release Architecture Audit & Design Lock.
-- v0.3.2 sedang dibangunkan dan belum diterbitkan sebagai release.
-- v0.4.0 kekal `DEFERRED`.
-- Tag release sejarah tidak boleh dipindahkan atau ditulis semula.
+GitHub dan GitBook perlu diselaraskan selepas keputusan atau
+release rasmi. Jangan mendakwa penyelarasan selesai tanpa bukti.
 
 ## Development Control
 
-AUDIT → DESIGN LOCK → BATCH PLAN → IMPLEMENT → TEST → COMMIT → VERIFY → DOCUMENT → CLOSE
+AUDIT → DESIGN LOCK → BASELINE APPROVAL → BATCH PLAN
+→ IMPLEMENT → TEST → COMMIT → VERIFY → DOCUMENT → CLOSE
+
+### Immediate Next Steps
+
+1. Selesaikan audit kebergantungan dan regression tests.
+2. Sahkan kontrak Core TASK yang diperlukan Marketplace.
+3. Audit sempadan identiti dan SIDCORE.
+4. Kunci reka bentuk terperinci Marketplace Engine.
+5. Luluskan pelan batch dan kriteria penerimaan.
+6. Mulakan implementasi hanya selepas baseline diluluskan.
+
+Jangan padam modul atau migration sebelum kebergantungan,
+kesan terhadap ujian dan strategi penggantian disahkan.
