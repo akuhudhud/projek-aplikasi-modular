@@ -229,6 +229,63 @@ class MarketplaceServiceTest extends TestCase
         $this->assertDatabaseCount('core_tasks', 0);
     }
 
+    public function test_suspended_runner_cannot_be_awarded_a_quotation(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(
+            runnerStatus: Account::RUNNER_STATUS_APPROVED
+        );
+
+        $request = $this->marketplace->createRequest($customer, [
+            'service_type' => 'GENERAL_SERVICE',
+            'description' => 'Request must not be assigned to a suspended account.',
+        ]);
+
+        $quotation = $this->marketplace->submitQuotation(
+            $runner,
+            $request->request_id,
+            23.00
+        );
+
+        $runner->forceFill([
+            'status' => 'SUSPENDED',
+        ])->save();
+
+        try {
+            $this->marketplace->awardQuotation(
+                $customer,
+                $request->request_id,
+                $quotation->quotation_id
+            );
+
+            $this->fail(
+                'A suspended runner must not receive a task.'
+            );
+        } catch (DomainException $exception) {
+            $this->assertSame(
+                'Only active accounts can be assigned to a task.',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertSame(
+            MarketplaceRequest::STATUS_OPEN,
+            $request->fresh()->status
+        );
+
+        $this->assertSame(
+            MarketplaceQuotation::STATUS_SUBMITTED,
+            $quotation->fresh()->status
+        );
+
+        $this->assertSame(
+            'SUSPENDED',
+            $runner->fresh()->status
+        );
+
+        $this->assertDatabaseCount('core_tasks', 0);
+    }
+
     public function test_only_request_owner_can_award_a_quotation(): void
     {
         $customer = $this->makeAccount();
