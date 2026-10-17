@@ -187,10 +187,10 @@ class MarketplaceService
     ): MarketplaceRequest {
         $this->expireDueItems();
 
-        return DB::transaction(function () use (
+        $result = DB::transaction(function () use (
             $customer,
             $requestId
-        ): MarketplaceRequest {
+        ): ?MarketplaceRequest {
             $request = MarketplaceRequest::query()
                 ->whereKey($requestId)
                 ->lockForUpdate()
@@ -205,6 +205,10 @@ class MarketplaceService
                 throw new DomainException(
                     'Only the request owner may cancel this request.'
                 );
+            }
+
+            if ($this->expireLockedRequestIfDue($request)) {
+                return null;
             }
 
             if ($request->status !== MarketplaceRequest::STATUS_OPEN) {
@@ -233,6 +237,12 @@ class MarketplaceService
 
             return $request->refresh();
         });
+
+        if (!$result) {
+            throw new DomainException('This request has expired.');
+        }
+
+        return $result;
     }
 
     public function submitQuotation(
@@ -258,13 +268,13 @@ class MarketplaceService
             );
         }
 
-        return DB::transaction(function () use (
+        $result = DB::transaction(function () use (
             $runner,
             $requestId,
             $amount,
             $currency,
             $message
-        ): MarketplaceQuotation {
+        ): ?MarketplaceQuotation {
             $request = MarketplaceRequest::query()
                 ->whereKey($requestId)
                 ->lockForUpdate()
@@ -275,14 +285,14 @@ class MarketplaceService
                     ->setModel(MarketplaceRequest::class, [$requestId]);
             }
 
+            if ($this->expireLockedRequestIfDue($request)) {
+                return null;
+            }
+
             if ($request->status !== MarketplaceRequest::STATUS_OPEN) {
                 throw new DomainException(
                     'This request is no longer accepting quotations.'
                 );
-            }
-
-            if ($request->expires_at && $request->expires_at->isPast()) {
-                throw new DomainException('This request has expired.');
             }
 
             $lockedRunner = Account::query()
@@ -336,6 +346,12 @@ class MarketplaceService
                 'status' => MarketplaceQuotation::STATUS_SUBMITTED,
             ]);
         });
+
+        if (!$result) {
+            throw new DomainException('This request has expired.');
+        }
+
+        return $result;
     }
 
     public function withdrawQuotation(
@@ -345,11 +361,11 @@ class MarketplaceService
     ): MarketplaceQuotation {
         $this->expireDueItems();
 
-        return DB::transaction(function () use (
+        $result = DB::transaction(function () use (
             $runner,
             $requestId,
             $quotationId
-        ): MarketplaceQuotation {
+        ): ?MarketplaceQuotation {
             $request = MarketplaceRequest::query()
                 ->whereKey($requestId)
                 ->lockForUpdate()
@@ -358,6 +374,10 @@ class MarketplaceService
             if (!$request) {
                 throw (new ModelNotFoundException())
                     ->setModel(MarketplaceRequest::class, [$requestId]);
+            }
+
+            if ($this->expireLockedRequestIfDue($request)) {
+                return null;
             }
 
             if ($request->status !== MarketplaceRequest::STATUS_OPEN) {
@@ -408,6 +428,12 @@ class MarketplaceService
 
             return $quotation->refresh();
         });
+
+        if (!$result) {
+            throw new DomainException('This request has expired.');
+        }
+
+        return $result;
     }
 
     public function awardQuotation(
@@ -417,11 +443,11 @@ class MarketplaceService
     ): CoreTask {
         $this->expireDueItems();
 
-        return DB::transaction(function () use (
+        $result = DB::transaction(function () use (
             $customer,
             $requestId,
             $quotationId
-        ): CoreTask {
+        ): ?CoreTask {
             $request = MarketplaceRequest::query()
                 ->whereKey($requestId)
                 ->lockForUpdate()
@@ -436,6 +462,13 @@ class MarketplaceService
                 throw new DomainException(
                     'Only the request owner may select a quotation.'
                 );
+            }
+
+            if (
+                $request->status === MarketplaceRequest::STATUS_OPEN
+                && $this->expireLockedRequestIfDue($request)
+            ) {
+                return null;
             }
 
             $quotation = MarketplaceQuotation::query()
@@ -478,10 +511,6 @@ class MarketplaceService
                 throw new DomainException(
                     'This request cannot be awarded in its current state.'
                 );
-            }
-
-            if ($request->expires_at && $request->expires_at->isPast()) {
-                throw new DomainException('This request has expired.');
             }
 
             if (
@@ -551,6 +580,43 @@ class MarketplaceService
 
             return $task->refresh();
         });
+
+        if (!$result) {
+            throw new DomainException('This request has expired.');
+        }
+
+        return $result;
+    }
+
+    private function expireLockedRequestIfDue(
+        MarketplaceRequest $request
+    ): bool {
+        if (
+            $request->status !== MarketplaceRequest::STATUS_OPEN
+            || !$request->expires_at
+            || $request->expires_at->isFuture()
+        ) {
+            return false;
+        }
+
+        $now = now();
+
+        $request->forceFill([
+            'status' => MarketplaceRequest::STATUS_EXPIRED,
+        ])->save();
+
+        MarketplaceQuotation::query()
+            ->where('request_id', $request->request_id)
+            ->where(
+                'status',
+                MarketplaceQuotation::STATUS_SUBMITTED
+            )
+            ->update([
+                'status' => MarketplaceQuotation::STATUS_EXPIRED,
+                'updated_at' => $now,
+            ]);
+
+        return true;
     }
 
     private function isEligibleRunner(Account $account): bool
