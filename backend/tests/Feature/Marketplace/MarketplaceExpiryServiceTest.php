@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Marketplace;
 
-use App\Contracts\CoreTaskRegistry;
 use App\Models\Account;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
@@ -23,9 +22,7 @@ class MarketplaceExpiryServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->marketplace = new MarketplaceService(
-            $this->app->make(CoreTaskRegistry::class)
-        );
+        $this->marketplace = $this->app->make(MarketplaceService::class);
     }
 
     public function test_expired_request_and_submitted_quotes_transition_to_expired(): void
