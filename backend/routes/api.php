@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ContactChangeController;
 use App\Http\Controllers\Api\CoreTaskController;
+use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\OtpController;
 use App\Http\Controllers\Api\ProfilePictureController;
 use App\Http\Controllers\Api\RunnerController;
@@ -100,6 +101,32 @@ Route::post('/core/tasks/{taskId}/complete', [
     CoreTaskController::class,
     'complete',
 ])->middleware(AuthenticateSession::class);
+
+/*
+|--------------------------------------------------------------------------
+| Marketplace
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(AuthenticateSession::class)->prefix('marketplace')->group(function () {
+    Route::get('/requests', [MarketplaceController::class, 'index']);
+    Route::post('/requests', [MarketplaceController::class, 'store']);
+
+    Route::get('/requests/{requestId}', [
+        MarketplaceController::class,
+        'show',
+    ]);
+
+    Route::post('/requests/{requestId}/quotations', [
+        MarketplaceController::class,
+        'submitQuotation',
+    ]);
+
+    Route::post('/requests/{requestId}/award', [
+        MarketplaceController::class,
+        'awardQuotation',
+    ]);
+});
 
 /*
 |--------------------------------------------------------------------------
