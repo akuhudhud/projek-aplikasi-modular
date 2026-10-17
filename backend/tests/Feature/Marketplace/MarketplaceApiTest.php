@@ -5,6 +5,7 @@ namespace Tests\Feature\Marketplace;
 use App\Models\Account;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
+use App\Models\RunnerPublicProfile;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -46,25 +47,22 @@ class MarketplaceApiTest extends TestCase
                 'data.request.customer_account_id',
                 $customer->id
             )
-            ->assertJsonPath('data.request.status', 'OPEN');
+            ->assertJsonPath('data.request.status', 'OPEN')
+            ->assertJsonPath('data.request.source_type', 'marketplace')
+            ->assertJsonPath('data.request.target_runner_account_id', null);
 
         $requestId = $response->json('data.request.request_id');
 
         $this->withToken($token)
             ->getJson('/api/marketplace/requests/'.$requestId)
             ->assertOk()
-            ->assertJsonPath(
-                'data.request.request_id',
-                $requestId
-            );
+            ->assertJsonPath('data.request.request_id', $requestId);
     }
 
     public function test_approved_runner_can_quote_and_customer_can_award(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $customerToken = $this->createSessionToken($customer);
         $runnerToken = $this->createSessionToken($runner);
@@ -117,14 +115,8 @@ class MarketplaceApiTest extends TestCase
         $awardResponse
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath(
-                'data.task.assigned_account_id',
-                $runner->id
-            )
-            ->assertJsonPath(
-                'data.task.generic_status',
-                'ASSIGNED'
-            );
+            ->assertJsonPath('data.task.assigned_account_id', $runner->id)
+            ->assertJsonPath('data.task.generic_status', 'ASSIGNED');
 
         $this->assertDatabaseHas('marketplace_requests', [
             'request_id' => $requestId,
@@ -144,9 +136,7 @@ class MarketplaceApiTest extends TestCase
     {
         $owner = $this->makeAccount();
         $otherCustomer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $ownerToken = $this->createSessionToken($owner);
         $otherToken = $this->createSessionToken($otherCustomer);
@@ -188,10 +178,7 @@ class MarketplaceApiTest extends TestCase
 
     public function test_runner_cannot_browse_available_requests_without_approval(): void
     {
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_PENDING
-        );
-
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_PENDING);
         $token = $this->createSessionToken($runner);
 
         $this->withToken($token)
@@ -200,33 +187,140 @@ class MarketplaceApiTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
-    public function test_runner_cannot_view_an_unrelated_targeted_request(): void
+    public function test_profile_link_request_resolves_public_slug_and_only_target_runner_can_quote(): void
     {
         $customer = $this->makeAccount();
-        $targetRunner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
-        $otherRunner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $targetRunner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $otherRunner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $customerToken = $this->createSessionToken($customer);
+        $targetRunnerToken = $this->createSessionToken($targetRunner);
         $otherRunnerToken = $this->createSessionToken($otherRunner);
+
+        $this->createPublicProfile($targetRunner, 'target-runner-profile');
 
         $created = $this->withToken($customerToken)
             ->postJson('/api/marketplace/requests', [
                 'source_type' => 'runner_profile_link',
-                'target_runner_account_id' => $targetRunner->id,
+                'target_runner_slug' => 'target-runner-profile',
                 'service_type' => 'GENERAL_SERVICE',
                 'description' => 'Request for a specific runner.',
             ])
-            ->assertCreated();
+            ->assertCreated()
+            ->assertJsonPath(
+                'data.request.source_type',
+                'runner_profile_link'
+            )
+            ->assertJsonPath(
+                'data.request.target_runner_account_id',
+                $targetRunner->id
+            )
+            ->assertJsonPath('data.request.status', 'OPEN');
 
         $requestId = $created->json('data.request.request_id');
+
+        $this->assertDatabaseHas('marketplace_requests', [
+            'request_id' => $requestId,
+            'source_type' => 'runner_profile_link',
+            'target_runner_account_id' => $targetRunner->id,
+            'status' => MarketplaceRequest::STATUS_OPEN,
+        ]);
 
         $this->withToken($otherRunnerToken)
             ->getJson('/api/marketplace/requests/'.$requestId)
             ->assertNotFound();
+
+        $this->withToken($otherRunnerToken)
+            ->postJson(
+                '/api/marketplace/requests/'.$requestId.'/quotations',
+                ['amount' => '20.00']
+            )
+            ->assertUnprocessable();
+
+        $this->withToken($targetRunnerToken)
+            ->postJson(
+                '/api/marketplace/requests/'.$requestId.'/quotations',
+                ['amount' => '18.00']
+            )
+            ->assertCreated()
+            ->assertJsonPath('data.quotation.status', 'SUBMITTED');
+    }
+
+    public function test_request_cannot_target_an_unpublished_runner_profile(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $token = $this->createSessionToken($customer);
+
+        $this->createPublicProfile(
+            $runner,
+            'unpublished-runner-profile',
+            false
+        );
+
+        $this->withToken($token)
+            ->postJson('/api/marketplace/requests', [
+                'source_type' => 'runner_profile_link',
+                'target_runner_slug' => 'unpublished-runner-profile',
+                'service_type' => 'GENERAL_SERVICE',
+                'description' => 'This request must be rejected.',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseCount('marketplace_requests', 0);
+    }
+
+    public function test_profile_link_request_requires_a_public_profile_slug(): void
+    {
+        $customer = $this->makeAccount();
+        $token = $this->createSessionToken($customer);
+
+        $this->withToken($token)
+            ->postJson('/api/marketplace/requests', [
+                'source_type' => 'runner_profile_link',
+                'service_type' => 'GENERAL_SERVICE',
+                'description' => 'Missing profile slug.',
+            ])
+            ->assertUnprocessable();
+
+        $this->assertDatabaseCount('marketplace_requests', 0);
+    }
+
+    public function test_marketplace_request_cannot_include_a_runner_profile_slug(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $token = $this->createSessionToken($customer);
+
+        $this->createPublicProfile($runner, 'marketplace-invalid-target');
+
+        $this->withToken($token)
+            ->postJson('/api/marketplace/requests', [
+                'source_type' => 'marketplace',
+                'target_runner_slug' => 'marketplace-invalid-target',
+                'service_type' => 'GENERAL_SERVICE',
+                'description' => 'Marketplace requests cannot target a runner.',
+            ])
+            ->assertUnprocessable();
+
+        $this->assertDatabaseCount('marketplace_requests', 0);
+    }
+
+    private function createPublicProfile(
+        Account $runner,
+        string $slug,
+        bool $published = true
+    ): RunnerPublicProfile {
+        return RunnerPublicProfile::query()->create([
+            'profile_id' => (string) Str::uuid(),
+            'account_id' => $runner->id,
+            'public_slug' => $slug,
+            'display_name' => 'Test Runner',
+            'service_area' => 'Tuaran',
+            'services' => ['General service'],
+            'is_published' => $published,
+        ]);
     }
 
     private function makeAccount(
