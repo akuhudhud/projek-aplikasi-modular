@@ -1,4 +1,3 @@
-
 <?php
 
 use App\Http\Controllers\Api\AccountController;
@@ -155,6 +154,12 @@ Route::get('/runners/{slug}', [
 Route::post('/me/runner-profile', [
     RunnerPublicProfileController::class,
     'save',
+])->middleware(AuthenticateSession::class);
+
+// View analytics for the authenticated Runner's own public profile.
+Route::get('/me/runner-profile/analytics', [
+    RunnerPublicProfileController::class,
+    'analytics',
 ])->middleware(AuthenticateSession::class);
 
 /*
