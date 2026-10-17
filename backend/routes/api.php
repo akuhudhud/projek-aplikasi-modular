@@ -1,3 +1,4 @@
+
 <?php
 
 use App\Http\Controllers\Api\AccountController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\OtpController;
 use App\Http\Controllers\Api\ProfilePictureController;
 use App\Http\Controllers\Api\RunnerController;
+use App\Http\Controllers\Api\RunnerPublicProfileController;
 use App\Http\Middleware\AuthenticateSession;
 use Illuminate\Support\Facades\Route;
 
@@ -108,25 +110,52 @@ Route::post('/core/tasks/{taskId}/complete', [
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(AuthenticateSession::class)->prefix('marketplace')->group(function () {
-    Route::get('/requests', [MarketplaceController::class, 'index']);
-    Route::post('/requests', [MarketplaceController::class, 'store']);
+Route::middleware(AuthenticateSession::class)
+    ->prefix('marketplace')
+    ->group(function () {
+        Route::get('/requests', [
+            MarketplaceController::class,
+            'index',
+        ]);
 
-    Route::get('/requests/{requestId}', [
-        MarketplaceController::class,
-        'show',
-    ]);
+        Route::post('/requests', [
+            MarketplaceController::class,
+            'store',
+        ]);
 
-    Route::post('/requests/{requestId}/quotations', [
-        MarketplaceController::class,
-        'submitQuotation',
-    ]);
+        Route::get('/requests/{requestId}', [
+            MarketplaceController::class,
+            'show',
+        ]);
 
-    Route::post('/requests/{requestId}/award', [
-        MarketplaceController::class,
-        'awardQuotation',
-    ]);
-});
+        Route::post('/requests/{requestId}/quotations', [
+            MarketplaceController::class,
+            'submitQuotation',
+        ]);
+
+        Route::post('/requests/{requestId}/award', [
+            MarketplaceController::class,
+            'awardQuotation',
+        ]);
+    });
+
+/*
+|--------------------------------------------------------------------------
+| Runner Public Profiles
+|--------------------------------------------------------------------------
+*/
+
+// Public profile: no login required.
+Route::get('/runners/{slug}', [
+    RunnerPublicProfileController::class,
+    'show',
+]);
+
+// Manage own public profile: authenticated session required.
+Route::post('/me/runner-profile', [
+    RunnerPublicProfileController::class,
+    'save',
+])->middleware(AuthenticateSession::class);
 
 /*
 |--------------------------------------------------------------------------
@@ -140,17 +169,25 @@ Route::get('/admin/accounts', [AccountController::class, 'index'])
 Route::post('/admin/accounts', [AccountController::class, 'createSuperAdmin'])
     ->middleware(AuthenticateSession::class);
 
-Route::post('/admin/accounts/{accountId}/reactivate', [AuthController::class, 'reactivate'])
-    ->middleware(AuthenticateSession::class);
+Route::post('/admin/accounts/{accountId}/reactivate', [
+    AuthController::class,
+    'reactivate',
+])->middleware(AuthenticateSession::class);
 
-Route::post('/admin/accounts/{accountId}/suspend', [AuthController::class, 'suspend'])
-    ->middleware(AuthenticateSession::class);
+Route::post('/admin/accounts/{accountId}/suspend', [
+    AuthController::class,
+    'suspend',
+])->middleware(AuthenticateSession::class);
 
-Route::post('/admin/accounts/{accountId}/unsuspend', [AuthController::class, 'unsuspend'])
-    ->middleware(AuthenticateSession::class);
+Route::post('/admin/accounts/{accountId}/unsuspend', [
+    AuthController::class,
+    'unsuspend',
+])->middleware(AuthenticateSession::class);
 
-Route::get('/admin/audit-logs', [AuditLogController::class, 'index'])
-    ->middleware(AuthenticateSession::class);
+Route::get('/admin/audit-logs', [
+    AuditLogController::class,
+    'index',
+])->middleware(AuthenticateSession::class);
 
 /*
 |--------------------------------------------------------------------------
