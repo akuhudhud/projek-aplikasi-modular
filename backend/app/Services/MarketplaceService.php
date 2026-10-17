@@ -7,6 +7,7 @@ use App\Models\Account;
 use App\Models\CoreTask;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
+use App\Models\RunnerPublicProfile;
 use DomainException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -33,19 +34,25 @@ class MarketplaceService
             throw new DomainException('Unsupported request source.');
         }
 
-        $targetRunnerId = $data['target_runner_account_id'] ?? null;
+        $targetRunnerSlug = isset($data['target_runner_slug'])
+            ? strtolower(trim((string) $data['target_runner_slug']))
+            : null;
 
-        if ($sourceType === MarketplaceRequest::SOURCE_RUNNER_PROFILE_LINK
-            && !$targetRunnerId) {
+        if (
+            $sourceType === MarketplaceRequest::SOURCE_RUNNER_PROFILE_LINK
+            && !$targetRunnerSlug
+        ) {
             throw new DomainException(
-                'A runner profile request must identify its target runner.'
+                'A runner profile request must identify its public profile slug.'
             );
         }
 
-        if ($sourceType === MarketplaceRequest::SOURCE_MARKETPLACE
-            && $targetRunnerId) {
+        if (
+            $sourceType === MarketplaceRequest::SOURCE_MARKETPLACE
+            && $targetRunnerSlug
+        ) {
             throw new DomainException(
-                'A marketplace request cannot specify a target runner.'
+                'A marketplace request cannot specify a target runner profile.'
             );
         }
 
@@ -65,18 +72,35 @@ class MarketplaceService
         return DB::transaction(function () use (
             $customer,
             $sourceType,
-            $targetRunnerId,
+            $targetRunnerSlug,
             $serviceType,
             $description,
             $data
         ): MarketplaceRequest {
-            if ($targetRunnerId !== null) {
-                $targetRunner = Account::query()
-                    ->whereKey($targetRunnerId)
+            $targetRunnerId = null;
+
+            if ($targetRunnerSlug !== null) {
+                $profile = RunnerPublicProfile::query()
+                    ->where('public_slug', $targetRunnerSlug)
+                    ->where('is_published', true)
                     ->lockForUpdate()
                     ->first();
 
-                if (!$targetRunner || !$this->isEligibleRunner($targetRunner)) {
+                if (!$profile) {
+                    throw new DomainException(
+                        'The selected runner profile is unavailable.'
+                    );
+                }
+
+                $targetRunner = Account::query()
+                    ->whereKey($profile->account_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (
+                    !$targetRunner
+                    || !$this->isEligibleRunner($targetRunner)
+                ) {
                     throw new DomainException(
                         'The selected runner is unavailable or not approved.'
                     );
@@ -87,6 +111,8 @@ class MarketplaceService
                         'A runner cannot target their own account.'
                     );
                 }
+
+                $targetRunnerId = $targetRunner->id;
             }
 
             return MarketplaceRequest::query()->create([
@@ -159,7 +185,10 @@ class MarketplaceService
                 ->lockForUpdate()
                 ->first();
 
-            if (!$lockedRunner || !$this->isEligibleRunner($lockedRunner)) {
+            if (
+                !$lockedRunner
+                || !$this->isEligibleRunner($lockedRunner)
+            ) {
                 throw new DomainException(
                     'Only active and approved runners may submit quotations.'
                 );
@@ -171,8 +200,10 @@ class MarketplaceService
                 );
             }
 
-            if ($request->target_runner_account_id !== null
-                && $request->target_runner_account_id !== $lockedRunner->id) {
+            if (
+                $request->target_runner_account_id !== null
+                && $request->target_runner_account_id !== $lockedRunner->id
+            ) {
                 throw new DomainException(
                     'This request is targeted at another runner.'
                 );
@@ -244,7 +275,10 @@ class MarketplaceService
              * A different quotation can never replace an awarded quotation.
              */
             if ($request->status === MarketplaceRequest::STATUS_AWARDED) {
-                if ($request->winning_quotation_id !== $quotation->quotation_id) {
+                if (
+                    $request->winning_quotation_id
+                    !== $quotation->quotation_id
+                ) {
                     throw new DomainException(
                         'Another quotation has already been awarded.'
                     );
@@ -275,7 +309,10 @@ class MarketplaceService
                 throw new DomainException('This request has expired.');
             }
 
-            if ($quotation->status !== MarketplaceQuotation::STATUS_SUBMITTED) {
+            if (
+                $quotation->status
+                !== MarketplaceQuotation::STATUS_SUBMITTED
+            ) {
                 throw new DomainException(
                     'The selected quotation is no longer available.'
                 );
@@ -292,8 +329,10 @@ class MarketplaceService
                 );
             }
 
-            if ($request->target_runner_account_id !== null
-                && $request->target_runner_account_id !== $runner->id) {
+            if (
+                $request->target_runner_account_id !== null
+                && $request->target_runner_account_id !== $runner->id
+            ) {
                 throw new DomainException(
                     'The quotation does not belong to the targeted runner.'
                 );
