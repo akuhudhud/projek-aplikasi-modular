@@ -6,11 +6,13 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ContactChangeController;
 use App\Http\Controllers\Api\CoreTaskController;
 use App\Http\Controllers\Api\MarketplaceController;
+use App\Http\Controllers\Api\MarketplaceLifecycleController;
 use App\Http\Controllers\Api\OtpController;
 use App\Http\Controllers\Api\ProfilePictureController;
 use App\Http\Controllers\Api\RunnerController;
 use App\Http\Controllers\Api\RunnerPublicProfileController;
 use App\Http\Middleware\AuthenticateSession;
+use App\Http\Middleware\ExpireMarketplaceItems;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -109,7 +111,10 @@ Route::post('/core/tasks/{taskId}/complete', [
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(AuthenticateSession::class)
+Route::middleware([
+    AuthenticateSession::class,
+    ExpireMarketplaceItems::class,
+])
     ->prefix('marketplace')
     ->group(function () {
         Route::get('/requests', [
@@ -136,6 +141,19 @@ Route::middleware(AuthenticateSession::class)
             MarketplaceController::class,
             'awardQuotation',
         ]);
+
+        Route::post('/requests/{requestId}/cancel', [
+            MarketplaceLifecycleController::class,
+            'cancelRequest',
+        ]);
+
+        Route::post(
+            '/requests/{requestId}/quotations/{quotationId}/withdraw',
+            [
+                MarketplaceLifecycleController::class,
+                'withdrawQuotation',
+            ]
+        );
     });
 
 /*
