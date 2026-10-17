@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Models\CoreTask;
+use App\Models\MarketplaceQuotation;
+use App\Models\MarketplaceRequest;
 use App\Models\RunnerPublicProfile;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -33,40 +36,25 @@ class RunnerPublicProfileController extends Controller
 
         $validated = $request->validate([
             'public_slug' => [
-                'required',
-                'string',
-                'alpha_dash',
-                'min:3',
-                'max:50',
+                'required', 'string', 'alpha_dash', 'min:3', 'max:50',
             ],
             'display_name' => [
-                'required',
-                'string',
-                'max:80',
+                'required', 'string', 'max:80',
             ],
             'bio' => [
-                'nullable',
-                'string',
-                'max:2000',
+                'nullable', 'string', 'max:2000',
             ],
             'service_area' => [
-                'nullable',
-                'string',
-                'max:120',
+                'nullable', 'string', 'max:120',
             ],
             'services' => [
-                'nullable',
-                'array',
-                'max:20',
+                'nullable', 'array', 'max:20',
             ],
             'services.*' => [
-                'required',
-                'string',
-                'max:64',
+                'required', 'string', 'max:64',
             ],
             'is_published' => [
-                'sometimes',
-                'boolean',
+                'sometimes', 'boolean',
             ],
         ]);
 
@@ -88,9 +76,11 @@ class RunnerPublicProfileController extends Controller
             );
         }
 
-        $isPublished = (bool) ($validated['is_published']
+        $isPublished = (bool) (
+            $validated['is_published']
             ?? $profile?->is_published
-            ?? false);
+            ?? false
+        );
 
         $values = [
             'public_slug' => $slug,
@@ -116,7 +106,6 @@ class RunnerPublicProfileController extends Controller
                 ]);
             }
         } catch (QueryException $exception) {
-            // Protect against two accounts claiming the same slug concurrently.
             if (
                 RunnerPublicProfile::query()
                     ->where('public_slug', $slug)
@@ -173,6 +162,77 @@ class RunnerPublicProfileController extends Controller
                     'service_area' => $profile->service_area,
                     'services' => $profile->services ?? [],
                     'views_count' => $profile->views_count,
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * Show analytics belonging only to the authenticated Runner.
+     *
+     * Request and quotation totals are restricted to requests created
+     * through this Runner's public profile link.
+     */
+    public function analytics(Request $request): JsonResponse
+    {
+        /** @var Account|null $account */
+        $account = $request->attributes->get('account');
+
+        if (!$account) {
+            return $this->error('Unauthorized.', 401);
+        }
+
+        if (!$this->isEligibleRunner($account)) {
+            return $this->error(
+                'Only active and approved runners can view profile analytics.',
+                403
+            );
+        }
+
+        $profile = RunnerPublicProfile::query()
+            ->where('account_id', $account->id)
+            ->first();
+
+        if (!$profile) {
+            return $this->error('Runner profile not found.', 404);
+        }
+
+        $profileRequests = MarketplaceRequest::query()
+            ->where(
+                'source_type',
+                MarketplaceRequest::SOURCE_RUNNER_PROFILE_LINK
+            )
+            ->where('target_runner_account_id', $account->id);
+
+        $requestCount = (clone $profileRequests)->count();
+
+        $quotationCount = MarketplaceQuotation::query()
+            ->whereIn(
+                'request_id',
+                (clone $profileRequests)->select('request_id')
+            )
+            ->count();
+
+        $completedTaskCount = CoreTask::query()
+            ->where('module_key', 'Marketplace')
+            ->where('task_type', 'MARKETPLACE_SERVICE_REQUEST')
+            ->where('source_type', 'marketplace_request')
+            ->where('assigned_account_id', $account->id)
+            ->where('generic_status', CoreTask::STATUS_COMPLETED)
+            ->whereIn(
+                'source_id',
+                (clone $profileRequests)->select('request_id')
+            )
+            ->count();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'analytics' => [
+                    'profile_views' => (int) $profile->views_count,
+                    'requests_from_profile' => $requestCount,
+                    'quotations_for_profile_requests' => $quotationCount,
+                    'completed_tasks_from_profile_requests' => $completedTaskCount,
                 ],
             ],
         ]);
