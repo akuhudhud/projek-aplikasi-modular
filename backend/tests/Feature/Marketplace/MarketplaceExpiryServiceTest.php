@@ -133,7 +133,7 @@ class MarketplaceExpiryServiceTest extends TestCase
             );
         } catch (DomainException $exception) {
             $this->assertSame(
-                'The selected quotation is no longer available.',
+                'This quotation has expired.',
                 $exception->getMessage()
             );
         }
@@ -146,6 +146,107 @@ class MarketplaceExpiryServiceTest extends TestCase
         $this->assertSame(
             MarketplaceQuotation::STATUS_EXPIRED,
             $quotation->fresh()->status
+        );
+
+        $this->assertDatabaseCount('core_tasks', 0);
+    }
+
+    public function test_quotation_expiry_is_inclusive_for_award_and_withdrawal(): void
+    {
+        $customer = $this->makeAccount();
+        $awardRunner = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED
+        );
+        $withdrawRunner = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED
+        );
+
+        $awardRequest = $this->marketplace->createRequest($customer, [
+            'service_type' => 'GENERAL_SERVICE',
+            'description' => 'Quotation expiry boundary for award.',
+        ]);
+
+        $withdrawRequest = $this->marketplace->createRequest($customer, [
+            'service_type' => 'GENERAL_SERVICE',
+            'description' => 'Quotation expiry boundary for withdrawal.',
+        ]);
+
+        $awardQuotation = $this->marketplace->submitQuotation(
+            $awardRunner,
+            $awardRequest->request_id,
+            24.00
+        );
+
+        $withdrawQuotation = $this->marketplace->submitQuotation(
+            $withdrawRunner,
+            $withdrawRequest->request_id,
+            17.00
+        );
+
+        $expiresAt = now()->addMinute();
+
+        $awardQuotation->forceFill([
+            'expires_at' => $expiresAt,
+        ])->save();
+
+        $withdrawQuotation->forceFill([
+            'expires_at' => $expiresAt,
+        ])->save();
+
+        $this->travelTo($expiresAt);
+
+        try {
+            $this->marketplace->awardQuotation(
+                $customer,
+                $awardRequest->request_id,
+                $awardQuotation->quotation_id
+            );
+
+            $this->fail(
+                'A quotation must not be awarded at its expiry time.'
+            );
+        } catch (DomainException $exception) {
+            $this->assertSame(
+                'This quotation has expired.',
+                $exception->getMessage()
+            );
+        }
+
+        try {
+            $this->marketplace->withdrawQuotation(
+                $withdrawRunner,
+                $withdrawRequest->request_id,
+                $withdrawQuotation->quotation_id
+            );
+
+            $this->fail(
+                'A quotation must not be withdrawn at its expiry time.'
+            );
+        } catch (DomainException $exception) {
+            $this->assertSame(
+                'This quotation has expired.',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertSame(
+            MarketplaceRequest::STATUS_OPEN,
+            $awardRequest->fresh()->status
+        );
+
+        $this->assertSame(
+            MarketplaceRequest::STATUS_OPEN,
+            $withdrawRequest->fresh()->status
+        );
+
+        $this->assertSame(
+            MarketplaceQuotation::STATUS_EXPIRED,
+            $awardQuotation->fresh()->status
+        );
+
+        $this->assertSame(
+            MarketplaceQuotation::STATUS_EXPIRED,
+            $withdrawQuotation->fresh()->status
         );
 
         $this->assertDatabaseCount('core_tasks', 0);
