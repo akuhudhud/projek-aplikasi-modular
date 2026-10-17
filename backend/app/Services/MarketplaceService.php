@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\CoreTaskAssigner;
 use App\Contracts\CoreTaskRegistry;
 use App\Models\Account;
 use App\Models\CoreTask;
@@ -16,7 +17,8 @@ use Illuminate\Support\Str;
 class MarketplaceService
 {
     public function __construct(
-        private CoreTaskRegistry $coreTaskRegistry
+        private CoreTaskRegistry $coreTaskRegistry,
+        private CoreTaskAssigner $coreTaskAssigner
     ) {
     }
 
@@ -414,11 +416,13 @@ class MarketplaceService
 
             if (
                 $quotation->expires_at
-                && $quotation->expires_at->isPast()
+                && $quotation->expires_at->lessThanOrEqualTo(now())
             ) {
-                throw new DomainException(
-                    'This quotation has expired.'
-                );
+                $quotation->forceFill([
+                    'status' => MarketplaceQuotation::STATUS_EXPIRED,
+                ])->save();
+
+                return $quotation->refresh();
             }
 
             $quotation->forceFill([
@@ -431,6 +435,10 @@ class MarketplaceService
 
         if (!$result) {
             throw new DomainException('This request has expired.');
+        }
+
+        if ($result->status === MarketplaceQuotation::STATUS_EXPIRED) {
+            throw new DomainException('This quotation has expired.');
         }
 
         return $result;
@@ -447,7 +455,7 @@ class MarketplaceService
             $customer,
             $requestId,
             $quotationId
-        ): ?CoreTask {
+        ): CoreTask|string|null {
             $request = MarketplaceRequest::query()
                 ->whereKey($requestId)
                 ->lockForUpdate()
@@ -522,9 +530,19 @@ class MarketplaceService
                 );
             }
 
+            if (
+                $quotation->expires_at
+                && $quotation->expires_at->lessThanOrEqualTo(now())
+            ) {
+                $quotation->forceFill([
+                    'status' => MarketplaceQuotation::STATUS_EXPIRED,
+                ])->save();
+
+                return 'quotation_expired';
+            }
+
             $runner = Account::query()
                 ->whereKey($quotation->runner_account_id)
-                ->lockForUpdate()
                 ->first();
 
             if (!$runner || !$this->isEligibleRunner($runner)) {
@@ -552,11 +570,10 @@ class MarketplaceService
 
             $now = now();
 
-            $task->forceFill([
-                'assigned_account_id' => $runner->id,
-                'generic_status' => CoreTask::STATUS_ASSIGNED,
-                'assigned_at' => $now,
-            ])->save();
+            $task = $this->coreTaskAssigner->assign(
+                $task->task_id,
+                $runner->id
+            );
 
             $request->forceFill([
                 'status' => MarketplaceRequest::STATUS_AWARDED,
@@ -581,8 +598,12 @@ class MarketplaceService
             return $task->refresh();
         });
 
-        if (!$result) {
+        if ($result === null) {
             throw new DomainException('This request has expired.');
+        }
+
+        if ($result === 'quotation_expired') {
+            throw new DomainException('This quotation has expired.');
         }
 
         return $result;
