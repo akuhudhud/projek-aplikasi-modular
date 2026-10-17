@@ -36,7 +36,6 @@ class MarketplaceController extends Controller
         ]);
 
         $view = $validated['view'] ?? 'mine';
-
         $query = MarketplaceRequest::query();
 
         if ($view === 'mine') {
@@ -92,10 +91,8 @@ class MarketplaceController extends Controller
     /**
      * Show a request to its owner or an eligible participant.
      */
-    public function show(
-        Request $request,
-        string $requestId
-    ): JsonResponse {
+    public function show(Request $request, string $requestId): JsonResponse
+    {
         /** @var Account|null $account */
         $account = $request->attributes->get('account');
 
@@ -112,7 +109,6 @@ class MarketplaceController extends Controller
         }
 
         $isOwner = $marketplaceRequest->customer_account_id === $account->id;
-
         $isTargetRunner =
             $marketplaceRequest->target_runner_account_id === $account->id;
 
@@ -181,7 +177,9 @@ class MarketplaceController extends Controller
     }
 
     /**
-     * Create a new Marketplace request.
+     * Create a Marketplace request.
+     *
+     * Profile-origin requests identify the target by public slug, not account ID.
      */
     public function store(Request $request): JsonResponse
     {
@@ -198,9 +196,12 @@ class MarketplaceController extends Controller
                 'string',
                 'in:marketplace,runner_profile_link',
             ],
-            'target_runner_account_id' => [
+            'target_runner_slug' => [
                 'nullable',
-                'uuid',
+                'string',
+                'alpha_dash',
+                'min:3',
+                'max:50',
             ],
             'service_type' => [
                 'required',
@@ -384,10 +385,8 @@ class MarketplaceController extends Controller
         ]);
     }
 
-    private function error(
-        string $message,
-        int $status
-    ): JsonResponse {
+    private function error(string $message, int $status): JsonResponse
+    {
         return response()->json([
             'success' => false,
             'message' => $message,
