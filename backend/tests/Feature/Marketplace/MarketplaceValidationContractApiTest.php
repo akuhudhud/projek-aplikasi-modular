@@ -32,6 +32,35 @@ class MarketplaceValidationContractApiTest extends TestCase
         $this->assertDatabaseCount('core_tasks', 0);
     }
 
+    public function test_create_request_rejects_invalid_optional_fields_without_persisting_request(): void
+    {
+        $customer = $this->makeAccount();
+        $token = $this->createSessionToken($customer);
+
+        $this->withToken($token)
+            ->postJson('/api/marketplace/requests', [
+                'source_type' => 'INVALID_SOURCE',
+                'target_runner_slug' => 'invalid slug!',
+                'service_type' => 'GENERAL_SERVICE',
+                'description' => 'Request with invalid optional fields.',
+                'pickup_location_snapshot' => 'not-an-array',
+                'delivery_location_snapshot' => 'not-an-array',
+                'expires_at' => now()->subMinute()->toISOString(),
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'source_type',
+                'target_runner_slug',
+                'pickup_location_snapshot',
+                'delivery_location_snapshot',
+                'expires_at',
+            ]);
+
+        $this->assertDatabaseCount('marketplace_requests', 0);
+        $this->assertDatabaseCount('marketplace_quotations', 0);
+        $this->assertDatabaseCount('core_tasks', 0);
+    }
+
     public function test_submit_quotation_rejects_invalid_fields_without_persisting_quote(): void
     {
         $customer = $this->makeAccount();
