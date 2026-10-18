@@ -46,7 +46,7 @@ class MarketplaceSuspendedRunnerQuotationApiTest extends TestCase
                     'message' => 'This quotation must be rejected.',
                 ]
             )
-            ->assertUnprocessable()
+            ->assertForbidden()
             ->assertJsonPath('success', false);
 
         $this->assertDatabaseCount('marketplace_quotations', 0);
