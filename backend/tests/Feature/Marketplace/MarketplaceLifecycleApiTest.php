@@ -141,6 +141,103 @@ class MarketplaceLifecycleApiTest extends TestCase
         ]);
     }
 
+    public function test_runner_can_resubmit_after_withdrawing_previous_quotation(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+
+        $customerToken = $this->createSessionToken($customer);
+        $runnerToken = $this->createSessionToken($runner);
+
+        $created = $this->withToken($customerToken)
+            ->postJson('/api/marketplace/requests', [
+                'service_type' => 'GENERAL_SERVICE',
+                'description' => 'Request for quotation resubmission.',
+            ])
+            ->assertCreated();
+
+        $requestId = $created->json('data.request.request_id');
+
+        $firstQuote = $this->withToken($runnerToken)
+            ->postJson(
+                '/api/marketplace/requests/'.$requestId.'/quotations',
+                ['amount' => '22.50']
+            )
+            ->assertCreated();
+
+        $firstQuotationId = $firstQuote->json(
+            'data.quotation.quotation_id'
+        );
+
+        $this->withToken($runnerToken)
+            ->postJson(
+                '/api/marketplace/requests/'
+                .$requestId
+                .'/quotations/'
+                .$firstQuotationId
+                .'/withdraw'
+            )
+            ->assertOk()
+            ->assertJsonPath(
+                'data.quotation.status',
+                'WITHDRAWN'
+            );
+
+        $secondQuote = $this->withToken($runnerToken)
+            ->postJson(
+                '/api/marketplace/requests/'.$requestId.'/quotations',
+                [
+                    'amount' => '25.00',
+                    'message' => 'Updated quotation.',
+                ]
+            )
+            ->assertCreated()
+            ->assertJsonPath(
+                'data.quotation.status',
+                'SUBMITTED'
+            );
+
+        $secondQuotationId = $secondQuote->json(
+            'data.quotation.quotation_id'
+        );
+
+        $this->assertNotSame(
+            $firstQuotationId,
+            $secondQuotationId
+        );
+
+        $this->assertDatabaseHas('marketplace_quotations', [
+            'quotation_id' => $firstQuotationId,
+            'request_id' => $requestId,
+            'runner_account_id' => $runner->id,
+            'status' => MarketplaceQuotation::STATUS_WITHDRAWN,
+        ]);
+
+        $this->assertDatabaseHas('marketplace_quotations', [
+            'quotation_id' => $secondQuotationId,
+            'request_id' => $requestId,
+            'runner_account_id' => $runner->id,
+            'status' => MarketplaceQuotation::STATUS_SUBMITTED,
+        ]);
+
+        $this->assertSame(
+            1,
+            MarketplaceQuotation::query()
+                ->where('request_id', $requestId)
+                ->where('runner_account_id', $runner->id)
+                ->where(
+                    'status',
+                    MarketplaceQuotation::STATUS_SUBMITTED
+                )
+                ->count()
+        );
+
+        $this->assertDatabaseHas('marketplace_requests', [
+            'request_id' => $requestId,
+            'status' => MarketplaceRequest::STATUS_OPEN,
+        ]);
+    }
+
     public function test_runner_cannot_withdraw_another_runners_quotation(): void
     {
         $customer = $this->makeAccount();
