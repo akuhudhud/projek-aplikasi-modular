@@ -555,8 +555,11 @@ class MarketplaceService
                 return 'quotation_expired';
             }
 
+            // Lock the runner account so eligibility is checked against
+            // the current account row within this transaction.
             $runner = Account::query()
                 ->whereKey($quotation->runner_account_id)
+                ->lockForUpdate()
                 ->first();
 
             if (!$runner || !$this->isEligibleRunner($runner)) {
