@@ -195,6 +195,53 @@ class RunnerPublicProfileTest extends TestCase
         ]);
     }
 
+    public function test_partial_profile_update_changes_provided_values_and_preserves_omitted_fields(): void
+    {
+        $runner = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED
+        );
+
+        $token = $this->createSessionToken($runner);
+
+        RunnerPublicProfile::query()->create([
+            'profile_id' => (string) Str::uuid(),
+            'account_id' => $runner->id,
+            'public_slug' => 'update-values-runner',
+            'display_name' => 'Original Name',
+            'bio' => 'Original bio',
+            'service_area' => 'Tuaran',
+            'services' => ['Parcel delivery'],
+            'is_published' => true,
+        ]);
+
+        $this->withToken($token)
+            ->postJson('/api/me/runner-profile', [
+                'public_slug' => 'update-values-runner',
+                'display_name' => 'Updated Name',
+                'bio' => 'Updated bio',
+            ])
+            ->assertOk()
+            ->assertJsonPath(
+                'data.profile.display_name',
+                'Updated Name'
+            )
+            ->assertJsonPath('data.profile.bio', 'Updated bio')
+            ->assertJsonPath('data.profile.service_area', 'Tuaran')
+            ->assertJsonPath(
+                'data.profile.services.0',
+                'Parcel delivery'
+            )
+            ->assertJsonPath('data.profile.is_published', true);
+
+        $this->assertDatabaseHas('runner_public_profiles', [
+            'account_id' => $runner->id,
+            'display_name' => 'Updated Name',
+            'bio' => 'Updated bio',
+            'service_area' => 'Tuaran',
+            'is_published' => true,
+        ]);
+    }
+
     public function test_partial_profile_update_can_explicitly_clear_nullable_fields(): void
     {
         $runner = $this->makeAccount(
