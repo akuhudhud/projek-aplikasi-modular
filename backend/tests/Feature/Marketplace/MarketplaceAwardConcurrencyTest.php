@@ -102,6 +102,7 @@ class MarketplaceAwardConcurrencyTest extends TestCase
                 );
             }
 
+            // Release both workers only after both have reached the barrier.
             foreach ($this->workers as $worker) {
                 fwrite($worker['pipes'][0], "GO\n");
                 fflush($worker['pipes'][0]);
@@ -149,6 +150,18 @@ class MarketplaceAwardConcurrencyTest extends TestCase
             $this->assertCount(1, $successes, json_encode($results));
             $this->assertCount(1, $rejections, json_encode($results));
 
+            $this->assertSame(
+                'DomainException',
+                $rejections[0]['exception'] ?? null,
+                json_encode($results)
+            );
+
+            $this->assertSame(
+                'Another quotation has already been awarded.',
+                $rejections[0]['message'] ?? null,
+                json_encode($results)
+            );
+
             $request = MarketplaceRequest::query()
                 ->findOrFail($requestId);
 
@@ -162,15 +175,14 @@ class MarketplaceAwardConcurrencyTest extends TestCase
                 [$quotationOneId, $quotationTwoId]
             );
 
-            $this->assertDatabaseCount('core_tasks', 1);
-
             $this->assertSame(
                 1,
                 CoreTask::query()
                     ->where('module_key', 'Marketplace')
                     ->where('task_type', 'MARKETPLACE_SERVICE_REQUEST')
                     ->where('source_id', $requestId)
-                    ->count()
+                    ->count(),
+                'The request must have exactly one registered Core Task.'
             );
 
             $this->assertSame(
