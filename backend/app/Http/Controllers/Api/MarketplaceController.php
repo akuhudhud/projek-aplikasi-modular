@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Models\CoreTask;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
 use App\Services\MarketplaceService;
@@ -41,10 +42,7 @@ class MarketplaceController extends Controller
         if ($view === 'mine') {
             $query->where('customer_account_id', $account->id);
         } else {
-            if (
-                $account->status !== 'ACTIVE'
-                || $account->runner_status !== Account::RUNNER_STATUS_APPROVED
-            ) {
+            if (!$this->isEligibleRunner($account)) {
                 return $this->error(
                     'Only active and approved runners can browse available requests.',
                     403
@@ -89,7 +87,8 @@ class MarketplaceController extends Controller
     }
 
     /**
-     * Show a request to its owner or an eligible participant.
+     * Show a request only to its owner or an eligible runner
+     * participating in an open request or holding the winning quotation.
      */
     public function show(Request $request, string $requestId): JsonResponse
     {
@@ -108,31 +107,63 @@ class MarketplaceController extends Controller
             return $this->error('Marketplace request not found.', 404);
         }
 
-        $isOwner = $marketplaceRequest->customer_account_id === $account->id;
-        $isTargetRunner =
-            $marketplaceRequest->target_runner_account_id === $account->id;
+        $isOwner =
+            $marketplaceRequest->customer_account_id === $account->id;
 
-        $hasSubmittedQuotation = MarketplaceQuotation::query()
-            ->where('request_id', $marketplaceRequest->request_id)
-            ->where('runner_account_id', $account->id)
-            ->exists();
+        if (!$isOwner) {
+            if (!$this->isEligibleRunner($account)) {
+                return $this->error('Marketplace request not found.', 404);
+            }
 
-        $canBrowseOpenRequest =
-            $marketplaceRequest->status === MarketplaceRequest::STATUS_OPEN
-            && $account->status === 'ACTIVE'
-            && $account->runner_status === Account::RUNNER_STATUS_APPROVED
-            && (
-                $marketplaceRequest->target_runner_account_id === null
-                || $isTargetRunner
-            );
+            $isTargetRunner =
+                $marketplaceRequest->target_runner_account_id
+                === $account->id;
 
-        if (
-            !$isOwner
-            && !$isTargetRunner
-            && !$hasSubmittedQuotation
-            && !$canBrowseOpenRequest
-        ) {
-            return $this->error('Marketplace request not found.', 404);
+            $canViewOpenRequest =
+                $marketplaceRequest->status
+                    === MarketplaceRequest::STATUS_OPEN
+                && (
+                    $marketplaceRequest->target_runner_account_id === null
+                    || $isTargetRunner
+                )
+                && (
+                    $marketplaceRequest->expires_at === null
+                    || $marketplaceRequest->expires_at->isFuture()
+                );
+
+            $canViewAwardedRequest = false;
+
+            if (
+                $marketplaceRequest->status
+                    === MarketplaceRequest::STATUS_AWARDED
+                && $marketplaceRequest->winning_quotation_id !== null
+            ) {
+                $canViewAwardedRequest = MarketplaceQuotation::query()
+                    ->where(
+                        'quotation_id',
+                        $marketplaceRequest->winning_quotation_id
+                    )
+                    ->where(
+                        'request_id',
+                        $marketplaceRequest->request_id
+                    )
+                    ->where(
+                        'runner_account_id',
+                        $account->id
+                    )
+                    ->where(
+                        'status',
+                        MarketplaceQuotation::STATUS_ACCEPTED
+                    )
+                    ->exists();
+            }
+
+            if (!$canViewOpenRequest && !$canViewAwardedRequest) {
+                return $this->error(
+                    'Marketplace request not found.',
+                    404
+                );
+            }
         }
 
         $payload = $this->requestPayload($marketplaceRequest);
@@ -361,6 +392,12 @@ class MarketplaceController extends Controller
         } catch (DomainException $exception) {
             return $this->error($exception->getMessage(), 422);
         }
+    }
+
+    private function isEligibleRunner(Account $account): bool
+    {
+        return $account->status === 'ACTIVE'
+            && $account->runner_status === Account::RUNNER_STATUS_APPROVED;
     }
 
     private function requestPayload(
