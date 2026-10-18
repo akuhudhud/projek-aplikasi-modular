@@ -150,6 +150,92 @@ class RunnerPublicProfileTest extends TestCase
             ->assertUnprocessable();
     }
 
+    public function test_partial_profile_update_preserves_omitted_fields(): void
+    {
+        $runner = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED
+        );
+
+        $token = $this->createSessionToken($runner);
+
+        RunnerPublicProfile::query()->create([
+            'profile_id' => (string) Str::uuid(),
+            'account_id' => $runner->id,
+            'public_slug' => 'partial-runner',
+            'display_name' => 'Original Name',
+            'bio' => 'Original bio',
+            'service_area' => 'Tuaran',
+            'services' => ['Parcel delivery'],
+            'is_published' => true,
+        ]);
+
+        $this->withToken($token)
+            ->postJson('/api/me/runner-profile', [
+                'public_slug' => 'partial-runner',
+            ])
+            ->assertOk()
+            ->assertJsonPath(
+                'data.profile.display_name',
+                'Original Name'
+            )
+            ->assertJsonPath('data.profile.bio', 'Original bio')
+            ->assertJsonPath('data.profile.service_area', 'Tuaran')
+            ->assertJsonPath(
+                'data.profile.services.0',
+                'Parcel delivery'
+            )
+            ->assertJsonPath('data.profile.is_published', true);
+
+        $this->assertDatabaseHas('runner_public_profiles', [
+            'account_id' => $runner->id,
+            'display_name' => 'Original Name',
+            'bio' => 'Original bio',
+            'service_area' => 'Tuaran',
+            'is_published' => true,
+        ]);
+    }
+
+    public function test_partial_profile_update_can_explicitly_clear_nullable_fields(): void
+    {
+        $runner = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED
+        );
+
+        $token = $this->createSessionToken($runner);
+
+        RunnerPublicProfile::query()->create([
+            'profile_id' => (string) Str::uuid(),
+            'account_id' => $runner->id,
+            'public_slug' => 'clear-runner',
+            'display_name' => 'Runner Name',
+            'bio' => 'Remove this bio',
+            'service_area' => 'Remove this area',
+            'services' => ['Parcel delivery'],
+            'is_published' => true,
+        ]);
+
+        $this->withToken($token)
+            ->postJson('/api/me/runner-profile', [
+                'public_slug' => 'clear-runner',
+                'bio' => null,
+                'service_area' => null,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.profile.bio', null)
+            ->assertJsonPath('data.profile.service_area', null)
+            ->assertJsonPath(
+                'data.profile.services.0',
+                'Parcel delivery'
+            )
+            ->assertJsonPath('data.profile.is_published', true);
+
+        $this->assertDatabaseHas('runner_public_profiles', [
+            'account_id' => $runner->id,
+            'bio' => null,
+            'service_area' => null,
+        ]);
+    }
+
     private function makeAccount(
         string $runnerStatus = Account::RUNNER_STATUS_NOT_RUNNER
     ): Account {
