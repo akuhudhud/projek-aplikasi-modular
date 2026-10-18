@@ -34,21 +34,27 @@ class RunnerPublicProfileController extends Controller
             );
         }
 
+        $profile = RunnerPublicProfile::query()
+            ->where('account_id', $account->id)
+            ->first();
+
         $validated = $request->validate([
             'public_slug' => [
-                'required', 'string', 'alpha_dash', 'min:3', 'max:50',
+                $profile ? 'sometimes' : 'required',
+                'string', 'alpha_dash', 'min:3', 'max:50',
             ],
             'display_name' => [
-                'required', 'string', 'max:80',
+                $profile ? 'sometimes' : 'required',
+                'string', 'max:80',
             ],
             'bio' => [
-                'nullable', 'string', 'max:2000',
+                'sometimes', 'nullable', 'string', 'max:2000',
             ],
             'service_area' => [
-                'nullable', 'string', 'max:120',
+                'sometimes', 'nullable', 'string', 'max:120',
             ],
             'services' => [
-                'nullable', 'array', 'max:20',
+                'sometimes', 'nullable', 'array', 'max:20',
             ],
             'services.*' => [
                 'required', 'string', 'max:64',
@@ -58,11 +64,9 @@ class RunnerPublicProfileController extends Controller
             ],
         ]);
 
-        $slug = strtolower(trim($validated['public_slug']));
-
-        $profile = RunnerPublicProfile::query()
-            ->where('account_id', $account->id)
-            ->first();
+        $slug = strtolower(trim(
+            $validated['public_slug'] ?? $profile?->public_slug ?? ''
+        ));
 
         $slugTaken = RunnerPublicProfile::query()
             ->where('public_slug', $slug)
@@ -84,14 +88,22 @@ class RunnerPublicProfileController extends Controller
 
         $values = [
             'public_slug' => $slug,
-            'display_name' => trim($validated['display_name']),
-            'bio' => isset($validated['bio'])
-                ? trim($validated['bio'])
-                : null,
-            'service_area' => isset($validated['service_area'])
-                ? trim($validated['service_area'])
-                : null,
-            'services' => $validated['services'] ?? [],
+            'display_name' => array_key_exists('display_name', $validated)
+                ? trim($validated['display_name'])
+                : $profile->display_name,
+            'bio' => array_key_exists('bio', $validated)
+                ? ($validated['bio'] === null
+                    ? null
+                    : trim($validated['bio']))
+                : $profile?->bio,
+            'service_area' => array_key_exists('service_area', $validated)
+                ? ($validated['service_area'] === null
+                    ? null
+                    : trim($validated['service_area']))
+                : $profile?->service_area,
+            'services' => array_key_exists('services', $validated)
+                ? ($validated['services'] ?? [])
+                : ($profile?->services ?? []),
             'is_published' => $isPublished,
         ];
 
