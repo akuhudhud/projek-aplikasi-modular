@@ -185,6 +185,61 @@ class MarketplaceAwardApiTest extends TestCase
         ]);
     }
 
+    public function test_runner_suspended_before_award_cannot_be_selected(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED
+        );
+
+        $customerToken = $this->createSessionToken($customer);
+        $runnerToken = $this->createSessionToken($runner);
+
+        $request = $this->withToken($customerToken)
+            ->postJson('/api/marketplace/requests', [
+                'service_type' => 'GENERAL_SERVICE',
+                'description' => 'Runner eligibility is rechecked at award.',
+            ])
+            ->assertCreated();
+
+        $requestId = $request->json('data.request.request_id');
+
+        $quotation = $this->withToken($runnerToken)
+            ->postJson(
+                '/api/marketplace/requests/'.$requestId.'/quotations',
+                ['amount' => '25.00']
+            )
+            ->assertCreated();
+
+        $quotationId = $quotation->json(
+            'data.quotation.quotation_id'
+        );
+
+        $runner->forceFill([
+            'status' => 'SUSPENDED',
+        ])->save();
+
+        $this->withToken($customerToken)
+            ->postJson(
+                '/api/marketplace/requests/'.$requestId.'/award',
+                ['quotation_id' => $quotationId]
+            )
+            ->assertUnprocessable();
+
+        $this->assertDatabaseHas('marketplace_requests', [
+            'request_id' => $requestId,
+            'status' => MarketplaceRequest::STATUS_OPEN,
+            'winning_quotation_id' => null,
+        ]);
+
+        $this->assertDatabaseHas('marketplace_quotations', [
+            'quotation_id' => $quotationId,
+            'status' => MarketplaceQuotation::STATUS_SUBMITTED,
+        ]);
+
+        $this->assertDatabaseCount('core_tasks', 0);
+    }
+
     private function makeAccount(
         string $runnerStatus = Account::RUNNER_STATUS_NOT_RUNNER
     ): Account {
