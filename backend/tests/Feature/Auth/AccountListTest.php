@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\Account;
+use App\Models\AccountPermission;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -10,6 +11,14 @@ use Tests\TestCase;
 class AccountListTest extends TestCase
 {
     use RefreshDatabase;
+
+    private function grantPermission(Account $account, string $permission): void
+    {
+        AccountPermission::create([
+            'account_id' => $account->id,
+            'permission_key' => $permission,
+        ]);
+    }
 
     private function createSessionForAccount(
         Account $account,
@@ -115,6 +124,8 @@ class AccountListTest extends TestCase
             'SUPER_ADMIN'
         );
 
+        $this->grantPermission($admin, 'accounts.view');
+
         $user = $this->createAccount(
             'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
             'Test User',
@@ -200,7 +211,7 @@ class AccountListTest extends TestCase
             'ROOT_SUPER_ADMIN'
         );
 
-        $user = $this->createAccount(
+        $this->createAccount(
             'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
             'Test User',
             '60222222222',
