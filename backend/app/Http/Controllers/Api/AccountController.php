@@ -37,6 +37,7 @@ class AccountController extends Controller
             ->get([
                 'id',
                 'name',
+                'job_title',
                 'phone',
                 'email',
                 'profile_picture',
@@ -82,6 +83,11 @@ class AccountController extends Controller
                 'string',
                 'max:255',
             ],
+            'job_title' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
             'phone' => [
                 'nullable',
                 'string',
@@ -124,6 +130,7 @@ class AccountController extends Controller
             $account = Account::create([
                 'id' => (string) Str::uuid(),
                 'name' => $request->input('name'),
+                'job_title' => $request->input('job_title'),
                 'phone' => $request->input('phone'),
                 'email' => $request->input('email'),
                 'profile_picture' => null,
@@ -149,5 +156,85 @@ class AccountController extends Controller
                 'account' => $newSuperAdmin,
             ],
         ], 201);
+    }
+
+    public function updateSuperAdminJobTitle(
+        Request $request,
+        string $accountId,
+        AuditLogService $auditLogService
+    ): JsonResponse {
+        $actor = $request->attributes->get('account');
+
+        if (!$actor || $actor->role !== 'ROOT_SUPER_ADMIN') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 403);
+        }
+
+        $request->validate([
+            'job_title' => [
+                'present',
+                'nullable',
+                'string',
+                'max:100',
+            ],
+            'reason' => [
+                'required',
+                'string',
+                'max:1000',
+            ],
+        ]);
+
+        $reason = trim((string) $request->input('reason'));
+
+        if ($reason === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Reason is required.',
+            ], 422);
+        }
+
+        $target = Account::query()->find($accountId);
+
+        if (!$target) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Account not found.',
+            ], 404);
+        }
+
+        if ($target->role !== 'SUPER_ADMIN') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only appointed Super Admins can have this job title updated.',
+            ], 422);
+        }
+
+        DB::transaction(function () use (
+            $target,
+            $request,
+            $actor,
+            $reason,
+            $auditLogService
+        ) {
+            $target->job_title = $request->input('job_title');
+            $target->save();
+
+            $auditLogService->record(
+                $actor,
+                $target,
+                'SUPER_ADMIN_JOB_TITLE_UPDATED',
+                $reason
+            );
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Super Admin job title updated successfully.',
+            'data' => [
+                'account' => $target->fresh(),
+            ],
+        ], 200);
     }
 }
