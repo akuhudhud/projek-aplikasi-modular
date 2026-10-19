@@ -23,6 +23,7 @@ class AdminPermissionService
         'runner_applications.reject' => 'Menolak permohonan Runner',
         'runners.suspend' => 'Menggantung kelayakan Runner',
         'runners.restore' => 'Memulihkan kelayakan Runner',
+        'identity_verifications.review' => 'Menyemak pengesahan identiti',
         'audit_logs.view' => 'Melihat rekod audit',
     ];
 
