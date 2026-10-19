@@ -14,17 +14,20 @@ use InvalidArgumentException;
 
 class AccountController extends Controller
 {
-    public function index(Request $request): JsonResponse
-    {
+    public function index(
+        Request $request,
+        AdminPermissionService $permissionService
+    ): JsonResponse {
         $account = $request->attributes->get('account');
 
-        if (!$account || !in_array($account->role, [
-            'SUPER_ADMIN',
-            'ROOT_SUPER_ADMIN',
-        ], true)) {
+        if (
+            !$account
+            || !$permissionService->allows($account, 'accounts.view')
+        ) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized.',
+                'message' => 'You do not have permission to view accounts.',
+                'required_permission' => 'accounts.view',
             ], 403);
         }
 
@@ -70,26 +73,9 @@ class AccountController extends Controller
             ], 403);
         }
 
-        $reason = trim((string) $request->input('reason'));
-
-        if ($reason === '') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Reason is required.',
-            ], 422);
-        }
-
         $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-            ],
-            'job_title' => [
-                'nullable',
-                'string',
-                'max:100',
-            ],
+            'name' => ['required', 'string', 'max:255'],
+            'job_title' => ['nullable', 'string', 'max:100'],
             'phone' => [
                 'nullable',
                 'string',
@@ -117,18 +103,24 @@ class AccountController extends Controller
                 'required',
                 'same:password',
             ],
-            'reason' => [
-                'required',
-                'string',
-            ],
+            'reason' => ['required', 'string', 'max:1000'],
         ]);
+
+        $reason = trim((string) $request->input('reason'));
+
+        if ($reason === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Reason is required.',
+            ], 422);
+        }
 
         $newSuperAdmin = DB::transaction(function () use (
             $request,
             $actor,
             $reason,
             $auditLogService
-        ) {
+        ): Account {
             $account = Account::create([
                 'id' => (string) Str::uuid(),
                 'name' => $request->input('name'),
@@ -174,7 +166,7 @@ class AccountController extends Controller
             ], 403);
         }
 
-        $request->validate([
+        $validated = $request->validate([
             'job_title' => [
                 'present',
                 'nullable',
@@ -188,7 +180,7 @@ class AccountController extends Controller
             ],
         ]);
 
-        $reason = trim((string) $request->input('reason'));
+        $reason = trim($validated['reason']);
 
         if ($reason === '') {
             return response()->json([
@@ -215,17 +207,26 @@ class AccountController extends Controller
 
         DB::transaction(function () use (
             $target,
-            $request,
+            $validated,
             $actor,
             $reason,
             $auditLogService
-        ) {
-            $target->job_title = $request->input('job_title');
-            $target->save();
+        ): void {
+            $lockedTarget = Account::query()
+                ->whereKey($target->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedTarget->role !== 'SUPER_ADMIN') {
+                abort(422, 'Only appointed Super Admins can have this job title updated.');
+            }
+
+            $lockedTarget->job_title = $validated['job_title'];
+            $lockedTarget->save();
 
             $auditLogService->record(
                 $actor,
-                $target,
+                $lockedTarget,
                 'SUPER_ADMIN_JOB_TITLE_UPDATED',
                 $reason
             );
@@ -301,10 +302,7 @@ class AccountController extends Controller
         }
 
         $validated = $request->validate([
-            'permissions' => [
-                'required',
-                'array',
-            ],
+            'permissions' => ['required', 'array'],
             'permissions.*' => [
                 'required',
                 'string',
@@ -344,42 +342,58 @@ class AccountController extends Controller
         }
 
         try {
-            $changes = $permissionService->replace(
+            $changes = DB::transaction(function () use (
                 $target,
-                $validated['permissions']
-            );
+                $validated,
+                $actor,
+                $reason,
+                $permissionService,
+                $auditLogService
+            ): array {
+                $lockedTarget = Account::query()
+                    ->whereKey($target->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($lockedTarget->role !== 'SUPER_ADMIN') {
+                    throw new InvalidArgumentException(
+                        'Permissions can only be assigned to appointed Super Admin accounts.'
+                    );
+                }
+
+                // Permission changes and their audit records share
+                // the same outer transaction.
+                $changes = $permissionService->replace(
+                    $lockedTarget,
+                    $validated['permissions']
+                );
+
+                foreach ($changes['granted'] as $permission) {
+                    $auditLogService->record(
+                        $actor,
+                        $lockedTarget,
+                        'ADMIN_PERMISSION_GRANTED',
+                        $reason.' Permission: '.$permission
+                    );
+                }
+
+                foreach ($changes['revoked'] as $permission) {
+                    $auditLogService->record(
+                        $actor,
+                        $lockedTarget,
+                        'ADMIN_PERMISSION_REVOKED',
+                        $reason.' Permission: '.$permission
+                    );
+                }
+
+                return $changes;
+            });
         } catch (InvalidArgumentException $exception) {
             return response()->json([
                 'success' => false,
                 'message' => $exception->getMessage(),
             ], 422);
         }
-
-        DB::transaction(function () use (
-            $actor,
-            $target,
-            $changes,
-            $reason,
-            $auditLogService
-        ): void {
-            foreach ($changes['granted'] as $permission) {
-                $auditLogService->record(
-                    $actor,
-                    $target,
-                    'ADMIN_PERMISSION_GRANTED',
-                    $reason.' Permission: '.$permission
-                );
-            }
-
-            foreach ($changes['revoked'] as $permission) {
-                $auditLogService->record(
-                    $actor,
-                    $target,
-                    'ADMIN_PERMISSION_REVOKED',
-                    $reason.' Permission: '.$permission
-                );
-            }
-        });
 
         return response()->json([
             'success' => true,
