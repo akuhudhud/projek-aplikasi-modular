@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\MarketplaceLifecycleController;
 use App\Http\Controllers\Api\OtpController;
 use App\Http\Controllers\Api\ProfilePictureController;
 use App\Http\Controllers\Api\RunnerController;
+use App\Http\Controllers\Api\RunnerLicenseVerificationController;
 use App\Http\Controllers\Api\RunnerPublicProfileController;
 use App\Http\Middleware\AuthenticateSession;
 use App\Http\Middleware\EnsureAdminPermission;
@@ -78,7 +79,6 @@ Route::post('/logout', [AuthController::class, 'logout'])
 |--------------------------------------------------------------------------
 */
 
-// Authenticated account: submit/resubmit and view its own status.
 Route::post('/me/identity-verification', [
     IdentityVerificationController::class,
     'submit',
@@ -89,8 +89,6 @@ Route::get('/me/identity-verification', [
     'showMyStatus',
 ])->middleware(AuthenticateSession::class);
 
-// Root has unrestricted internal permissions.
-// Super Admin requires identity_verifications.review.
 Route::get('/admin/identity-verifications/{accountId}', [
     IdentityVerificationController::class,
     'showForReview',
@@ -116,6 +114,46 @@ Route::get(
 )->middleware([
     AuthenticateSession::class,
     'admin.permission:identity_verifications.review',
+]);
+
+/*
+|--------------------------------------------------------------------------
+| Runner License Verification
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/me/runner-license-verification', [
+    RunnerLicenseVerificationController::class,
+    'showMyStatus',
+])->middleware(AuthenticateSession::class);
+
+Route::post('/me/runner-license-verification', [
+    RunnerLicenseVerificationController::class,
+    'submit',
+])->middleware(AuthenticateSession::class);
+
+Route::get('/admin/runner-license-verifications/{accountId}', [
+    RunnerLicenseVerificationController::class,
+    'showForReview',
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:runner_license_verifications.review',
+]);
+
+Route::post('/admin/runner-license-verifications/{accountId}/decision', [
+    RunnerLicenseVerificationController::class,
+    'decide',
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:runner_license_verifications.review',
+]);
+
+Route::get('/admin/runner-license-verifications/{accountId}/document', [
+    RunnerLicenseVerificationController::class,
+    'downloadDocument',
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:runner_license_verifications.review',
 ]);
 
 /*
@@ -210,19 +248,16 @@ Route::middleware([
 |--------------------------------------------------------------------------
 */
 
-// Public profile: no login required.
 Route::get('/runners/{slug}', [
     RunnerPublicProfileController::class,
     'show',
 ]);
 
-// Manage own public profile: authenticated session required.
 Route::post('/me/runner-profile', [
     RunnerPublicProfileController::class,
     'save',
 ])->middleware(AuthenticateSession::class);
 
-// View analytics for the authenticated Runner's own public profile.
 Route::get('/me/runner-profile/analytics', [
     RunnerPublicProfileController::class,
     'analytics',
@@ -242,7 +277,6 @@ Route::get('/admin/accounts', [
     'admin.permission:accounts.view',
 ]);
 
-// These operations are restricted to Root inside AccountController.
 Route::post('/admin/accounts', [
     AccountController::class,
     'createSuperAdmin',
