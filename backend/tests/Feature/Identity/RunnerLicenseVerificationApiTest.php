@@ -66,6 +66,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
             'license_class' => 'D',
             'expires_at' => now()->addYear()->toDateString(),
             'status' => RunnerLicenseVerification::STATUS_PENDING,
+            'is_current' => false,
             'submitted_at' => now(),
             'reviewed_at' => null,
             'reviewer_account_id' => null,
@@ -289,16 +290,24 @@ class RunnerLicenseVerificationApiTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
-    public function test_rejected_license_can_be_resubmitted(): void
+    public function test_rejected_license_can_be_resubmitted_without_overwriting_history(): void
     {
         $account = $this->createAccount();
         $this->verifyIdentity($account);
 
-        $verification = $this->createPendingLicense($account);
-        $verification->status = RunnerLicenseVerification::STATUS_REJECTED;
-        $verification->reviewed_at = now();
-        $verification->rejection_reason = 'Dokumen tidak jelas.';
-        $verification->save();
+        $original = $this->createPendingLicense($account);
+
+        $original->status = RunnerLicenseVerification::STATUS_REJECTED;
+        $original->reviewed_at = now();
+        $original->rejection_reason = 'Dokumen tidak jelas.';
+        $original->save();
+
+        $originalId = $original->id;
+        $originalPath = $original->document_path;
+        $originalLicenseNumber = $original->decryptLicenseNumber();
+        $originalSubmittedAt = $original->submitted_at;
+        $originalReviewedAt = $original->reviewed_at;
+        $originalRejectionReason = $original->rejection_reason;
 
         $this->asAccount(
             $account,
@@ -309,23 +318,87 @@ class RunnerLicenseVerificationApiTest extends TestCase
             'expires_at' => now()->addYears(2)->toDateString(),
             'document' => UploadedFile::fake()->image('new-license.jpg'),
         ])->assertCreated()
+            ->assertJsonPath('success', true)
             ->assertJsonPath(
                 'data.runner_license_verification.status',
                 RunnerLicenseVerification::STATUS_PENDING
+            )
+            ->assertJsonPath(
+                'data.runner_license_verification.is_current',
+                false
             );
 
-        $updated = $verification->fresh();
+        $original->refresh();
+
+        $this->assertSame(
+            RunnerLicenseVerification::STATUS_REJECTED,
+            $original->status
+        );
+
+        $this->assertSame($originalId, $original->id);
+
+        $this->assertSame(
+            $originalLicenseNumber,
+            $original->decryptLicenseNumber()
+        );
+
+        $this->assertSame(
+            $originalPath,
+            $original->document_path
+        );
+
+        $this->assertTrue(
+            $original->submitted_at->equalTo($originalSubmittedAt)
+        );
+
+        $this->assertTrue(
+            $original->reviewed_at->equalTo($originalReviewedAt)
+        );
+
+        $this->assertSame(
+            $originalRejectionReason,
+            $original->rejection_reason
+        );
+
+        Storage::disk('local')->assertExists($originalPath);
+
+        $this->assertSame(
+            2,
+            RunnerLicenseVerification::query()
+                ->where('account_id', $account->id)
+                ->count()
+        );
+
+        $renewal = RunnerLicenseVerification::query()
+            ->where('account_id', $account->id)
+            ->where('id', '!=', $originalId)
+            ->firstOrFail();
+
+        $this->assertNotSame($originalId, $renewal->id);
 
         $this->assertSame(
             RunnerLicenseVerification::STATUS_PENDING,
-            $updated->status
+            $renewal->status
         );
 
-        $this->assertNull($updated->reviewed_at);
-        $this->assertNull($updated->rejection_reason);
+        $this->assertFalse($renewal->is_current);
+
         $this->assertSame(
             'D987654321098',
-            $updated->decryptLicenseNumber()
+            $renewal->decryptLicenseNumber()
         );
+
+        $this->assertNull($renewal->reviewed_at);
+        $this->assertNull($renewal->rejection_reason);
+
+        Storage::disk('local')->assertExists(
+            $renewal->document_path
+        );
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $account->id,
+            'target_account_id' => $account->id,
+            'action' => 'RUNNER_LICENSE_VERIFICATION_SUBMITTED',
+        ]);
     }
 }
