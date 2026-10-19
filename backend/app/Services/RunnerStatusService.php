@@ -73,7 +73,7 @@ class RunnerStatusService
 
             if ($license === null) {
                 throw new DomainException(
-                    'A current verified driving license is required before applying to become a Runner.'
+                    'Driving license verification is required before applying to become a Runner.'
                 );
             }
 
