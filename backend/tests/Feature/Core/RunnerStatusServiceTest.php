@@ -4,10 +4,12 @@ namespace Tests\Feature\Core;
 
 use App\Models\Account;
 use App\Models\AccountPermission;
+use App\Models\IdentityVerification;
 use App\Services\RunnerStatusService;
 use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -45,6 +47,19 @@ class RunnerStatusServiceTest extends TestCase
         return $account->fresh();
     }
 
+    private function verifyIdentity(Account $account): void
+    {
+        IdentityVerification::create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $account->id,
+            'real_name' => 'Contoh Nama Sebenar',
+            'mykad_number_encrypted' => Crypt::encryptString('900101145678'),
+            'status' => IdentityVerification::STATUS_VERIFIED,
+            'submitted_at' => now(),
+            'reviewed_at' => now(),
+        ]);
+    }
+
     private function grantPermissions(
         Account $account,
         array $permissions
@@ -60,6 +75,7 @@ class RunnerStatusServiceTest extends TestCase
     public function test_user_can_apply_and_status_becomes_pending(): void
     {
         $account = $this->createAccount();
+        $this->verifyIdentity($account);
 
         $result = $this->runnerStatusService->apply($account);
 
@@ -86,6 +102,7 @@ class RunnerStatusServiceTest extends TestCase
     public function test_application_cannot_be_submitted_twice(): void
     {
         $account = $this->createAccount();
+        $this->verifyIdentity($account);
 
         $this->runnerStatusService->apply($account);
 
@@ -101,6 +118,62 @@ class RunnerStatusServiceTest extends TestCase
         }
 
         $this->assertDatabaseCount('audit_logs', 1);
+    }
+
+    public function test_user_without_verified_identity_cannot_apply(): void
+    {
+        $account = $this->createAccount();
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage(
+            'Identity verification is required before applying to become a Runner.'
+        );
+
+        $this->runnerStatusService->apply($account);
+    }
+
+    public function test_pending_identity_verification_cannot_apply(): void
+    {
+        $account = $this->createAccount();
+
+        IdentityVerification::create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $account->id,
+            'real_name' => 'Contoh Nama Sebenar',
+            'mykad_number_encrypted' => Crypt::encryptString('900101145678'),
+            'status' => IdentityVerification::STATUS_PENDING,
+            'submitted_at' => now(),
+        ]);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage(
+            'Identity verification is required before applying to become a Runner.'
+        );
+
+        $this->runnerStatusService->apply($account);
+    }
+
+    public function test_rejected_identity_verification_cannot_apply(): void
+    {
+        $account = $this->createAccount();
+
+        IdentityVerification::create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $account->id,
+            'real_name' => 'Contoh Nama Sebenar',
+            'mykad_number_encrypted' => Crypt::encryptString('900101145678'),
+            'status' => IdentityVerification::STATUS_REJECTED,
+            'submitted_at' => now(),
+            'reviewed_at' => now(),
+            'rejection_reason' => 'Dokumen tidak jelas.',
+        ]);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage(
+            'Identity verification is required before applying to become a Runner.'
+        );
+
+        $this->runnerStatusService->apply($account);
     }
 
     public function test_inactive_account_cannot_apply(): void
