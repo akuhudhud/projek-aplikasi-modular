@@ -14,12 +14,21 @@ return new class extends Migration
                 ->default(false)
                 ->after('status');
 
+            // Lepaskan foreign key sebelum membuang indeks unik.
+            $table->dropForeign(['account_id']);
             $table->dropUnique(['account_id']);
 
+            // Indeks biasa masih diperlukan untuk carian akaun.
             $table->index(
                 ['account_id', 'is_current'],
                 'runner_license_account_current_index'
             );
+
+            // Kekalkan perlindungan foreign key.
+            $table->foreign('account_id')
+                ->references('id')
+                ->on('accounts')
+                ->restrictOnDelete();
         });
 
         DB::table('runner_license_verifications')
@@ -44,9 +53,16 @@ return new class extends Migration
         }
 
         Schema::table('runner_license_verifications', function (Blueprint $table) {
+            $table->dropForeign(['account_id']);
             $table->dropIndex('runner_license_account_current_index');
             $table->dropColumn('is_current');
+
             $table->unique('account_id');
+
+            $table->foreign('account_id')
+                ->references('id')
+                ->on('accounts')
+                ->restrictOnDelete();
         });
     }
 };
