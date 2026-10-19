@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\ProfilePictureController;
 use App\Http\Controllers\Api\RunnerController;
 use App\Http\Controllers\Api\RunnerPublicProfileController;
 use App\Http\Middleware\AuthenticateSession;
+use App\Http\Middleware\EnsureAdminPermission;
 use App\Http\Middleware\ExpireMarketplaceItems;
 use Illuminate\Support\Facades\Route;
 
@@ -186,11 +187,19 @@ Route::get('/me/runner-profile/analytics', [
 |--------------------------------------------------------------------------
 */
 
-Route::get('/admin/accounts', [AccountController::class, 'index'])
-    ->middleware(AuthenticateSession::class);
+Route::get('/admin/accounts', [
+    AccountController::class,
+    'index',
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:accounts.view',
+]);
 
-Route::post('/admin/accounts', [AccountController::class, 'createSuperAdmin'])
-    ->middleware(AuthenticateSession::class);
+// These operations are restricted to Root inside AccountController.
+Route::post('/admin/accounts', [
+    AccountController::class,
+    'createSuperAdmin',
+])->middleware(AuthenticateSession::class);
 
 Route::patch('/admin/accounts/{accountId}/job-title', [
     AccountController::class,
@@ -210,22 +219,34 @@ Route::put('/admin/accounts/{accountId}/permissions', [
 Route::post('/admin/accounts/{accountId}/reactivate', [
     AuthController::class,
     'reactivate',
-])->middleware(AuthenticateSession::class);
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:accounts.reactivate',
+]);
 
 Route::post('/admin/accounts/{accountId}/suspend', [
     AuthController::class,
     'suspend',
-])->middleware(AuthenticateSession::class);
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:accounts.suspend',
+]);
 
 Route::post('/admin/accounts/{accountId}/unsuspend', [
     AuthController::class,
     'unsuspend',
-])->middleware(AuthenticateSession::class);
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:accounts.unsuspend',
+]);
 
 Route::get('/admin/audit-logs', [
     AuditLogController::class,
     'index',
-])->middleware(AuthenticateSession::class);
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:audit_logs.view',
+]);
 
 /*
 |--------------------------------------------------------------------------
@@ -236,24 +257,39 @@ Route::get('/admin/audit-logs', [
 Route::get('/admin/runner-applications', [
     RunnerController::class,
     'pendingApplications',
-])->middleware(AuthenticateSession::class);
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:runner_applications.view',
+]);
 
 Route::post('/admin/runner-applications/{accountId}/approve', [
     RunnerController::class,
     'approve',
-])->middleware(AuthenticateSession::class);
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:runner_applications.approve',
+]);
 
 Route::post('/admin/runner-applications/{accountId}/reject', [
     RunnerController::class,
     'reject',
-])->middleware(AuthenticateSession::class);
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:runner_applications.reject',
+]);
 
 Route::post('/admin/runners/{accountId}/suspend', [
     RunnerController::class,
     'suspend',
-])->middleware(AuthenticateSession::class);
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:runners.suspend',
+]);
 
 Route::post('/admin/runners/{accountId}/restore', [
     RunnerController::class,
     'restore',
-])->middleware(AuthenticateSession::class);
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:runners.restore',
+]);
