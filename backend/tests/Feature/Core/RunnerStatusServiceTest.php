@@ -444,7 +444,7 @@ class RunnerStatusServiceTest extends TestCase
             'actor_account_id' => $root->id,
             'target_account_id' => $root->id,
             'action' => 'RUNNER_APPLICATION_APPROVED',
-            'reason' => 'Root approved the application.',
+            'reason' => 'Root approved own Runner status.',
         ]);
     }
 
