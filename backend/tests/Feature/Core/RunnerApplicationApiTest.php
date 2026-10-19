@@ -5,6 +5,7 @@ namespace Tests\Feature\Core;
 use App\Models\Account;
 use App\Models\AccountPermission;
 use App\Models\IdentityVerification;
+use App\Models\RunnerLicenseVerification;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
@@ -36,16 +37,44 @@ class RunnerApplicationApiTest extends TestCase
         return $account->fresh();
     }
 
-    private function verifyIdentity(Account $account): void
+    private function verifyIdentityOnly(Account $account): void
     {
         IdentityVerification::create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'real_name' => 'Contoh Nama Sebenar',
-            'mykad_number_encrypted' => Crypt::encryptString('900101145678'),
+            'mykad_number_encrypted' => Crypt::encryptString(
+                '900101145678'
+            ),
             'status' => IdentityVerification::STATUS_VERIFIED,
             'submitted_at' => now(),
             'reviewed_at' => now(),
+        ]);
+    }
+
+    private function verifyIdentity(Account $account): void
+    {
+        $this->verifyIdentityOnly($account);
+
+        RunnerLicenseVerification::create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $account->id,
+            'license_number_encrypted' => Crypt::encryptString(
+                'D123456789012'
+            ),
+            'license_class' => 'D',
+            'expires_at' => now()->addYear()->toDateString(),
+            'status' => RunnerLicenseVerification::STATUS_VERIFIED,
+            'submitted_at' => now(),
+            'reviewed_at' => now(),
+            'reviewer_account_id' => null,
+            'rejection_reason' => null,
+            'disk' => 'local',
+            'document_path' => 'runner-license-documents/test-'
+                .Str::uuid()
+                .'.pdf',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 100,
         ]);
     }
 
@@ -119,6 +148,47 @@ class RunnerApplicationApiTest extends TestCase
         ]);
     }
 
+    public function test_verified_identity_without_verified_license_is_directed_to_license_verification(): void
+    {
+        $user = $this->createAccount();
+        $this->verifyIdentityOnly($user);
+
+        $this->asAccount($user, 'runner-license-required-token')
+            ->postJson('/api/me/runner-application')
+            ->assertUnprocessable()
+            ->assertJsonPath('success', false)
+            ->assertJsonPath(
+                'data.next_action.type',
+                'RUNNER_LICENSE_VERIFICATION'
+            )
+            ->assertJsonPath(
+                'data.next_action.method',
+                'GET'
+            )
+            ->assertJsonPath(
+                'data.next_action.endpoint',
+                '/api/me/runner-license-verification'
+            )
+            ->assertJsonPath(
+                'data.next_action.submit_method',
+                'POST'
+            )
+            ->assertJsonPath(
+                'data.next_action.submit_endpoint',
+                '/api/me/runner-license-verification'
+            );
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $user->id,
+            'runner_status' => Account::RUNNER_STATUS_NOT_RUNNER,
+        ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'target_account_id' => $user->id,
+            'action' => 'RUNNER_APPLICATION_SUBMITTED',
+        ]);
+    }
+
     public function test_user_without_verified_identity_is_directed_to_identity_verification(): void
     {
         $user = $this->createAccount();
@@ -171,7 +241,9 @@ class RunnerApplicationApiTest extends TestCase
             'id' => (string) Str::uuid(),
             'account_id' => $user->id,
             'real_name' => 'Contoh Nama Sebenar',
-            'mykad_number_encrypted' => Crypt::encryptString('900101145678'),
+            'mykad_number_encrypted' => Crypt::encryptString(
+                '900101145678'
+            ),
             'status' => IdentityVerification::STATUS_PENDING,
             'submitted_at' => now(),
         ]);
@@ -198,7 +270,9 @@ class RunnerApplicationApiTest extends TestCase
             'id' => (string) Str::uuid(),
             'account_id' => $user->id,
             'real_name' => 'Contoh Nama Sebenar',
-            'mykad_number_encrypted' => Crypt::encryptString('900101145678'),
+            'mykad_number_encrypted' => Crypt::encryptString(
+                '900101145678'
+            ),
             'status' => IdentityVerification::STATUS_REJECTED,
             'submitted_at' => now(),
             'reviewed_at' => now(),
