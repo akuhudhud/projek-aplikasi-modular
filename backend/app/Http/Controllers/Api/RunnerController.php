@@ -16,14 +16,17 @@ class RunnerController extends Controller
     private const IDENTITY_VERIFICATION_REQUIRED =
         'Identity verification is required before applying to become a Runner.';
 
+    private const LICENSE_VERIFICATION_REQUIRED =
+        'Driving license verification is required before applying to become a Runner.';
+
+    private const LICENSE_EXPIRED =
+        'A valid, unexpired driving license is required before applying to become a Runner.';
+
     public function __construct(
         private RunnerStatusService $runnerStatusService
     ) {
     }
 
-    /**
-     * Return the authenticated account's Runner application status.
-     */
     public function showMyApplication(Request $request): JsonResponse
     {
         /** @var Account $account */
@@ -40,9 +43,6 @@ class RunnerController extends Controller
         ], 200);
     }
 
-    /**
-     * Submit a Runner application for the authenticated account.
-     */
     public function apply(Request $request): JsonResponse
     {
         /** @var Account $account */
@@ -86,6 +86,28 @@ class RunnerController extends Controller
                 ], 422);
             }
 
+            if (in_array($exception->getMessage(), [
+                self::LICENSE_VERIFICATION_REQUIRED,
+                self::LICENSE_EXPIRED,
+            ], true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $exception->getMessage()
+                        === self::LICENSE_EXPIRED
+                        ? 'Lesen memandu telah tamat tempoh. Sila kemas kini pengesahan lesen.'
+                        : 'Sila sahkan lesen memandu dahulu sebelum memohon menjadi Runner.',
+                    'data' => [
+                        'next_action' => [
+                            'type' => 'RUNNER_LICENSE_VERIFICATION',
+                            'method' => 'GET',
+                            'endpoint' => '/api/me/runner-license-verification',
+                            'submit_method' => 'POST',
+                            'submit_endpoint' => '/api/me/runner-license-verification',
+                        ],
+                    ],
+                ], 422);
+            }
+
             return $this->errorResponse(
                 $exception->getMessage(),
                 422
@@ -98,9 +120,6 @@ class RunnerController extends Controller
         }
     }
 
-    /**
-     * List pending Runner applications visible to the administrator.
-     */
     public function pendingApplications(Request $request): JsonResponse
     {
         /** @var Account $admin */
