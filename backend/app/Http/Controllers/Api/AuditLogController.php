@@ -4,22 +4,26 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Services\AdminPermissionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AuditLogController extends Controller
 {
-    public function index(Request $request): JsonResponse
-    {
+    public function index(
+        Request $request,
+        AdminPermissionService $permissionService
+    ): JsonResponse {
         $account = $request->attributes->get('account');
 
-        if (!$account || !in_array($account->role, [
-            'SUPER_ADMIN',
-            'ROOT_SUPER_ADMIN',
-        ], true)) {
+        if (
+            !$account
+            || !$permissionService->allows($account, 'audit_logs.view')
+        ) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized.',
+                'message' => 'You do not have permission to view audit logs.',
+                'required_permission' => 'audit_logs.view',
             ], 403);
         }
 
