@@ -13,6 +13,9 @@ use Illuminate\Http\Request;
 
 class RunnerController extends Controller
 {
+    private const IDENTITY_VERIFICATION_REQUIRED =
+        'Identity verification is required before applying to become a Runner.';
+
     public function __construct(
         private RunnerStatusService $runnerStatusService
     ) {
@@ -64,6 +67,25 @@ class RunnerController extends Controller
                 403
             );
         } catch (DomainException $exception) {
+            if (
+                $exception->getMessage()
+                === self::IDENTITY_VERIFICATION_REQUIRED
+            ) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sila sahkan identiti dahulu sebelum memohon menjadi Runner.',
+                    'data' => [
+                        'next_action' => [
+                            'type' => 'IDENTITY_VERIFICATION',
+                            'method' => 'GET',
+                            'endpoint' => '/api/me/identity-verification',
+                            'submit_method' => 'POST',
+                            'submit_endpoint' => '/api/me/identity-verification',
+                        ],
+                    ],
+                ], 422);
+            }
+
             return $this->errorResponse(
                 $exception->getMessage(),
                 422
