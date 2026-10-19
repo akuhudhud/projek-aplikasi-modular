@@ -227,10 +227,7 @@ class SuperAdminCreationTest extends TestCase
 
         $response
             ->assertStatus(422)
-            ->assertJson([
-                'success' => false,
-                'message' => 'Reason is required.',
-            ]);
+            ->assertJsonValidationErrors('reason');
 
         $this->assertDatabaseMissing('accounts', [
             'email' => 'newadmin@example.com',
@@ -260,10 +257,7 @@ class SuperAdminCreationTest extends TestCase
 
         $response
             ->assertStatus(422)
-            ->assertJson([
-                'success' => false,
-                'message' => 'Reason is required.',
-            ]);
+            ->assertJsonValidationErrors('reason');
 
         $this->assertDatabaseMissing('accounts', [
             'email' => 'newadmin@example.com',
