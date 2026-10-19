@@ -70,6 +70,8 @@ class RunnerLicenseResubmissionSecurityTest extends TestCase
             'license_class' => 'D',
             'expires_at' => now()->addYear()->toDateString(),
             'status' => $status,
+            'is_current' => $status
+                === RunnerLicenseVerification::STATUS_VERIFIED,
             'submitted_at' => now()->subDay(),
             'reviewed_at' => $status === RunnerLicenseVerification::STATUS_PENDING
                 ? null
@@ -101,57 +103,143 @@ class RunnerLicenseResubmissionSecurityTest extends TestCase
         );
     }
 
-    public function test_pending_or_verified_license_cannot_be_resubmitted(): void
+    public function test_pending_license_cannot_be_resubmitted(): void
     {
-        foreach ([
+        $account = $this->createAccount();
+        $this->verifyIdentity($account);
+
+        $original = $this->createLicense(
+            $account,
+            RunnerLicenseVerification::STATUS_PENDING
+        );
+
+        $originalPath = $original->document_path;
+        $originalLicenseNumber = $original->decryptLicenseNumber();
+        $originalSubmittedAt = $original->submitted_at;
+
+        $this->asAccount($account, 'license-pending-resubmit-token')
+            ->post('/api/me/runner-license-verification', [
+                'license_number' => 'D987654321098',
+                'license_class' => 'D',
+                'expires_at' => now()->addYears(2)->toDateString(),
+                'document' => UploadedFile::fake()->image(
+                    'replacement-license.jpg'
+                ),
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('success', false);
+
+        $original->refresh();
+
+        $this->assertSame(
             RunnerLicenseVerification::STATUS_PENDING,
+            $original->status
+        );
+
+        $this->assertSame(
+            $originalPath,
+            $original->document_path
+        );
+
+        $this->assertSame(
+            $originalLicenseNumber,
+            $original->decryptLicenseNumber()
+        );
+
+        $this->assertTrue(
+            $original->submitted_at->equalTo($originalSubmittedAt)
+        );
+
+        Storage::disk('local')->assertExists($originalPath);
+
+        $this->assertSame(
+            1,
+            RunnerLicenseVerification::query()
+                ->where('account_id', $account->id)
+                ->count()
+        );
+    }
+
+    public function test_verified_current_license_is_preserved_when_renewal_is_submitted(): void
+    {
+        $account = $this->createAccount();
+        $this->verifyIdentity($account);
+
+        $original = $this->createLicense(
+            $account,
+            RunnerLicenseVerification::STATUS_VERIFIED
+        );
+
+        $originalPath = $original->document_path;
+        $originalLicenseNumber = $original->decryptLicenseNumber();
+
+        $this->asAccount($account, 'license-verified-renewal-token')
+            ->post('/api/me/runner-license-verification', [
+                'license_number' => 'D987654321098',
+                'license_class' => 'D',
+                'expires_at' => now()->addYears(2)->toDateString(),
+                'document' => UploadedFile::fake()->image(
+                    'renewal-license.jpg'
+                ),
+            ])
+            ->assertCreated()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath(
+                'data.runner_license_verification.status',
+                RunnerLicenseVerification::STATUS_PENDING
+            )
+            ->assertJsonPath(
+                'data.runner_license_verification.is_current',
+                false
+            );
+
+        $original->refresh();
+
+        $this->assertSame(
             RunnerLicenseVerification::STATUS_VERIFIED,
-        ] as $status) {
-            $account = $this->createAccount();
-            $this->verifyIdentity($account);
+            $original->status
+        );
 
-            $original = $this->createLicense($account, $status);
-            $originalPath = $original->document_path;
-            $originalSubmittedAt = $original->submitted_at;
+        $this->assertTrue($original->is_current);
 
-            $token = 'license-resubmit-'
-                .strtolower($status).'-token';
+        $this->assertSame(
+            $originalPath,
+            $original->document_path
+        );
 
-            $this->asAccount($account, $token)
-                ->post('/api/me/runner-license-verification', [
-                    'license_number' => 'D987654321098',
-                    'license_class' => 'D',
-                    'expires_at' => now()->addYears(2)->toDateString(),
-                    'document' => UploadedFile::fake()->image(
-                        'replacement-license.jpg'
-                    ),
-                ])
-                ->assertUnprocessable()
-                ->assertJsonPath('success', false);
+        $this->assertSame(
+            $originalLicenseNumber,
+            $original->decryptLicenseNumber()
+        );
 
-            $original->refresh();
+        Storage::disk('local')->assertExists($originalPath);
 
-            $this->assertSame($status, $original->status);
-            $this->assertSame(
-                $originalPath,
-                $original->document_path
-            );
-            $this->assertSame(
-                'D123456789012',
-                $original->decryptLicenseNumber()
-            );
-            $this->assertTrue(
-                $original->submitted_at->equalTo($originalSubmittedAt)
-            );
+        $this->assertSame(
+            2,
+            RunnerLicenseVerification::query()
+                ->where('account_id', $account->id)
+                ->count()
+        );
 
-            Storage::disk('local')->assertExists($originalPath);
+        $renewal = RunnerLicenseVerification::query()
+            ->where('account_id', $account->id)
+            ->where('id', '!=', $original->id)
+            ->firstOrFail();
 
-            $this->assertSame(
-                1,
-                RunnerLicenseVerification::query()
-                    ->where('account_id', $account->id)
-                    ->count()
-            );
-        }
+        $this->assertSame(
+            RunnerLicenseVerification::STATUS_PENDING,
+            $renewal->status
+        );
+
+        $this->assertFalse($renewal->is_current);
+
+        $this->assertSame(
+            'D987654321098',
+            $renewal->decryptLicenseNumber()
+        );
+
+        Storage::disk('local')->assertExists(
+            $renewal->document_path
+        );
     }
 }
