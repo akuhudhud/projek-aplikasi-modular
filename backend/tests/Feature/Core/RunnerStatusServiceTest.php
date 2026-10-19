@@ -69,6 +69,7 @@ class RunnerStatusServiceTest extends TestCase
             'license_class' => 'D',
             'expires_at' => now()->addYear()->toDateString(),
             'status' => RunnerLicenseVerification::STATUS_VERIFIED,
+            'is_current' => true,
             'submitted_at' => now(),
             'reviewed_at' => now(),
             'reviewer_account_id' => null,
@@ -443,7 +444,7 @@ class RunnerStatusServiceTest extends TestCase
             'actor_account_id' => $root->id,
             'target_account_id' => $root->id,
             'action' => 'RUNNER_APPLICATION_APPROVED',
-            'reason' => 'Root approved own Runner status.',
+            'reason' => 'Root approved the application.',
         ]);
     }
 
