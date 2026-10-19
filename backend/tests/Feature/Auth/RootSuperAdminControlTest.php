@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\Account;
+use App\Models\AccountPermission;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -10,6 +11,14 @@ use Tests\TestCase;
 class RootSuperAdminControlTest extends TestCase
 {
     use RefreshDatabase;
+
+    private function grantPermission(Account $account, string $permission): void
+    {
+        AccountPermission::create([
+            'account_id' => $account->id,
+            'permission_key' => $permission,
+        ]);
+    }
 
     private function createSessionForAccount(
         Account $account,
@@ -105,6 +114,7 @@ class RootSuperAdminControlTest extends TestCase
     public function test_super_admin_cannot_suspend_another_super_admin(): void
     {
         $admin = $this->createSuperAdmin();
+        $this->grantPermission($admin, 'accounts.suspend');
 
         $target = $this->createAccount(
             'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
@@ -125,7 +135,9 @@ class RootSuperAdminControlTest extends TestCase
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$target->id.'/suspend');
+        )->postJson('/api/admin/accounts/'.$target->id.'/suspend', [
+            'reason' => 'Attempted unauthorized suspension.',
+        ]);
 
         $response
             ->assertStatus(403)
@@ -144,6 +156,7 @@ class RootSuperAdminControlTest extends TestCase
     public function test_super_admin_cannot_suspend_root_super_admin(): void
     {
         $admin = $this->createSuperAdmin();
+        $this->grantPermission($admin, 'accounts.suspend');
 
         $root = $this->createAccount(
             'ffffffff-ffff-4fff-8fff-ffffffffffff',
@@ -164,7 +177,9 @@ class RootSuperAdminControlTest extends TestCase
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$root->id.'/suspend');
+        )->postJson('/api/admin/accounts/'.$root->id.'/suspend', [
+            'reason' => 'Attempted unauthorized suspension.',
+        ]);
 
         $response
             ->assertStatus(403)
@@ -217,6 +232,7 @@ class RootSuperAdminControlTest extends TestCase
     public function test_super_admin_cannot_unsuspend_another_super_admin(): void
     {
         $admin = $this->createSuperAdmin();
+        $this->grantPermission($admin, 'accounts.unsuspend');
 
         $target = $this->createAccount(
             '33333333-3333-4333-8333-333333333333',
@@ -238,7 +254,9 @@ class RootSuperAdminControlTest extends TestCase
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$target->id.'/unsuspend');
+        )->postJson('/api/admin/accounts/'.$target->id.'/unsuspend', [
+            'reason' => 'Attempted unauthorized unsuspension.',
+        ]);
 
         $response
             ->assertStatus(403)
@@ -291,6 +309,7 @@ class RootSuperAdminControlTest extends TestCase
     public function test_super_admin_cannot_reactivate_another_super_admin(): void
     {
         $admin = $this->createSuperAdmin();
+        $this->grantPermission($admin, 'accounts.reactivate');
 
         $target = $this->createAccount(
             '66666666-6666-4666-8666-666666666666',
@@ -312,7 +331,9 @@ class RootSuperAdminControlTest extends TestCase
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$target->id.'/reactivate');
+        )->postJson('/api/admin/accounts/'.$target->id.'/reactivate', [
+            'reason' => 'Attempted unauthorized reactivation.',
+        ]);
 
         $response
             ->assertStatus(403)
