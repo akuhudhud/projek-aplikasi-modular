@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\Account;
+use App\Models\AccountPermission;
 use App\Models\AuditLog;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -11,6 +12,14 @@ use Tests\TestCase;
 class AuditLogAccessTest extends TestCase
 {
     use RefreshDatabase;
+
+    private function grantPermission(Account $account, string $permission): void
+    {
+        AccountPermission::create([
+            'account_id' => $account->id,
+            'permission_key' => $permission,
+        ]);
+    }
 
     private function createSessionForAccount(
         Account $account,
@@ -75,6 +84,8 @@ class AuditLogAccessTest extends TestCase
             'superadmin@example.com',
             'SUPER_ADMIN'
         );
+
+        $this->grantPermission($admin, 'audit_logs.view');
 
         $token = 'audit-access-super-admin-token';
 
