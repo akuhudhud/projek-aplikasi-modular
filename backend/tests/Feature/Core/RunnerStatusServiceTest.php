@@ -3,6 +3,7 @@
 namespace Tests\Feature\Core;
 
 use App\Models\Account;
+use App\Models\AccountPermission;
 use App\Services\RunnerStatusService;
 use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -42,6 +43,18 @@ class RunnerStatusServiceTest extends TestCase
         $account->save();
 
         return $account->fresh();
+    }
+
+    private function grantPermissions(
+        Account $account,
+        array $permissions
+    ): void {
+        foreach (array_unique($permissions) as $permission) {
+            AccountPermission::create([
+                'account_id' => $account->id,
+                'permission_key' => $permission,
+            ]);
+        }
     }
 
     public function test_user_can_apply_and_status_becomes_pending(): void
@@ -105,9 +118,13 @@ class RunnerStatusServiceTest extends TestCase
         $this->runnerStatusService->apply($account);
     }
 
-    public function test_super_admin_can_approve_user_application(): void
+    public function test_super_admin_can_approve_user_application_with_permission(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
+
+        $this->grantPermissions($admin, [
+            'runner_applications.approve',
+        ]);
 
         $applicant = $this->createAccount(
             'USER',
@@ -133,6 +150,26 @@ class RunnerStatusServiceTest extends TestCase
             'action' => 'RUNNER_APPLICATION_APPROVED',
             'reason' => 'Application reviewed and approved.',
         ]);
+    }
+
+    public function test_super_admin_without_permission_cannot_approve_application(): void
+    {
+        $admin = $this->createAccount('SUPER_ADMIN');
+
+        $applicant = $this->createAccount(
+            'USER',
+            'ACTIVE',
+            Account::RUNNER_STATUS_PENDING
+        );
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->runnerStatusService->changeStatus(
+            $admin,
+            $applicant->id,
+            Account::RUNNER_STATUS_APPROVED,
+            'Approval attempt without permission.'
+        );
     }
 
     public function test_inactive_pending_account_cannot_be_approved_as_runner(): void
@@ -211,7 +248,7 @@ class RunnerStatusServiceTest extends TestCase
         ]);
     }
 
-    public function test_root_super_admin_can_manage_super_admin_runner_status(): void
+    public function test_root_can_manage_super_admin_runner_status(): void
     {
         $root = $this->createAccount('ROOT_SUPER_ADMIN');
 
@@ -260,7 +297,7 @@ class RunnerStatusServiceTest extends TestCase
         );
     }
 
-    public function test_root_super_admin_cannot_manage_another_root(): void
+    public function test_root_can_manage_another_root_runner_status(): void
     {
         $root = $this->createAccount('ROOT_SUPER_ADMIN');
 
@@ -270,17 +307,55 @@ class RunnerStatusServiceTest extends TestCase
             Account::RUNNER_STATUS_PENDING
         );
 
-        $this->expectException(AuthorizationException::class);
-
-        $this->runnerStatusService->changeStatus(
+        $result = $this->runnerStatusService->changeStatus(
             $root,
             $anotherRoot->id,
             Account::RUNNER_STATUS_APPROVED,
-            'Approval attempt.'
+            'Root approved the application.'
         );
+
+        $this->assertSame(
+            Account::RUNNER_STATUS_APPROVED,
+            $result->runner_status
+        );
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $root->id,
+            'target_account_id' => $anotherRoot->id,
+            'action' => 'RUNNER_APPLICATION_APPROVED',
+            'reason' => 'Root approved the application.',
+        ]);
     }
 
-    public function test_administrator_cannot_change_own_runner_status(): void
+    public function test_root_can_change_own_runner_status(): void
+    {
+        $root = $this->createAccount(
+            'ROOT_SUPER_ADMIN',
+            'ACTIVE',
+            Account::RUNNER_STATUS_PENDING
+        );
+
+        $result = $this->runnerStatusService->changeStatus(
+            $root,
+            $root->id,
+            Account::RUNNER_STATUS_APPROVED,
+            'Root approved own Runner status.'
+        );
+
+        $this->assertSame(
+            Account::RUNNER_STATUS_APPROVED,
+            $result->runner_status
+        );
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $root->id,
+            'target_account_id' => $root->id,
+            'action' => 'RUNNER_APPLICATION_APPROVED',
+            'reason' => 'Root approved own Runner status.',
+        ]);
+    }
+
+    public function test_super_admin_cannot_change_own_runner_status(): void
     {
         $admin = $this->createAccount(
             'SUPER_ADMIN',
@@ -337,9 +412,14 @@ class RunnerStatusServiceTest extends TestCase
         );
     }
 
-    public function test_approved_runner_can_be_suspended_and_restored(): void
+    public function test_approved_runner_can_be_suspended_and_restored_with_permissions(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
+
+        $this->grantPermissions($admin, [
+            'runners.suspend',
+            'runners.restore',
+        ]);
 
         $runner = $this->createAccount(
             'USER',
@@ -382,10 +462,17 @@ class RunnerStatusServiceTest extends TestCase
         ]);
     }
 
-    public function test_pending_application_list_is_limited_by_admin_role(): void
+    public function test_pending_application_list_respects_role_and_permissions(): void
     {
         $root = $this->createAccount('ROOT_SUPER_ADMIN');
+
         $superAdmin = $this->createAccount('SUPER_ADMIN');
+
+        $this->grantPermissions($superAdmin, [
+            'runner_applications.view',
+        ]);
+
+        $unprivilegedAdmin = $this->createAccount('SUPER_ADMIN');
 
         $userApplication = $this->createAccount(
             'USER',
@@ -419,6 +506,12 @@ class RunnerStatusServiceTest extends TestCase
 
         $this->assertFalse(
             $superAdminResults->contains('id', $superAdminApplication->id)
+        );
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->runnerStatusService->pendingApplications(
+            $unprivilegedAdmin
         );
     }
 
