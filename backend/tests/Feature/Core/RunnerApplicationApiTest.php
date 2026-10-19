@@ -65,6 +65,7 @@ class RunnerApplicationApiTest extends TestCase
             'license_class' => 'D',
             'expires_at' => now()->addYear()->toDateString(),
             'status' => RunnerLicenseVerification::STATUS_VERIFIED,
+            'is_current' => true,
             'submitted_at' => now(),
             'reviewed_at' => now(),
             'reviewer_account_id' => null,
