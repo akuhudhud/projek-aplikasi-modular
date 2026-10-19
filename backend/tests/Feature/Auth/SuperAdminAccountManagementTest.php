@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\Account;
+use App\Models\AccountPermission;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -10,6 +11,14 @@ use Tests\TestCase;
 class SuperAdminAccountManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    private function grantPermission(Account $account, string $permission): void
+    {
+        AccountPermission::create([
+            'account_id' => $account->id,
+            'permission_key' => $permission,
+        ]);
+    }
 
     private function createSessionForAccount(
         Account $account,
@@ -36,6 +45,8 @@ class SuperAdminAccountManagementTest extends TestCase
             'role' => 'SUPER_ADMIN',
             'status' => 'ACTIVE',
         ]);
+
+        $this->grantPermission($admin, 'accounts.suspend');
 
         $token = 'super-admin-management-token';
 
@@ -184,7 +195,8 @@ class SuperAdminAccountManagementTest extends TestCase
             ->assertStatus(403)
             ->assertJson([
                 'success' => false,
-                'message' => 'Unauthorized.',
+                'message' => 'You do not have permission to perform this action.',
+                'required_permission' => 'accounts.suspend',
             ]);
 
         $this->assertDatabaseHas('accounts', [
