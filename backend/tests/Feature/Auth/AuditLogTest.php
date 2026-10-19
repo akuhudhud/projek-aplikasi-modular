@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\Account;
+use App\Models\AccountPermission;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -10,6 +11,16 @@ use Tests\TestCase;
 class AuditLogTest extends TestCase
 {
     use RefreshDatabase;
+
+    private function grantPermissions(Account $account, array $permissions): void
+    {
+        foreach ($permissions as $permission) {
+            AccountPermission::create([
+                'account_id' => $account->id,
+                'permission_key' => $permission,
+            ]);
+        }
+    }
 
     private function createSessionForAccount(
         Account $account,
@@ -74,6 +85,12 @@ class AuditLogTest extends TestCase
             'superadmin@example.com',
             'SUPER_ADMIN'
         );
+
+        $this->grantPermissions($admin, [
+            'accounts.suspend',
+            'accounts.reactivate',
+            'accounts.unsuspend',
+        ]);
 
         $token = 'audit-super-admin-token';
 
