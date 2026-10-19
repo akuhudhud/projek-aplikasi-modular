@@ -27,6 +27,7 @@ class RunnerLicenseVerification extends Model
         'license_class',
         'expires_at',
         'status',
+        'is_current',
         'submitted_at',
         'reviewed_at',
         'reviewer_account_id',
@@ -45,6 +46,7 @@ class RunnerLicenseVerification extends Model
 
     protected $casts = [
         'expires_at' => 'date',
+        'is_current' => 'boolean',
         'submitted_at' => 'datetime',
         'reviewed_at' => 'datetime',
         'size_bytes' => 'integer',
