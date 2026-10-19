@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Account;
+use App\Models\IdentityVerification;
 use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
@@ -42,6 +43,19 @@ class RunnerStatusService
             ) {
                 throw new DomainException(
                     'A Runner application cannot be submitted from the current status.'
+                );
+            }
+
+            $identityStatus = $account->identityVerification()
+                ->lockForUpdate()
+                ->value('status');
+
+            if (
+                $identityStatus
+                !== IdentityVerification::STATUS_VERIFIED
+            ) {
+                throw new DomainException(
+                    'Identity verification is required before applying to become a Runner.'
                 );
             }
 
