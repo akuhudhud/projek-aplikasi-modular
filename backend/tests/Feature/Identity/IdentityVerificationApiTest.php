@@ -351,14 +351,23 @@ class IdentityVerificationApiTest extends TestCase
         $verification = $this->createPendingVerification($applicant);
         $document = $verification->documents->first();
 
-        $this->asAccount(
+        $response = $this->asAccount(
             $admin,
             'identity-document-download-token'
         )->get(
             '/api/admin/identity-verifications/'.$applicant->id
                 .'/documents/'.$document->id
-        )->assertOk()
-            ->assertHeader('Cache-Control', 'private, no-store')
+        );
+
+        $response->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff');
+
+        $cacheControl = array_map(
+            'trim',
+            explode(',', $response->headers->get('Cache-Control', ''))
+        );
+
+        $this->assertContains('private', $cacheControl);
+        $this->assertContains('no-store', $cacheControl);
     }
 }
