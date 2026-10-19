@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Account;
-use App\Models\AuditLog;
 use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
@@ -12,7 +11,8 @@ use Illuminate\Support\Facades\DB;
 class RunnerStatusService
 {
     public function __construct(
-        private AuditLogService $auditLogService
+        private AuditLogService $auditLogService,
+        private AdminPermissionService $permissionService
     ) {
     }
 
@@ -62,6 +62,7 @@ class RunnerStatusService
     public function pendingApplications(Account $actor): Collection
     {
         $this->assertAdministrator($actor);
+        $this->assertPermission($actor, 'runner_applications.view');
 
         $query = Account::query()
             ->where(
@@ -132,7 +133,6 @@ class RunnerStatusService
 
             $this->assertCanManageTarget($currentActor, $target);
 
-            // Only ACTIVE accounts may be approved or restored as Runners.
             if (
                 $nextStatus === Account::RUNNER_STATUS_APPROVED
                 && $target->status !== 'ACTIVE'
@@ -147,6 +147,14 @@ class RunnerStatusService
             $this->assertValidTransition(
                 $currentStatus,
                 $nextStatus
+            );
+
+            $this->assertPermission(
+                $currentActor,
+                $this->requiredPermission(
+                    $currentStatus,
+                    $nextStatus
+                )
             );
 
             $target->runner_status = $nextStatus;
@@ -176,11 +184,27 @@ class RunnerStatusService
         }
     }
 
+    private function assertPermission(
+        Account $actor,
+        string $permission
+    ): void {
+        if (!$this->permissionService->allows($actor, $permission)) {
+            throw new AuthorizationException(
+                "Missing required permission: {$permission}."
+            );
+        }
+    }
+
     private function assertCanManageTarget(
         Account $actor,
         Account $target
     ): void {
         $this->assertAdministrator($actor);
+
+        // Root is the owner and has no internal administrative restrictions.
+        if ($actor->role === 'ROOT_SUPER_ADMIN') {
+            return;
+        }
 
         if ($actor->id === $target->id) {
             throw new AuthorizationException(
@@ -194,20 +218,42 @@ class RunnerStatusService
             );
         }
 
-        if (!in_array($target->role, ['USER', 'SUPER_ADMIN'], true)) {
-            throw new AuthorizationException(
-                'The target account role cannot be managed.'
-            );
-        }
-
-        if (
-            $actor->role === 'SUPER_ADMIN'
-            && $target->role !== 'USER'
-        ) {
+        if ($target->role !== 'USER') {
             throw new AuthorizationException(
                 'Super Admin can manage Runner status for USER accounts only.'
             );
         }
+    }
+
+    private function requiredPermission(
+        string $currentStatus,
+        string $nextStatus
+    ): string {
+        return match ([$currentStatus, $nextStatus]) {
+            [
+                Account::RUNNER_STATUS_PENDING,
+                Account::RUNNER_STATUS_APPROVED,
+            ] => 'runner_applications.approve',
+
+            [
+                Account::RUNNER_STATUS_PENDING,
+                Account::RUNNER_STATUS_REJECTED,
+            ] => 'runner_applications.reject',
+
+            [
+                Account::RUNNER_STATUS_APPROVED,
+                Account::RUNNER_STATUS_SUSPENDED,
+            ] => 'runners.suspend',
+
+            [
+                Account::RUNNER_STATUS_SUSPENDED,
+                Account::RUNNER_STATUS_APPROVED,
+            ] => 'runners.restore',
+
+            default => throw new DomainException(
+                'The requested Runner status transition is not allowed.'
+            ),
+        };
     }
 
     private function assertValidTransition(
