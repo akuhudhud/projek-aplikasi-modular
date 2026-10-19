@@ -89,13 +89,13 @@ class RunnerLicenseVerificationService
             );
         }
 
-        $path = 'runner-license-documents/'.Str::uuid().'.'
-            .($mimeType === 'image/jpeg'
-                ? 'jpg'
-                : ($mimeType === 'image/png' ? 'png' : 'pdf'));
+        $filename = (string) Str::uuid().'.'.match ($mimeType) {
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            default => 'pdf',
+        };
 
         $storedPath = null;
-        $oldPath = null;
 
         try {
             $verification = DB::transaction(function () use (
@@ -106,9 +106,8 @@ class RunnerLicenseVerificationService
                 $document,
                 $mimeType,
                 $size,
-                $path,
-                &$storedPath,
-                &$oldPath
+                $filename,
+                &$storedPath
             ): RunnerLicenseVerification {
                 $lockedAccount = Account::query()
                     ->whereKey($account->id)
@@ -143,29 +142,25 @@ class RunnerLicenseVerificationService
                     );
                 }
 
-                $existing = RunnerLicenseVerification::query()
+                $pendingApplication = RunnerLicenseVerification::query()
                     ->where('account_id', $lockedAccount->id)
+                    ->where(
+                        'status',
+                        RunnerLicenseVerification::STATUS_PENDING
+                    )
                     ->lockForUpdate()
-                    ->first();
+                    ->exists();
 
-                if (
-                    $existing !== null
-                    && $existing->status
-                        !== RunnerLicenseVerification::STATUS_REJECTED
-                ) {
+                if ($pendingApplication) {
                     throw new DomainException(
-                        'Permohonan lesen hanya boleh dihantar semula jika status REJECTED.'
+                        'Masih terdapat permohonan lesen berstatus PENDING.'
                     );
-                }
-
-                if ($existing !== null) {
-                    $oldPath = $existing->document_path;
                 }
 
                 $storedPath = Storage::disk('local')->putFileAs(
                     'runner-license-documents',
                     $document,
-                    basename($path)
+                    $filename
                 );
 
                 if (!is_string($storedPath) || $storedPath === '') {
@@ -174,12 +169,15 @@ class RunnerLicenseVerificationService
                     );
                 }
 
-                $values = [
+                return RunnerLicenseVerification::query()->create([
+                    'id' => (string) Str::uuid(),
+                    'account_id' => $lockedAccount->id,
                     'license_number_encrypted' =>
                         Crypt::encryptString($licenseNumber),
                     'license_class' => $licenseClass,
                     'expires_at' => $expiry->toDateString(),
                     'status' => RunnerLicenseVerification::STATUS_PENDING,
+                    'is_current' => false,
                     'submitted_at' => now(),
                     'reviewed_at' => null,
                     'reviewer_account_id' => null,
@@ -188,24 +186,8 @@ class RunnerLicenseVerificationService
                     'document_path' => $storedPath,
                     'mime_type' => $mimeType,
                     'size_bytes' => $size,
-                ];
-
-                if ($existing !== null) {
-                    $existing->fill($values)->save();
-
-                    return $existing->fresh();
-                }
-
-                return RunnerLicenseVerification::query()->create([
-                    'id' => (string) Str::uuid(),
-                    'account_id' => $lockedAccount->id,
-                    ...$values,
                 ]);
             });
-
-            if ($oldPath !== null && $oldPath !== $storedPath) {
-                Storage::disk('local')->delete($oldPath);
-            }
 
             return $verification;
         } catch (Throwable $exception) {
