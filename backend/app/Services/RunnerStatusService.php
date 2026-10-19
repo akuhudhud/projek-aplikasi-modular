@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Account;
 use App\Models\IdentityVerification;
+use App\Models\RunnerLicenseVerification;
 use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
@@ -56,6 +57,30 @@ class RunnerStatusService
             ) {
                 throw new DomainException(
                     'Identity verification is required before applying to become a Runner.'
+                );
+            }
+
+            $license = RunnerLicenseVerification::query()
+                ->where('account_id', $account->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (
+                $license === null
+                || $license->status
+                    !== RunnerLicenseVerification::STATUS_VERIFIED
+            ) {
+                throw new DomainException(
+                    'Driving license verification is required before applying to become a Runner.'
+                );
+            }
+
+            if (
+                $license->expires_at === null
+                || $license->expires_at->lt(now()->startOfDay())
+            ) {
+                throw new DomainException(
+                    'A valid, unexpired driving license is required before applying to become a Runner.'
                 );
             }
 
