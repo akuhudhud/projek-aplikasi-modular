@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ContactChangeController;
 use App\Http\Controllers\Api\CoreTaskController;
+use App\Http\Controllers\Api\IdentityVerificationController;
 use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\MarketplaceLifecycleController;
 use App\Http\Controllers\Api\OtpController;
@@ -70,6 +71,52 @@ Route::post('/me/delete', [AuthController::class, 'delete'])
 
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware(AuthenticateSession::class);
+
+/*
+|--------------------------------------------------------------------------
+| Identity Verification
+|--------------------------------------------------------------------------
+*/
+
+// Authenticated account: submit/resubmit and view its own status.
+Route::post('/me/identity-verification', [
+    IdentityVerificationController::class,
+    'submit',
+])->middleware(AuthenticateSession::class);
+
+Route::get('/me/identity-verification', [
+    IdentityVerificationController::class,
+    'showMyStatus',
+])->middleware(AuthenticateSession::class);
+
+// Root has unrestricted internal permissions.
+// Super Admin requires identity_verifications.review.
+Route::get('/admin/identity-verifications/{accountId}', [
+    IdentityVerificationController::class,
+    'showForReview',
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:identity_verifications.review',
+]);
+
+Route::post('/admin/identity-verifications/{accountId}/decision', [
+    IdentityVerificationController::class,
+    'decide',
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:identity_verifications.review',
+]);
+
+Route::get(
+    '/admin/identity-verifications/{accountId}/documents/{documentId}',
+    [
+        IdentityVerificationController::class,
+        'downloadDocument',
+    ]
+)->middleware([
+    AuthenticateSession::class,
+    'admin.permission:identity_verifications.review',
+]);
 
 /*
 |--------------------------------------------------------------------------
