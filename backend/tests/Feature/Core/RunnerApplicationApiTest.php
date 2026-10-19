@@ -3,6 +3,7 @@
 namespace Tests\Feature\Core;
 
 use App\Models\Account;
+use App\Models\AccountPermission;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -31,6 +32,18 @@ class RunnerApplicationApiTest extends TestCase
         $account->save();
 
         return $account->fresh();
+    }
+
+    private function grantPermissions(
+        Account $account,
+        array $permissions
+    ): void {
+        foreach (array_unique($permissions) as $permission) {
+            AccountPermission::create([
+                'account_id' => $account->id,
+                'permission_key' => $permission,
+            ]);
+        }
     }
 
     private function authenticate(
@@ -126,9 +139,13 @@ class RunnerApplicationApiTest extends TestCase
             );
     }
 
-    public function test_admin_can_list_pending_runner_applications(): void
+    public function test_admin_can_list_pending_runner_applications_with_permission(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
+
+        $this->grantPermissions($admin, [
+            'runner_applications.view',
+        ]);
 
         $applicant = $this->createAccount(
             'USER',
@@ -146,6 +163,16 @@ class RunnerApplicationApiTest extends TestCase
             ]);
     }
 
+    public function test_super_admin_without_view_permission_cannot_list_runner_applications(): void
+    {
+        $admin = $this->createAccount('SUPER_ADMIN');
+
+        $this->asAccount($admin, 'runner-list-no-permission-token')
+            ->getJson('/api/admin/runner-applications')
+            ->assertForbidden()
+            ->assertJsonPath('success', false);
+    }
+
     public function test_regular_user_cannot_list_runner_applications(): void
     {
         $user = $this->createAccount();
@@ -156,9 +183,13 @@ class RunnerApplicationApiTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
-    public function test_admin_can_approve_runner_application_with_reason(): void
+    public function test_admin_can_approve_runner_application_with_permission_and_reason(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
+
+        $this->grantPermissions($admin, [
+            'runner_applications.approve',
+        ]);
 
         $applicant = $this->createAccount(
             'USER',
@@ -195,6 +226,10 @@ class RunnerApplicationApiTest extends TestCase
     {
         $admin = $this->createAccount('SUPER_ADMIN');
 
+        $this->grantPermissions($admin, [
+            'runner_applications.approve',
+        ]);
+
         $applicant = $this->createAccount(
             'USER',
             'ACTIVE',
@@ -216,6 +251,10 @@ class RunnerApplicationApiTest extends TestCase
     public function test_super_admin_cannot_approve_another_super_admin(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
+
+        $this->grantPermissions($admin, [
+            'runner_applications.approve',
+        ]);
 
         $applicant = $this->createAccount(
             'SUPER_ADMIN',
@@ -239,6 +278,12 @@ class RunnerApplicationApiTest extends TestCase
     public function test_admin_can_reject_application_and_suspend_then_restore_runner(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
+
+        $this->grantPermissions($admin, [
+            'runner_applications.reject',
+            'runners.suspend',
+            'runners.restore',
+        ]);
 
         $applicant = $this->createAccount(
             'USER',
