@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Models\Account;
+use App\Models\IdentityVerification;
 use App\Models\RunnerLicenseVerification;
 use DomainException;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -68,30 +70,22 @@ class RunnerLicenseVerificationService
             );
         }
 
-        $expiry = \Illuminate\Support\Carbon::parse($expiresAt)
-            ->startOfDay();
+        $expiry = Carbon::createFromFormat('!Y-m-d', $expiresAt);
+
+        if (
+            $expiry === false
+            || $expiry->format('Y-m-d') !== $expiresAt
+        ) {
+            throw new InvalidArgumentException(
+                'Tarikh tamat lesen tidak sah.'
+            );
+        }
+
+        $expiry->startOfDay();
 
         if ($expiry->lt(now()->startOfDay())) {
             throw new InvalidArgumentException(
                 'Lesen memandu telah tamat tempoh.'
-            );
-        }
-
-        $accountIsEligibleForSubmission = Account::query()
-            ->whereKey($account->id)
-            ->where('status', 'ACTIVE')
-            ->whereIn('role', ['USER', 'SUPER_ADMIN'])
-            ->whereHas('identityVerification', function ($query): void {
-                $query->where(
-                    'status',
-                    \App\Models\IdentityVerification::STATUS_VERIFIED
-                );
-            })
-            ->exists();
-
-        if (!$accountIsEligibleForSubmission) {
-            throw new DomainException(
-                'Pengesahan identiti mesti berstatus VERIFIED sebelum lesen dihantar.'
             );
         }
 
@@ -116,16 +110,31 @@ class RunnerLicenseVerificationService
                 &$storedPath,
                 &$oldPath
             ): RunnerLicenseVerification {
-                Account::query()
+                $lockedAccount = Account::query()
                     ->whereKey($account->id)
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                $identityVerified = $account->identityVerification()
+                if (
+                    $lockedAccount->status !== 'ACTIVE'
+                    || !in_array(
+                        $lockedAccount->role,
+                        ['USER', 'SUPER_ADMIN'],
+                        true
+                    )
+                ) {
+                    throw new DomainException(
+                        'Akaun tidak layak menghantar pengesahan lesen.'
+                    );
+                }
+
+                $identityVerified = IdentityVerification::query()
+                    ->where('account_id', $lockedAccount->id)
                     ->where(
                         'status',
-                        \App\Models\IdentityVerification::STATUS_VERIFIED
+                        IdentityVerification::STATUS_VERIFIED
                     )
+                    ->lockForUpdate()
                     ->exists();
 
                 if (!$identityVerified) {
@@ -135,13 +144,14 @@ class RunnerLicenseVerificationService
                 }
 
                 $existing = RunnerLicenseVerification::query()
-                    ->where('account_id', $account->id)
+                    ->where('account_id', $lockedAccount->id)
                     ->lockForUpdate()
                     ->first();
 
                 if (
                     $existing !== null
-                    && $existing->status !== RunnerLicenseVerification::STATUS_REJECTED
+                    && $existing->status
+                        !== RunnerLicenseVerification::STATUS_REJECTED
                 ) {
                     throw new DomainException(
                         'Permohonan lesen hanya boleh dihantar semula jika status REJECTED.'
@@ -188,7 +198,7 @@ class RunnerLicenseVerificationService
 
                 return RunnerLicenseVerification::query()->create([
                     'id' => (string) Str::uuid(),
-                    'account_id' => $account->id,
+                    'account_id' => $lockedAccount->id,
                     ...$values,
                 ]);
             });
