@@ -13,11 +13,67 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class RunnerLicenseVerificationController extends Controller
 {
+    public function index(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'status' => [
+                'sometimes',
+                'required',
+                'string',
+                'in:PENDING,VERIFIED,REJECTED',
+            ],
+            'per_page' => [
+                'sometimes',
+                'integer',
+                'min:1',
+                'max:100',
+            ],
+        ]);
+
+        $status = $validated['status'] ?? 'PENDING';
+        $perPage = (int) ($validated['per_page'] ?? 20);
+
+        $applications = RunnerLicenseVerification::query()
+            ->with('account:id,name')
+            ->where('status', $status)
+            ->orderByDesc('submitted_at')
+            ->paginate($perPage);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'applications' => $applications->getCollection()
+                    ->map(
+                        fn (
+                            RunnerLicenseVerification $verification
+                        ): array => [
+                            'account_id' => $verification->account_id,
+                            'display_name' => $verification->account?->name,
+                            'license_class' => $verification->license_class,
+                            'expires_at' => $verification->expires_at
+                                ?->toDateString(),
+                            'status' => $verification->status,
+                            'submitted_at' => $verification->submitted_at,
+                            'reviewed_at' => $verification->reviewed_at,
+                        ]
+                    )
+                    ->values(),
+                'pagination' => [
+                    'current_page' => $applications->currentPage(),
+                    'last_page' => $applications->lastPage(),
+                    'per_page' => $applications->perPage(),
+                    'total' => $applications->total(),
+                ],
+            ],
+        ]);
+    }
+
     public function showMyStatus(Request $request): JsonResponse
     {
         /** @var Account $account */
@@ -264,8 +320,7 @@ class RunnerLicenseVerificationController extends Controller
                         ? 'Driving license verification marked VERIFIED.'
                         : 'Driving license verification marked REJECTED.';
 
-                // Never place license numbers, document paths, or free-text
-                // rejection reasons in audit logs.
+                // Do not log license numbers, document paths, or free-text reasons.
                 $auditLogService->record(
                     $actor,
                     $targetAccount,
@@ -332,7 +387,7 @@ class RunnerLicenseVerificationController extends Controller
 
         return $disk->download(
             $verification->document_path,
-            'runner-license-'.\Illuminate\Support\Str::uuid().'.'.$extension,
+            'runner-license-'.Str::uuid().'.'.$extension,
             [
                 'Content-Type' => $verification->mime_type,
                 'Cache-Control' => 'private, no-store',
