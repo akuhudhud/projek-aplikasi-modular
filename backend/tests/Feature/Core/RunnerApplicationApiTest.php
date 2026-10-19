@@ -4,8 +4,10 @@ namespace Tests\Feature\Core;
 
 use App\Models\Account;
 use App\Models\AccountPermission;
+use App\Models\IdentityVerification;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -32,6 +34,19 @@ class RunnerApplicationApiTest extends TestCase
         $account->save();
 
         return $account->fresh();
+    }
+
+    private function verifyIdentity(Account $account): void
+    {
+        IdentityVerification::create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $account->id,
+            'real_name' => 'Contoh Nama Sebenar',
+            'mykad_number_encrypted' => Crypt::encryptString('900101145678'),
+            'status' => IdentityVerification::STATUS_VERIFIED,
+            'submitted_at' => now(),
+            'reviewed_at' => now(),
+        ]);
     }
 
     private function grantPermissions(
@@ -80,6 +95,7 @@ class RunnerApplicationApiTest extends TestCase
     public function test_user_can_submit_runner_application_through_api(): void
     {
         $user = $this->createAccount();
+        $this->verifyIdentity($user);
 
         $this->asAccount($user, 'runner-apply-token')
             ->postJson('/api/me/runner-application')
@@ -100,6 +116,102 @@ class RunnerApplicationApiTest extends TestCase
             'actor_account_id' => $user->id,
             'target_account_id' => $user->id,
             'action' => 'RUNNER_APPLICATION_SUBMITTED',
+        ]);
+    }
+
+    public function test_user_without_verified_identity_is_directed_to_identity_verification(): void
+    {
+        $user = $this->createAccount();
+
+        $this->asAccount($user, 'runner-identity-required-token')
+            ->postJson('/api/me/runner-application')
+            ->assertUnprocessable()
+            ->assertJsonPath('success', false)
+            ->assertJsonPath(
+                'message',
+                'Sila sahkan identiti dahulu sebelum memohon menjadi Runner.'
+            )
+            ->assertJsonPath(
+                'data.next_action.type',
+                'IDENTITY_VERIFICATION'
+            )
+            ->assertJsonPath(
+                'data.next_action.method',
+                'GET'
+            )
+            ->assertJsonPath(
+                'data.next_action.endpoint',
+                '/api/me/identity-verification'
+            )
+            ->assertJsonPath(
+                'data.next_action.submit_method',
+                'POST'
+            )
+            ->assertJsonPath(
+                'data.next_action.submit_endpoint',
+                '/api/me/identity-verification'
+            );
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $user->id,
+            'runner_status' => Account::RUNNER_STATUS_NOT_RUNNER,
+        ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'target_account_id' => $user->id,
+            'action' => 'RUNNER_APPLICATION_SUBMITTED',
+        ]);
+    }
+
+    public function test_pending_identity_verification_does_not_allow_runner_application(): void
+    {
+        $user = $this->createAccount();
+
+        IdentityVerification::create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $user->id,
+            'real_name' => 'Contoh Nama Sebenar',
+            'mykad_number_encrypted' => Crypt::encryptString('900101145678'),
+            'status' => IdentityVerification::STATUS_PENDING,
+            'submitted_at' => now(),
+        ]);
+
+        $this->asAccount($user, 'runner-identity-pending-token')
+            ->postJson('/api/me/runner-application')
+            ->assertUnprocessable()
+            ->assertJsonPath(
+                'data.next_action.endpoint',
+                '/api/me/identity-verification'
+            );
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $user->id,
+            'runner_status' => Account::RUNNER_STATUS_NOT_RUNNER,
+        ]);
+    }
+
+    public function test_rejected_identity_verification_does_not_allow_runner_application(): void
+    {
+        $user = $this->createAccount();
+
+        IdentityVerification::create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $user->id,
+            'real_name' => 'Contoh Nama Sebenar',
+            'mykad_number_encrypted' => Crypt::encryptString('900101145678'),
+            'status' => IdentityVerification::STATUS_REJECTED,
+            'submitted_at' => now(),
+            'reviewed_at' => now(),
+            'rejection_reason' => 'Dokumen tidak jelas.',
+        ]);
+
+        $this->asAccount($user, 'runner-identity-rejected-token')
+            ->postJson('/api/me/runner-application')
+            ->assertUnprocessable();
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $user->id,
+            'runner_status' => Account::RUNNER_STATUS_NOT_RUNNER,
         ]);
     }
 
