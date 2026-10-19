@@ -5,6 +5,7 @@ namespace Tests\Feature\Core;
 use App\Models\Account;
 use App\Models\AccountPermission;
 use App\Models\IdentityVerification;
+use App\Models\RunnerLicenseVerification;
 use App\Services\RunnerStatusService;
 use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -57,6 +58,27 @@ class RunnerStatusServiceTest extends TestCase
             'status' => IdentityVerification::STATUS_VERIFIED,
             'submitted_at' => now(),
             'reviewed_at' => now(),
+        ]);
+
+        RunnerLicenseVerification::create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $account->id,
+            'license_number_encrypted' => Crypt::encryptString(
+                'D123456789012'
+            ),
+            'license_class' => 'D',
+            'expires_at' => now()->addYear()->toDateString(),
+            'status' => RunnerLicenseVerification::STATUS_VERIFIED,
+            'submitted_at' => now(),
+            'reviewed_at' => now(),
+            'reviewer_account_id' => null,
+            'rejection_reason' => null,
+            'disk' => 'local',
+            'document_path' => 'runner-license-documents/test-'
+                .Str::uuid()
+                .'.pdf',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 100,
         ]);
     }
 
@@ -178,10 +200,7 @@ class RunnerStatusServiceTest extends TestCase
 
     public function test_inactive_account_cannot_apply(): void
     {
-        $account = $this->createAccount(
-            'USER',
-            'SUSPENDED'
-        );
+        $account = $this->createAccount('USER', 'SUSPENDED');
 
         $this->expectException(DomainException::class);
         $this->expectExceptionMessage(
