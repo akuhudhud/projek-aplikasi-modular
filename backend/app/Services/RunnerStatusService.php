@@ -62,16 +62,18 @@ class RunnerStatusService
 
             $license = RunnerLicenseVerification::query()
                 ->where('account_id', $account->id)
+                ->where('is_current', true)
+                ->where(
+                    'status',
+                    RunnerLicenseVerification::STATUS_VERIFIED
+                )
+                ->orderByDesc('submitted_at')
                 ->lockForUpdate()
                 ->first();
 
-            if (
-                $license === null
-                || $license->status
-                    !== RunnerLicenseVerification::STATUS_VERIFIED
-            ) {
+            if ($license === null) {
                 throw new DomainException(
-                    'Driving license verification is required before applying to become a Runner.'
+                    'A current verified driving license is required before applying to become a Runner.'
                 );
             }
 
