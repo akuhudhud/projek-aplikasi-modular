@@ -11,7 +11,7 @@ class SuperAdminProtectionTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_root_super_admin_cannot_suspend_own_account(): void
+    public function test_root_super_admin_can_suspend_own_account(): void
     {
         [$root, $token] = $this->createAccountWithSession(
             'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -27,21 +27,33 @@ class SuperAdminProtectionTest extends TestCase
         )->postJson(
             '/api/admin/accounts/'.$root->id.'/suspend',
             [
-                'reason' => 'Protection test.',
+                'reason' => 'Root initiated account suspension.',
             ]
         );
 
         $response
-            ->assertStatus(403)
+            ->assertOk()
             ->assertJson([
-                'success' => false,
-                'message' => 'Unauthorized.',
+                'success' => true,
+                'message' => 'Account suspended successfully.',
             ]);
 
         $this->assertDatabaseHas('accounts', [
             'id' => $root->id,
             'role' => 'ROOT_SUPER_ADMIN',
-            'status' => 'ACTIVE',
+            'status' => 'SUSPENDED',
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $root->id,
+            'target_account_id' => $root->id,
+            'action' => 'ACCOUNT_SUSPENDED',
+            'reason' => 'Root initiated account suspension.',
+        ]);
+
+        $this->assertDatabaseHas('sessions', [
+            'account_id' => $root->id,
+            'ended_at' => now(),
         ]);
     }
 
