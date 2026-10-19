@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\Account;
+use App\Models\AccountPermission;
 use App\Models\Session;
 use App\Services\Session\SessionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -265,6 +266,11 @@ class SessionHardeningTest extends TestCase
             'password' => 'Password1',
             'role' => 'SUPER_ADMIN',
             'status' => 'ACTIVE',
+        ]);
+
+        AccountPermission::create([
+            'account_id' => $admin->id,
+            'permission_key' => 'accounts.suspend',
         ]);
 
         $adminToken = 'session-admin-token';
