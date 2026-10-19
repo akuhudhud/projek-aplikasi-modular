@@ -53,12 +53,14 @@ class RunnerLicenseVerificationController extends Controller
                         fn (
                             RunnerLicenseVerification $verification
                         ): array => [
+                            'id' => $verification->id,
                             'account_id' => $verification->account_id,
                             'display_name' => $verification->account?->name,
                             'license_class' => $verification->license_class,
                             'expires_at' => $verification->expires_at
                                 ?->toDateString(),
                             'status' => $verification->status,
+                            'is_current' => $verification->is_current,
                             'submitted_at' => $verification->submitted_at,
                             'reviewed_at' => $verification->reviewed_at,
                         ]
@@ -79,41 +81,58 @@ class RunnerLicenseVerificationController extends Controller
         /** @var Account $account */
         $account = $request->attributes->get('account');
 
-        $verification = RunnerLicenseVerification::query()
+        $currentLicense = RunnerLicenseVerification::query()
             ->where('account_id', $account->id)
+            ->where('is_current', true)
+            ->where(
+                'status',
+                RunnerLicenseVerification::STATUS_VERIFIED
+            )
+            ->orderByDesc('submitted_at')
             ->first();
 
-        if ($verification === null) {
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'runner_license_verification' => [
+        $pendingApplication = RunnerLicenseVerification::query()
+            ->where('account_id', $account->id)
+            ->where(
+                'status',
+                RunnerLicenseVerification::STATUS_PENDING
+            )
+            ->orderByDesc('submitted_at')
+            ->first();
+
+        $latestApplication = RunnerLicenseVerification::query()
+            ->where('account_id', $account->id)
+            ->orderByDesc('submitted_at')
+            ->first();
+
+        $displayedApplication = $pendingApplication
+            ?? $currentLicense
+            ?? $latestApplication;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                // Retained for clients using the existing response key.
+                'runner_license_verification' => $displayedApplication === null
+                    ? [
+                        'id' => null,
                         'status' => 'NOT_SUBMITTED',
+                        'is_current' => false,
                         'license_class' => null,
                         'expires_at' => null,
                         'submitted_at' => null,
                         'reviewed_at' => null,
                         'rejection_reason' => null,
-                    ],
-                ],
-            ]);
-        }
+                    ]
+                    : $this->statusPayload($displayedApplication),
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'runner_license_verification' => [
-                    'status' => $verification->status,
-                    'license_class' => $verification->license_class,
-                    'expires_at' => $verification->expires_at?->toDateString(),
-                    'submitted_at' => $verification->submitted_at,
-                    'reviewed_at' => $verification->reviewed_at,
-                    'rejection_reason' =>
-                        $verification->status
-                            === RunnerLicenseVerification::STATUS_REJECTED
-                            ? $verification->rejection_reason
-                            : null,
-                ],
+                'current_license' => $currentLicense === null
+                    ? null
+                    : $this->statusPayload($currentLicense),
+
+                'pending_application' => $pendingApplication === null
+                    ? null
+                    : $this->statusPayload($pendingApplication),
             ],
         ]);
     }
@@ -151,7 +170,7 @@ class RunnerLicenseVerificationController extends Controller
                 $account,
                 $account,
                 'RUNNER_LICENSE_VERIFICATION_SUBMITTED',
-                'Driving license verification submitted or resubmitted.'
+                'Driving license verification submitted.'
             );
 
             return response()->json([
@@ -159,9 +178,12 @@ class RunnerLicenseVerificationController extends Controller
                 'message' => 'Pengesahan lesen memandu berjaya dihantar.',
                 'data' => [
                     'runner_license_verification' => [
+                        'id' => $verification->id,
                         'status' => $verification->status,
+                        'is_current' => $verification->is_current,
                         'license_class' => $verification->license_class,
-                        'expires_at' => $verification->expires_at->toDateString(),
+                        'expires_at' => $verification->expires_at
+                            ->toDateString(),
                         'submitted_at' => $verification->submitted_at,
                     ],
                 ],
@@ -181,10 +203,7 @@ class RunnerLicenseVerificationController extends Controller
 
     public function showForReview(string $accountId): JsonResponse
     {
-        $verification = RunnerLicenseVerification::query()
-            ->with('account')
-            ->where('account_id', $accountId)
-            ->first();
+        $verification = $this->findVerification($accountId);
 
         if ($verification === null) {
             return $this->errorResponse(
@@ -199,15 +218,18 @@ class RunnerLicenseVerificationController extends Controller
             'success' => true,
             'data' => [
                 'runner_license_verification' => [
+                    'id' => $verification->id,
                     'account_id' => $verification->account_id,
-                    'display_name' => $verification->account->name,
+                    'display_name' => $verification->account?->name,
                     'license_number_masked' => str_repeat(
                         '*',
                         max(0, strlen($licenseNumber) - 4)
                     ).substr($licenseNumber, -4),
                     'license_class' => $verification->license_class,
-                    'expires_at' => $verification->expires_at->toDateString(),
+                    'expires_at' => $verification->expires_at
+                        ?->toDateString(),
                     'status' => $verification->status,
+                    'is_current' => $verification->is_current,
                     'mime_type' => $verification->mime_type,
                     'size_bytes' => $verification->size_bytes,
                     'submitted_at' => $verification->submitted_at,
@@ -266,16 +288,21 @@ class RunnerLicenseVerificationController extends Controller
                 $rejectionReason,
                 $auditLogService
             ): RunnerLicenseVerification {
-                $verification = RunnerLicenseVerification::query()
-                    ->where('account_id', $accountId)
-                    ->lockForUpdate()
-                    ->first();
+                $verification = $this->findVerification(
+                    $accountId,
+                    true
+                );
 
                 if ($verification === null) {
                     throw new ModelNotFoundException(
                         'Permohonan pengesahan lesen tidak ditemui.'
                     );
                 }
+
+                $verification = RunnerLicenseVerification::query()
+                    ->whereKey($verification->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
                 if (
                     $verification->status
@@ -289,7 +316,11 @@ class RunnerLicenseVerificationController extends Controller
                 if (
                     $validated['decision']
                         === RunnerLicenseVerification::STATUS_VERIFIED
-                    && $verification->expires_at->lt(now()->startOfDay())
+                    && (
+                        $verification->expires_at === null
+                        || $verification->expires_at
+                            ->lt(now()->startOfDay())
+                    )
                 ) {
                     throw new DomainException(
                         'Lesen telah tamat tempoh dan tidak boleh disahkan.'
@@ -299,6 +330,20 @@ class RunnerLicenseVerificationController extends Controller
                 $targetAccount = Account::query()
                     ->whereKey($verification->account_id)
                     ->firstOrFail();
+
+                if (
+                    $validated['decision']
+                    === RunnerLicenseVerification::STATUS_VERIFIED
+                ) {
+                    RunnerLicenseVerification::query()
+                        ->where('account_id', $verification->account_id)
+                        ->where('is_current', true)
+                        ->where('id', '!=', $verification->id)
+                        ->lockForUpdate()
+                        ->update(['is_current' => false]);
+
+                    $verification->is_current = true;
+                }
 
                 $verification->status = $validated['decision'];
                 $verification->reviewer_account_id = $actor->id;
@@ -320,7 +365,6 @@ class RunnerLicenseVerificationController extends Controller
                         ? 'Driving license verification marked VERIFIED.'
                         : 'Driving license verification marked REJECTED.';
 
-                // Do not log license numbers, document paths, or free-text reasons.
                 $auditLogService->record(
                     $actor,
                     $targetAccount,
@@ -336,8 +380,10 @@ class RunnerLicenseVerificationController extends Controller
                 'message' => 'Keputusan pengesahan lesen disimpan.',
                 'data' => [
                     'runner_license_verification' => [
+                        'id' => $verification->id,
                         'account_id' => $verification->account_id,
                         'status' => $verification->status,
+                        'is_current' => $verification->is_current,
                         'reviewed_at' => $verification->reviewed_at,
                     ],
                 ],
@@ -358,9 +404,7 @@ class RunnerLicenseVerificationController extends Controller
     public function downloadDocument(
         string $accountId
     ): StreamedResponse|JsonResponse {
-        $verification = RunnerLicenseVerification::query()
-            ->where('account_id', $accountId)
-            ->first();
+        $verification = $this->findVerification($accountId);
 
         if ($verification === null) {
             return $this->errorResponse(
@@ -394,6 +438,61 @@ class RunnerLicenseVerificationController extends Controller
                 'X-Content-Type-Options' => 'nosniff',
             ]
         );
+    }
+
+    private function findVerification(
+        string $identifier,
+        bool $pendingFirst = false
+    ): ?RunnerLicenseVerification {
+        $byId = RunnerLicenseVerification::query()
+            ->with('account')
+            ->whereKey($identifier)
+            ->first();
+
+        if ($byId !== null) {
+            return $byId;
+        }
+
+        $query = RunnerLicenseVerification::query()
+            ->with('account')
+            ->where('account_id', $identifier);
+
+        if ($pendingFirst) {
+            $query->orderByRaw(
+                'CASE WHEN status = ? THEN 0 ELSE 1 END',
+                [RunnerLicenseVerification::STATUS_PENDING]
+            );
+        } else {
+            $query->orderByRaw(
+                'CASE WHEN status = ? THEN 0 WHEN is_current = 1 THEN 1 ELSE 2 END',
+                [
+                    RunnerLicenseVerification::STATUS_PENDING,
+                ]
+            );
+        }
+
+        return $query
+            ->orderByDesc('submitted_at')
+            ->first();
+    }
+
+    private function statusPayload(
+        RunnerLicenseVerification $verification
+    ): array {
+        return [
+            'id' => $verification->id,
+            'status' => $verification->status,
+            'is_current' => $verification->is_current,
+            'license_class' => $verification->license_class,
+            'expires_at' => $verification->expires_at?->toDateString(),
+            'submitted_at' => $verification->submitted_at,
+            'reviewed_at' => $verification->reviewed_at,
+            'rejection_reason' =>
+                $verification->status
+                    === RunnerLicenseVerification::STATUS_REJECTED
+                    ? $verification->rejection_reason
+                    : null,
+        ];
     }
 
     private function errorResponse(
