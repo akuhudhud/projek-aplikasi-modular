@@ -192,6 +192,11 @@ Route::get('/admin/accounts', [AccountController::class, 'index'])
 Route::post('/admin/accounts', [AccountController::class, 'createSuperAdmin'])
     ->middleware(AuthenticateSession::class);
 
+Route::patch('/admin/accounts/{accountId}/job-title', [
+    AccountController::class,
+    'updateSuperAdminJobTitle',
+])->middleware(AuthenticateSession::class);
+
 Route::post('/admin/accounts/{accountId}/reactivate', [
     AuthController::class,
     'reactivate',
