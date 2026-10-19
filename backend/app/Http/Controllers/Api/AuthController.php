@@ -547,10 +547,12 @@ class AuthController extends Controller
             return false;
         }
 
+        // Root is the owner and has unrestricted account-management authority.
         if ($admin->role === 'ROOT_SUPER_ADMIN') {
-            return $target->role !== 'ROOT_SUPER_ADMIN';
+            return true;
         }
 
+        // Appointed Super Admins may manage USER accounts only.
         if ($admin->role === 'SUPER_ADMIN') {
             return $target->role === 'USER';
         }
