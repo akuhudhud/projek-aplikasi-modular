@@ -197,6 +197,16 @@ Route::patch('/admin/accounts/{accountId}/job-title', [
     'updateSuperAdminJobTitle',
 ])->middleware(AuthenticateSession::class);
 
+Route::get('/admin/accounts/{accountId}/permissions', [
+    AccountController::class,
+    'showSuperAdminPermissions',
+])->middleware(AuthenticateSession::class);
+
+Route::put('/admin/accounts/{accountId}/permissions', [
+    AccountController::class,
+    'updateSuperAdminPermissions',
+])->middleware(AuthenticateSession::class);
+
 Route::post('/admin/accounts/{accountId}/reactivate', [
     AuthController::class,
     'reactivate',
