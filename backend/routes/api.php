@@ -14,7 +14,6 @@ use App\Http\Controllers\Api\RunnerController;
 use App\Http\Controllers\Api\RunnerLicenseVerificationController;
 use App\Http\Controllers\Api\RunnerPublicProfileController;
 use App\Http\Middleware\AuthenticateSession;
-use App\Http\Middleware\EnsureAdminPermission;
 use App\Http\Middleware\ExpireMarketplaceItems;
 use Illuminate\Support\Facades\Route;
 
@@ -131,6 +130,14 @@ Route::post('/me/runner-license-verification', [
     RunnerLicenseVerificationController::class,
     'submit',
 ])->middleware(AuthenticateSession::class);
+
+Route::get('/admin/runner-license-verifications', [
+    RunnerLicenseVerificationController::class,
+    'index',
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:runner_license_verifications.review',
+]);
 
 Route::get('/admin/runner-license-verifications/{accountId}', [
     RunnerLicenseVerificationController::class,
