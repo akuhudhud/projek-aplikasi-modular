@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\Account;
+use App\Models\AccountPermission;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -11,6 +12,14 @@ use Tests\TestCase;
 class UnsuspendAccountTest extends TestCase
 {
     use RefreshDatabase;
+
+    private function grantPermission(Account $account, string $permission): void
+    {
+        AccountPermission::create([
+            'account_id' => $account->id,
+            'permission_key' => $permission,
+        ]);
+    }
 
     public function test_super_admin_can_unsuspend_suspended_user(): void
     {
@@ -23,6 +32,8 @@ class UnsuspendAccountTest extends TestCase
             'role' => 'SUPER_ADMIN',
             'status' => 'ACTIVE',
         ]);
+
+        $this->grantPermission($admin, 'accounts.unsuspend');
 
         $user = Account::create([
             'id' => (string) Str::uuid(),
@@ -101,7 +112,8 @@ class UnsuspendAccountTest extends TestCase
             ->assertStatus(403)
             ->assertJson([
                 'success' => false,
-                'message' => 'Unauthorized.',
+                'message' => 'You do not have permission to perform this action.',
+                'required_permission' => 'accounts.unsuspend',
             ]);
     }
 
@@ -151,6 +163,8 @@ class UnsuspendAccountTest extends TestCase
             'status' => 'ACTIVE',
         ]);
 
+        $this->grantPermission($admin, 'accounts.unsuspend');
+
         $adminToken = Str::random(64);
 
         Session::create([
@@ -183,6 +197,8 @@ class UnsuspendAccountTest extends TestCase
             'role' => 'SUPER_ADMIN',
             'status' => 'ACTIVE',
         ]);
+
+        $this->grantPermission($admin, 'accounts.unsuspend');
 
         $adminToken = Str::random(64);
 
