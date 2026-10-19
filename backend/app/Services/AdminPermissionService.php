@@ -24,6 +24,7 @@ class AdminPermissionService
         'runners.suspend' => 'Menggantung kelayakan Runner',
         'runners.restore' => 'Memulihkan kelayakan Runner',
         'identity_verifications.review' => 'Menyemak pengesahan identiti',
+        'runner_license_verifications.review' => 'Menyemak pengesahan lesen memandu',
         'audit_logs.view' => 'Melihat rekod audit',
     ];
 
