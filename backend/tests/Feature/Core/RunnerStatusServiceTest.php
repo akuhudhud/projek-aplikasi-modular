@@ -70,6 +70,33 @@ class RunnerStatusServiceTest extends TestCase
         ]);
     }
 
+    private function createPendingLicense(
+        Account $account
+    ): RunnerLicenseVerification {
+        return RunnerLicenseVerification::create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $account->id,
+            'license_number_encrypted' => Crypt::encryptString(
+                'D123456789012'
+            ),
+            'license_type' => RunnerLicenseVerification::TYPE_CAR,
+            'license_class' => 'D',
+            'expires_at' => now()->addYear()->toDateString(),
+            'status' => RunnerLicenseVerification::STATUS_PENDING,
+            'is_current' => false,
+            'submitted_at' => now(),
+            'reviewed_at' => null,
+            'reviewer_account_id' => null,
+            'rejection_reason' => null,
+            'disk' => 'local',
+            'document_path' => 'runner-license-documents/test-'
+                .Str::uuid()
+                .'.pdf',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 100,
+        ]);
+    }
+
     private function verifyIdentity(Account $account): void
     {
         $this->verifyIdentityOnly($account);
@@ -80,6 +107,7 @@ class RunnerStatusServiceTest extends TestCase
             'license_number_encrypted' => Crypt::encryptString(
                 'D123456789012'
             ),
+            'license_type' => RunnerLicenseVerification::TYPE_CAR,
             'license_class' => 'D',
             'expires_at' => now()->addYear()->toDateString(),
             'status' => RunnerLicenseVerification::STATUS_VERIFIED,
@@ -254,7 +282,9 @@ class RunnerStatusServiceTest extends TestCase
             'ACTIVE',
             Account::RUNNER_STATUS_PENDING
         );
-        $this->verifyIdentity($applicant);
+
+        $this->verifyIdentityOnly($applicant);
+        $this->createPendingLicense($applicant);
 
         $result = $this->runnerStatusService->changeStatus(
             $admin,
@@ -267,6 +297,12 @@ class RunnerStatusServiceTest extends TestCase
             Account::RUNNER_STATUS_APPROVED,
             $result->runner_status
         );
+
+        $this->assertDatabaseHas('runner_license_verifications', [
+            'account_id' => $applicant->id,
+            'status' => RunnerLicenseVerification::STATUS_VERIFIED,
+            'is_current' => true,
+        ]);
 
         $this->assertDatabaseHas('audit_logs', [
             'actor_account_id' => $admin->id,
@@ -382,6 +418,8 @@ class RunnerStatusServiceTest extends TestCase
             Account::RUNNER_STATUS_PENDING
         );
 
+        $this->createPendingLicense($target);
+
         $result = $this->runnerStatusService->changeStatus(
             $root,
             $target->id,
@@ -393,6 +431,12 @@ class RunnerStatusServiceTest extends TestCase
             Account::RUNNER_STATUS_REJECTED,
             $result->runner_status
         );
+
+        $this->assertDatabaseHas('runner_license_verifications', [
+            'account_id' => $target->id,
+            'status' => RunnerLicenseVerification::STATUS_REJECTED,
+            'is_current' => false,
+        ]);
 
         $this->assertDatabaseHas('audit_logs', [
             'actor_account_id' => $root->id,
@@ -430,7 +474,9 @@ class RunnerStatusServiceTest extends TestCase
             'ACTIVE',
             Account::RUNNER_STATUS_PENDING
         );
-        $this->verifyIdentity($anotherRoot);
+
+        $this->verifyIdentityOnly($anotherRoot);
+        $this->createPendingLicense($anotherRoot);
 
         $result = $this->runnerStatusService->changeStatus(
             $root,
@@ -443,6 +489,12 @@ class RunnerStatusServiceTest extends TestCase
             Account::RUNNER_STATUS_APPROVED,
             $result->runner_status
         );
+
+        $this->assertDatabaseHas('runner_license_verifications', [
+            'account_id' => $anotherRoot->id,
+            'status' => RunnerLicenseVerification::STATUS_VERIFIED,
+            'is_current' => true,
+        ]);
 
         $this->assertDatabaseHas('audit_logs', [
             'actor_account_id' => $root->id,
@@ -459,7 +511,9 @@ class RunnerStatusServiceTest extends TestCase
             'ACTIVE',
             Account::RUNNER_STATUS_PENDING
         );
-        $this->verifyIdentity($root);
+
+        $this->verifyIdentityOnly($root);
+        $this->createPendingLicense($root);
 
         $result = $this->runnerStatusService->changeStatus(
             $root,
@@ -472,6 +526,12 @@ class RunnerStatusServiceTest extends TestCase
             Account::RUNNER_STATUS_APPROVED,
             $result->runner_status
         );
+
+        $this->assertDatabaseHas('runner_license_verifications', [
+            'account_id' => $root->id,
+            'status' => RunnerLicenseVerification::STATUS_VERIFIED,
+            'is_current' => true,
+        ]);
 
         $this->assertDatabaseHas('audit_logs', [
             'actor_account_id' => $root->id,
