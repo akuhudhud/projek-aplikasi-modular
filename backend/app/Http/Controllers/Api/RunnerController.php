@@ -10,18 +10,10 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use InvalidArgumentException;
 
 class RunnerController extends Controller
 {
-    private const IDENTITY_VERIFICATION_REQUIRED =
-        'Identity verification is required before applying to become a Runner.';
-
-    private const LICENSE_VERIFICATION_REQUIRED =
-        'Driving license verification is required before applying to become a Runner.';
-
-    private const LICENSE_EXPIRED =
-        'A valid, unexpired driving license is required before applying to become a Runner.';
-
     public function __construct(
         private RunnerStatusService $runnerStatusService
     ) {
@@ -45,19 +37,70 @@ class RunnerController extends Controller
 
     public function apply(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'license_number' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+            'license_type' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:30',
+            ],
+            'license_class' => [
+                'required',
+                'string',
+                'max:30',
+            ],
+            'expires_at' => [
+                'required',
+                'date_format:Y-m-d',
+            ],
+            'document' => [
+                'required',
+                'file',
+                'mimes:jpg,jpeg,png,pdf',
+                'max:10240',
+            ],
+        ]);
+
         /** @var Account $account */
         $account = $request->attributes->get('account');
 
         try {
-            $updatedAccount = $this->runnerStatusService->apply($account);
+            $updatedAccount = $this->runnerStatusService->apply(
+                $account,
+                $validated['license_number'],
+                $validated['license_class'],
+                $validated['expires_at'],
+                $validated['document'],
+                $validated['license_type'] ?? null
+            );
+
+            $license = \App\Models\RunnerLicenseVerification::query()
+                ->where('account_id', $updatedAccount->id)
+                ->where(
+                    'status',
+                    \App\Models\RunnerLicenseVerification::STATUS_PENDING
+                )
+                ->orderByDesc('submitted_at')
+                ->first();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Runner application submitted successfully.',
+                'message' => 'Permohonan Runner dan dokumen lesen berjaya dihantar untuk semakan.',
                 'data' => [
                     'runner_application' => [
                         'account_id' => $updatedAccount->id,
                         'runner_status' => $updatedAccount->runner_status,
+                    ],
+                    'runner_license_verification' => [
+                        'id' => $license?->id,
+                        'status' => $license?->status,
+                        'license_class' => $license?->license_class,
+                        'expires_at' => $license?->expires_at?->toDateString(),
                     ],
                 ],
             ], 201);
@@ -66,10 +109,12 @@ class RunnerController extends Controller
                 $exception->getMessage(),
                 403
             );
-        } catch (DomainException $exception) {
+        } catch (DomainException | InvalidArgumentException $exception) {
+            $message = $exception->getMessage();
+
             if (
-                $exception->getMessage()
-                === self::IDENTITY_VERIFICATION_REQUIRED
+                $message
+                === 'Identity verification is required before applying to become a Runner.'
             ) {
                 return response()->json([
                     'success' => false,
@@ -86,32 +131,7 @@ class RunnerController extends Controller
                 ], 422);
             }
 
-            if (in_array($exception->getMessage(), [
-                self::LICENSE_VERIFICATION_REQUIRED,
-                self::LICENSE_EXPIRED,
-            ], true)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $exception->getMessage()
-                        === self::LICENSE_EXPIRED
-                        ? 'Lesen memandu telah tamat tempoh. Sila kemas kini pengesahan lesen.'
-                        : 'Sila sahkan lesen memandu dahulu sebelum memohon menjadi Runner.',
-                    'data' => [
-                        'next_action' => [
-                            'type' => 'RUNNER_LICENSE_VERIFICATION',
-                            'method' => 'GET',
-                            'endpoint' => '/api/me/runner-license-verification',
-                            'submit_method' => 'POST',
-                            'submit_endpoint' => '/api/me/runner-license-verification',
-                        ],
-                    ],
-                ], 422);
-            }
-
-            return $this->errorResponse(
-                $exception->getMessage(),
-                422
-            );
+            return $this->errorResponse($message, 422);
         } catch (ModelNotFoundException $exception) {
             return $this->errorResponse(
                 'Account not found.',
