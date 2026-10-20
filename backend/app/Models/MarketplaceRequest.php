@@ -6,6 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property \Illuminate\Support\Carbon|null $expires_at
+ * @property \Illuminate\Support\Carbon|null $awarded_at
+ * @property \Illuminate\Support\Carbon|null $cancelled_at
+ */
 class MarketplaceRequest extends Model
 {
     public const STATUS_OPEN = 'OPEN';
@@ -44,17 +49,15 @@ class MarketplaceRequest extends Model
         'cancelled_at',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'pickup_location_snapshot' => 'array',
-            'delivery_location_snapshot' => 'array',
-            'expires_at' => 'datetime',
-            'awarded_at' => 'datetime',
-            'cancelled_at' => 'datetime',
-        ];
-    }
+    protected $casts = [
+        'pickup_location_snapshot' => 'array',
+        'delivery_location_snapshot' => 'array',
+        'expires_at' => 'datetime',
+        'awarded_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+    ];
 
+    /** @return BelongsTo<Account, $this> */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(
@@ -64,6 +67,7 @@ class MarketplaceRequest extends Model
         );
     }
 
+    /** @return BelongsTo<Account, $this> */
     public function targetRunner(): BelongsTo
     {
         return $this->belongsTo(
@@ -73,6 +77,7 @@ class MarketplaceRequest extends Model
         );
     }
 
+    /** @return HasMany<MarketplaceQuotation, $this> */
     public function quotations(): HasMany
     {
         return $this->hasMany(
@@ -82,6 +87,7 @@ class MarketplaceRequest extends Model
         );
     }
 
+    /** @return BelongsTo<MarketplaceQuotation, $this> */
     public function winningQuotation(): BelongsTo
     {
         return $this->belongsTo(
