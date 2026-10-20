@@ -41,31 +41,47 @@ class RunnerPublicProfileController extends Controller
         $validated = $request->validate([
             'public_slug' => [
                 $profile ? 'sometimes' : 'required',
-                'string', 'alpha_dash', 'min:3', 'max:50',
+                'string',
+                'alpha_dash',
+                'min:3',
+                'max:50',
             ],
             'display_name' => [
                 $profile ? 'sometimes' : 'required',
-                'string', 'max:80',
+                'string',
+                'max:80',
             ],
             'bio' => [
-                'sometimes', 'nullable', 'string', 'max:2000',
+                'sometimes',
+                'nullable',
+                'string',
+                'max:2000',
             ],
             'service_area' => [
-                'sometimes', 'nullable', 'string', 'max:120',
+                'sometimes',
+                'nullable',
+                'string',
+                'max:120',
             ],
             'services' => [
-                'sometimes', 'nullable', 'array', 'max:20',
+                'sometimes',
+                'nullable',
+                'array',
+                'max:20',
             ],
             'services.*' => [
-                'required', 'string', 'max:64',
+                'required',
+                'string',
+                'max:64',
             ],
             'is_published' => [
-                'sometimes', 'boolean',
+                'sometimes',
+                'boolean',
             ],
         ]);
 
         $slug = strtolower(trim(
-            $validated['public_slug'] ?? $profile?->public_slug ?? ''
+            $validated['public_slug'] ?? ($profile?->public_slug ?? '')
         ));
 
         $slugTaken = RunnerPublicProfile::query()
@@ -82,8 +98,7 @@ class RunnerPublicProfileController extends Controller
 
         $isPublished = (bool) (
             $validated['is_published']
-            ?? $profile?->is_published
-            ?? false
+            ?? ($profile?->is_published ?? false)
         );
 
         $values = [
