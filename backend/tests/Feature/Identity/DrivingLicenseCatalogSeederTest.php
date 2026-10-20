@@ -3,63 +3,61 @@
 namespace Tests\Feature\Identity;
 
 use App\Models\DrivingLicenseCatalog;
+use App\Models\DrivingLicenseType;
 use Database\Seeders\DrivingLicenseCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class DrivingLicenseCatalogSeederTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_seeder_creates_initial_jpj_license_classes(): void
+    public function test_seeder_does_not_insert_hardcoded_license_classes(): void
     {
         $this->seed(DrivingLicenseCatalogSeeder::class);
 
-        foreach ([
-            'A',
-            'A1',
-            'B2',
-            'B',
-            'C',
-            'D',
-            'DA',
-            'E',
-            'F',
-            'G',
-            'H',
-            'I',
-        ] as $code) {
-            $this->assertDatabaseHas('driving_license_catalog', [
-                'code' => $code,
-                'is_active' => true,
-            ]);
-        }
+        $this->assertDatabaseCount('driving_license_catalog', 0);
     }
 
-    public function test_seeder_does_not_overwrite_existing_admin_changes(): void
+    public function test_seeder_does_not_overwrite_admin_managed_catalog_entries(): void
     {
-        $this->seed(DrivingLicenseCatalogSeeder::class);
+        $type = DrivingLicenseType::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'GENERAL',
+            'name' => 'Lesen Am',
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
 
-        $license = DrivingLicenseCatalog::query()
-            ->where('code', 'B2')
-            ->firstOrFail();
-
-        $license->name = 'Nama Diubah Admin';
-        $license->sort_order = 999;
-        $license->is_active = false;
-        $license->save();
+        $license = DrivingLicenseCatalog::query()->create([
+            'id' => (string) Str::uuid(),
+            'driving_license_type_id' => $type->id,
+            'code' => 'B2',
+            'name' => 'Nama Diubah Admin',
+            'description' => 'Rekod yang diurus oleh admin.',
+            'is_active' => false,
+            'sort_order' => 999,
+        ]);
 
         $this->seed(DrivingLicenseCatalogSeeder::class);
 
         $license->refresh();
 
         $this->assertSame('Nama Diubah Admin', $license->name);
+        $this->assertSame(
+            'Rekod yang diurus oleh admin.',
+            $license->description
+        );
         $this->assertSame(999, $license->sort_order);
         $this->assertFalse($license->is_active);
+        $this->assertSame($type->id, $license->driving_license_type_id);
 
         $this->assertSame(
             1,
             DrivingLicenseCatalog::query()
+                ->where('driving_license_type_id', $type->id)
                 ->where('code', 'B2')
                 ->count()
         );
