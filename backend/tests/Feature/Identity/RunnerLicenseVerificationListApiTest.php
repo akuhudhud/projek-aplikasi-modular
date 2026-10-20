@@ -41,9 +41,11 @@ class RunnerLicenseVerificationListApiTest extends TestCase
             'license_number_encrypted' => Crypt::encryptString(
                 'D123456789012'
             ),
+            'license_type' => 'GENERAL',
             'license_class' => 'D',
             'expires_at' => now()->addYear()->toDateString(),
             'status' => $status,
+            'is_current' => $status === RunnerLicenseVerification::STATUS_VERIFIED,
             'submitted_at' => now()->subMinutes(
                 $submittedMinutesAgo
             ),
