@@ -8,96 +8,93 @@ use App\Models\RunnerLicenseVerification;
 use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 class RunnerStatusService
 {
     public function __construct(
         private AuditLogService $auditLogService,
-        private AdminPermissionService $permissionService
+        private AdminPermissionService $permissionService,
+        private RunnerLicenseVerificationService $licenseService
     ) {
     }
 
-    public function apply(Account $applicant): Account
-    {
-        return DB::transaction(function () use ($applicant): Account {
-            $account = Account::query()
-                ->whereKey($applicant->id)
-                ->lockForUpdate()
-                ->firstOrFail();
+    public function apply(
+        Account $applicant,
+        string $licenseNumber,
+        string $licenseClass,
+        string $expiresAt,
+        UploadedFile $document,
+        ?string $licenseType = null
+    ): Account {
+        $identityStatus = IdentityVerification::query()
+            ->where('account_id', $applicant->id)
+            ->value('status');
 
-            if (!in_array($account->role, ['USER', 'SUPER_ADMIN'], true)) {
-                throw new AuthorizationException(
-                    'This account cannot apply to become a Runner.'
-                );
-            }
-
-            if ($account->status !== 'ACTIVE') {
-                throw new DomainException(
-                    'Only active accounts can apply to become a Runner.'
-                );
-            }
-
-            if (
-                $account->runner_status
-                !== Account::RUNNER_STATUS_NOT_RUNNER
-            ) {
-                throw new DomainException(
-                    'A Runner application cannot be submitted from the current status.'
-                );
-            }
-
-            $identityStatus = $account->identityVerification()
-                ->lockForUpdate()
-                ->value('status');
-
-            if (
-                $identityStatus
-                !== IdentityVerification::STATUS_VERIFIED
-            ) {
-                throw new DomainException(
-                    'Identity verification is required before applying to become a Runner.'
-                );
-            }
-
-            $license = RunnerLicenseVerification::query()
-                ->where('account_id', $account->id)
-                ->where('is_current', true)
-                ->where(
-                    'status',
-                    RunnerLicenseVerification::STATUS_VERIFIED
-                )
-                ->orderByDesc('submitted_at')
-                ->lockForUpdate()
-                ->first();
-
-            if ($license === null) {
-                throw new DomainException(
-                    'Driving license verification is required before applying to become a Runner.'
-                );
-            }
-
-            if (
-                $license->expires_at === null
-                || $license->expires_at->lt(now()->startOfDay())
-            ) {
-                throw new DomainException(
-                    'A valid, unexpired driving license is required before applying to become a Runner.'
-                );
-            }
-
-            $account->runner_status = Account::RUNNER_STATUS_PENDING;
-            $account->save();
-
-            $this->auditLogService->record(
-                $account,
-                $account,
-                'RUNNER_APPLICATION_SUBMITTED',
-                'Runner application submitted by account owner.'
+        if ($identityStatus !== IdentityVerification::STATUS_VERIFIED) {
+            throw new DomainException(
+                'Identity verification is required before applying to become a Runner.'
             );
+        }
 
-            return $account->refresh();
-        });
+        $this->licenseService->submit(
+            $applicant,
+            $licenseNumber,
+            $licenseClass,
+            $expiresAt,
+            $document,
+            $licenseType,
+            function (
+                RunnerLicenseVerification $verification,
+                Account $lockedAccount
+            ): void {
+                if (!in_array(
+                    $lockedAccount->role,
+                    ['USER', 'SUPER_ADMIN'],
+                    true
+                )) {
+                    throw new AuthorizationException(
+                        'This account cannot apply to become a Runner.'
+                    );
+                }
+
+                if ($lockedAccount->status !== 'ACTIVE') {
+                    throw new DomainException(
+                        'Only active accounts can apply to become a Runner.'
+                    );
+                }
+
+                if (
+                    $lockedAccount->runner_status
+                    !== Account::RUNNER_STATUS_NOT_RUNNER
+                ) {
+                    throw new DomainException(
+                        'A Runner application cannot be submitted from the current status.'
+                    );
+                }
+
+                $lockedAccount->runner_status =
+                    Account::RUNNER_STATUS_PENDING;
+                $lockedAccount->save();
+
+                $this->auditLogService->record(
+                    $lockedAccount,
+                    $lockedAccount,
+                    'RUNNER_APPLICATION_SUBMITTED',
+                    'Runner application and driving license submitted together.'
+                );
+
+                $this->auditLogService->record(
+                    $lockedAccount,
+                    $lockedAccount,
+                    'RUNNER_LICENSE_VERIFICATION_SUBMITTED',
+                    'Driving license submitted with Runner application.'
+                );
+            }
+        );
+
+        return $applicant->fresh();
     }
 
     public function pendingApplications(Account $actor): Collection
@@ -198,6 +195,26 @@ class RunnerStatusService
                 )
             );
 
+            if ($nextStatus === Account::RUNNER_STATUS_APPROVED) {
+                $hasValidLicense = RunnerLicenseVerification::query()
+                    ->where('account_id', $target->id)
+                    ->where('is_current', true)
+                    ->where(
+                        'status',
+                        RunnerLicenseVerification::STATUS_VERIFIED
+                    )
+                    ->whereNotNull('expires_at')
+                    ->whereDate('expires_at', '>=', now()->toDateString())
+                    ->lockForUpdate()
+                    ->exists();
+
+                if (!$hasValidLicense) {
+                    throw new DomainException(
+                        'Runner tidak boleh diluluskan sehingga sekurang-kurangnya satu lesen memandu disahkan dan masih sah.'
+                    );
+                }
+            }
+
             $target->runner_status = $nextStatus;
             $target->save();
 
@@ -242,7 +259,7 @@ class RunnerStatusService
     ): void {
         $this->assertAdministrator($actor);
 
-        // Root is the owner and has no internal administrative restrictions.
+        // Root ialah pemilik dan tidak tertakluk pada sekatan pentadbir dalaman.
         if ($actor->role === 'ROOT_SUPER_ADMIN') {
             return;
         }
