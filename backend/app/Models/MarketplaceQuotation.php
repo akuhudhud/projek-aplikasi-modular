@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property \Illuminate\Support\Carbon|null $expires_at
+ * @property \Illuminate\Support\Carbon|null $accepted_at
+ * @property \Illuminate\Support\Carbon|null $withdrawn_at
+ */
 class MarketplaceQuotation extends Model
 {
     public const STATUS_SUBMITTED = 'SUBMITTED';
@@ -38,16 +43,14 @@ class MarketplaceQuotation extends Model
         'withdrawn_at',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'amount' => 'decimal:2',
-            'expires_at' => 'datetime',
-            'accepted_at' => 'datetime',
-            'withdrawn_at' => 'datetime',
-        ];
-    }
+    protected $casts = [
+        'amount' => 'decimal:2',
+        'expires_at' => 'datetime',
+        'accepted_at' => 'datetime',
+        'withdrawn_at' => 'datetime',
+    ];
 
+    /** @return BelongsTo<MarketplaceRequest, $this> */
     public function request(): BelongsTo
     {
         return $this->belongsTo(
@@ -57,6 +60,7 @@ class MarketplaceQuotation extends Model
         );
     }
 
+    /** @return BelongsTo<Account, $this> */
     public function runner(): BelongsTo
     {
         return $this->belongsTo(
