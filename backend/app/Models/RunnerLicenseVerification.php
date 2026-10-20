@@ -54,11 +54,17 @@ class RunnerLicenseVerification extends Model
         'size_bytes' => 'integer',
     ];
 
+    /**
+     * @return BelongsTo<Account, $this>
+     */
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);
     }
 
+    /**
+     * @return BelongsTo<self, $this>
+     */
     public function previousVerification(): BelongsTo
     {
         return $this->belongsTo(
