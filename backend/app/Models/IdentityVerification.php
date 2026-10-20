@@ -44,11 +44,17 @@ class IdentityVerification extends Model
         'reviewed_at' => 'datetime',
     ];
 
+    /**
+     * @return BelongsTo<Account, $this>
+     */
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);
     }
 
+    /**
+     * @return HasMany<IdentityVerificationDocument, $this>
+     */
     public function documents(): HasMany
     {
         return $this->hasMany(IdentityVerificationDocument::class);
