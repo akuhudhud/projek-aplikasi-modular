@@ -10,7 +10,9 @@ use App\Services\RunnerStatusService;
 use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -23,6 +25,11 @@ class RunnerStatusServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Storage::fake('local');
+        $this->seed(
+            \Database\Seeders\DrivingLicenseCatalogSeeder::class
+        );
 
         $this->runnerStatusService = app(RunnerStatusService::class);
     }
@@ -48,17 +55,24 @@ class RunnerStatusServiceTest extends TestCase
         return $account->fresh();
     }
 
-    private function verifyIdentity(Account $account): void
+    private function verifyIdentityOnly(Account $account): void
     {
         IdentityVerification::create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'real_name' => 'Contoh Nama Sebenar',
-            'mykad_number_encrypted' => Crypt::encryptString('900101145678'),
+            'mykad_number_encrypted' => Crypt::encryptString(
+                '900101145678'
+            ),
             'status' => IdentityVerification::STATUS_VERIFIED,
             'submitted_at' => now(),
             'reviewed_at' => now(),
         ]);
+    }
+
+    private function verifyIdentity(Account $account): void
+    {
+        $this->verifyIdentityOnly($account);
 
         RunnerLicenseVerification::create([
             'id' => (string) Str::uuid(),
@@ -83,6 +97,17 @@ class RunnerStatusServiceTest extends TestCase
         ]);
     }
 
+    private function applyWithLicense(Account $account): Account
+    {
+        return $this->runnerStatusService->apply(
+            $account,
+            'D123456789012',
+            'D',
+            now()->addYear()->toDateString(),
+            UploadedFile::fake()->image('runner-license.jpg')
+        );
+    }
+
     private function grantPermissions(
         Account $account,
         array $permissions
@@ -98,9 +123,9 @@ class RunnerStatusServiceTest extends TestCase
     public function test_user_can_apply_and_status_becomes_pending(): void
     {
         $account = $this->createAccount();
-        $this->verifyIdentity($account);
+        $this->verifyIdentityOnly($account);
 
-        $result = $this->runnerStatusService->apply($account);
+        $result = $this->applyWithLicense($account);
 
         $this->assertSame(
             Account::RUNNER_STATUS_PENDING,
@@ -125,12 +150,12 @@ class RunnerStatusServiceTest extends TestCase
     public function test_application_cannot_be_submitted_twice(): void
     {
         $account = $this->createAccount();
-        $this->verifyIdentity($account);
+        $this->verifyIdentityOnly($account);
 
-        $this->runnerStatusService->apply($account);
+        $this->applyWithLicense($account);
 
         try {
-            $this->runnerStatusService->apply($account);
+            $this->applyWithLicense($account);
 
             $this->fail('A duplicate application must be rejected.');
         } catch (DomainException $exception) {
@@ -152,7 +177,7 @@ class RunnerStatusServiceTest extends TestCase
             'Identity verification is required before applying to become a Runner.'
         );
 
-        $this->runnerStatusService->apply($account);
+        $this->applyWithLicense($account);
     }
 
     public function test_pending_identity_verification_cannot_apply(): void
@@ -163,7 +188,9 @@ class RunnerStatusServiceTest extends TestCase
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'real_name' => 'Contoh Nama Sebenar',
-            'mykad_number_encrypted' => Crypt::encryptString('900101145678'),
+            'mykad_number_encrypted' => Crypt::encryptString(
+                '900101145678'
+            ),
             'status' => IdentityVerification::STATUS_PENDING,
             'submitted_at' => now(),
         ]);
@@ -173,7 +200,7 @@ class RunnerStatusServiceTest extends TestCase
             'Identity verification is required before applying to become a Runner.'
         );
 
-        $this->runnerStatusService->apply($account);
+        $this->applyWithLicense($account);
     }
 
     public function test_rejected_identity_verification_cannot_apply(): void
@@ -184,7 +211,9 @@ class RunnerStatusServiceTest extends TestCase
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'real_name' => 'Contoh Nama Sebenar',
-            'mykad_number_encrypted' => Crypt::encryptString('900101145678'),
+            'mykad_number_encrypted' => Crypt::encryptString(
+                '900101145678'
+            ),
             'status' => IdentityVerification::STATUS_REJECTED,
             'submitted_at' => now(),
             'reviewed_at' => now(),
@@ -196,19 +225,20 @@ class RunnerStatusServiceTest extends TestCase
             'Identity verification is required before applying to become a Runner.'
         );
 
-        $this->runnerStatusService->apply($account);
+        $this->applyWithLicense($account);
     }
 
     public function test_inactive_account_cannot_apply(): void
     {
         $account = $this->createAccount('USER', 'SUSPENDED');
+        $this->verifyIdentityOnly($account);
 
         $this->expectException(DomainException::class);
         $this->expectExceptionMessage(
             'Only active accounts can apply to become a Runner.'
         );
 
-        $this->runnerStatusService->apply($account);
+        $this->applyWithLicense($account);
     }
 
     public function test_super_admin_can_approve_user_application_with_permission(): void
@@ -224,6 +254,7 @@ class RunnerStatusServiceTest extends TestCase
             'ACTIVE',
             Account::RUNNER_STATUS_PENDING
         );
+        $this->verifyIdentity($applicant);
 
         $result = $this->runnerStatusService->changeStatus(
             $admin,
@@ -399,6 +430,7 @@ class RunnerStatusServiceTest extends TestCase
             'ACTIVE',
             Account::RUNNER_STATUS_PENDING
         );
+        $this->verifyIdentity($anotherRoot);
 
         $result = $this->runnerStatusService->changeStatus(
             $root,
@@ -427,6 +459,7 @@ class RunnerStatusServiceTest extends TestCase
             'ACTIVE',
             Account::RUNNER_STATUS_PENDING
         );
+        $this->verifyIdentity($root);
 
         $result = $this->runnerStatusService->changeStatus(
             $root,
@@ -519,6 +552,7 @@ class RunnerStatusServiceTest extends TestCase
             'ACTIVE',
             Account::RUNNER_STATUS_APPROVED
         );
+        $this->verifyIdentity($runner);
 
         $suspended = $this->runnerStatusService->changeStatus(
             $admin,
