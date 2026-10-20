@@ -5,6 +5,7 @@ namespace Tests\Feature\Identity;
 use App\Models\Account;
 use App\Models\AccountPermission;
 use App\Models\DrivingLicenseCatalog;
+use App\Models\DrivingLicenseType;
 use App\Models\IdentityVerification;
 use App\Models\RunnerLicenseVerification;
 use App\Models\Session;
@@ -74,7 +75,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
             'license_number_encrypted' => Crypt::encryptString(
                 $licenseNumber
             ),
-            'license_type' => RunnerLicenseVerification::TYPE_CAR,
+            'license_type' => 'GENERAL',
             'license_class' => 'D',
             'expires_at' => now()->addYear()->toDateString(),
             'status' => RunnerLicenseVerification::STATUS_PENDING,
@@ -125,8 +126,18 @@ class RunnerLicenseVerificationApiTest extends TestCase
 
         Storage::fake('local');
 
+        $type = DrivingLicenseType::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'GENERAL',
+            'name' => 'Lesen Am',
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
         DrivingLicenseCatalog::query()->create([
             'id' => (string) Str::uuid(),
+            'driving_license_type_id' => $type->id,
             'code' => 'D',
             'name' => 'Lesen D',
             'description' => null,
@@ -166,6 +177,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
             'license-submit-unapproved-token'
         )->post('/api/me/runner-license-verification', [
             'license_number' => 'D123456789012',
+            'license_type' => 'GENERAL',
             'license_class' => 'D',
             'expires_at' => now()->addYear()->toDateString(),
             'document' => UploadedFile::fake()->image('license.jpg'),
@@ -200,6 +212,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
             'license-submit-approved-token'
         )->post('/api/me/runner-license-verification', [
             'license_number' => 'D123456789012',
+            'license_type' => 'GENERAL',
             'license_class' => 'D',
             'expires_at' => now()->addYear()->toDateString(),
             'document' => UploadedFile::fake()->image('license.jpg'),
@@ -260,6 +273,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
             'license-identity-required-token'
         )->post('/api/me/runner-license-verification', [
             'license_number' => 'D123456789012',
+            'license_type' => 'GENERAL',
             'license_class' => 'D',
             'expires_at' => now()->addYear()->toDateString(),
             'document' => UploadedFile::fake()->image('license.jpg'),
@@ -383,6 +397,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
             'license-resubmit-token'
         )->post('/api/me/runner-license-verification', [
             'license_number' => 'D987654321098',
+            'license_type' => 'GENERAL',
             'license_class' => 'D',
             'expires_at' => now()->addYears(2)->toDateString(),
             'document' => UploadedFile::fake()->image('new-license.jpg'),
