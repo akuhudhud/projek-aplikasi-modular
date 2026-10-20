@@ -67,7 +67,9 @@ class RunnerLicenseResubmissionSecurityTest extends TestCase
             'license_number_encrypted' => Crypt::encryptString(
                 'D123456789012'
             ),
+            'license_type' => RunnerLicenseVerification::TYPE_CAR,
             'license_class' => 'D',
+            'previous_license_verification_id' => null,
             'expires_at' => now()->addYear()->toDateString(),
             'status' => $status,
             'is_current' => $status
