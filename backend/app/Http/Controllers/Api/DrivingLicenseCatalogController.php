@@ -7,6 +7,7 @@ use App\Models\Account;
 use App\Models\DrivingLicenseCatalog;
 use App\Models\RunnerLicenseVerification;
 use App\Services\AuditLogService;
+use DomainException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -146,26 +147,6 @@ class DrivingLicenseCatalogController extends Controller
         ]);
 
         if (
-            isset($validated['code'])
-            && $validated['code'] !== $license->code
-        ) {
-            $codeIsReferenced = RunnerLicenseVerification::query()
-                ->where('license_class', $license->code)
-                ->exists();
-
-            if ($codeIsReferenced) {
-                return response()->json([
-                    'success' => false,
-                    'message' => (
-                        'Kod kelas tidak boleh ditukar kerana sudah '
-                        .'digunakan dalam rekod lesen. Nyahaktifkan '
-                        .'kelas lama dan tambah kelas baharu.'
-                    ),
-                ], 422);
-            }
-        }
-
-        if (
             array_key_exists('description', $validated)
             && $validated['description'] !== null
         ) {
@@ -177,30 +158,57 @@ class DrivingLicenseCatalogController extends Controller
         /** @var Account $actor */
         $actor = $request->attributes->get('account');
 
-        $updatedLicense = DB::transaction(function () use (
-            $license,
-            $validated,
-            $actor,
-            $auditLogService
-        ): DrivingLicenseCatalog {
-            $lockedLicense = DrivingLicenseCatalog::query()
-                ->whereKey($license->id)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            $lockedLicense->fill($validated);
-            $lockedLicense->save();
-
-            $auditLogService->record(
+        try {
+            $updatedLicense = DB::transaction(function () use (
+                $license,
+                $validated,
                 $actor,
-                $actor,
-                'DRIVING_LICENSE_CATALOG_UPDATED',
-                'Updated driving license catalog entry '
-                    .$lockedLicense->code.'.'
-            );
+                $auditLogService
+            ): DrivingLicenseCatalog {
+                $lockedLicense = DrivingLicenseCatalog::query()
+                    ->whereKey($license->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
-            return $lockedLicense->fresh();
-        });
+                if (
+                    isset($validated['code'])
+                    && $validated['code'] !== $lockedLicense->code
+                ) {
+                    $codeIsReferenced = RunnerLicenseVerification::query()
+                        ->where(
+                            'license_class',
+                            $lockedLicense->code
+                        )
+                        ->exists();
+
+                    if ($codeIsReferenced) {
+                        throw new DomainException(
+                            'Kod kelas tidak boleh ditukar kerana sudah '
+                            .'digunakan dalam rekod lesen. Nyahaktifkan '
+                            .'kelas lama dan tambah kelas baharu.'
+                        );
+                    }
+                }
+
+                $lockedLicense->fill($validated);
+                $lockedLicense->save();
+
+                $auditLogService->record(
+                    $actor,
+                    $actor,
+                    'DRIVING_LICENSE_CATALOG_UPDATED',
+                    'Updated driving license catalog entry '
+                        .$lockedLicense->code.'.'
+                );
+
+                return $lockedLicense->fresh();
+            });
+        } catch (DomainException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
 
         return response()->json([
             'success' => true,
