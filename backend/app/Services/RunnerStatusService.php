@@ -82,14 +82,7 @@ class RunnerStatusService
                     $lockedAccount,
                     $lockedAccount,
                     'RUNNER_APPLICATION_SUBMITTED',
-                    'Runner application and driving license submitted together.'
-                );
-
-                $this->auditLogService->record(
-                    $lockedAccount,
-                    $lockedAccount,
-                    'RUNNER_LICENSE_VERIFICATION_SUBMITTED',
-                    'Driving license submitted with Runner application.'
+                    'Runner application submitted with driving license verification.'
                 );
             }
         );
@@ -204,7 +197,11 @@ class RunnerStatusService
                         RunnerLicenseVerification::STATUS_VERIFIED
                     )
                     ->whereNotNull('expires_at')
-                    ->whereDate('expires_at', '>=', now()->toDateString())
+                    ->whereDate(
+                        'expires_at',
+                        '>=',
+                        now()->toDateString()
+                    )
                     ->lockForUpdate()
                     ->exists();
 
