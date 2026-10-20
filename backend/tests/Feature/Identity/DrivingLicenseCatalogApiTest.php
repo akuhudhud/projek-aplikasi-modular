@@ -5,11 +5,9 @@ namespace Tests\Feature\Identity;
 use App\Models\Account;
 use App\Models\AccountPermission;
 use App\Models\DrivingLicenseCatalog;
-use App\Models\RunnerLicenseVerification;
+use App\Models\DrivingLicenseType;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -17,9 +15,8 @@ class DrivingLicenseCatalogApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function createAccount(
-        string $role = 'USER'
-    ): Account {
+    private function createAccount(string $role = 'USER'): Account
+    {
         return Account::query()->create([
             'id' => (string) Str::uuid(),
             'name' => 'Ujian Katalog Lesen',
@@ -31,10 +28,8 @@ class DrivingLicenseCatalogApiTest extends TestCase
         ]);
     }
 
-    private function asAccount(
-        Account $account,
-        string $token
-    ): static {
+    private function authenticate(Account $account, string $token): void
+    {
         Session::query()->create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
@@ -43,10 +38,7 @@ class DrivingLicenseCatalogApiTest extends TestCase
             'ended_at' => null,
         ]);
 
-        return $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
-        );
+        $this->withHeader('Authorization', 'Bearer '.$token);
     }
 
     private function grantCatalogPermission(Account $account): void
@@ -57,12 +49,28 @@ class DrivingLicenseCatalogApiTest extends TestCase
         ]);
     }
 
+    private function createType(
+        string $code = 'GENERAL',
+        bool $active = true
+    ): DrivingLicenseType {
+        return DrivingLicenseType::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => $code,
+            'name' => 'Jenis '.$code,
+            'description' => null,
+            'is_active' => $active,
+            'sort_order' => 0,
+        ]);
+    }
+
     private function createCatalogEntry(
+        DrivingLicenseType $type,
         string $code,
         bool $active = true
     ): DrivingLicenseCatalog {
         return DrivingLicenseCatalog::query()->create([
             'id' => (string) Str::uuid(),
+            'driving_license_type_id' => $type->id,
             'code' => $code,
             'name' => 'Lesen '.$code,
             'description' => null,
@@ -71,203 +79,184 @@ class DrivingLicenseCatalogApiTest extends TestCase
         ]);
     }
 
-    private function createLicenseHistory(
-        Account $account,
-        string $licenseClass
-    ): RunnerLicenseVerification {
-        $path = 'runner-license-documents/'
-            .Str::uuid().'.pdf';
-
-        Storage::disk('local')->put($path, '%PDF-test');
-
-        return RunnerLicenseVerification::query()->create([
-            'id' => (string) Str::uuid(),
-            'account_id' => $account->id,
-            'license_number_encrypted' => Crypt::encryptString(
-                'TEST123456789'
-            ),
-            'license_type' => RunnerLicenseVerification::TYPE_GENERAL,
-            'license_class' => $licenseClass,
-            'previous_license_verification_id' => null,
-            'expires_at' => now()->addYear()->toDateString(),
-            'status' => RunnerLicenseVerification::STATUS_VERIFIED,
-            'is_current' => true,
-            'submitted_at' => now(),
-            'reviewed_at' => now(),
-            'reviewer_account_id' => null,
-            'rejection_reason' => null,
-            'disk' => 'local',
-            'document_path' => $path,
-            'mime_type' => 'application/pdf',
-            'size_bytes' => strlen('%PDF-test'),
-        ]);
-    }
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        Storage::fake('local');
-    }
-
-    public function test_root_can_create_catalog_entry_and_code_is_normalized(): void
+    public function test_root_can_create_class_under_a_license_type(): void
     {
         $root = $this->createAccount('ROOT_SUPER_ADMIN');
+        $type = $this->createType();
 
-        $this->asAccount($root, 'root-catalog-create-token')
-            ->postJson('/api/admin/driving-license-catalog', [
-                'code' => '  b2 ',
-                'name' => 'Lesen B2',
-            ])
+        $this->authenticate($root, 'root-create-class-token');
+
+        $this->postJson('/api/admin/driving-license-catalog', [
+            'driving_license_type_id' => $type->id,
+            'code' => '  d ',
+            'name' => 'Lesen D',
+        ])
             ->assertCreated()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.license.code', 'B2');
+            ->assertJsonPath('data.license.code', 'D')
+            ->assertJsonPath(
+                'data.license.driving_license_type_id',
+                $type->id
+            );
 
         $this->assertDatabaseHas('driving_license_catalog', [
-            'code' => 'B2',
-            'name' => 'Lesen B2',
+            'driving_license_type_id' => $type->id,
+            'code' => 'D',
+            'name' => 'Lesen D',
             'is_active' => true,
         ]);
     }
 
-    public function test_super_admin_without_catalog_permission_is_forbidden(): void
+    public function test_super_admin_without_permission_is_forbidden(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
+        $type = $this->createType();
 
-        $this->asAccount($admin, 'catalog-denied-token')
-            ->getJson('/api/admin/driving-license-catalog')
+        $this->authenticate($admin, 'catalog-denied-token');
+
+        $this->getJson('/api/admin/driving-license-catalog')
             ->assertForbidden();
 
-        $this->asAccount($admin, 'catalog-create-denied-token')
-            ->postJson('/api/admin/driving-license-catalog', [
-                'code' => 'D',
-                'name' => 'Lesen D',
-            ])
-            ->assertForbidden();
+        $this->postJson('/api/admin/driving-license-catalog', [
+            'driving_license_type_id' => $type->id,
+            'code' => 'D',
+            'name' => 'Lesen D',
+        ])->assertForbidden();
+
+        $this->assertDatabaseMissing('driving_license_catalog', [
+            'driving_license_type_id' => $type->id,
+            'code' => 'D',
+        ]);
     }
 
-    public function test_super_admin_with_catalog_permission_can_manage_entries(): void
+    public function test_admin_with_permission_can_create_update_and_deactivate_class(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
         $this->grantCatalogPermission($admin);
+        $type = $this->createType();
 
-        $this->asAccount($admin, 'catalog-manage-token')
-            ->postJson('/api/admin/driving-license-catalog', [
-                'code' => 'D',
-                'name' => 'Lesen D',
-                'sort_order' => 1,
-            ])
+        $this->authenticate($admin, 'catalog-create-token');
+
+        $response = $this->postJson('/api/admin/driving-license-catalog', [
+            'driving_license_type_id' => $type->id,
+            'code' => 'D',
+            'name' => 'Lesen D',
+        ])
             ->assertCreated()
             ->assertJsonPath('data.license.code', 'D');
 
-        $entry = DrivingLicenseCatalog::query()
-            ->where('code', 'D')
-            ->firstOrFail();
+        $classId = $response->json('data.license.id');
 
-        $this->asAccount($admin, 'catalog-update-token')
-            ->patchJson(
-                '/api/admin/driving-license-catalog/'.$entry->id,
-                ['name' => 'Lesen D Dikemas Kini']
-            )
+        $this->patchJson(
+            '/api/admin/driving-license-catalog/'.$classId,
+            ['name' => 'Lesen D Dikemas Kini']
+        )
             ->assertOk()
             ->assertJsonPath(
                 'data.license.name',
                 'Lesen D Dikemas Kini'
             );
 
-        $this->asAccount($admin, 'catalog-deactivate-token')
-            ->deleteJson(
-                '/api/admin/driving-license-catalog/'.$entry->id
-            )
+        $this->deleteJson(
+            '/api/admin/driving-license-catalog/'.$classId
+        )
             ->assertOk()
             ->assertJsonPath('data.license.is_active', false);
+
+        $this->assertDatabaseHas('driving_license_catalog', [
+            'id' => $classId,
+            'driving_license_type_id' => $type->id,
+            'name' => 'Lesen D Dikemas Kini',
+            'is_active' => false,
+        ]);
     }
 
-    public function test_public_catalog_returns_only_active_entries(): void
+    public function test_public_catalog_returns_only_active_classes(): void
     {
         $account = $this->createAccount();
+        $type = $this->createType();
 
-        $this->createCatalogEntry('D', true);
-        $this->createCatalogEntry('B2', false);
+        $this->createCatalogEntry($type, 'D', true);
+        $this->createCatalogEntry($type, 'B2', false);
 
-        $this->asAccount($account, 'catalog-public-token')
-            ->getJson('/api/driving-license-catalog')
+        $this->authenticate($account, 'catalog-public-token');
+
+        $this->getJson('/api/driving-license-catalog')
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonFragment(['code' => 'D'])
             ->assertJsonMissing(['code' => 'B2']);
     }
 
-    public function test_duplicate_code_is_rejected_after_normalization(): void
+    public function test_duplicate_class_code_is_rejected_within_same_type(): void
     {
         $root = $this->createAccount('ROOT_SUPER_ADMIN');
-        $this->createCatalogEntry('B2');
+        $type = $this->createType();
 
-        $this->asAccount($root, 'catalog-duplicate-token')
-            ->postJson('/api/admin/driving-license-catalog', [
-                'code' => ' b2 ',
-                'name' => 'Duplikasi B2',
-            ])
-            ->assertUnprocessable();
+        $this->createCatalogEntry($type, 'B2');
+
+        $this->authenticate($root, 'catalog-duplicate-token');
+
+        $this->postJson('/api/admin/driving-license-catalog', [
+            'driving_license_type_id' => $type->id,
+            'code' => ' b2 ',
+            'name' => 'Duplikasi B2',
+        ])->assertUnprocessable();
 
         $this->assertSame(
             1,
             DrivingLicenseCatalog::query()
+                ->where('driving_license_type_id', $type->id)
                 ->where('code', 'B2')
                 ->count()
         );
     }
 
-    public function test_code_cannot_be_changed_after_it_is_used_in_license_history(): void
+    public function test_same_class_code_can_exist_under_different_types(): void
     {
         $root = $this->createAccount('ROOT_SUPER_ADMIN');
-        $applicant = $this->createAccount();
-        $entry = $this->createCatalogEntry('D');
+        $typeA = $this->createType('TYPE_A');
+        $typeB = $this->createType('TYPE_B');
 
-        $history = $this->createLicenseHistory($applicant, 'D');
+        $this->createCatalogEntry($typeA, 'D');
 
-        $this->asAccount($root, 'catalog-history-code-token')
-            ->patchJson(
-                '/api/admin/driving-license-catalog/'.$entry->id,
-                ['code' => 'DA']
-            )
-            ->assertUnprocessable()
-            ->assertJsonPath('success', false);
+        $this->authenticate($root, 'catalog-cross-type-token');
 
-        $this->assertDatabaseHas('driving_license_catalog', [
-            'id' => $entry->id,
+        $this->postJson('/api/admin/driving-license-catalog', [
+            'driving_license_type_id' => $typeB->id,
             'code' => 'D',
-        ]);
+            'name' => 'Lesen D Jenis B',
+        ])->assertCreated();
 
-        $this->assertDatabaseHas('runner_license_verifications', [
-            'id' => $history->id,
-            'license_class' => 'D',
-        ]);
+        $this->assertSame(
+            1,
+            DrivingLicenseCatalog::query()
+                ->where('driving_license_type_id', $typeA->id)
+                ->where('code', 'D')
+                ->count()
+        );
+
+        $this->assertSame(
+            1,
+            DrivingLicenseCatalog::query()
+                ->where('driving_license_type_id', $typeB->id)
+                ->where('code', 'D')
+                ->count()
+        );
     }
 
-    public function test_deactivation_preserves_catalog_and_license_history(): void
+    public function test_class_cannot_be_created_under_nonexistent_type(): void
     {
         $root = $this->createAccount('ROOT_SUPER_ADMIN');
-        $applicant = $this->createAccount();
-        $entry = $this->createCatalogEntry('D');
 
-        $history = $this->createLicenseHistory($applicant, 'D');
+        $this->authenticate($root, 'catalog-invalid-type-token');
 
-        $this->asAccount($root, 'catalog-history-deactivate-token')
-            ->deleteJson(
-                '/api/admin/driving-license-catalog/'.$entry->id
-            )
-            ->assertOk();
-
-        $this->assertDatabaseHas('driving_license_catalog', [
-            'id' => $entry->id,
+        $this->postJson('/api/admin/driving-license-catalog', [
+            'driving_license_type_id' => (string) Str::uuid(),
             'code' => 'D',
-            'is_active' => false,
-        ]);
+            'name' => 'Lesen D',
+        ])->assertUnprocessable();
 
-        $this->assertDatabaseHas('runner_license_verifications', [
-            'id' => $history->id,
-            'license_class' => 'D',
-        ]);
+        $this->assertDatabaseCount('driving_license_catalog', 0);
     }
 }
