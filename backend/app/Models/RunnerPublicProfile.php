@@ -36,6 +36,9 @@ class RunnerPublicProfile extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Account, $this>
+     */
     public function account(): BelongsTo
     {
         return $this->belongsTo(
