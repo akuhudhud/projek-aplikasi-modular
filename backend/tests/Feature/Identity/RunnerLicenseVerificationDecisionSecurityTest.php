@@ -4,6 +4,8 @@ namespace Tests\Feature\Identity;
 
 use App\Models\Account;
 use App\Models\AccountPermission;
+use App\Models\DrivingLicenseCatalog;
+use App\Models\DrivingLicenseType;
 use App\Models\RunnerLicenseVerification;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,6 +16,30 @@ use Tests\TestCase;
 class RunnerLicenseVerificationDecisionSecurityTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $type = DrivingLicenseType::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'GENERAL',
+            'name' => 'Lesen Am',
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        DrivingLicenseCatalog::query()->create([
+            'id' => (string) Str::uuid(),
+            'driving_license_type_id' => $type->id,
+            'code' => 'D',
+            'name' => 'Lesen D',
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+    }
 
     private function createAccount(
         string $name,
@@ -41,9 +67,11 @@ class RunnerLicenseVerificationDecisionSecurityTest extends TestCase
             'license_number_encrypted' => Crypt::encryptString(
                 'D123456789012'
             ),
+            'license_type' => 'GENERAL',
             'license_class' => 'D',
             'expires_at' => $expiresAt,
             'status' => $status,
+            'is_current' => false,
             'submitted_at' => now(),
             'reviewed_at' => $status === RunnerLicenseVerification::STATUS_PENDING
                 ? null
