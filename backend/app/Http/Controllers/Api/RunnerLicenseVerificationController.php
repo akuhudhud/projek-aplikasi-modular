@@ -175,7 +175,6 @@ class RunnerLicenseVerificationController extends Controller
         $validated = $request->validate([
             'license_number' => ['required', 'string', 'max:100'],
             'license_type' => [
-                'sometimes',
                 'required',
                 'string',
                 'max:30',
@@ -200,7 +199,7 @@ class RunnerLicenseVerificationController extends Controller
                 $validated['license_class'],
                 $validated['expires_at'],
                 $validated['document'],
-                $validated['license_type'] ?? null
+                $validated['license_type']
             );
 
             $auditLogService->record(
@@ -228,7 +227,9 @@ class RunnerLicenseVerificationController extends Controller
                     ],
                 ],
             ], 201);
-        } catch (DomainException | InvalidArgumentException $exception) {
+        } catch (
+            DomainException | InvalidArgumentException $exception
+        ) {
             return $this->errorResponse(
                 $exception->getMessage(),
                 422
@@ -376,9 +377,23 @@ class RunnerLicenseVerificationController extends Controller
                     $validated['decision']
                     === RunnerLicenseVerification::STATUS_VERIFIED
                 ) {
+                    /*
+                     * Skop lesen semasa mesti sepadan dengan
+                     * jenis induk dan kelas lesen.
+                     */
                     RunnerLicenseVerification::query()
-                        ->where('account_id', $verification->account_id)
-                        ->where('license_class', $verification->license_class)
+                        ->where(
+                            'account_id',
+                            $verification->account_id
+                        )
+                        ->where(
+                            'license_type',
+                            $verification->license_type
+                        )
+                        ->where(
+                            'license_class',
+                            $verification->license_class
+                        )
                         ->where('is_current', true)
                         ->where(
                             'status',
