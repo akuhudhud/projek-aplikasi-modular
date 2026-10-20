@@ -98,7 +98,6 @@ class RunnerController extends Controller
                 'max:100',
             ],
             'license_type' => [
-                'sometimes',
                 'required',
                 'string',
                 'max:30',
@@ -127,7 +126,7 @@ class RunnerController extends Controller
                 $validated['license_class'],
                 $validated['expires_at'],
                 $validated['document'],
-                $validated['license_type'] ?? null
+                $validated['license_type']
             );
 
             $license = RunnerLicenseVerification::query()
