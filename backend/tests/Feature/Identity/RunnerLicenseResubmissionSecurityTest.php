@@ -3,6 +3,7 @@
 namespace Tests\Feature\Identity;
 
 use App\Models\Account;
+use App\Models\DrivingLicenseCatalog;
 use App\Models\IdentityVerification;
 use App\Models\RunnerLicenseVerification;
 use App\Models\Session;
@@ -22,6 +23,15 @@ class RunnerLicenseResubmissionSecurityTest extends TestCase
         parent::setUp();
 
         Storage::fake('local');
+
+        DrivingLicenseCatalog::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'D',
+            'name' => 'Lesen D',
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
     }
 
     private function createAccount(): Account
