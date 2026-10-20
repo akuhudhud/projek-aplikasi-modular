@@ -33,8 +33,8 @@ class RunnerLicenseVerificationService
         $licenseNumber = trim($licenseNumber);
         $licenseClass = strtoupper(trim($licenseClass));
 
-        // Medan lama dikekalkan untuk keserasian rekod terdahulu.
-        // Kelas lesen tetap bergantung pada katalog dinamik.
+        // Kekalkan medan lama untuk keserasian rekod terdahulu.
+        // Kelas lesen disahkan menggunakan katalog pangkalan data.
         $licenseType = $licenseType === null
             ? RunnerLicenseVerification::TYPE_GENERAL
             : strtoupper(trim($licenseType));
@@ -159,6 +159,24 @@ class RunnerLicenseVerificationService
                     );
                 }
 
+                /*
+                 * Permohonan pertama menghantar lesen melalui RunnerStatusService
+                 * dan menggunakan callback dalam transaksi yang sama.
+                 *
+                 * Tanpa callback, endpoint ini hanya untuk Runner yang telah
+                 * diluluskan. Pengguna biasa dan pemohon PENDING tidak boleh
+                 * menghantar lesen secara berasingan untuk memintas permohonan.
+                 */
+                if (
+                    $afterCreate === null
+                    && $lockedAccount->runner_status
+                        !== Account::RUNNER_STATUS_APPROVED
+                ) {
+                    throw new DomainException(
+                        'Lesen tambahan hanya boleh dihantar selepas permohonan Runner diluluskan.'
+                    );
+                }
+
                 $catalogEntry = DrivingLicenseCatalog::query()
                     ->where('code', $licenseClass)
                     ->where('is_active', true)
@@ -239,6 +257,7 @@ class RunnerLicenseVerificationService
                 return $verification;
             });
         } catch (Throwable $exception) {
+            // Jika transaksi gagal, buang dokumen yang telah disimpan.
             if (is_string($storedPath) && $storedPath !== '') {
                 Storage::disk('local')->delete($storedPath);
             }
