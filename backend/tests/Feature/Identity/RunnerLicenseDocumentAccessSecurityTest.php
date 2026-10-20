@@ -3,6 +3,8 @@
 namespace Tests\Feature\Identity;
 
 use App\Models\Account;
+use App\Models\DrivingLicenseCatalog;
+use App\Models\DrivingLicenseType;
 use App\Models\RunnerLicenseVerification;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,6 +20,25 @@ class RunnerLicenseDocumentAccessSecurityTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $type = DrivingLicenseType::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'GENERAL',
+            'name' => 'Lesen Am',
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        DrivingLicenseCatalog::query()->create([
+            'id' => (string) Str::uuid(),
+            'driving_license_type_id' => $type->id,
+            'code' => 'D',
+            'name' => 'Lesen D',
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
 
         Storage::fake('local');
     }
@@ -49,6 +70,7 @@ class RunnerLicenseDocumentAccessSecurityTest extends TestCase
             'license_number_encrypted' => Crypt::encryptString(
                 'D123456789012'
             ),
+            'license_type' => 'GENERAL',
             'license_class' => 'D',
             'expires_at' => now()->addYear()->toDateString(),
             'status' => RunnerLicenseVerification::STATUS_PENDING,
