@@ -14,6 +14,16 @@ class RunnerLicenseVerification extends Model
 
     public const STATUS_REJECTED = 'REJECTED';
 
+    public const TYPE_MOTORCYCLE = 'MOTORCYCLE';
+
+    public const TYPE_CAR = 'CAR';
+
+    public const TYPE_PSV = 'PSV';
+
+    public const TYPE_E = 'E';
+
+    public const TYPE_GENERAL = 'GENERAL';
+
     protected $table = 'runner_license_verifications';
 
     protected $keyType = 'string';
@@ -24,7 +34,9 @@ class RunnerLicenseVerification extends Model
         'id',
         'account_id',
         'license_number_encrypted',
+        'license_type',
         'license_class',
+        'previous_license_verification_id',
         'expires_at',
         'status',
         'is_current',
@@ -57,10 +69,31 @@ class RunnerLicenseVerification extends Model
         return $this->belongsTo(Account::class);
     }
 
+    public function previousVerification(): BelongsTo
+    {
+        return $this->belongsTo(
+            self::class,
+            'previous_license_verification_id'
+        );
+    }
+
     public function decryptLicenseNumber(): string
     {
         return Crypt::decryptString(
             $this->license_number_encrypted
         );
+    }
+
+    public static function inferLicenseType(string $licenseClass): string
+    {
+        $class = strtoupper(trim($licenseClass));
+
+        return match ($class) {
+            'B', 'B1', 'B2' => self::TYPE_MOTORCYCLE,
+            'D', 'DA' => self::TYPE_CAR,
+            'PSV' => self::TYPE_PSV,
+            'E', 'EA', 'EB', 'EC' => self::TYPE_E,
+            default => self::TYPE_GENERAL,
+        };
     }
 }
