@@ -3,17 +3,31 @@
 namespace Tests\Feature\Core;
 
 use App\Models\Account;
+use App\Models\DrivingLicenseCatalog;
 use App\Models\IdentityVerification;
 use App\Models\RunnerLicenseVerification;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class RunnerStatusSecurityApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Storage::fake('local');
+
+        $this->seed(
+            \Database\Seeders\DrivingLicenseCatalogSeeder::class
+        );
+    }
 
     private function createAccount(): Account
     {
@@ -33,17 +47,24 @@ class RunnerStatusSecurityApiTest extends TestCase
         return $account->fresh();
     }
 
-    private function verifyIdentity(Account $account): void
+    private function verifyIdentityOnly(Account $account): void
     {
         IdentityVerification::create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'real_name' => 'Contoh Nama Sebenar',
-            'mykad_number_encrypted' => Crypt::encryptString('900101145678'),
+            'mykad_number_encrypted' => Crypt::encryptString(
+                '900101145678'
+            ),
             'status' => IdentityVerification::STATUS_VERIFIED,
             'submitted_at' => now(),
             'reviewed_at' => now(),
         ]);
+    }
+
+    private function verifyIdentity(Account $account): void
+    {
+        $this->verifyIdentityOnly($account);
 
         RunnerLicenseVerification::create([
             'id' => (string) Str::uuid(),
@@ -81,16 +102,25 @@ class RunnerStatusSecurityApiTest extends TestCase
         ]);
     }
 
+    private function asAccount(
+        Account $account,
+        string $token
+    ): static {
+        $this->authenticate($account, $token);
+
+        return $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        );
+    }
+
     public function test_profile_update_cannot_escalate_runner_status(): void
     {
         $account = $this->createAccount();
-        $token = 'runner-profile-security-token';
 
-        $this->authenticate($account, $token);
-
-        $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
+        $this->asAccount(
+            $account,
+            'runner-profile-security-token'
         )->patchJson('/api/me', [
             'name' => 'Updated Runner Security Test',
             'runner_status' => Account::RUNNER_STATUS_APPROVED,
@@ -111,22 +141,22 @@ class RunnerStatusSecurityApiTest extends TestCase
     public function test_pending_applicant_cannot_self_approve_through_profile_update(): void
     {
         $account = $this->createAccount();
-        $this->verifyIdentity($account);
+        $this->verifyIdentityOnly($account);
 
-        $token = 'runner-pending-security-token';
+        $this->asAccount(
+            $account,
+            'runner-pending-security-token'
+        )->post('/api/me/runner-application', [
+            'license_number' => 'D123456789012',
+            'license_class' => 'D',
+            'expires_at' => now()->addYear()->toDateString(),
+            'document' => UploadedFile::fake()->image(
+                'runner-license.jpg'
+            ),
+        ])->assertCreated()
+            ->assertJsonPath('success', true);
 
-        $this->authenticate($account, $token);
-
-        $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
-        )->postJson('/api/me/runner-application')
-            ->assertCreated();
-
-        $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
-        )->patchJson('/api/me', [
+        $this->patchJson('/api/me', [
             'name' => 'Pending Runner Security Test',
             'runner_status' => Account::RUNNER_STATUS_APPROVED,
         ])->assertOk();
@@ -137,5 +167,27 @@ class RunnerStatusSecurityApiTest extends TestCase
             'role' => 'USER',
             'runner_status' => Account::RUNNER_STATUS_PENDING,
         ]);
+
+        $this->assertDatabaseHas('runner_license_verifications', [
+            'account_id' => $account->id,
+            'license_class' => 'D',
+            'status' => RunnerLicenseVerification::STATUS_PENDING,
+            'is_current' => false,
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $account->id,
+            'target_account_id' => $account->id,
+            'action' => 'RUNNER_APPLICATION_SUBMITTED',
+        ]);
+
+        $this->assertSame(
+            1,
+            \App\Models\AuditLog::query()
+                ->where('actor_account_id', $account->id)
+                ->where('target_account_id', $account->id)
+                ->where('action', 'RUNNER_APPLICATION_SUBMITTED')
+                ->count()
+        );
     }
 }
