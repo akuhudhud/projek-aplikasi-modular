@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DrivingLicenseCatalog extends Model
 {
@@ -14,6 +15,7 @@ class DrivingLicenseCatalog extends Model
 
     protected $fillable = [
         'id',
+        'driving_license_type_id',
         'code',
         'name',
         'description',
@@ -25,4 +27,12 @@ class DrivingLicenseCatalog extends Model
         'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];
+
+    public function licenseType(): BelongsTo
+    {
+        return $this->belongsTo(
+            DrivingLicenseType::class,
+            'driving_license_type_id'
+        );
+    }
 }
