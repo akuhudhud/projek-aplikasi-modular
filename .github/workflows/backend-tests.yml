@@ -70,6 +70,9 @@ jobs:
       - name: Generate application key
         run: php artisan key:generate --force
 
+      - name: Run PHP static analysis
+        run: vendor/bin/phpstan analyse --configuration=phpstan.neon --no-progress
+
       - name: Diagnose registration completion test
         run: >-
           vendor/bin/phpunit
