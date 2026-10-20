@@ -86,7 +86,7 @@ class RunnerLicenseVerificationService
         $expiry = Carbon::createFromFormat('!Y-m-d', $expiresAt);
 
         if (
-            $expiry === false
+            $expiry === null
             || $expiry->format('Y-m-d') !== $expiresAt
         ) {
             throw new InvalidArgumentException(
