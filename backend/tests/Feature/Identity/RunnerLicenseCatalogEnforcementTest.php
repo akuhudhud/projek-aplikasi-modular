@@ -4,8 +4,8 @@ namespace Tests\Feature\Identity;
 
 use App\Models\Account;
 use App\Models\DrivingLicenseCatalog;
+use App\Models\DrivingLicenseType;
 use App\Models\IdentityVerification;
-use App\Models\RunnerLicenseVerification;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -18,22 +18,67 @@ class RunnerLicenseCatalogEnforcementTest extends TestCase
 {
     use RefreshDatabase;
 
+    private DrivingLicenseType $activeType;
+
+    private DrivingLicenseType $inactiveType;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         Storage::fake('local');
 
-        $this->createCatalogEntry('D', true);
-        $this->createCatalogEntry('B2', false);
+        $this->activeType = $this->createLicenseType(
+            'GENERAL',
+            true
+        );
+
+        $this->inactiveType = $this->createLicenseType(
+            'INACTIVE_TYPE',
+            false
+        );
+
+        $this->createCatalogEntry(
+            $this->activeType,
+            'D',
+            true
+        );
+
+        $this->createCatalogEntry(
+            $this->activeType,
+            'B2',
+            false
+        );
+
+        $this->createCatalogEntry(
+            $this->inactiveType,
+            'D',
+            true
+        );
+    }
+
+    private function createLicenseType(
+        string $code,
+        bool $active
+    ): DrivingLicenseType {
+        return DrivingLicenseType::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => $code,
+            'name' => 'Jenis Lesen '.$code,
+            'description' => null,
+            'is_active' => $active,
+            'sort_order' => 0,
+        ]);
     }
 
     private function createCatalogEntry(
+        DrivingLicenseType $type,
         string $code,
         bool $active
     ): DrivingLicenseCatalog {
         return DrivingLicenseCatalog::query()->create([
             'id' => (string) Str::uuid(),
+            'driving_license_type_id' => $type->id,
             'code' => $code,
             'name' => 'Lesen '.$code,
             'description' => null,
@@ -76,23 +121,31 @@ class RunnerLicenseCatalogEnforcementTest extends TestCase
             'ended_at' => null,
         ]);
 
-        $this->withHeader('Authorization', 'Bearer '.$token);
+        $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        );
 
         return $account;
     }
 
     private function submitLicense(
+        string $licenseType,
         string $licenseClass
     ): \Illuminate\Testing\TestResponse {
         return $this->post(
             '/api/me/runner-license-verification',
             [
+                'license_type' => $licenseType,
                 'license_number' => 'D123456789012',
                 'license_class' => $licenseClass,
                 'expires_at' => now()->addYear()->toDateString(),
                 'document' => UploadedFile::fake()->image(
                     'license.jpg'
                 ),
+            ],
+            [
+                'Accept' => 'application/json',
             ]
         );
     }
@@ -101,7 +154,7 @@ class RunnerLicenseCatalogEnforcementTest extends TestCase
     {
         $account = $this->createVerifiedAccount();
 
-        $this->submitLicense('Z99')
+        $this->submitLicense('GENERAL', 'Z99')
             ->assertUnprocessable()
             ->assertJsonPath('success', false);
 
@@ -115,13 +168,45 @@ class RunnerLicenseCatalogEnforcementTest extends TestCase
     {
         $account = $this->createVerifiedAccount();
 
-        $this->submitLicense('B2')
+        $this->submitLicense('GENERAL', 'B2')
             ->assertUnprocessable()
             ->assertJsonPath('success', false);
 
         $this->assertDatabaseMissing(
             'runner_license_verifications',
             ['account_id' => $account->id]
+        );
+    }
+
+    public function test_inactive_license_type_is_rejected(): void
+    {
+        $account = $this->createVerifiedAccount();
+
+        $this->submitLicense('INACTIVE_TYPE', 'D')
+            ->assertUnprocessable()
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseMissing(
+            'runner_license_verifications',
+            ['account_id' => $account->id]
+        );
+    }
+
+    public function test_valid_license_class_is_scoped_to_its_parent_type(): void
+    {
+        $account = $this->createVerifiedAccount();
+
+        $this->submitLicense('GENERAL', 'D')
+            ->assertCreated()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas(
+            'runner_license_verifications',
+            [
+                'account_id' => $account->id,
+                'license_type' => 'GENERAL',
+                'license_class' => 'D',
+            ]
         );
     }
 }
