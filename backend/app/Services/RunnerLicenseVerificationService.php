@@ -20,19 +20,49 @@ class RunnerLicenseVerificationService
 {
     private const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
+    private const LICENSE_TYPES = [
+        RunnerLicenseVerification::TYPE_MOTORCYCLE,
+        RunnerLicenseVerification::TYPE_CAR,
+        RunnerLicenseVerification::TYPE_PSV,
+        RunnerLicenseVerification::TYPE_E,
+        RunnerLicenseVerification::TYPE_GENERAL,
+    ];
+
     public function submit(
         Account $account,
         string $licenseNumber,
         string $licenseClass,
         string $expiresAt,
-        UploadedFile $document
+        UploadedFile $document,
+        ?string $licenseType = null
     ): RunnerLicenseVerification {
         $licenseNumber = trim($licenseNumber);
         $licenseClass = strtoupper(trim($licenseClass));
+        $licenseType = $licenseType === null
+            ? RunnerLicenseVerification::inferLicenseType($licenseClass)
+            : strtoupper(trim($licenseType));
 
         if ($licenseNumber === '' || $licenseClass === '') {
             throw new InvalidArgumentException(
                 'Nombor lesen dan kelas lesen diperlukan.'
+            );
+        }
+
+        if (!in_array($licenseType, self::LICENSE_TYPES, true)) {
+            throw new InvalidArgumentException(
+                'Jenis lesen tidak sah.'
+            );
+        }
+
+        if (
+            $licenseType !== RunnerLicenseVerification::TYPE_GENERAL
+            && RunnerLicenseVerification::inferLicenseType($licenseClass)
+                !== RunnerLicenseVerification::TYPE_GENERAL
+            && $licenseType
+                !== RunnerLicenseVerification::inferLicenseType($licenseClass)
+        ) {
+            throw new InvalidArgumentException(
+                'Jenis lesen tidak sepadan dengan kelas lesen.'
             );
         }
 
@@ -98,10 +128,11 @@ class RunnerLicenseVerificationService
         $storedPath = null;
 
         try {
-            $verification = DB::transaction(function () use (
+            return DB::transaction(function () use (
                 $account,
                 $licenseNumber,
                 $licenseClass,
+                $licenseType,
                 $expiry,
                 $document,
                 $mimeType,
@@ -144,6 +175,8 @@ class RunnerLicenseVerificationService
 
                 $pendingApplication = RunnerLicenseVerification::query()
                     ->where('account_id', $lockedAccount->id)
+                    ->where('license_type', $licenseType)
+                    ->where('license_class', $licenseClass)
                     ->where(
                         'status',
                         RunnerLicenseVerification::STATUS_PENDING
@@ -153,9 +186,22 @@ class RunnerLicenseVerificationService
 
                 if ($pendingApplication) {
                     throw new DomainException(
-                        'Masih terdapat permohonan lesen berstatus PENDING.'
+                        'Masih terdapat permohonan PENDING untuk jenis dan kelas lesen ini.'
                     );
                 }
+
+                $previous = RunnerLicenseVerification::query()
+                    ->where('account_id', $lockedAccount->id)
+                    ->where('license_type', $licenseType)
+                    ->where('license_class', $licenseClass)
+                    ->where(
+                        'status',
+                        RunnerLicenseVerification::STATUS_VERIFIED
+                    )
+                    ->where('is_current', true)
+                    ->orderByDesc('submitted_at')
+                    ->lockForUpdate()
+                    ->first();
 
                 $storedPath = Storage::disk('local')->putFileAs(
                     'runner-license-documents',
@@ -174,7 +220,9 @@ class RunnerLicenseVerificationService
                     'account_id' => $lockedAccount->id,
                     'license_number_encrypted' =>
                         Crypt::encryptString($licenseNumber),
+                    'license_type' => $licenseType,
                     'license_class' => $licenseClass,
+                    'previous_license_verification_id' => $previous?->id,
                     'expires_at' => $expiry->toDateString(),
                     'status' => RunnerLicenseVerification::STATUS_PENDING,
                     'is_current' => false,
@@ -188,8 +236,6 @@ class RunnerLicenseVerificationService
                     'size_bytes' => $size,
                 ]);
             });
-
-            return $verification;
         } catch (Throwable $exception) {
             if (is_string($storedPath) && $storedPath !== '') {
                 Storage::disk('local')->delete($storedPath);
