@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ContactChangeController;
 use App\Http\Controllers\Api\CoreTaskController;
 use App\Http\Controllers\Api\DrivingLicenseCatalogController;
+use App\Http\Controllers\Api\DrivingLicenseTypeController;
 use App\Http\Controllers\Api\IdentityVerificationController;
 use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\MarketplaceLifecycleController;
@@ -162,6 +163,49 @@ Route::get('/admin/runner-license-verifications/{accountId}/document', [
 ])->middleware([
     AuthenticateSession::class,
     'admin.permission:runner_license_verifications.review',
+]);
+
+/*
+|--------------------------------------------------------------------------
+| Driving License Types
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/driving-license-types', [
+    DrivingLicenseTypeController::class,
+    'index',
+])->middleware(AuthenticateSession::class);
+
+Route::get('/admin/driving-license-types', [
+    DrivingLicenseTypeController::class,
+    'adminIndex',
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:driving_license_types.manage',
+]);
+
+Route::post('/admin/driving-license-types', [
+    DrivingLicenseTypeController::class,
+    'store',
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:driving_license_types.manage',
+]);
+
+Route::patch('/admin/driving-license-types/{id}', [
+    DrivingLicenseTypeController::class,
+    'update',
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:driving_license_types.manage',
+]);
+
+Route::delete('/admin/driving-license-types/{id}', [
+    DrivingLicenseTypeController::class,
+    'deactivate',
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:driving_license_types.manage',
 ]);
 
 /*
