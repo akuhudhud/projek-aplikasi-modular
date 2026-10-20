@@ -15,9 +15,6 @@ use Illuminate\Support\Str;
 
 class RunnerPublicProfileController extends Controller
 {
-    /**
-     * Create or update the authenticated Runner's public profile.
-     */
     public function save(Request $request): JsonResponse
     {
         /** @var Account|null $account */
@@ -51,37 +48,16 @@ class RunnerPublicProfileController extends Controller
                 'string',
                 'max:80',
             ],
-            'bio' => [
-                'sometimes',
-                'nullable',
-                'string',
-                'max:2000',
-            ],
-            'service_area' => [
-                'sometimes',
-                'nullable',
-                'string',
-                'max:120',
-            ],
-            'services' => [
-                'sometimes',
-                'nullable',
-                'array',
-                'max:20',
-            ],
-            'services.*' => [
-                'required',
-                'string',
-                'max:64',
-            ],
-            'is_published' => [
-                'sometimes',
-                'boolean',
-            ],
+            'bio' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'service_area' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'services' => ['sometimes', 'nullable', 'array', 'max:20'],
+            'services.*' => ['required', 'string', 'max:64'],
+            'is_published' => ['sometimes', 'boolean'],
         ]);
 
         $slug = strtolower(trim(
-            $validated['public_slug'] ?? ($profile?->public_slug ?? '')
+            $validated['public_slug']
+                ?? ($profile !== null ? $profile->public_slug : '')
         ));
 
         $slugTaken = RunnerPublicProfile::query()
@@ -98,7 +74,7 @@ class RunnerPublicProfileController extends Controller
 
         $isPublished = (bool) (
             $validated['is_published']
-            ?? ($profile?->is_published ?? false)
+                ?? ($profile !== null ? $profile->is_published : false)
         );
 
         $values = [
@@ -107,23 +83,31 @@ class RunnerPublicProfileController extends Controller
                 ? trim($validated['display_name'])
                 : $profile->display_name,
             'bio' => array_key_exists('bio', $validated)
-                ? ($validated['bio'] === null
-                    ? null
-                    : trim($validated['bio']))
-                : $profile?->bio,
+                ? (
+                    $validated['bio'] === null
+                        ? null
+                        : trim($validated['bio'])
+                )
+                : ($profile !== null ? $profile->bio : null),
             'service_area' => array_key_exists('service_area', $validated)
-                ? ($validated['service_area'] === null
-                    ? null
-                    : trim($validated['service_area']))
-                : $profile?->service_area,
+                ? (
+                    $validated['service_area'] === null
+                        ? null
+                        : trim($validated['service_area'])
+                )
+                : ($profile !== null ? $profile->service_area : null),
             'services' => array_key_exists('services', $validated)
                 ? ($validated['services'] ?? [])
-                : ($profile?->services ?? []),
+                : (
+                    $profile !== null
+                        ? ($profile->services ?? [])
+                        : []
+                ),
             'is_published' => $isPublished,
         ];
 
         try {
-            if ($profile) {
+            if ($profile !== null) {
                 $profile->fill($values)->save();
             } else {
                 $profile = RunnerPublicProfile::query()->create([
@@ -157,9 +141,6 @@ class RunnerPublicProfileController extends Controller
         ], $profile->wasRecentlyCreated ? 201 : 200);
     }
 
-    /**
-     * Show a published profile using only explicitly public fields.
-     */
     public function show(string $slug): JsonResponse
     {
         $profile = RunnerPublicProfile::query()
@@ -167,13 +148,13 @@ class RunnerPublicProfileController extends Controller
             ->where('is_published', true)
             ->first();
 
-        if (!$profile) {
+        if ($profile === null) {
             return $this->error('Runner profile not found.', 404);
         }
 
         $account = $profile->account;
 
-        if (!$account || !$this->isEligibleRunner($account)) {
+        if ($account === null || !$this->isEligibleRunner($account)) {
             return $this->error('Runner profile not found.', 404);
         }
 
@@ -194,12 +175,6 @@ class RunnerPublicProfileController extends Controller
         ]);
     }
 
-    /**
-     * Show analytics belonging only to the authenticated Runner.
-     *
-     * Request and quotation totals are restricted to requests created
-     * through this Runner's public profile link.
-     */
     public function analytics(Request $request): JsonResponse
     {
         /** @var Account|null $account */
@@ -220,7 +195,7 @@ class RunnerPublicProfileController extends Controller
             ->where('account_id', $account->id)
             ->first();
 
-        if (!$profile) {
+        if ($profile === null) {
             return $this->error('Runner profile not found.', 404);
         }
 
