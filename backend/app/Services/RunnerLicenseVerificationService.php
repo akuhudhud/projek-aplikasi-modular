@@ -33,8 +33,6 @@ class RunnerLicenseVerificationService
         $licenseNumber = trim($licenseNumber);
         $licenseClass = strtoupper(trim($licenseClass));
 
-        // Kekalkan medan lama untuk keserasian rekod terdahulu.
-        // Kelas lesen disahkan menggunakan katalog pangkalan data.
         $licenseType = $licenseType === null
             ? RunnerLicenseVerification::TYPE_GENERAL
             : strtoupper(trim($licenseType));
@@ -96,13 +94,16 @@ class RunnerLicenseVerificationService
             );
         }
 
+        /*
+         * Tarikh tamat yang sah dari segi format tetap disimpan,
+         * termasuk tarikh yang sudah berlalu.
+         *
+         * Untuk permohonan Runner baharu, admin menyemak dokumen
+         * bersama permohonan. Lesen tamat tempoh tidak boleh diluluskan.
+         * Lesen tambahan atau pembaharuan selepas Runner diluluskan
+         * masih tertakluk pada semakan kelayakan sebelum pengesahan.
+         */
         $expiry->startOfDay();
-
-        if ($expiry->lt(now()->startOfDay())) {
-            throw new InvalidArgumentException(
-                'Lesen memandu telah tamat tempoh.'
-            );
-        }
 
         $filename = (string) Str::uuid().'.'.match ($mimeType) {
             'image/jpeg' => 'jpg',
@@ -160,12 +161,9 @@ class RunnerLicenseVerificationService
                 }
 
                 /*
-                 * Permohonan pertama menghantar lesen melalui RunnerStatusService
-                 * dan menggunakan callback dalam transaksi yang sama.
-                 *
-                 * Tanpa callback, endpoint ini hanya untuk Runner yang telah
-                 * diluluskan. Pengguna biasa dan pemohon PENDING tidak boleh
-                 * menghantar lesen secara berasingan untuk memintas permohonan.
+                 * Permohonan pertama mesti melalui RunnerStatusService.
+                 * Endpoint lesen berasingan hanya untuk Runner yang
+                 * telah diluluskan, contohnya bagi pembaharuan lesen.
                  */
                 if (
                     $afterCreate === null
@@ -257,7 +255,6 @@ class RunnerLicenseVerificationService
                 return $verification;
             });
         } catch (Throwable $exception) {
-            // Jika transaksi gagal, buang dokumen yang telah disimpan.
             if (is_string($storedPath) && $storedPath !== '') {
                 Storage::disk('local')->delete($storedPath);
             }
