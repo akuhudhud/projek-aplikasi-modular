@@ -99,12 +99,12 @@ class RunnerStatusService
                     Account::RUNNER_STATUS_PENDING;
                 $lockedAccount->save();
 
-                // Satu audit sahaja untuk penghantaran permohonan Runner.
+                // Satu-satunya audit untuk penghantaran permohonan awal.
                 $this->auditLogService->record(
                     $lockedAccount,
                     $lockedAccount,
                     'RUNNER_APPLICATION_SUBMITTED',
-                    'Runner application submitted with driving license document.'
+                    'Runner application submitted with driving license verification.'
                 );
             }
         );
@@ -128,7 +128,7 @@ class RunnerStatusService
             $query->where('role', 'USER');
         }
 
-        return $query
+        $applications = $query
             ->orderBy('created_at')
             ->get([
                 'id',
@@ -142,6 +142,40 @@ class RunnerStatusService
                 'created_at',
                 'updated_at',
             ]);
+
+        // Maklumat lesen dipaparkan bersama permohonan Runner.
+        // Nombor lesen penuh dan laluan fail tidak didedahkan.
+        $applications->each(
+            function (Account $application): void {
+                $license = RunnerLicenseVerification::query()
+                    ->where('account_id', $application->id)
+                    ->where(
+                        'status',
+                        RunnerLicenseVerification::STATUS_PENDING
+                    )
+                    ->orderByDesc('submitted_at')
+                    ->first();
+
+                $application->setAttribute(
+                    'runner_license_application',
+                    $license === null
+                        ? null
+                        : [
+                            'id' => $license->id,
+                            'license_type' => $license->license_type,
+                            'license_class' => $license->license_class,
+                            'expires_at' => $license->expires_at
+                                ?->toDateString(),
+                            'status' => $license->status,
+                            'submitted_at' => $license->submitted_at,
+                            'mime_type' => $license->mime_type,
+                            'size_bytes' => $license->size_bytes,
+                        ]
+                );
+            }
+        );
+
+        return $applications;
     }
 
     public function changeStatus(
@@ -186,6 +220,15 @@ class RunnerStatusService
 
             $this->assertCanManageTarget($currentActor, $target);
 
+            if (
+                $nextStatus === Account::RUNNER_STATUS_APPROVED
+                && $target->status !== 'ACTIVE'
+            ) {
+                throw new DomainException(
+                    'Only active accounts can be approved as a Runner.'
+                );
+            }
+
             $currentStatus = $target->runner_status;
 
             $this->assertValidTransition(
@@ -202,49 +245,96 @@ class RunnerStatusService
             );
 
             if (
-                $nextStatus === Account::RUNNER_STATUS_APPROVED
-                && $target->status !== 'ACTIVE'
+                $currentStatus === Account::RUNNER_STATUS_PENDING
+                && in_array(
+                    $nextStatus,
+                    [
+                        Account::RUNNER_STATUS_APPROVED,
+                        Account::RUNNER_STATUS_REJECTED,
+                    ],
+                    true
+                )
             ) {
-                throw new DomainException(
-                    'Only active accounts can be approved as a Runner.'
-                );
+                $license = RunnerLicenseVerification::query()
+                    ->where('account_id', $target->id)
+                    ->where(
+                        'status',
+                        RunnerLicenseVerification::STATUS_PENDING
+                    )
+                    ->orderByDesc('submitted_at')
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($license === null) {
+                    throw new DomainException(
+                        'Permohonan Runner tidak mempunyai dokumen lesen PENDING untuk disemak.'
+                    );
+                }
+
+                if ($nextStatus === Account::RUNNER_STATUS_APPROVED) {
+                    if (
+                        $license->expires_at === null
+                        || $license->expires_at->toDateString()
+                            < now()->toDateString()
+                    ) {
+                        throw new DomainException(
+                            'Lesen memandu telah tamat tempoh. Permohonan Runner tidak boleh diluluskan.'
+                        );
+                    }
+
+                    // Kelulusan Runner dan lesen berlaku dalam transaksi sama.
+                    $license->status =
+                        RunnerLicenseVerification::STATUS_VERIFIED;
+                    $license->is_current = true;
+                    $license->reviewer_account_id = $currentActor->id;
+                    $license->reviewed_at = now();
+                    $license->rejection_reason = null;
+                    $license->save();
+                } else {
+                    // Penolakan Runner turut menolak lesen yang dilampirkan.
+                    $license->status =
+                        RunnerLicenseVerification::STATUS_REJECTED;
+                    $license->is_current = false;
+                    $license->reviewer_account_id = $currentActor->id;
+                    $license->reviewed_at = now();
+                    $license->rejection_reason = $reason;
+                    $license->save();
+                }
             }
 
-            /*
-             * Permohonan pertama:
-             * keputusan Runner dan keputusan lesen dibuat bersama.
-             *
-             * Pemulihan Runner yang telah digantung:
-             * gunakan lesen VERIFIED semasa, bukan lesen PENDING baharu.
-             */
             if (
-                $currentStatus === Account::RUNNER_STATUS_PENDING
+                $currentStatus === Account::RUNNER_STATUS_SUSPENDED
                 && $nextStatus === Account::RUNNER_STATUS_APPROVED
             ) {
-                $this->approveInitialApplication(
-                    $currentActor,
-                    $target
-                );
-            } elseif (
-                $currentStatus === Account::RUNNER_STATUS_PENDING
-                && $nextStatus === Account::RUNNER_STATUS_REJECTED
-            ) {
-                $this->rejectInitialApplication(
-                    $currentActor,
-                    $target,
-                    $reason
-                );
-            } elseif (
-                $nextStatus === Account::RUNNER_STATUS_APPROVED
-            ) {
-                $this->assertHasValidCurrentLicense($target);
+                $hasValidCurrentLicense =
+                    RunnerLicenseVerification::query()
+                        ->where('account_id', $target->id)
+                        ->where('is_current', true)
+                        ->where(
+                            'status',
+                            RunnerLicenseVerification::STATUS_VERIFIED
+                        )
+                        ->whereNotNull('expires_at')
+                        ->whereDate(
+                            'expires_at',
+                            '>=',
+                            now()->toDateString()
+                        )
+                        ->lockForUpdate()
+                        ->exists();
+
+                if (!$hasValidCurrentLicense) {
+                    throw new DomainException(
+                        'Runner tidak boleh dipulihkan tanpa lesen semasa yang disahkan dan masih sah.'
+                    );
+                }
             }
 
             $target->runner_status = $nextStatus;
             $target->save();
 
-            // Hanya satu audit untuk keputusan permohonan Runner.
-            // Perubahan status lesen di atas sebahagian daripada keputusan ini.
+            // Satu audit keputusan permohonan; tiada audit keputusan lesen
+            // tambahan bagi flow permohonan awal.
             $this->auditLogService->record(
                 $currentActor,
                 $target,
@@ -254,110 +344,6 @@ class RunnerStatusService
 
             return $target->refresh();
         });
-    }
-
-    private function approveInitialApplication(
-        Account $actor,
-        Account $target
-    ): void {
-        $license = RunnerLicenseVerification::query()
-            ->where('account_id', $target->id)
-            ->where(
-                'status',
-                RunnerLicenseVerification::STATUS_PENDING
-            )
-            ->orderByDesc('submitted_at')
-            ->lockForUpdate()
-            ->first();
-
-        if ($license === null) {
-            throw new DomainException(
-                'Permohonan tidak mempunyai dokumen lesen PENDING untuk disemak.'
-            );
-        }
-
-        if (
-            $license->expires_at === null
-            || $license->expires_at->lt(now()->startOfDay())
-        ) {
-            throw new DomainException(
-                'Lesen telah tamat tempoh. Tolak permohonan Runner dengan sebab yang sesuai.'
-            );
-        }
-
-        RunnerLicenseVerification::query()
-            ->where('account_id', $target->id)
-            ->where('license_class', $license->license_class)
-            ->where('is_current', true)
-            ->where(
-                'status',
-                RunnerLicenseVerification::STATUS_VERIFIED
-            )
-            ->where('id', '!=', $license->id)
-            ->lockForUpdate()
-            ->update(['is_current' => false]);
-
-        $license->status = RunnerLicenseVerification::STATUS_VERIFIED;
-        $license->is_current = true;
-        $license->reviewer_account_id = $actor->id;
-        $license->reviewed_at = now();
-        $license->rejection_reason = null;
-        $license->save();
-    }
-
-    private function rejectInitialApplication(
-        Account $actor,
-        Account $target,
-        string $reason
-    ): void {
-        $license = RunnerLicenseVerification::query()
-            ->where('account_id', $target->id)
-            ->where(
-                'status',
-                RunnerLicenseVerification::STATUS_PENDING
-            )
-            ->orderByDesc('submitted_at')
-            ->lockForUpdate()
-            ->first();
-
-        if ($license === null) {
-            throw new DomainException(
-                'Permohonan tidak mempunyai dokumen lesen PENDING untuk disemak.'
-            );
-        }
-
-        $license->status = RunnerLicenseVerification::STATUS_REJECTED;
-        $license->is_current = false;
-        $license->reviewer_account_id = $actor->id;
-        $license->reviewed_at = now();
-        $license->rejection_reason = $reason;
-        $license->save();
-    }
-
-    private function assertHasValidCurrentLicense(
-        Account $target
-    ): void {
-        $hasValidLicense = RunnerLicenseVerification::query()
-            ->where('account_id', $target->id)
-            ->where('is_current', true)
-            ->where(
-                'status',
-                RunnerLicenseVerification::STATUS_VERIFIED
-            )
-            ->whereNotNull('expires_at')
-            ->whereDate(
-                'expires_at',
-                '>=',
-                now()->toDateString()
-            )
-            ->lockForUpdate()
-            ->exists();
-
-        if (!$hasValidLicense) {
-            throw new DomainException(
-                'Runner tidak boleh diluluskan atau dipulihkan tanpa lesen VERIFIED yang masih sah.'
-            );
-        }
     }
 
     private function assertAdministrator(Account $actor): void
