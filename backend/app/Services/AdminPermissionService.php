@@ -25,7 +25,8 @@ class AdminPermissionService
         'runners.restore' => 'Memulihkan kelayakan Runner',
         'identity_verifications.review' => 'Menyemak pengesahan identiti',
         'runner_license_verifications.review' => 'Menyemak pengesahan lesen memandu',
-        'driving_license_catalog.manage' => 'Mengurus katalog lesen memandu',
+        'driving_license_types.manage' => 'Mengurus jenis lesen memandu',
+        'driving_license_catalog.manage' => 'Mengurus kelas lesen memandu',
         'audit_logs.view' => 'Melihat rekod audit',
     ];
 
