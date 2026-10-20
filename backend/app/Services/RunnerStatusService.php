@@ -38,6 +38,32 @@ class RunnerStatusService
             );
         }
 
+        /*
+         * Semak kelayakan sebelum service lesen memeriksa kelas lesen
+         * atau permohonan PENDING. Ini memastikan sebab penolakan tepat.
+         * Semua syarat kritikal disemak semula dalam callback transaksi.
+         */
+        if (!in_array($applicant->role, ['USER', 'SUPER_ADMIN'], true)) {
+            throw new AuthorizationException(
+                'This account cannot apply to become a Runner.'
+            );
+        }
+
+        if ($applicant->status !== 'ACTIVE') {
+            throw new DomainException(
+                'Only active accounts can apply to become a Runner.'
+            );
+        }
+
+        if (
+            $applicant->runner_status
+            !== Account::RUNNER_STATUS_NOT_RUNNER
+        ) {
+            throw new DomainException(
+                'A Runner application cannot be submitted from the current status.'
+            );
+        }
+
         $this->licenseService->submit(
             $applicant,
             $licenseNumber,
