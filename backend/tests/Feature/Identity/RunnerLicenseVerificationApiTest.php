@@ -4,6 +4,7 @@ namespace Tests\Feature\Identity;
 
 use App\Models\Account;
 use App\Models\AccountPermission;
+use App\Models\DrivingLicenseCatalog;
 use App\Models\IdentityVerification;
 use App\Models\RunnerLicenseVerification;
 use App\Models\Session;
@@ -112,6 +113,15 @@ class RunnerLicenseVerificationApiTest extends TestCase
         parent::setUp();
 
         Storage::fake('local');
+
+        DrivingLicenseCatalog::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'D',
+            'name' => 'Lesen D',
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
     }
 
     public function test_status_endpoint_reports_not_submitted_without_exposing_license_number(): void
