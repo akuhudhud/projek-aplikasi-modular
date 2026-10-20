@@ -4,6 +4,7 @@ namespace Tests\Feature\Identity;
 
 use App\Models\Account;
 use App\Models\DrivingLicenseCatalog;
+use App\Models\DrivingLicenseType;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -43,8 +44,18 @@ class DrivingLicenseCatalogValidationTest extends TestCase
 
     private function createCatalogEntry(): DrivingLicenseCatalog
     {
+        $type = DrivingLicenseType::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'GENERAL',
+            'name' => 'Lesen Am',
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
         return DrivingLicenseCatalog::query()->create([
             'id' => (string) Str::uuid(),
+            'driving_license_type_id' => $type->id,
             'code' => 'D',
             'name' => 'Lesen D',
             'description' => null,
