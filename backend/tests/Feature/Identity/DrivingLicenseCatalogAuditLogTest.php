@@ -104,4 +104,49 @@ class DrivingLicenseCatalogAuditLogTest extends TestCase
             'is_active' => false,
         ]);
     }
+
+    public function test_patch_status_changes_use_specific_audit_actions(): void
+    {
+        $root = $this->createRoot();
+
+        $token = 'catalog-audit-status-token';
+        $this->authenticate($root, $token);
+
+        $license = DrivingLicenseCatalog::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'B2',
+            'name' => 'Lesen B2',
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        $this->patchJson(
+            '/api/admin/driving-license-catalog/'.$license->id,
+            ['is_active' => false]
+        )
+            ->assertOk()
+            ->assertJsonPath('data.license.is_active', false);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $root->id,
+            'target_account_id' => $root->id,
+            'action' => 'DRIVING_LICENSE_CATALOG_DEACTIVATED',
+            'reason' => 'Deactivated driving license catalog entry B2.',
+        ]);
+
+        $this->patchJson(
+            '/api/admin/driving-license-catalog/'.$license->id,
+            ['is_active' => true]
+        )
+            ->assertOk()
+            ->assertJsonPath('data.license.is_active', true);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $root->id,
+            'target_account_id' => $root->id,
+            'action' => 'DRIVING_LICENSE_CATALOG_REACTIVATED',
+            'reason' => 'Reactivated driving license catalog entry B2.',
+        ]);
+    }
 }
