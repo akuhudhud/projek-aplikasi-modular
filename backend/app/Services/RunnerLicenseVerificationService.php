@@ -98,10 +98,9 @@ class RunnerLicenseVerificationService
          * Tarikh tamat yang sah dari segi format tetap disimpan,
          * termasuk tarikh yang sudah berlalu.
          *
-         * Untuk permohonan Runner baharu, admin menyemak dokumen
-         * bersama permohonan. Lesen tamat tempoh tidak boleh diluluskan.
-         * Lesen tambahan atau pembaharuan selepas Runner diluluskan
-         * masih tertakluk pada semakan kelayakan sebelum pengesahan.
+         * Bagi permohonan Runner baharu, admin menyemak dokumen
+         * bersama permohonan. Lesen tamat tempoh tidak boleh
+         * diluluskan.
          */
         $expiry->startOfDay();
 
@@ -172,6 +171,25 @@ class RunnerLicenseVerificationService
                 ) {
                     throw new DomainException(
                         'Lesen tambahan hanya boleh dihantar selepas permohonan Runner diluluskan.'
+                    );
+                }
+
+                /*
+                 * Permohonan Runner baharu hanya boleh dihantar
+                 * apabila akaun masih berstatus NOT_RUNNER.
+                 *
+                 * Semakan dibuat menggunakan rekod akaun terkunci,
+                 * bukan status lama pada objek Account yang diterima.
+                 * Ini mengelakkan permohonan kedua daripada sampai
+                 * ke semakan lesen PENDING atau mencipta rekod baharu.
+                 */
+                if (
+                    $afterCreate !== null
+                    && $lockedAccount->runner_status
+                        !== Account::RUNNER_STATUS_NOT_RUNNER
+                ) {
+                    throw new DomainException(
+                        'A Runner application cannot be submitted from the current status.'
                     );
                 }
 
