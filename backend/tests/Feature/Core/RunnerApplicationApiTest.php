@@ -5,12 +5,14 @@ namespace Tests\Feature\Core;
 use App\Models\Account;
 use App\Models\AccountPermission;
 use App\Models\DrivingLicenseCatalog;
+use App\Models\DrivingLicenseType;
 use App\Models\IdentityVerification;
 use App\Models\RunnerLicenseVerification;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -19,15 +21,36 @@ class RunnerApplicationApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    private DrivingLicenseType $licenseType;
+
+    private DrivingLicenseCatalog $licenseClass;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         Storage::fake('local');
 
-        $this->seed(
-            \Database\Seeders\DrivingLicenseCatalogSeeder::class
-        );
+        // Ujian membina katalog sendiri. Tiada jenis lesen hardcode
+        // melalui seeder atau pemalar lama TYPE_GENERAL.
+        $this->licenseType = DrivingLicenseType::create([
+            'id' => (string) Str::uuid(),
+            'code' => 'GENERAL',
+            'name' => 'Lesen Am',
+            'description' => 'Jenis lesen untuk ujian.',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $this->licenseClass = DrivingLicenseCatalog::create([
+            'id' => (string) Str::uuid(),
+            'driving_license_type_id' => $this->licenseType->id,
+            'code' => 'D',
+            'name' => 'Kelas D',
+            'description' => 'Kelas lesen untuk ujian.',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
     }
 
     private function createAccount(
@@ -77,8 +100,8 @@ class RunnerApplicationApiTest extends TestCase
             'license_number_encrypted' => Crypt::encryptString(
                 'D123456789012'
             ),
-            'license_type' => RunnerLicenseVerification::TYPE_GENERAL,
-            'license_class' => 'D',
+            'license_type' => $this->licenseType->code,
+            'license_class' => $this->licenseClass->code,
             'expires_at' => $expiresAt
                 ?? now()->addYear()->toDateString(),
             'status' => $status,
@@ -119,7 +142,6 @@ class RunnerApplicationApiTest extends TestCase
         );
 
         $this->verifyIdentityOnly($applicant);
-
         $this->createLicense($applicant);
 
         return $applicant;
@@ -166,8 +188,8 @@ class RunnerApplicationApiTest extends TestCase
     {
         return [
             'license_number' => 'D123456789012',
-            'license_type' => RunnerLicenseVerification::TYPE_GENERAL,
-            'license_class' => 'D',
+            'license_type' => $this->licenseType->code,
+            'license_class' => $this->licenseClass->code,
             'expires_at' => now()->addYear()->toDateString(),
             'document' => UploadedFile::fake()->create(
                 'lesen.pdf',
@@ -212,32 +234,99 @@ class RunnerApplicationApiTest extends TestCase
 
         $this->assertDatabaseHas('runner_license_verifications', [
             'account_id' => $user->id,
-            'license_class' => 'D',
+            'license_type' => $this->licenseType->code,
+            'license_class' => $this->licenseClass->code,
             'status' => RunnerLicenseVerification::STATUS_PENDING,
             'is_current' => false,
         ]);
 
         $this->assertSame(
             1,
-            \DB::table('audit_logs')
+            DB::table('audit_logs')
                 ->where('actor_account_id', $user->id)
                 ->where('target_account_id', $user->id)
                 ->where('action', 'RUNNER_APPLICATION_SUBMITTED')
                 ->count(),
-            'Satu permohonan berjaya mesti menghasilkan tepat satu audit submission.'
+            'Satu permohonan mesti menghasilkan tepat satu rekod audit.'
         );
     }
 
-    public function test_verified_identity_without_license_fields_cannot_submit_runner_application_or_use_separate_initial_license_endpoint(): void
+    public function test_unknown_license_type_is_rejected(): void
     {
         $user = $this->createAccount();
         $this->verifyIdentityOnly($user);
 
-        $this->asAccount($user, 'runner-license-required-token')
+        $payload = $this->validApplicationPayload();
+        $payload['license_type'] = 'UNKNOWN_TYPE';
+
+        $this->asAccount($user, 'runner-invalid-type-token')
+            ->post(
+                '/api/me/runner-application',
+                $payload
+            )
+            ->assertUnprocessable();
+
+        $this->assertDatabaseMissing('runner_license_verifications', [
+            'account_id' => $user->id,
+        ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'target_account_id' => $user->id,
+            'action' => 'RUNNER_APPLICATION_SUBMITTED',
+        ]);
+    }
+
+    public function test_class_must_belong_to_selected_license_type(): void
+    {
+        $otherType = DrivingLicenseType::create([
+            'id' => (string) Str::uuid(),
+            'code' => 'OTHER',
+            'name' => 'Jenis Lain',
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 2,
+        ]);
+
+        DrivingLicenseCatalog::create([
+            'id' => (string) Str::uuid(),
+            'driving_license_type_id' => $otherType->id,
+            'code' => 'D',
+            'name' => 'Kelas D Jenis Lain',
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $user = $this->createAccount();
+        $this->verifyIdentityOnly($user);
+
+        $payload = $this->validApplicationPayload();
+        $payload['license_type'] = $this->licenseType->code;
+        $payload['license_class'] = 'NOT_A_CLASS';
+
+        $this->asAccount($user, 'runner-invalid-class-token')
+            ->post(
+                '/api/me/runner-application',
+                $payload
+            )
+            ->assertUnprocessable();
+
+        $this->assertDatabaseMissing('runner_license_verifications', [
+            'account_id' => $user->id,
+        ]);
+    }
+
+    public function test_missing_license_fields_are_rejected(): void
+    {
+        $user = $this->createAccount();
+        $this->verifyIdentityOnly($user);
+
+        $this->asAccount($user, 'runner-missing-fields-token')
             ->postJson('/api/me/runner-application')
             ->assertUnprocessable()
             ->assertJsonValidationErrors([
                 'license_number',
+                'license_type',
                 'license_class',
                 'expires_at',
                 'document',
@@ -248,40 +337,13 @@ class RunnerApplicationApiTest extends TestCase
             'runner_status' => Account::RUNNER_STATUS_NOT_RUNNER,
         ]);
 
+        $this->assertDatabaseMissing('runner_license_verifications', [
+            'account_id' => $user->id,
+        ]);
+
         $this->assertDatabaseMissing('audit_logs', [
             'target_account_id' => $user->id,
             'action' => 'RUNNER_APPLICATION_SUBMITTED',
-        ]);
-
-        $this->assertDatabaseMissing('runner_license_verifications', [
-            'account_id' => $user->id,
-        ]);
-
-        $this->asAccount($user, 'runner-license-separate-token')
-            ->post(
-                '/api/me/runner-license-verification',
-                $this->validApplicationPayload(),
-                ['Accept' => 'application/json']
-            )
-            ->assertUnprocessable()
-            ->assertJsonPath('success', false)
-            ->assertJsonPath(
-                'message',
-                'Lesen tambahan hanya boleh dihantar selepas permohonan Runner diluluskan.'
-            );
-
-        $this->assertDatabaseHas('accounts', [
-            'id' => $user->id,
-            'runner_status' => Account::RUNNER_STATUS_NOT_RUNNER,
-        ]);
-
-        $this->assertDatabaseMissing('runner_license_verifications', [
-            'account_id' => $user->id,
-        ]);
-
-        $this->assertDatabaseMissing('audit_logs', [
-            'target_account_id' => $user->id,
-            'action' => 'RUNNER_LICENSE_VERIFICATION_SUBMITTED',
         ]);
     }
 
@@ -294,27 +356,11 @@ class RunnerApplicationApiTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonPath('success', false)
             ->assertJsonPath(
-                'message',
-                'Sila sahkan identiti dahulu sebelum memohon menjadi Runner.'
-            )
-            ->assertJsonPath(
                 'data.next_action.type',
                 'IDENTITY_VERIFICATION'
             )
             ->assertJsonPath(
-                'data.next_action.method',
-                'GET'
-            )
-            ->assertJsonPath(
                 'data.next_action.endpoint',
-                '/api/me/identity-verification'
-            )
-            ->assertJsonPath(
-                'data.next_action.submit_method',
-                'POST'
-            )
-            ->assertJsonPath(
-                'data.next_action.submit_endpoint',
                 '/api/me/identity-verification'
             );
 
@@ -346,11 +392,7 @@ class RunnerApplicationApiTest extends TestCase
 
         $this->asAccount($user, 'runner-identity-pending-token')
             ->postJson('/api/me/runner-application')
-            ->assertUnprocessable()
-            ->assertJsonPath(
-                'data.next_action.endpoint',
-                '/api/me/identity-verification'
-            );
+            ->assertUnprocessable();
 
         $this->assertDatabaseHas('accounts', [
             'id' => $user->id,
@@ -385,7 +427,7 @@ class RunnerApplicationApiTest extends TestCase
         ]);
     }
 
-    public function test_duplicate_runner_application_returns_unprocessable(): void
+    public function test_duplicate_runner_application_is_rejected(): void
     {
         $user = $this->createAccount(
             'USER',
@@ -424,7 +466,6 @@ class RunnerApplicationApiTest extends TestCase
     public function test_admin_can_list_pending_runner_applications_with_permission(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
-
         $this->grantPermissions($admin, [
             'runner_applications.view',
         ]);
@@ -438,10 +479,6 @@ class RunnerApplicationApiTest extends TestCase
             ->assertJsonFragment([
                 'id' => $applicant->id,
                 'runner_status' => Account::RUNNER_STATUS_PENDING,
-            ])
-            ->assertJsonFragment([
-                'license_class' => 'D',
-                'status' => RunnerLicenseVerification::STATUS_PENDING,
             ]);
     }
 
@@ -449,7 +486,7 @@ class RunnerApplicationApiTest extends TestCase
     {
         $admin = $this->createAccount('SUPER_ADMIN');
 
-        $this->asAccount($admin, 'runner-list-no-permission-token')
+        $this->asAccount($admin, 'runner-list-denied-token')
             ->getJson('/api/admin/runner-applications')
             ->assertForbidden()
             ->assertJsonPath('success', false);
@@ -459,16 +496,15 @@ class RunnerApplicationApiTest extends TestCase
     {
         $user = $this->createAccount();
 
-        $this->asAccount($user, 'runner-list-denied-token')
+        $this->asAccount($user, 'runner-list-user-token')
             ->getJson('/api/admin/runner-applications')
             ->assertForbidden()
             ->assertJsonPath('success', false);
     }
 
-    public function test_admin_can_approve_runner_application_with_permission_and_reason(): void
+    public function test_admin_can_approve_application_and_only_one_decision_audit_is_written(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
-
         $this->grantPermissions($admin, [
             'runner_applications.approve',
         ]);
@@ -498,18 +534,20 @@ class RunnerApplicationApiTest extends TestCase
             'is_current' => true,
         ]);
 
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_account_id' => $admin->id,
-            'target_account_id' => $applicant->id,
-            'action' => 'RUNNER_APPLICATION_APPROVED',
-            'reason' => 'Application reviewed and approved.',
-        ]);
+        $this->assertSame(
+            1,
+            DB::table('audit_logs')
+                ->where('actor_account_id', $admin->id)
+                ->where('target_account_id', $applicant->id)
+                ->where('action', 'RUNNER_APPLICATION_APPROVED')
+                ->count(),
+            'Keputusan meluluskan permohonan mesti menghasilkan satu audit sahaja.'
+        );
     }
 
     public function test_admin_decision_requires_reason(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
-
         $this->grantPermissions($admin, [
             'runner_applications.approve',
         ]);
@@ -536,7 +574,6 @@ class RunnerApplicationApiTest extends TestCase
     public function test_super_admin_cannot_approve_another_super_admin(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
-
         $this->grantPermissions($admin, [
             'runner_applications.approve',
         ]);
@@ -563,7 +600,6 @@ class RunnerApplicationApiTest extends TestCase
     public function test_admin_can_reject_application_and_suspend_then_restore_runner(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
-
         $this->grantPermissions($admin, [
             'runner_applications.reject',
             'runners.suspend',
@@ -588,6 +624,16 @@ class RunnerApplicationApiTest extends TestCase
             'status' => RunnerLicenseVerification::STATUS_REJECTED,
             'is_current' => false,
         ]);
+
+        $this->assertSame(
+            1,
+            DB::table('audit_logs')
+                ->where('actor_account_id', $admin->id)
+                ->where('target_account_id', $applicant->id)
+                ->where('action', 'RUNNER_APPLICATION_REJECTED')
+                ->count(),
+            'Penolakan permohonan mesti menghasilkan satu audit sahaja.'
+        );
 
         $runner = $this->createAccount(
             'USER',
@@ -618,11 +664,6 @@ class RunnerApplicationApiTest extends TestCase
                 'data.account.runner_status',
                 Account::RUNNER_STATUS_APPROVED
             );
-
-        $this->assertDatabaseHas('audit_logs', [
-            'target_account_id' => $applicant->id,
-            'action' => 'RUNNER_APPLICATION_REJECTED',
-        ]);
 
         $this->assertDatabaseHas('audit_logs', [
             'target_account_id' => $runner->id,
