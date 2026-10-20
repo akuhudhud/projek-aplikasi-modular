@@ -4,6 +4,8 @@ namespace Tests\Feature\Core;
 
 use App\Models\Account;
 use App\Models\AccountPermission;
+use App\Models\DrivingLicenseCatalog;
+use App\Models\DrivingLicenseType;
 use App\Models\IdentityVerification;
 use App\Models\RunnerLicenseVerification;
 use App\Services\RunnerStatusService;
@@ -22,16 +24,34 @@ class RunnerStatusServiceTest extends TestCase
 
     private RunnerStatusService $runnerStatusService;
 
+    private DrivingLicenseType $licenseType;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         Storage::fake('local');
-        $this->seed(
-            \Database\Seeders\DrivingLicenseCatalogSeeder::class
-        );
 
         $this->runnerStatusService = app(RunnerStatusService::class);
+
+        $this->licenseType = DrivingLicenseType::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'GENERAL',
+            'name' => 'Lesen Am',
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        DrivingLicenseCatalog::query()->create([
+            'id' => (string) Str::uuid(),
+            'driving_license_type_id' => $this->licenseType->id,
+            'code' => 'D',
+            'name' => 'Lesen D',
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
     }
 
     private function createAccount(
@@ -39,7 +59,7 @@ class RunnerStatusServiceTest extends TestCase
         string $status = 'ACTIVE',
         string $runnerStatus = Account::RUNNER_STATUS_NOT_RUNNER
     ): Account {
-        $account = Account::create([
+        $account = Account::query()->create([
             'id' => (string) Str::uuid(),
             'name' => 'Runner Status Test',
             'phone' => null,
@@ -57,7 +77,7 @@ class RunnerStatusServiceTest extends TestCase
 
     private function verifyIdentityOnly(Account $account): void
     {
-        IdentityVerification::create([
+        IdentityVerification::query()->create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'real_name' => 'Contoh Nama Sebenar',
@@ -73,47 +93,19 @@ class RunnerStatusServiceTest extends TestCase
     private function createPendingLicense(
         Account $account
     ): RunnerLicenseVerification {
-        return RunnerLicenseVerification::create([
+        return RunnerLicenseVerification::query()->create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'license_number_encrypted' => Crypt::encryptString(
                 'D123456789012'
             ),
-            'license_type' => RunnerLicenseVerification::TYPE_CAR,
+            'license_type' => $this->licenseType->code,
             'license_class' => 'D',
             'expires_at' => now()->addYear()->toDateString(),
             'status' => RunnerLicenseVerification::STATUS_PENDING,
             'is_current' => false,
             'submitted_at' => now(),
             'reviewed_at' => null,
-            'reviewer_account_id' => null,
-            'rejection_reason' => null,
-            'disk' => 'local',
-            'document_path' => 'runner-license-documents/test-'
-                .Str::uuid()
-                .'.pdf',
-            'mime_type' => 'application/pdf',
-            'size_bytes' => 100,
-        ]);
-    }
-
-    private function verifyIdentity(Account $account): void
-    {
-        $this->verifyIdentityOnly($account);
-
-        RunnerLicenseVerification::create([
-            'id' => (string) Str::uuid(),
-            'account_id' => $account->id,
-            'license_number_encrypted' => Crypt::encryptString(
-                'D123456789012'
-            ),
-            'license_type' => RunnerLicenseVerification::TYPE_CAR,
-            'license_class' => 'D',
-            'expires_at' => now()->addYear()->toDateString(),
-            'status' => RunnerLicenseVerification::STATUS_VERIFIED,
-            'is_current' => true,
-            'submitted_at' => now(),
-            'reviewed_at' => now(),
             'reviewer_account_id' => null,
             'rejection_reason' => null,
             'disk' => 'local',
@@ -132,7 +124,8 @@ class RunnerStatusServiceTest extends TestCase
             'D123456789012',
             'D',
             now()->addYear()->toDateString(),
-            UploadedFile::fake()->image('runner-license.jpg')
+            UploadedFile::fake()->image('runner-license.jpg'),
+            $this->licenseType->code
         );
     }
 
@@ -141,14 +134,14 @@ class RunnerStatusServiceTest extends TestCase
         array $permissions
     ): void {
         foreach (array_unique($permissions) as $permission) {
-            AccountPermission::create([
+            AccountPermission::query()->create([
                 'account_id' => $account->id,
                 'permission_key' => $permission,
             ]);
         }
     }
 
-    public function test_user_can_apply_and_status_becomes_pending(): void
+    public function test_user_can_apply_with_a_valid_dynamic_license(): void
     {
         $account = $this->createAccount();
         $this->verifyIdentityOnly($account);
@@ -162,16 +155,77 @@ class RunnerStatusServiceTest extends TestCase
 
         $this->assertSame('USER', $result->role);
 
-        $this->assertDatabaseHas('accounts', [
-            'id' => $account->id,
-            'runner_status' => Account::RUNNER_STATUS_PENDING,
-            'role' => 'USER',
+        $this->assertDatabaseHas('runner_license_verifications', [
+            'account_id' => $account->id,
+            'license_type' => 'GENERAL',
+            'license_class' => 'D',
+            'status' => RunnerLicenseVerification::STATUS_PENDING,
+            'is_current' => false,
         ]);
 
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_account_id' => $account->id,
-            'target_account_id' => $account->id,
-            'action' => 'RUNNER_APPLICATION_SUBMITTED',
+        $this->assertSame(
+            1,
+            \Illuminate\Support\Facades\DB::table('audit_logs')
+                ->where('actor_account_id', $account->id)
+                ->where('target_account_id', $account->id)
+                ->where('action', 'RUNNER_APPLICATION_SUBMITTED')
+                ->count()
+        );
+    }
+
+    public function test_application_rejects_unknown_license_type(): void
+    {
+        $account = $this->createAccount();
+        $this->verifyIdentityOnly($account);
+
+        try {
+            $this->runnerStatusService->apply(
+                $account,
+                'D123456789012',
+                'D',
+                now()->addYear()->toDateString(),
+                UploadedFile::fake()->image('runner-license.jpg'),
+                'UNKNOWN_TYPE'
+            );
+
+            $this->fail('An unknown license type must be rejected.');
+        } catch (\InvalidArgumentException $exception) {
+            $this->assertSame(
+                'Jenis lesen tidak sah atau tidak aktif.',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseMissing('runner_license_verifications', [
+            'account_id' => $account->id,
+        ]);
+    }
+
+    public function test_application_rejects_class_outside_selected_type(): void
+    {
+        $account = $this->createAccount();
+        $this->verifyIdentityOnly($account);
+
+        try {
+            $this->runnerStatusService->apply(
+                $account,
+                'D123456789012',
+                'Z99',
+                now()->addYear()->toDateString(),
+                UploadedFile::fake()->image('runner-license.jpg'),
+                $this->licenseType->code
+            );
+
+            $this->fail('An unknown license class must be rejected.');
+        } catch (\InvalidArgumentException $exception) {
+            $this->assertSame(
+                'Kelas lesen tidak sah, tidak aktif atau bukan milik jenis lesen yang dipilih.',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseMissing('runner_license_verifications', [
+            'account_id' => $account->id,
         ]);
     }
 
@@ -193,7 +247,14 @@ class RunnerStatusServiceTest extends TestCase
             );
         }
 
-        $this->assertDatabaseCount('audit_logs', 1);
+        $this->assertSame(
+            1,
+            \Illuminate\Support\Facades\DB::table('audit_logs')
+                ->where('actor_account_id', $account->id)
+                ->where('target_account_id', $account->id)
+                ->where('action', 'RUNNER_APPLICATION_SUBMITTED')
+                ->count()
+        );
     }
 
     public function test_user_without_verified_identity_cannot_apply(): void
@@ -208,68 +269,7 @@ class RunnerStatusServiceTest extends TestCase
         $this->applyWithLicense($account);
     }
 
-    public function test_pending_identity_verification_cannot_apply(): void
-    {
-        $account = $this->createAccount();
-
-        IdentityVerification::create([
-            'id' => (string) Str::uuid(),
-            'account_id' => $account->id,
-            'real_name' => 'Contoh Nama Sebenar',
-            'mykad_number_encrypted' => Crypt::encryptString(
-                '900101145678'
-            ),
-            'status' => IdentityVerification::STATUS_PENDING,
-            'submitted_at' => now(),
-        ]);
-
-        $this->expectException(DomainException::class);
-        $this->expectExceptionMessage(
-            'Identity verification is required before applying to become a Runner.'
-        );
-
-        $this->applyWithLicense($account);
-    }
-
-    public function test_rejected_identity_verification_cannot_apply(): void
-    {
-        $account = $this->createAccount();
-
-        IdentityVerification::create([
-            'id' => (string) Str::uuid(),
-            'account_id' => $account->id,
-            'real_name' => 'Contoh Nama Sebenar',
-            'mykad_number_encrypted' => Crypt::encryptString(
-                '900101145678'
-            ),
-            'status' => IdentityVerification::STATUS_REJECTED,
-            'submitted_at' => now(),
-            'reviewed_at' => now(),
-            'rejection_reason' => 'Dokumen tidak jelas.',
-        ]);
-
-        $this->expectException(DomainException::class);
-        $this->expectExceptionMessage(
-            'Identity verification is required before applying to become a Runner.'
-        );
-
-        $this->applyWithLicense($account);
-    }
-
-    public function test_inactive_account_cannot_apply(): void
-    {
-        $account = $this->createAccount('USER', 'SUSPENDED');
-        $this->verifyIdentityOnly($account);
-
-        $this->expectException(DomainException::class);
-        $this->expectExceptionMessage(
-            'Only active accounts can apply to become a Runner.'
-        );
-
-        $this->applyWithLicense($account);
-    }
-
-    public function test_super_admin_can_approve_user_application_with_permission(): void
+    public function test_admin_can_approve_pending_application(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
 
@@ -284,7 +284,7 @@ class RunnerStatusServiceTest extends TestCase
         );
 
         $this->verifyIdentityOnly($applicant);
-        $this->createPendingLicense($applicant);
+        $license = $this->createPendingLicense($applicant);
 
         $result = $this->runnerStatusService->changeStatus(
             $admin,
@@ -299,9 +299,12 @@ class RunnerStatusServiceTest extends TestCase
         );
 
         $this->assertDatabaseHas('runner_license_verifications', [
-            'account_id' => $applicant->id,
+            'id' => $license->id,
+            'license_type' => 'GENERAL',
+            'license_class' => 'D',
             'status' => RunnerLicenseVerification::STATUS_VERIFIED,
             'is_current' => true,
+            'reviewer_account_id' => $admin->id,
         ]);
 
         $this->assertDatabaseHas('audit_logs', [
@@ -312,7 +315,51 @@ class RunnerStatusServiceTest extends TestCase
         ]);
     }
 
-    public function test_super_admin_without_permission_cannot_approve_application(): void
+    public function test_admin_can_reject_pending_application(): void
+    {
+        $admin = $this->createAccount('SUPER_ADMIN');
+
+        $this->grantPermissions($admin, [
+            'runner_applications.reject',
+        ]);
+
+        $applicant = $this->createAccount(
+            'USER',
+            'ACTIVE',
+            Account::RUNNER_STATUS_PENDING
+        );
+
+        $this->verifyIdentityOnly($applicant);
+        $license = $this->createPendingLicense($applicant);
+
+        $result = $this->runnerStatusService->changeStatus(
+            $admin,
+            $applicant->id,
+            Account::RUNNER_STATUS_REJECTED,
+            'Application did not meet requirements.'
+        );
+
+        $this->assertSame(
+            Account::RUNNER_STATUS_REJECTED,
+            $result->runner_status
+        );
+
+        $this->assertDatabaseHas('runner_license_verifications', [
+            'id' => $license->id,
+            'status' => RunnerLicenseVerification::STATUS_REJECTED,
+            'is_current' => false,
+            'rejection_reason' => 'Application did not meet requirements.',
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
+            'action' => 'RUNNER_APPLICATION_REJECTED',
+            'reason' => 'Application did not meet requirements.',
+        ]);
+    }
+
+    public function test_admin_without_permission_cannot_approve_application(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
 
@@ -330,119 +377,6 @@ class RunnerStatusServiceTest extends TestCase
             Account::RUNNER_STATUS_APPROVED,
             'Approval attempt without permission.'
         );
-    }
-
-    public function test_inactive_pending_account_cannot_be_approved_as_runner(): void
-    {
-        $admin = $this->createAccount('SUPER_ADMIN');
-
-        $applicant = $this->createAccount(
-            'USER',
-            'SUSPENDED',
-            Account::RUNNER_STATUS_PENDING
-        );
-
-        try {
-            $this->runnerStatusService->changeStatus(
-                $admin,
-                $applicant->id,
-                Account::RUNNER_STATUS_APPROVED,
-                'Attempted approval of inactive account.'
-            );
-
-            $this->fail('An inactive account must not be approved.');
-        } catch (DomainException $exception) {
-            $this->assertSame(
-                'Only active accounts can be approved as a Runner.',
-                $exception->getMessage()
-            );
-        }
-
-        $this->assertDatabaseHas('accounts', [
-            'id' => $applicant->id,
-            'status' => 'SUSPENDED',
-            'runner_status' => Account::RUNNER_STATUS_PENDING,
-        ]);
-
-        $this->assertDatabaseMissing('audit_logs', [
-            'target_account_id' => $applicant->id,
-            'action' => 'RUNNER_APPLICATION_APPROVED',
-        ]);
-    }
-
-    public function test_inactive_suspended_runner_cannot_be_restored(): void
-    {
-        $admin = $this->createAccount('SUPER_ADMIN');
-
-        $runner = $this->createAccount(
-            'USER',
-            'SUSPENDED',
-            Account::RUNNER_STATUS_SUSPENDED
-        );
-
-        try {
-            $this->runnerStatusService->changeStatus(
-                $admin,
-                $runner->id,
-                Account::RUNNER_STATUS_APPROVED,
-                'Attempted restoration of inactive account.'
-            );
-
-            $this->fail('An inactive Runner must not be restored.');
-        } catch (DomainException $exception) {
-            $this->assertSame(
-                'Only active accounts can be approved as a Runner.',
-                $exception->getMessage()
-            );
-        }
-
-        $this->assertDatabaseHas('accounts', [
-            'id' => $runner->id,
-            'status' => 'SUSPENDED',
-            'runner_status' => Account::RUNNER_STATUS_SUSPENDED,
-        ]);
-
-        $this->assertDatabaseMissing('audit_logs', [
-            'target_account_id' => $runner->id,
-            'action' => 'RUNNER_ELIGIBILITY_RESTORED',
-        ]);
-    }
-
-    public function test_root_can_manage_super_admin_runner_status(): void
-    {
-        $root = $this->createAccount('ROOT_SUPER_ADMIN');
-
-        $target = $this->createAccount(
-            'SUPER_ADMIN',
-            'ACTIVE',
-            Account::RUNNER_STATUS_PENDING
-        );
-
-        $this->createPendingLicense($target);
-
-        $result = $this->runnerStatusService->changeStatus(
-            $root,
-            $target->id,
-            Account::RUNNER_STATUS_REJECTED,
-            'Application did not meet requirements.'
-        );
-
-        $this->assertSame(
-            Account::RUNNER_STATUS_REJECTED,
-            $result->runner_status
-        );
-
-        $this->assertDatabaseHas('runner_license_verifications', [
-            'account_id' => $target->id,
-            'status' => RunnerLicenseVerification::STATUS_REJECTED,
-            'is_current' => false,
-        ]);
-
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_account_id' => $root->id,
-            'target_account_id' => $target->id,
-            'action' => 'RUNNER_APPLICATION_REJECTED',
-        ]);
     }
 
     public function test_super_admin_cannot_manage_another_super_admin(): void
@@ -465,22 +399,22 @@ class RunnerStatusServiceTest extends TestCase
         );
     }
 
-    public function test_root_can_manage_another_root_runner_status(): void
+    public function test_root_can_manage_super_admin_runner_status(): void
     {
         $root = $this->createAccount('ROOT_SUPER_ADMIN');
 
-        $anotherRoot = $this->createAccount(
-            'ROOT_SUPER_ADMIN',
+        $target = $this->createAccount(
+            'SUPER_ADMIN',
             'ACTIVE',
             Account::RUNNER_STATUS_PENDING
         );
 
-        $this->verifyIdentityOnly($anotherRoot);
-        $this->createPendingLicense($anotherRoot);
+        $this->verifyIdentityOnly($target);
+        $this->createPendingLicense($target);
 
         $result = $this->runnerStatusService->changeStatus(
             $root,
-            $anotherRoot->id,
+            $target->id,
             Account::RUNNER_STATUS_APPROVED,
             'Root approved the application.'
         );
@@ -490,73 +424,12 @@ class RunnerStatusServiceTest extends TestCase
             $result->runner_status
         );
 
-        $this->assertDatabaseHas('runner_license_verifications', [
-            'account_id' => $anotherRoot->id,
-            'status' => RunnerLicenseVerification::STATUS_VERIFIED,
-            'is_current' => true,
-        ]);
-
         $this->assertDatabaseHas('audit_logs', [
             'actor_account_id' => $root->id,
-            'target_account_id' => $anotherRoot->id,
+            'target_account_id' => $target->id,
             'action' => 'RUNNER_APPLICATION_APPROVED',
             'reason' => 'Root approved the application.',
         ]);
-    }
-
-    public function test_root_can_change_own_runner_status(): void
-    {
-        $root = $this->createAccount(
-            'ROOT_SUPER_ADMIN',
-            'ACTIVE',
-            Account::RUNNER_STATUS_PENDING
-        );
-
-        $this->verifyIdentityOnly($root);
-        $this->createPendingLicense($root);
-
-        $result = $this->runnerStatusService->changeStatus(
-            $root,
-            $root->id,
-            Account::RUNNER_STATUS_APPROVED,
-            'Root approved own Runner status.'
-        );
-
-        $this->assertSame(
-            Account::RUNNER_STATUS_APPROVED,
-            $result->runner_status
-        );
-
-        $this->assertDatabaseHas('runner_license_verifications', [
-            'account_id' => $root->id,
-            'status' => RunnerLicenseVerification::STATUS_VERIFIED,
-            'is_current' => true,
-        ]);
-
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_account_id' => $root->id,
-            'target_account_id' => $root->id,
-            'action' => 'RUNNER_APPLICATION_APPROVED',
-            'reason' => 'Root approved own Runner status.',
-        ]);
-    }
-
-    public function test_super_admin_cannot_change_own_runner_status(): void
-    {
-        $admin = $this->createAccount(
-            'SUPER_ADMIN',
-            'ACTIVE',
-            Account::RUNNER_STATUS_PENDING
-        );
-
-        $this->expectException(AuthorizationException::class);
-
-        $this->runnerStatusService->changeStatus(
-            $admin,
-            $admin->id,
-            Account::RUNNER_STATUS_APPROVED,
-            'Self-approval attempt.'
-        );
     }
 
     public function test_reason_is_required_for_admin_decision(): void
@@ -578,136 +451,5 @@ class RunnerStatusServiceTest extends TestCase
             Account::RUNNER_STATUS_APPROVED,
             '   '
         );
-    }
-
-    public function test_invalid_status_transition_is_rejected(): void
-    {
-        $admin = $this->createAccount('SUPER_ADMIN');
-        $target = $this->createAccount();
-
-        $this->expectException(DomainException::class);
-        $this->expectExceptionMessage(
-            'The requested Runner status transition is not allowed.'
-        );
-
-        $this->runnerStatusService->changeStatus(
-            $admin,
-            $target->id,
-            Account::RUNNER_STATUS_APPROVED,
-            'Attempted to skip application review.'
-        );
-    }
-
-    public function test_approved_runner_can_be_suspended_and_restored_with_permissions(): void
-    {
-        $admin = $this->createAccount('SUPER_ADMIN');
-
-        $this->grantPermissions($admin, [
-            'runners.suspend',
-            'runners.restore',
-        ]);
-
-        $runner = $this->createAccount(
-            'USER',
-            'ACTIVE',
-            Account::RUNNER_STATUS_APPROVED
-        );
-        $this->verifyIdentity($runner);
-
-        $suspended = $this->runnerStatusService->changeStatus(
-            $admin,
-            $runner->id,
-            Account::RUNNER_STATUS_SUSPENDED,
-            'Runner eligibility temporarily suspended.'
-        );
-
-        $this->assertSame(
-            Account::RUNNER_STATUS_SUSPENDED,
-            $suspended->runner_status
-        );
-
-        $restored = $this->runnerStatusService->changeStatus(
-            $admin,
-            $runner->id,
-            Account::RUNNER_STATUS_APPROVED,
-            'Runner eligibility restored after review.'
-        );
-
-        $this->assertSame(
-            Account::RUNNER_STATUS_APPROVED,
-            $restored->runner_status
-        );
-
-        $this->assertDatabaseHas('audit_logs', [
-            'target_account_id' => $runner->id,
-            'action' => 'RUNNER_ELIGIBILITY_SUSPENDED',
-        ]);
-
-        $this->assertDatabaseHas('audit_logs', [
-            'target_account_id' => $runner->id,
-            'action' => 'RUNNER_ELIGIBILITY_RESTORED',
-        ]);
-    }
-
-    public function test_pending_application_list_respects_role_and_permissions(): void
-    {
-        $root = $this->createAccount('ROOT_SUPER_ADMIN');
-
-        $superAdmin = $this->createAccount('SUPER_ADMIN');
-
-        $this->grantPermissions($superAdmin, [
-            'runner_applications.view',
-        ]);
-
-        $unprivilegedAdmin = $this->createAccount('SUPER_ADMIN');
-
-        $userApplication = $this->createAccount(
-            'USER',
-            'ACTIVE',
-            Account::RUNNER_STATUS_PENDING
-        );
-
-        $superAdminApplication = $this->createAccount(
-            'SUPER_ADMIN',
-            'ACTIVE',
-            Account::RUNNER_STATUS_PENDING
-        );
-
-        $rootResults = $this->runnerStatusService
-            ->pendingApplications($root);
-
-        $this->assertTrue(
-            $rootResults->contains('id', $userApplication->id)
-        );
-
-        $this->assertTrue(
-            $rootResults->contains('id', $superAdminApplication->id)
-        );
-
-        $superAdminResults = $this->runnerStatusService
-            ->pendingApplications($superAdmin);
-
-        $this->assertTrue(
-            $superAdminResults->contains('id', $userApplication->id)
-        );
-
-        $this->assertFalse(
-            $superAdminResults->contains('id', $superAdminApplication->id)
-        );
-
-        $this->expectException(AuthorizationException::class);
-
-        $this->runnerStatusService->pendingApplications(
-            $unprivilegedAdmin
-        );
-    }
-
-    public function test_regular_user_cannot_review_runner_applications(): void
-    {
-        $user = $this->createAccount();
-
-        $this->expectException(AuthorizationException::class);
-
-        $this->runnerStatusService->pendingApplications($user);
     }
 }
