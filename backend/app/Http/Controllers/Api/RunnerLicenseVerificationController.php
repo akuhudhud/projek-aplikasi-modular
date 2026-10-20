@@ -134,7 +134,6 @@ class RunnerLicenseVerificationController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                // Kekalkan medan lama untuk keserasian aplikasi sedia ada.
                 'runner_license_verification' => $displayedApplication === null
                     ? $this->emptyStatusPayload()
                     : $this->statusPayload($displayedApplication),
@@ -147,7 +146,6 @@ class RunnerLicenseVerificationController extends Controller
                     ? null
                     : $this->statusPayload($pendingApplication),
 
-                // Medan baharu menyokong pelbagai jenis lesen.
                 'current_licenses' => $currentLicenses
                     ->map(fn (
                         RunnerLicenseVerification $verification
@@ -180,7 +178,7 @@ class RunnerLicenseVerificationController extends Controller
                 'sometimes',
                 'required',
                 'string',
-                'in:MOTORCYCLE,CAR,PSV,E,GENERAL',
+                'max:30',
             ],
             'license_class' => ['required', 'string', 'max:30'],
             'expires_at' => ['required', 'date_format:Y-m-d'],
@@ -377,7 +375,6 @@ class RunnerLicenseVerificationController extends Controller
                     $validated['decision']
                     === RunnerLicenseVerification::STATUS_VERIFIED
                 ) {
-                    // Gantikan lesen semasa yang sama jenis dan kelas sahaja.
                     RunnerLicenseVerification::query()
                         ->where('account_id', $verification->account_id)
                         ->where('license_type', $verification->license_type)
@@ -500,7 +497,6 @@ class RunnerLicenseVerificationController extends Controller
         string $identifier,
         bool $pendingFirst = false
     ): ?RunnerLicenseVerification {
-        // ID rekod lebih tepat dan disyorkan untuk semakan admin.
         $byId = RunnerLicenseVerification::query()
             ->with('account')
             ->whereKey($identifier)
@@ -510,7 +506,6 @@ class RunnerLicenseVerificationController extends Controller
             return $byId;
         }
 
-        // Kekalkan keserasian endpoint lama yang menggunakan account ID.
         $query = RunnerLicenseVerification::query()
             ->with('account')
             ->where('account_id', $identifier);
