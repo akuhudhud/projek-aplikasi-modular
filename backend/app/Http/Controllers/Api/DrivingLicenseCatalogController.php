@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Account;
 use App\Models\DrivingLicenseCatalog;
 use App\Models\RunnerLicenseVerification;
+use App\Services\AuditLogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -43,8 +46,10 @@ class DrivingLicenseCatalogController extends Controller
         ]);
     }
 
-    public function store(Request $request): JsonResponse
-    {
+    public function store(
+        Request $request,
+        AuditLogService $auditLogService
+    ): JsonResponse {
         $this->normalizeCode($request);
         $this->normalizeName($request);
 
@@ -66,16 +71,35 @@ class DrivingLicenseCatalogController extends Controller
             'sort_order' => ['sometimes', 'integer', 'min:0'],
         ]);
 
-        $license = DrivingLicenseCatalog::query()->create([
-            'id' => (string) Str::uuid(),
-            'code' => $validated['code'],
-            'name' => $validated['name'],
-            'description' => isset($validated['description'])
-                ? trim($validated['description'])
-                : null,
-            'is_active' => true,
-            'sort_order' => $validated['sort_order'] ?? 0,
-        ]);
+        /** @var Account $actor */
+        $actor = $request->attributes->get('account');
+
+        $license = DB::transaction(function () use (
+            $validated,
+            $actor,
+            $auditLogService
+        ): DrivingLicenseCatalog {
+            $license = DrivingLicenseCatalog::query()->create([
+                'id' => (string) Str::uuid(),
+                'code' => $validated['code'],
+                'name' => $validated['name'],
+                'description' => isset($validated['description'])
+                    ? trim($validated['description'])
+                    : null,
+                'is_active' => true,
+                'sort_order' => $validated['sort_order'] ?? 0,
+            ]);
+
+            $auditLogService->record(
+                $actor,
+                $actor,
+                'DRIVING_LICENSE_CATALOG_CREATED',
+                'Created driving license catalog entry '
+                    .$license->code.'.'
+            );
+
+            return $license;
+        });
 
         return response()->json([
             'success' => true,
@@ -88,7 +112,8 @@ class DrivingLicenseCatalogController extends Controller
 
     public function update(
         Request $request,
-        string $id
+        string $id,
+        AuditLogService $auditLogService
     ): JsonResponse {
         $license = DrivingLicenseCatalog::query()->find($id);
 
@@ -149,20 +174,48 @@ class DrivingLicenseCatalogController extends Controller
             );
         }
 
-        $license->fill($validated);
-        $license->save();
+        /** @var Account $actor */
+        $actor = $request->attributes->get('account');
+
+        $updatedLicense = DB::transaction(function () use (
+            $license,
+            $validated,
+            $actor,
+            $auditLogService
+        ): DrivingLicenseCatalog {
+            $lockedLicense = DrivingLicenseCatalog::query()
+                ->whereKey($license->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $lockedLicense->fill($validated);
+            $lockedLicense->save();
+
+            $auditLogService->record(
+                $actor,
+                $actor,
+                'DRIVING_LICENSE_CATALOG_UPDATED',
+                'Updated driving license catalog entry '
+                    .$lockedLicense->code.'.'
+            );
+
+            return $lockedLicense->fresh();
+        });
 
         return response()->json([
             'success' => true,
             'message' => 'Maklumat lesen berjaya dikemas kini.',
             'data' => [
-                'license' => $license->fresh(),
+                'license' => $updatedLicense,
             ],
         ]);
     }
 
-    public function deactivate(string $id): JsonResponse
-    {
+    public function deactivate(
+        Request $request,
+        string $id,
+        AuditLogService $auditLogService
+    ): JsonResponse {
         $license = DrivingLicenseCatalog::query()->find($id);
 
         if ($license === null) {
@@ -179,14 +232,42 @@ class DrivingLicenseCatalogController extends Controller
             ]);
         }
 
-        $license->is_active = false;
-        $license->save();
+        /** @var Account $actor */
+        $actor = $request->attributes->get('account');
+
+        $deactivatedLicense = DB::transaction(function () use (
+            $license,
+            $actor,
+            $auditLogService
+        ): DrivingLicenseCatalog {
+            $lockedLicense = DrivingLicenseCatalog::query()
+                ->whereKey($license->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (!$lockedLicense->is_active) {
+                return $lockedLicense;
+            }
+
+            $lockedLicense->is_active = false;
+            $lockedLicense->save();
+
+            $auditLogService->record(
+                $actor,
+                $actor,
+                'DRIVING_LICENSE_CATALOG_DEACTIVATED',
+                'Deactivated driving license catalog entry '
+                    .$lockedLicense->code.'.'
+            );
+
+            return $lockedLicense->fresh();
+        });
 
         return response()->json([
             'success' => true,
             'message' => 'Lesen berjaya dinyahaktifkan.',
             'data' => [
-                'license' => $license->fresh(),
+                'license' => $deactivatedLicense,
             ],
         ]);
     }
