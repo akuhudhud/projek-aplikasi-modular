@@ -258,9 +258,31 @@ class RunnerApplicationApiTest extends TestCase
         ]);
 
         $this->asAccount($user, 'runner-license-separate-token')
-            ->postJson('/api/me/runner-license-verification')
+            ->post(
+                '/api/me/runner-license-verification',
+                $this->validApplicationPayload(),
+                ['Accept' => 'application/json']
+            )
             ->assertUnprocessable()
-            ->assertJsonPath('success', false);
+            ->assertJsonPath('success', false)
+            ->assertJsonPath(
+                'message',
+                'Lesen tambahan hanya boleh dihantar selepas permohonan Runner diluluskan.'
+            );
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $user->id,
+            'runner_status' => Account::RUNNER_STATUS_NOT_RUNNER,
+        ]);
+
+        $this->assertDatabaseMissing('runner_license_verifications', [
+            'account_id' => $user->id,
+        ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'target_account_id' => $user->id,
+            'action' => 'RUNNER_LICENSE_VERIFICATION_SUBMITTED',
+        ]);
     }
 
     public function test_user_without_verified_identity_is_directed_to_identity_verification(): void
