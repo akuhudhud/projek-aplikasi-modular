@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Account;
 use App\Models\DrivingLicenseCatalog;
+use App\Models\DrivingLicenseType;
 use App\Models\IdentityVerification;
 use App\Models\RunnerLicenseVerification;
 use DomainException;
@@ -34,7 +35,7 @@ class RunnerLicenseVerificationService
         $licenseClass = strtoupper(trim($licenseClass));
 
         $licenseType = $licenseType === null
-            ? RunnerLicenseVerification::TYPE_GENERAL
+            ? ''
             : strtoupper(trim($licenseType));
 
         if ($licenseNumber === '' || $licenseClass === '') {
@@ -45,7 +46,7 @@ class RunnerLicenseVerificationService
 
         if ($licenseType === '' || strlen($licenseType) > 30) {
             throw new InvalidArgumentException(
-                'Maklumat lesen tidak sah.'
+                'Jenis lesen diperlukan dan mestilah sah.'
             );
         }
 
@@ -176,12 +177,7 @@ class RunnerLicenseVerificationService
 
                 /*
                  * Permohonan Runner baharu hanya boleh dihantar
-                 * apabila akaun masih berstatus NOT_RUNNER.
-                 *
-                 * Semakan dibuat menggunakan rekod akaun terkunci,
-                 * bukan status lama pada objek Account yang diterima.
-                 * Ini mengelakkan permohonan kedua daripada sampai
-                 * ke semakan lesen PENDING atau mencipta rekod baharu.
+                 * apabila akaun masih NOT_RUNNER.
                  */
                 if (
                     $afterCreate !== null
@@ -202,6 +198,23 @@ class RunnerLicenseVerificationService
                 if ($catalogEntry === null) {
                     throw new InvalidArgumentException(
                         'Kelas lesen tidak sah atau tidak aktif.'
+                    );
+                }
+
+                /*
+                 * Jenis lesen mesti datang daripada katalog dinamik.
+                 * Tiada inferens daripada kelas lesen dan tiada
+                 * fallback kepada GENERAL.
+                 */
+                $typeEntry = DrivingLicenseType::query()
+                    ->where('code', $licenseType)
+                    ->where('is_active', true)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($typeEntry === null) {
+                    throw new InvalidArgumentException(
+                        'Jenis lesen tidak sah atau tidak aktif.'
                     );
                 }
 
@@ -250,7 +263,7 @@ class RunnerLicenseVerificationService
                     'account_id' => $lockedAccount->id,
                     'license_number_encrypted' =>
                         Crypt::encryptString($licenseNumber),
-                    'license_type' => $licenseType,
+                    'license_type' => $typeEntry->code,
                     'license_class' => $licenseClass,
                     'previous_license_verification_id' => $previous?->id,
                     'expires_at' => $expiry->toDateString(),
