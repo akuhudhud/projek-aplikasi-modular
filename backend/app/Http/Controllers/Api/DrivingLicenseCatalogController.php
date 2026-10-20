@@ -19,6 +19,16 @@ class DrivingLicenseCatalogController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'driving_license_type_id' => [
+                'sometimes',
+                'required',
+                'uuid',
+                Rule::exists('driving_license_types', 'id')
+                    ->where('is_active', true),
+            ],
+        ]);
+
         $query = DrivingLicenseCatalog::query()
             ->where('is_active', true)
             ->whereHas('licenseType', function ($typeQuery): void {
@@ -28,16 +38,7 @@ class DrivingLicenseCatalogController extends Controller
             ->orderBy('sort_order')
             ->orderBy('name');
 
-        if ($request->filled('driving_license_type_id')) {
-            $validated = $request->validate([
-                'driving_license_type_id' => [
-                    'required',
-                    'uuid',
-                    Rule::exists('driving_license_types', 'id')
-                        ->where('is_active', true),
-                ],
-            ]);
-
+        if (isset($validated['driving_license_type_id'])) {
             $query->where(
                 'driving_license_type_id',
                 $validated['driving_license_type_id']
@@ -113,63 +114,66 @@ class DrivingLicenseCatalogController extends Controller
             'sort_order' => ['sometimes', 'integer', 'min:0'],
         ]);
 
-        $duplicate = DrivingLicenseCatalog::query()
-            ->where(
-                'driving_license_type_id',
-                $validated['driving_license_type_id']
-            )
-            ->where('code', $validated['code'])
-            ->exists();
-
-        if ($duplicate) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Kod kelas sudah wujud dalam jenis lesen ini.',
-            ], 422);
-        }
-
         /** @var Account $actor */
         $actor = $request->attributes->get('account');
 
-        $license = DB::transaction(function () use (
-            $validated,
-            $actor,
-            $auditLogService
-        ): DrivingLicenseCatalog {
-            $type = DrivingLicenseType::query()
-                ->whereKey($validated['driving_license_type_id'])
-                ->where('is_active', true)
-                ->lockForUpdate()
-                ->first();
+        try {
+            $license = DB::transaction(function () use (
+                $validated,
+                $actor,
+                $auditLogService
+            ): DrivingLicenseCatalog {
+                $type = DrivingLicenseType::query()
+                    ->whereKey($validated['driving_license_type_id'])
+                    ->where('is_active', true)
+                    ->lockForUpdate()
+                    ->first();
 
-            if ($type === null) {
-                throw new DomainException(
-                    'Jenis lesen tidak aktif atau tidak ditemui.'
+                if ($type === null) {
+                    throw new DomainException(
+                        'Jenis lesen tidak aktif atau tidak ditemui.'
+                    );
+                }
+
+                $duplicate = DrivingLicenseCatalog::query()
+                    ->where('driving_license_type_id', $type->id)
+                    ->where('code', $validated['code'])
+                    ->exists();
+
+                if ($duplicate) {
+                    throw new DomainException(
+                        'Kod kelas sudah wujud dalam jenis lesen ini.'
+                    );
+                }
+
+                $license = DrivingLicenseCatalog::query()->create([
+                    'id' => (string) Str::uuid(),
+                    'driving_license_type_id' => $type->id,
+                    'code' => $validated['code'],
+                    'name' => $validated['name'],
+                    'description' => isset($validated['description'])
+                        ? trim($validated['description'])
+                        : null,
+                    'is_active' => true,
+                    'sort_order' => $validated['sort_order'] ?? 0,
+                ]);
+
+                $auditLogService->record(
+                    $actor,
+                    $actor,
+                    'DRIVING_LICENSE_CATALOG_CREATED',
+                    'Created driving license class '
+                        .$license->code.' under type '.$type->code.'.'
                 );
-            }
 
-            $license = DrivingLicenseCatalog::query()->create([
-                'id' => (string) Str::uuid(),
-                'driving_license_type_id' => $type->id,
-                'code' => $validated['code'],
-                'name' => $validated['name'],
-                'description' => isset($validated['description'])
-                    ? trim($validated['description'])
-                    : null,
-                'is_active' => true,
-                'sort_order' => $validated['sort_order'] ?? 0,
-            ]);
-
-            $auditLogService->record(
-                $actor,
-                $actor,
-                'DRIVING_LICENSE_CATALOG_CREATED',
-                'Created driving license class '
-                    .$license->code.' under type '.$type->code.'.'
-            );
-
-            return $license->load('licenseType:id,code,name');
-        });
+                return $license->load('licenseType:id,code,name');
+            });
+        } catch (DomainException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
 
         return response()->json([
             'success' => true,
@@ -208,7 +212,12 @@ class DrivingLicenseCatalogController extends Controller
                 'max:30',
                 'regex:/^[A-Z0-9_-]+$/',
             ],
-            'name' => ['sometimes', 'required', 'string', 'max:100'],
+            'name' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:100',
+            ],
             'description' => [
                 'sometimes',
                 'nullable',
@@ -255,14 +264,15 @@ class DrivingLicenseCatalogController extends Controller
                 $codeChanged = $newCode !== $lockedLicense->code;
 
                 if ($typeChanged || $codeChanged) {
-                    $isReferenced = RunnerLicenseVerification::query()
-                        ->where(
-                            'license_class',
-                            $lockedLicense->code
+                    $oldType = DrivingLicenseType::query()
+                        ->whereKey(
+                            $lockedLicense->driving_license_type_id
                         )
-                        ->whereHas('account', function ($query): void {
-                            // Relationship exists for the verification record.
-                        })
+                        ->first();
+
+                    $isReferenced = RunnerLicenseVerification::query()
+                        ->where('license_type', $oldType?->code)
+                        ->where('license_class', $lockedLicense->code)
                         ->exists();
 
                     if ($isReferenced) {
@@ -286,13 +296,9 @@ class DrivingLicenseCatalogController extends Controller
                     );
                 }
 
-                if (
-                    $typeChanged
-                    && $type->is_active !== true
-                    && $type->is_active !== 1
-                ) {
+                if ($typeChanged && !(bool) $type->is_active) {
                     throw new DomainException(
-                        'Kelas baharu hanya boleh dipindahkan ke jenis lesen aktif.'
+                        'Kelas hanya boleh dipindahkan ke jenis lesen aktif.'
                     );
                 }
 
@@ -320,7 +326,8 @@ class DrivingLicenseCatalogController extends Controller
 
                 if (
                     array_key_exists('is_active', $validated)
-                    && $previousActiveState !== (bool) $lockedLicense->is_active
+                    && $previousActiveState
+                        !== (bool) $lockedLicense->is_active
                 ) {
                     if ($lockedLicense->is_active) {
                         $action = 'DRIVING_LICENSE_CATALOG_REACTIVATED';
@@ -381,7 +388,7 @@ class DrivingLicenseCatalogController extends Controller
                 return ['not_found' => true];
             }
 
-            if (!$license->is_active) {
+            if (!(bool) $license->is_active) {
                 return ['license' => $license];
             }
 
