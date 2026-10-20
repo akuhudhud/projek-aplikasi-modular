@@ -33,7 +33,6 @@ class RunnerLicenseVerificationService
     ): RunnerLicenseVerification {
         $licenseNumber = trim($licenseNumber);
         $licenseClass = strtoupper(trim($licenseClass));
-
         $licenseType = $licenseType === null
             ? ''
             : strtoupper(trim($licenseType));
@@ -95,14 +94,6 @@ class RunnerLicenseVerificationService
             );
         }
 
-        /*
-         * Tarikh tamat yang sah dari segi format tetap disimpan,
-         * termasuk tarikh yang sudah berlalu.
-         *
-         * Bagi permohonan Runner baharu, admin menyemak dokumen
-         * bersama permohonan. Lesen tamat tempoh tidak boleh
-         * diluluskan.
-         */
         $expiry->startOfDay();
 
         $filename = (string) Str::uuid().'.'.match ($mimeType) {
@@ -160,11 +151,6 @@ class RunnerLicenseVerificationService
                     );
                 }
 
-                /*
-                 * Permohonan pertama mesti melalui RunnerStatusService.
-                 * Endpoint lesen berasingan hanya untuk Runner yang
-                 * telah diluluskan, contohnya bagi pembaharuan lesen.
-                 */
                 if (
                     $afterCreate === null
                     && $lockedAccount->runner_status
@@ -175,10 +161,6 @@ class RunnerLicenseVerificationService
                     );
                 }
 
-                /*
-                 * Permohonan Runner baharu hanya boleh dihantar
-                 * apabila akaun masih NOT_RUNNER.
-                 */
                 if (
                     $afterCreate !== null
                     && $lockedAccount->runner_status
@@ -189,22 +171,8 @@ class RunnerLicenseVerificationService
                     );
                 }
 
-                $catalogEntry = DrivingLicenseCatalog::query()
-                    ->where('code', $licenseClass)
-                    ->where('is_active', true)
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($catalogEntry === null) {
-                    throw new InvalidArgumentException(
-                        'Kelas lesen tidak sah atau tidak aktif.'
-                    );
-                }
-
                 /*
-                 * Jenis lesen mesti datang daripada katalog dinamik.
-                 * Tiada inferens daripada kelas lesen dan tiada
-                 * fallback kepada GENERAL.
+                 * Sahkan jenis induk daripada katalog dinamik.
                  */
                 $typeEntry = DrivingLicenseType::query()
                     ->where('code', $licenseType)
@@ -218,9 +186,35 @@ class RunnerLicenseVerificationService
                     );
                 }
 
+                /*
+                 * Kelas mesti milik jenis induk yang dipilih.
+                 * Kod kelas yang sama boleh wujud di bawah
+                 * jenis induk yang berlainan.
+                 */
+                $catalogEntry = DrivingLicenseCatalog::query()
+                    ->where(
+                        'driving_license_type_id',
+                        $typeEntry->id
+                    )
+                    ->where('code', $licenseClass)
+                    ->where('is_active', true)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($catalogEntry === null) {
+                    throw new InvalidArgumentException(
+                        'Kelas lesen tidak sah, tidak aktif atau bukan milik jenis lesen yang dipilih.'
+                    );
+                }
+
+                /*
+                 * Permohonan tertunda diperiksa berdasarkan
+                 * gabungan jenis dan kelas lesen.
+                 */
                 $pendingApplication = RunnerLicenseVerification::query()
                     ->where('account_id', $lockedAccount->id)
-                    ->where('license_class', $licenseClass)
+                    ->where('license_type', $typeEntry->code)
+                    ->where('license_class', $catalogEntry->code)
                     ->where(
                         'status',
                         RunnerLicenseVerification::STATUS_PENDING
@@ -230,13 +224,18 @@ class RunnerLicenseVerificationService
 
                 if ($pendingApplication) {
                     throw new DomainException(
-                        'Masih terdapat permohonan PENDING untuk kelas lesen ini.'
+                        'Masih terdapat permohonan PENDING untuk jenis dan kelas lesen ini.'
                     );
                 }
 
+                /*
+                 * Sejarah lesen semasa juga mesti sepadan
+                 * dengan jenis dan kelas yang sama.
+                 */
                 $previous = RunnerLicenseVerification::query()
                     ->where('account_id', $lockedAccount->id)
-                    ->where('license_class', $licenseClass)
+                    ->where('license_type', $typeEntry->code)
+                    ->where('license_class', $catalogEntry->code)
                     ->where(
                         'status',
                         RunnerLicenseVerification::STATUS_VERIFIED
@@ -264,7 +263,7 @@ class RunnerLicenseVerificationService
                     'license_number_encrypted' =>
                         Crypt::encryptString($licenseNumber),
                     'license_type' => $typeEntry->code,
-                    'license_class' => $licenseClass,
+                    'license_class' => $catalogEntry->code,
                     'previous_license_verification_id' => $previous?->id,
                     'expires_at' => $expiry->toDateString(),
                     'status' => RunnerLicenseVerification::STATUS_PENDING,
