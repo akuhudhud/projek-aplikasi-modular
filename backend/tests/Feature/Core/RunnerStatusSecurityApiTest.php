@@ -4,12 +4,14 @@ namespace Tests\Feature\Core;
 
 use App\Models\Account;
 use App\Models\DrivingLicenseCatalog;
+use App\Models\DrivingLicenseType;
 use App\Models\IdentityVerification;
 use App\Models\RunnerLicenseVerification;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -18,15 +20,34 @@ class RunnerStatusSecurityApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    private DrivingLicenseType $licenseType;
+
+    private DrivingLicenseCatalog $licenseClass;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         Storage::fake('local');
 
-        $this->seed(
-            \Database\Seeders\DrivingLicenseCatalogSeeder::class
-        );
+        $this->licenseType = DrivingLicenseType::create([
+            'id' => (string) Str::uuid(),
+            'code' => 'GENERAL',
+            'name' => 'Lesen Am',
+            'description' => 'Jenis lesen untuk ujian.',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $this->licenseClass = DrivingLicenseCatalog::create([
+            'id' => (string) Str::uuid(),
+            'driving_license_type_id' => $this->licenseType->id,
+            'code' => 'D',
+            'name' => 'Kelas D',
+            'description' => 'Kelas lesen untuk ujian.',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
     }
 
     private function createAccount(): Account
@@ -59,33 +80,6 @@ class RunnerStatusSecurityApiTest extends TestCase
             'status' => IdentityVerification::STATUS_VERIFIED,
             'submitted_at' => now(),
             'reviewed_at' => now(),
-        ]);
-    }
-
-    private function verifyIdentity(Account $account): void
-    {
-        $this->verifyIdentityOnly($account);
-
-        RunnerLicenseVerification::create([
-            'id' => (string) Str::uuid(),
-            'account_id' => $account->id,
-            'license_number_encrypted' => Crypt::encryptString(
-                'D123456789012'
-            ),
-            'license_class' => 'D',
-            'expires_at' => now()->addYear()->toDateString(),
-            'status' => RunnerLicenseVerification::STATUS_VERIFIED,
-            'is_current' => true,
-            'submitted_at' => now(),
-            'reviewed_at' => now(),
-            'reviewer_account_id' => null,
-            'rejection_reason' => null,
-            'disk' => 'local',
-            'document_path' => 'runner-license-documents/test-'
-                .Str::uuid()
-                .'.pdf',
-            'mime_type' => 'application/pdf',
-            'size_bytes' => 100,
         ]);
     }
 
@@ -148,7 +142,8 @@ class RunnerStatusSecurityApiTest extends TestCase
             'runner-pending-security-token'
         )->post('/api/me/runner-application', [
             'license_number' => 'D123456789012',
-            'license_class' => 'D',
+            'license_type' => $this->licenseType->code,
+            'license_class' => $this->licenseClass->code,
             'expires_at' => now()->addYear()->toDateString(),
             'document' => UploadedFile::fake()->image(
                 'runner-license.jpg'
@@ -170,24 +165,20 @@ class RunnerStatusSecurityApiTest extends TestCase
 
         $this->assertDatabaseHas('runner_license_verifications', [
             'account_id' => $account->id,
-            'license_class' => 'D',
+            'license_type' => $this->licenseType->code,
+            'license_class' => $this->licenseClass->code,
             'status' => RunnerLicenseVerification::STATUS_PENDING,
             'is_current' => false,
         ]);
 
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_account_id' => $account->id,
-            'target_account_id' => $account->id,
-            'action' => 'RUNNER_APPLICATION_SUBMITTED',
-        ]);
-
         $this->assertSame(
             1,
-            \App\Models\AuditLog::query()
+            DB::table('audit_logs')
                 ->where('actor_account_id', $account->id)
                 ->where('target_account_id', $account->id)
                 ->where('action', 'RUNNER_APPLICATION_SUBMITTED')
-                ->count()
+                ->count(),
+            'Permohonan Runner mesti menghasilkan satu rekod audit sahaja.'
         );
     }
 }
