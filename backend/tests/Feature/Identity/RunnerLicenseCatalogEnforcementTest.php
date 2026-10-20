@@ -134,7 +134,7 @@ class RunnerLicenseCatalogEnforcementTest extends TestCase
         string $licenseClass
     ): \Illuminate\Testing\TestResponse {
         return $this->post(
-            '/api/me/runner-license-verification',
+            '/api/me/runner-application',
             [
                 'license_type' => $licenseType,
                 'license_number' => 'D123456789012',
@@ -198,7 +198,11 @@ class RunnerLicenseCatalogEnforcementTest extends TestCase
 
         $this->submitLicense('GENERAL', 'D')
             ->assertCreated()
-            ->assertJsonPath('success', true);
+            ->assertJsonPath('success', true)
+            ->assertJsonPath(
+                'data.runner_license_verification.status',
+                'PENDING'
+            );
 
         $this->assertDatabaseHas(
             'runner_license_verifications',
@@ -206,6 +210,7 @@ class RunnerLicenseCatalogEnforcementTest extends TestCase
                 'account_id' => $account->id,
                 'license_type' => 'GENERAL',
                 'license_class' => 'D',
+                'status' => 'PENDING',
             ]
         );
     }
