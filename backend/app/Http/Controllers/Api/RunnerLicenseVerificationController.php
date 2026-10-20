@@ -311,7 +311,8 @@ class RunnerLicenseVerificationController extends Controller
             : null;
 
         if (
-            $validated['decision'] === RunnerLicenseVerification::STATUS_REJECTED
+            $validated['decision']
+                === RunnerLicenseVerification::STATUS_REJECTED
             && ($rejectionReason === null || $rejectionReason === '')
         ) {
             return $this->errorResponse(
@@ -377,7 +378,6 @@ class RunnerLicenseVerificationController extends Controller
                 ) {
                     RunnerLicenseVerification::query()
                         ->where('account_id', $verification->account_id)
-                        ->where('license_type', $verification->license_type)
                         ->where('license_class', $verification->license_class)
                         ->where('is_current', true)
                         ->where(
