@@ -190,15 +190,35 @@ class DrivingLicenseCatalogController extends Controller
                     }
                 }
 
+                $previousActiveState = (bool) $lockedLicense->is_active;
+
                 $lockedLicense->fill($validated);
                 $lockedLicense->save();
+
+                $action = 'DRIVING_LICENSE_CATALOG_UPDATED';
+                $reason = 'Updated driving license catalog entry '
+                    .$lockedLicense->code.'.';
+
+                if (
+                    array_key_exists('is_active', $validated)
+                    && $previousActiveState !== (bool) $lockedLicense->is_active
+                ) {
+                    if ($lockedLicense->is_active) {
+                        $action = 'DRIVING_LICENSE_CATALOG_REACTIVATED';
+                        $reason = 'Reactivated driving license catalog entry '
+                            .$lockedLicense->code.'.';
+                    } else {
+                        $action = 'DRIVING_LICENSE_CATALOG_DEACTIVATED';
+                        $reason = 'Deactivated driving license catalog entry '
+                            .$lockedLicense->code.'.';
+                    }
+                }
 
                 $auditLogService->record(
                     $actor,
                     $actor,
-                    'DRIVING_LICENSE_CATALOG_UPDATED',
-                    'Updated driving license catalog entry '
-                        .$lockedLicense->code.'.'
+                    $action,
+                    $reason
                 );
 
                 return $lockedLicense->fresh();
