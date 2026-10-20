@@ -46,6 +46,7 @@ class DrivingLicenseCatalogController extends Controller
     public function store(Request $request): JsonResponse
     {
         $this->normalizeCode($request);
+        $this->normalizeName($request);
 
         $validated = $request->validate([
             'code' => [
@@ -68,7 +69,7 @@ class DrivingLicenseCatalogController extends Controller
         $license = DrivingLicenseCatalog::query()->create([
             'id' => (string) Str::uuid(),
             'code' => $validated['code'],
-            'name' => trim($validated['name']),
+            'name' => $validated['name'],
             'description' => isset($validated['description'])
                 ? trim($validated['description'])
                 : null,
@@ -96,6 +97,7 @@ class DrivingLicenseCatalogController extends Controller
         }
 
         $this->normalizeCode($request);
+        $this->normalizeName($request);
 
         $validated = $request->validate([
             'code' => [
@@ -136,10 +138,6 @@ class DrivingLicenseCatalogController extends Controller
                     ),
                 ], 422);
             }
-        }
-
-        if (isset($validated['name'])) {
-            $validated['name'] = trim($validated['name']);
         }
 
         if (
@@ -201,6 +199,18 @@ class DrivingLicenseCatalogController extends Controller
         ) {
             $request->merge([
                 'code' => strtoupper(trim($request->input('code'))),
+            ]);
+        }
+    }
+
+    private function normalizeName(Request $request): void
+    {
+        if (
+            $request->exists('name')
+            && is_string($request->input('name'))
+        ) {
+            $request->merge([
+                'name' => trim($request->input('name')),
             ]);
         }
     }
