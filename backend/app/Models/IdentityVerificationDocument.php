@@ -27,6 +27,9 @@ class IdentityVerificationDocument extends Model
         'path',
     ];
 
+    /**
+     * @return BelongsTo<IdentityVerification, $this>
+     */
     public function identityVerification(): BelongsTo
     {
         return $this->belongsTo(IdentityVerification::class);
