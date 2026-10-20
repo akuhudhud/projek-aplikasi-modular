@@ -27,13 +27,14 @@ class RunnerLicenseVerificationService
         string $licenseClass,
         string $expiresAt,
         UploadedFile $document,
-        ?string $licenseType = null
+        ?string $licenseType = null,
+        ?callable $afterCreate = null
     ): RunnerLicenseVerification {
         $licenseNumber = trim($licenseNumber);
         $licenseClass = strtoupper(trim($licenseClass));
 
-        // Kekalkan medan lama untuk keserasian rekod terdahulu.
-        // Pemilihan kelas lesen kini bergantung pada katalog dinamik.
+        // Medan lama dikekalkan untuk keserasian rekod terdahulu.
+        // Kelas lesen tetap bergantung pada katalog dinamik.
         $licenseType = $licenseType === null
             ? RunnerLicenseVerification::TYPE_GENERAL
             : strtoupper(trim($licenseType));
@@ -122,6 +123,7 @@ class RunnerLicenseVerificationService
                 $mimeType,
                 $size,
                 $filename,
+                $afterCreate,
                 &$storedPath
             ): RunnerLicenseVerification {
                 $lockedAccount = Account::query()
@@ -153,13 +155,10 @@ class RunnerLicenseVerificationService
 
                 if (!$identityVerified) {
                     throw new DomainException(
-                        'Pengesahan identiti mesti berstatus VERIFIED sebelum lesen dihantar.'
+                        'Identity verification is required before applying to become a Runner.'
                     );
                 }
 
-                // Kelas mesti berdaftar dan aktif.
-                // Semakan dalam transaksi mengelakkan penggunaan kelas
-                // yang telah dinyahaktifkan sebelum permohonan disimpan.
                 $catalogEntry = DrivingLicenseCatalog::query()
                     ->where('code', $licenseClass)
                     ->where('is_active', true)
@@ -172,8 +171,6 @@ class RunnerLicenseVerificationService
                     );
                 }
 
-                // Kelas lesen ialah pengenal utama permohonan.
-                // Jangan asingkan permohonan berdasarkan kategori legacy.
                 $pendingApplication = RunnerLicenseVerification::query()
                     ->where('account_id', $lockedAccount->id)
                     ->where('license_class', $licenseClass)
@@ -214,7 +211,7 @@ class RunnerLicenseVerificationService
                     );
                 }
 
-                return RunnerLicenseVerification::query()->create([
+                $verification = RunnerLicenseVerification::query()->create([
                     'id' => (string) Str::uuid(),
                     'account_id' => $lockedAccount->id,
                     'license_number_encrypted' =>
@@ -234,6 +231,12 @@ class RunnerLicenseVerificationService
                     'mime_type' => $mimeType,
                     'size_bytes' => $size,
                 ]);
+
+                if ($afterCreate !== null) {
+                    $afterCreate($verification, $lockedAccount);
+                }
+
+                return $verification;
             });
         } catch (Throwable $exception) {
             if (is_string($storedPath) && $storedPath !== '') {
