@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DrivingLicenseType extends Model
 {
@@ -25,4 +26,12 @@ class DrivingLicenseType extends Model
         'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];
+
+    public function classes(): HasMany
+    {
+        return $this->hasMany(
+            DrivingLicenseCatalog::class,
+            'driving_license_type_id'
+        );
+    }
 }
