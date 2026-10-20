@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Account;
+use App\Models\DrivingLicenseCatalog;
 use App\Models\IdentityVerification;
 use App\Models\RunnerLicenseVerification;
 use DomainException;
@@ -20,14 +21,6 @@ class RunnerLicenseVerificationService
 {
     private const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
-    private const LICENSE_TYPES = [
-        RunnerLicenseVerification::TYPE_MOTORCYCLE,
-        RunnerLicenseVerification::TYPE_CAR,
-        RunnerLicenseVerification::TYPE_PSV,
-        RunnerLicenseVerification::TYPE_E,
-        RunnerLicenseVerification::TYPE_GENERAL,
-    ];
-
     public function submit(
         Account $account,
         string $licenseNumber,
@@ -38,8 +31,11 @@ class RunnerLicenseVerificationService
     ): RunnerLicenseVerification {
         $licenseNumber = trim($licenseNumber);
         $licenseClass = strtoupper(trim($licenseClass));
+
+        // Kekalkan medan lama untuk keserasian rekod terdahulu.
+        // Pemilihan kelas lesen kini bergantung pada katalog dinamik.
         $licenseType = $licenseType === null
-            ? RunnerLicenseVerification::inferLicenseType($licenseClass)
+            ? RunnerLicenseVerification::TYPE_GENERAL
             : strtoupper(trim($licenseType));
 
         if ($licenseNumber === '' || $licenseClass === '') {
@@ -48,21 +44,9 @@ class RunnerLicenseVerificationService
             );
         }
 
-        if (!in_array($licenseType, self::LICENSE_TYPES, true)) {
+        if ($licenseType === '' || strlen($licenseType) > 30) {
             throw new InvalidArgumentException(
-                'Jenis lesen tidak sah.'
-            );
-        }
-
-        if (
-            $licenseType !== RunnerLicenseVerification::TYPE_GENERAL
-            && RunnerLicenseVerification::inferLicenseType($licenseClass)
-                !== RunnerLicenseVerification::TYPE_GENERAL
-            && $licenseType
-                !== RunnerLicenseVerification::inferLicenseType($licenseClass)
-        ) {
-            throw new InvalidArgumentException(
-                'Jenis lesen tidak sepadan dengan kelas lesen.'
+                'Maklumat lesen tidak sah.'
             );
         }
 
@@ -173,9 +157,25 @@ class RunnerLicenseVerificationService
                     );
                 }
 
+                // Kelas mesti berdaftar dan aktif.
+                // Semakan dalam transaksi mengelakkan penggunaan kelas
+                // yang telah dinyahaktifkan sebelum permohonan disimpan.
+                $catalogEntry = DrivingLicenseCatalog::query()
+                    ->where('code', $licenseClass)
+                    ->where('is_active', true)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($catalogEntry === null) {
+                    throw new InvalidArgumentException(
+                        'Kelas lesen tidak sah atau tidak aktif.'
+                    );
+                }
+
+                // Kelas lesen ialah pengenal utama permohonan.
+                // Jangan asingkan permohonan berdasarkan kategori legacy.
                 $pendingApplication = RunnerLicenseVerification::query()
                     ->where('account_id', $lockedAccount->id)
-                    ->where('license_type', $licenseType)
                     ->where('license_class', $licenseClass)
                     ->where(
                         'status',
@@ -186,13 +186,12 @@ class RunnerLicenseVerificationService
 
                 if ($pendingApplication) {
                     throw new DomainException(
-                        'Masih terdapat permohonan PENDING untuk jenis dan kelas lesen ini.'
+                        'Masih terdapat permohonan PENDING untuk kelas lesen ini.'
                     );
                 }
 
                 $previous = RunnerLicenseVerification::query()
                     ->where('account_id', $lockedAccount->id)
-                    ->where('license_type', $licenseType)
                     ->where('license_class', $licenseClass)
                     ->where(
                         'status',
