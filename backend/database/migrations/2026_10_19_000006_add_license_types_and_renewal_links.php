@@ -28,7 +28,10 @@ return new class extends Migration
                 'runner_license_previous_index'
             );
 
-            $table->foreign('previous_license_verification_id')
+            $table->foreign(
+                'previous_license_verification_id',
+                'runner_license_prev_fk'
+            )
                 ->references('id')
                 ->on('runner_license_verifications')
                 ->restrictOnDelete();
@@ -54,9 +57,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('runner_license_verifications', function (Blueprint $table) {
-            $table->dropForeign([
-                'previous_license_verification_id',
-            ]);
+            $table->dropForeign('runner_license_prev_fk');
 
             $table->dropIndex('runner_license_previous_index');
 
