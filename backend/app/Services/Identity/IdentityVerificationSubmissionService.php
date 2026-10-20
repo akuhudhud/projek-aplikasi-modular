@@ -49,12 +49,6 @@ class IdentityVerificationSubmissionService
         $validatedFiles = [];
 
         foreach ($files as $file) {
-            if (!$file instanceof UploadedFile) {
-                throw new InvalidArgumentException(
-                    'Every identity document must be an uploaded file.'
-                );
-            }
-
             $validatedFiles[] = $this->validateFile($file);
         }
 
@@ -204,7 +198,7 @@ class IdentityVerificationSubmissionService
 
             if (
                 !is_array($imageInfo)
-                || ($imageInfo['mime'] ?? null) !== 'image/jpeg'
+                || $imageInfo['mime'] !== 'image/jpeg'
                 || !in_array($clientExtension, ['jpg', 'jpeg'], true)
             ) {
                 throw new InvalidArgumentException(
@@ -225,7 +219,7 @@ class IdentityVerificationSubmissionService
 
             if (
                 !is_array($imageInfo)
-                || ($imageInfo['mime'] ?? null) !== 'image/png'
+                || $imageInfo['mime'] !== 'image/png'
                 || $clientExtension !== 'png'
             ) {
                 throw new InvalidArgumentException(
