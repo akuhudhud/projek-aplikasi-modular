@@ -4,6 +4,7 @@ namespace Tests\Feature\Identity;
 
 use App\Models\Account;
 use App\Models\AccountPermission;
+use App\Models\DrivingLicenseCatalog;
 use App\Models\IdentityVerification;
 use App\Models\RunnerLicenseVerification;
 use App\Models\Session;
@@ -23,6 +24,24 @@ class RunnerLicenseRenewalLifecycleTest extends TestCase
         parent::setUp();
 
         Storage::fake('local');
+
+        DrivingLicenseCatalog::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'D',
+            'name' => 'Lesen D',
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        DrivingLicenseCatalog::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'B2',
+            'name' => 'Lesen B2',
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
     }
 
     private function createAccount(
@@ -256,21 +275,18 @@ class RunnerLicenseRenewalLifecycleTest extends TestCase
         $currentMotorcycle->refresh();
         $renewal->refresh();
 
-        // Rekod lama kekal dalam sejarah, tetapi bukan lesen semasa.
         $this->assertSame(
             RunnerLicenseVerification::STATUS_VERIFIED,
             $oldCar->status
         );
         $this->assertFalse($oldCar->is_current);
 
-        // Lesen motosikal tidak terjejas oleh pembaharuan kereta.
         $this->assertSame(
             RunnerLicenseVerification::STATUS_VERIFIED,
             $currentMotorcycle->status
         );
         $this->assertTrue($currentMotorcycle->is_current);
 
-        // Lesen kereta baharu menjadi lesen semasa selepas kelulusan.
         $this->assertSame(
             RunnerLicenseVerification::STATUS_VERIFIED,
             $renewal->status
