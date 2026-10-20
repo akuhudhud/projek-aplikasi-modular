@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Models\IdentityVerification;
+use App\Models\RunnerLicenseVerification;
 use App\Services\RunnerStatusService;
 use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -37,6 +39,58 @@ class RunnerController extends Controller
 
     public function apply(Request $request): JsonResponse
     {
+        /** @var Account $account */
+        $account = $request->attributes->get('account');
+
+        /*
+         * Semak identiti dahulu supaya pengguna menerima arahan
+         * pengesahan identiti, bukan ralat medan lesen yang kosong.
+         */
+        $identityVerified = IdentityVerification::query()
+            ->where('account_id', $account->id)
+            ->where(
+                'status',
+                IdentityVerification::STATUS_VERIFIED
+            )
+            ->exists();
+
+        if (!$identityVerified) {
+            return $this->identityVerificationRequired();
+        }
+
+        /*
+         * Tolak akaun tidak aktif sebelum memproses dokumen lesen.
+         * Peraturan yang sama tetap dikuatkuasakan semula oleh service.
+         */
+        if ($account->status !== 'ACTIVE') {
+            return $this->errorResponse(
+                'Only active accounts can apply to become a Runner.',
+                422
+            );
+        }
+
+        if (!in_array($account->role, ['USER', 'SUPER_ADMIN'], true)) {
+            return $this->errorResponse(
+                'This account cannot apply to become a Runner.',
+                403
+            );
+        }
+
+        /*
+         * Semak status permohonan sebelum validasi input supaya
+         * permohonan pendua menerima ralat perniagaan yang tepat.
+         * Service tetap bertanggungjawab terhadap kawalan transaksi.
+         */
+        if (
+            $account->runner_status
+            !== Account::RUNNER_STATUS_NOT_RUNNER
+        ) {
+            return $this->errorResponse(
+                'A Runner application cannot be submitted from the current status.',
+                422
+            );
+        }
+
         $validated = $request->validate([
             'license_number' => [
                 'required',
@@ -66,9 +120,6 @@ class RunnerController extends Controller
             ],
         ]);
 
-        /** @var Account $account */
-        $account = $request->attributes->get('account');
-
         try {
             $updatedAccount = $this->runnerStatusService->apply(
                 $account,
@@ -79,11 +130,11 @@ class RunnerController extends Controller
                 $validated['license_type'] ?? null
             );
 
-            $license = \App\Models\RunnerLicenseVerification::query()
+            $license = RunnerLicenseVerification::query()
                 ->where('account_id', $updatedAccount->id)
                 ->where(
                     'status',
-                    \App\Models\RunnerLicenseVerification::STATUS_PENDING
+                    RunnerLicenseVerification::STATUS_PENDING
                 )
                 ->orderByDesc('submitted_at')
                 ->first();
@@ -116,19 +167,7 @@ class RunnerController extends Controller
                 $message
                 === 'Identity verification is required before applying to become a Runner.'
             ) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Sila sahkan identiti dahulu sebelum memohon menjadi Runner.',
-                    'data' => [
-                        'next_action' => [
-                            'type' => 'IDENTITY_VERIFICATION',
-                            'method' => 'GET',
-                            'endpoint' => '/api/me/identity-verification',
-                            'submit_method' => 'POST',
-                            'submit_endpoint' => '/api/me/identity-verification',
-                        ],
-                    ],
-                ], 422);
+                return $this->identityVerificationRequired();
             }
 
             return $this->errorResponse($message, 422);
@@ -265,6 +304,23 @@ class RunnerController extends Controller
                 404
             );
         }
+    }
+
+    private function identityVerificationRequired(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'message' => 'Sila sahkan identiti dahulu sebelum memohon menjadi Runner.',
+            'data' => [
+                'next_action' => [
+                    'type' => 'IDENTITY_VERIFICATION',
+                    'method' => 'GET',
+                    'endpoint' => '/api/me/identity-verification',
+                    'submit_method' => 'POST',
+                    'submit_endpoint' => '/api/me/identity-verification',
+                ],
+            ],
+        ], 422);
     }
 
     private function errorResponse(
