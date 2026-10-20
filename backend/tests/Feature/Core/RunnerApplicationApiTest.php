@@ -149,7 +149,7 @@ class RunnerApplicationApiTest extends TestCase
         ]);
     }
 
-    public function test_verified_identity_without_verified_license_is_directed_to_license_verification(): void
+    public function test_verified_identity_without_license_fields_cannot_submit_runner_application_or_use_separate_initial_license_endpoint(): void
     {
         $user = $this->createAccount();
         $this->verifyIdentityOnly($user);
@@ -157,27 +157,7 @@ class RunnerApplicationApiTest extends TestCase
         $this->asAccount($user, 'runner-license-required-token')
             ->postJson('/api/me/runner-application')
             ->assertUnprocessable()
-            ->assertJsonPath('success', false)
-            ->assertJsonPath(
-                'data.next_action.type',
-                'RUNNER_LICENSE_VERIFICATION'
-            )
-            ->assertJsonPath(
-                'data.next_action.method',
-                'GET'
-            )
-            ->assertJsonPath(
-                'data.next_action.endpoint',
-                '/api/me/runner-license-verification'
-            )
-            ->assertJsonPath(
-                'data.next_action.submit_method',
-                'POST'
-            )
-            ->assertJsonPath(
-                'data.next_action.submit_endpoint',
-                '/api/me/runner-license-verification'
-            );
+            ->assertJsonPath('success', false);
 
         $this->assertDatabaseHas('accounts', [
             'id' => $user->id,
@@ -187,6 +167,10 @@ class RunnerApplicationApiTest extends TestCase
         $this->assertDatabaseMissing('audit_logs', [
             'target_account_id' => $user->id,
             'action' => 'RUNNER_APPLICATION_SUBMITTED',
+        ]);
+
+        $this->assertDatabaseMissing('runner_license_verifications', [
+            'account_id' => $user->id,
         ]);
     }
 
@@ -494,6 +478,8 @@ class RunnerApplicationApiTest extends TestCase
             'ACTIVE',
             Account::RUNNER_STATUS_APPROVED
         );
+
+        $this->verifyIdentity($runner);
 
         $this->asAccount($admin, 'runner-suspend-token')
             ->postJson(
