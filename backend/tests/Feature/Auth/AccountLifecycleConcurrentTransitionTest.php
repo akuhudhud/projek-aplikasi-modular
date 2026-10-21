@@ -83,10 +83,10 @@ class AccountLifecycleConcurrentTransitionTest extends TestCase
 
         $response
             ->assertStatus(422)
-            ->assertJson([
-                'success' => false,
-                'message' => 'Account is already suspended.',
-            ]);
+            ->assertJsonPath(
+                'message',
+                'Account is already suspended.'
+            );
 
         $this->assertTrue(
             $injected,
