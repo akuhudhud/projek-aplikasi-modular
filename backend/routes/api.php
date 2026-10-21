@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\CoreTaskController;
 use App\Http\Controllers\Api\DrivingLicenseCatalogController;
 use App\Http\Controllers\Api\DrivingLicenseTypeController;
 use App\Http\Controllers\Api\IdentityVerificationController;
+use App\Http\Controllers\Api\IdentityVerificationDeletionController;
 use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\MarketplaceLifecycleController;
 use App\Http\Controllers\Api\OtpController;
@@ -115,6 +116,14 @@ Route::get(
 )->middleware([
     AuthenticateSession::class,
     'admin.permission:identity_verifications.review',
+]);
+
+Route::delete('/admin/identity-verifications/{accountId}/data', [
+    IdentityVerificationDeletionController::class,
+    'destroy',
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:identity_verifications.delete_data',
 ]);
 
 /*
