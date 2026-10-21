@@ -9,6 +9,7 @@ use App\Http\Requests\Auth\CompleteRegistrationRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\Account;
+use App\Models\IdentityVerification;
 use App\Services\AuditLogService;
 use App\Services\Otp\OtpService;
 use App\Services\Session\SessionService;
@@ -236,7 +237,16 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
+        /** @var Account $account */
         $account = $request->attributes->get('account');
+
+        $identityVerification = $account->identityVerification;
+
+        $realName = $identityVerification !== null
+            && $identityVerification->status
+                === IdentityVerification::STATUS_VERIFIED
+            ? $identityVerification->real_name
+            : null;
 
         return response()->json([
             'success' => true,
@@ -244,6 +254,7 @@ class AuthController extends Controller
                 'account' => [
                     'id' => $account->id,
                     'name' => $account->name,
+                    'real_name' => $realName,
                     'phone' => $account->phone,
                     'email' => $account->email,
                     'profile_picture' => $account->profile_picture,
