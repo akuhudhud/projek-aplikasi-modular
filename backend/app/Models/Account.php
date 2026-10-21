@@ -54,11 +54,17 @@ class Account extends Model
         'locked_until' => 'datetime',
     ];
 
+    /**
+     * @return HasMany<Session, $this>
+     */
     public function sessions(): HasMany
     {
         return $this->hasMany(Session::class);
     }
 
+    /**
+     * @return HasOne<IdentityVerification, $this>
+     */
     public function identityVerification(): HasOne
     {
         return $this->hasOne(IdentityVerification::class);
