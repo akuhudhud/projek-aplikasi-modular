@@ -32,10 +32,6 @@ class IdentityVerificationDeletionService
             );
         }
 
-        /*
-         * Lock the account first, matching the submission service's
-         * lock order. This serializes deletion against resubmission.
-         */
         $files = [];
         $fileDeletionStarted = false;
         $fileDeletionFailed = false;
@@ -76,19 +72,12 @@ class IdentityVerificationDeletionService
                     ->lockForUpdate()
                     ->get();
 
-                /*
-                 * Read and retain every file before deleting any of them.
-                 */
+                // Baca semua fail sebelum memadam mana-mana fail.
                 foreach ($documents as $document) {
                     $diskName = $document->disk;
                     $path = $document->path;
 
-                    if (
-                        !is_string($diskName)
-                        || $diskName === ''
-                        || !is_string($path)
-                        || $path === ''
-                    ) {
+                    if ($diskName === '' || $path === '') {
                         throw new RuntimeException(
                             'Metadata fail identiti tidak sah; pemadaman dibatalkan.'
                         );
@@ -127,35 +116,37 @@ class IdentityVerificationDeletionService
                 }
 
                 /*
-                 * Keep database locks while deleting physical files.
+                 * Kekalkan kunci pangkalan data semasa pemadaman fail.
+                 * Semak kewujudan fail, bukan nilai pulangan delete().
                  */
                 foreach ($files as $index => $file) {
                     $fileDeletionStarted = true;
+                    $disk = Storage::disk($file['disk']);
 
                     try {
-                        $disk = Storage::disk($file['disk']);
-                        $deleted = $disk->delete($file['path']);
-
-                        if ($deleted || !$disk->exists($file['path'])) {
+                        $disk->delete($file['path']);
+                    } catch (Throwable $exception) {
+                        if (!$disk->exists($file['path'])) {
                             $files[$index]['deleted'] = true;
                         }
 
-                        if (!$deleted) {
-                            $fileDeletionFailed = true;
-
-                            throw new RuntimeException(
-                                'Fail dokumen identiti gagal dipadam.'
-                            );
-                        }
-                    } catch (Throwable $exception) {
                         $fileDeletionFailed = true;
                         throw $exception;
                     }
+
+                    if (!$disk->exists($file['path'])) {
+                        $files[$index]['deleted'] = true;
+                        continue;
+                    }
+
+                    $fileDeletionFailed = true;
+
+                    throw new RuntimeException(
+                        'Fail dokumen identiti gagal dipadam.'
+                    );
                 }
 
-                /*
-                 * Database changes and audit record are atomic.
-                 */
+                // Rekod pangkalan data dan audit berada dalam transaksi sama.
                 $databaseMutationStarted = true;
 
                 $verification->documents()->delete();
@@ -169,10 +160,7 @@ class IdentityVerificationDeletionService
                 );
             });
         } catch (Throwable $exception) {
-            /*
-             * The database transaction has rolled back before execution
-             * reaches this handler. Restore any files already deleted.
-             */
+            // Transaksi sudah rollback; pulihkan fail yang telah dipadam.
             $restorationFailed = $this->restoreDeletedFiles($files);
 
             if ($restorationFailed) {
@@ -208,8 +196,6 @@ class IdentityVerificationDeletionService
     }
 
     /**
-     * Restore files deleted by this operation.
-     *
      * @param array<int, array{
      *     disk: string,
      *     path: string,
