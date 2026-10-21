@@ -5,10 +5,13 @@ namespace App\Services\Identity;
 use App\Models\Account;
 use App\Models\IdentityVerification;
 use App\Services\AuditLogService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use RuntimeException;
+use Throwable;
 
 class IdentityVerificationDeletionService
 {
@@ -24,19 +27,18 @@ class IdentityVerificationDeletionService
     ): void {
         $reason = trim($reason);
 
-        if ($reason === '') {
-            throw new \InvalidArgumentException(
-                'Alasan pemadaman wajib diisi.'
+        if (mb_strlen($reason) < 5 || mb_strlen($reason) > 500) {
+            throw new InvalidArgumentException(
+                'Alasan pemadaman mesti antara 5 hingga 500 aksara.'
             );
         }
 
         $verification = IdentityVerification::query()
-            ->with('documents')
             ->where('account_id', $accountId)
             ->first();
 
         if ($verification === null) {
-            throw new \RuntimeException(
+            throw new ModelNotFoundException(
                 'Rekod pengesahan identiti tidak ditemui.'
             );
         }
@@ -45,16 +47,59 @@ class IdentityVerificationDeletionService
             ->whereKey($verification->account_id)
             ->firstOrFail();
 
-        $documents = $verification->documents;
-        $files = [];
+        $documents = $verification->documents()->get();
 
-        foreach ($documents as $document) {
-            $files[] = [
-                'disk' => $document->disk,
-                'path' => $document->path,
-            ];
+        $files = $documents->map(fn ($document): array => [
+            'disk' => $document->disk,
+            'path' => $document->path,
+        ])->all();
+
+        /*
+         * Validate all file references before deleting any file.
+         * The disk and path come from trusted database records.
+         */
+        foreach ($files as $file) {
+            if (
+                !is_string($file['disk'])
+                || $file['disk'] === ''
+                || !is_string($file['path'])
+                || $file['path'] === ''
+            ) {
+                throw new RuntimeException(
+                    'Metadata fail identiti tidak sah; pemadaman dibatalkan.'
+                );
+            }
         }
 
+        /*
+         * Delete physical files first.
+         * If a deletion fails, stop before deleting database records.
+         */
+        foreach ($files as $file) {
+            $disk = Storage::disk($file['disk']);
+
+            try {
+                if (
+                    $disk->exists($file['path'])
+                    && !$disk->delete($file['path'])
+                ) {
+                    throw new RuntimeException(
+                        'Fail dokumen identiti gagal dipadam.'
+                    );
+                }
+            } catch (Throwable $exception) {
+                throw new RuntimeException(
+                    'Pemadaman fail identiti gagal. Rekod pangkalan data dikekalkan.',
+                    0,
+                    $exception
+                );
+            }
+        }
+
+        /*
+         * Delete database records and write the audit event atomically.
+         * The audit entry contains the reason but never MyKad data or file contents.
+         */
         DB::transaction(function () use (
             $actor,
             $target,
@@ -64,7 +109,13 @@ class IdentityVerificationDeletionService
             $lockedVerification = IdentityVerification::query()
                 ->whereKey($verification->id)
                 ->lockForUpdate()
-                ->firstOrFail();
+                ->first();
+
+            if ($lockedVerification === null) {
+                throw new ModelNotFoundException(
+                    'Rekod pengesahan identiti tidak ditemui.'
+                );
+            }
 
             $lockedVerification->documents()->delete();
             $lockedVerification->delete();
@@ -77,18 +128,5 @@ class IdentityVerificationDeletionService
                     .Str::limit($reason, 500, '')
             );
         });
-
-        foreach ($files as $file) {
-            $disk = Storage::disk($file['disk']);
-
-            if ($disk->exists($file['path'])) {
-                if (!$disk->delete($file['path'])) {
-                    throw new RuntimeException(
-                        'Rekod telah dipadam tetapi fail fizikal gagal dipadam. '
-                        .'Disk: '.$file['disk']
-                    );
-                }
-            }
-        }
     }
 }
