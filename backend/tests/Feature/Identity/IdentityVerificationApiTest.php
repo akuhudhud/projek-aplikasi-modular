@@ -266,6 +266,40 @@ class IdentityVerificationApiTest extends TestCase
         ]);
     }
 
+    public function test_super_admin_cannot_review_own_identity_verification(): void
+    {
+        $admin = $this->createAccount('SUPER_ADMIN');
+        $this->grantReviewPermission($admin);
+
+        $verification = $this->createPendingVerification($admin);
+
+        $this->asAccount(
+            $admin,
+            'identity-admin-self-review-token'
+        )->postJson(
+            '/api/admin/identity-verifications/'.$admin->id.'/decision',
+            ['decision' => 'VERIFIED']
+        )->assertForbidden()
+            ->assertJsonPath('success', false)
+            ->assertJsonPath(
+                'message',
+                'Administrators cannot review their own identity verification.'
+            );
+
+        $this->assertDatabaseHas('identity_verifications', [
+            'id' => $verification->id,
+            'account_id' => $admin->id,
+            'status' => IdentityVerification::STATUS_PENDING,
+            'reviewer_account_id' => null,
+        ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $admin->id,
+            'action' => 'IDENTITY_VERIFICATION_VERIFIED',
+        ]);
+    }
+
     public function test_root_can_review_own_identity_verification(): void
     {
         $root = $this->createAccount('ROOT_SUPER_ADMIN');
