@@ -193,6 +193,18 @@ class IdentityVerificationController extends Controller
         /** @var Account $actor */
         $actor = $request->attributes->get('account');
 
+        // Appointed Super Admin cannot decide their own identity application.
+        // Root retains the owner-level exception.
+        if (
+            $actor->role === 'SUPER_ADMIN'
+            && $actor->id === $accountId
+        ) {
+            return $this->errorResponse(
+                'Administrators cannot review their own identity verification.',
+                403
+            );
+        }
+
         try {
             $verification = DB::transaction(function () use (
                 $accountId,
