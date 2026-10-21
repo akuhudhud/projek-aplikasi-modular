@@ -5,6 +5,7 @@ namespace App\Services\Identity;
 use App\Models\Account;
 use App\Models\IdentityVerification;
 use App\Models\IdentityVerificationDocument;
+use App\Services\AuditLogService;
 use DomainException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
@@ -18,6 +19,11 @@ use Throwable;
 class IdentityVerificationSubmissionService
 {
     private const MAX_FILE_BYTES = 10 * 1024 * 1024;
+
+    public function __construct(
+        private AuditLogService $auditLogService
+    ) {
+    }
 
     /**
      * Submit an identity verification application or resubmit a rejected
@@ -144,15 +150,29 @@ class IdentityVerificationSubmissionService
                     ]);
                 }
 
+                // The submission and its single audit event must commit
+                // or roll back together. Do not include MyKad data,
+                // document paths, or uploaded file contents in the audit.
+                $this->auditLogService->record(
+                    $account,
+                    $account,
+                    'IDENTITY_VERIFICATION_SUBMITTED',
+                    'Identity verification application submitted or resubmitted.'
+                );
+
                 return $verification->fresh(['documents']);
             });
 
+            // Remove replaced documents only after the database transaction
+            // and audit record have committed successfully.
             foreach ($oldPaths as $oldPath) {
                 Storage::disk('local')->delete($oldPath);
             }
 
             return $verification;
         } catch (Throwable $exception) {
+            // The database transaction has rolled back. Remove newly stored
+            // files so that failed submissions do not leave orphaned files.
             foreach ($storedPaths as $storedPath) {
                 Storage::disk('local')->delete($storedPath);
             }
