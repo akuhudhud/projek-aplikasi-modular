@@ -334,6 +334,10 @@ class AuthController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            if ($lockedAccount->status !== 'ACTIVE') {
+                abort(422, 'Only active accounts can be deactivated.');
+            }
+
             $lockedAccount->status = 'DEACTIVATED';
             $lockedAccount->save();
 
@@ -612,6 +616,10 @@ class AuthController extends Controller
                 ->whereKey($account->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            if ($lockedAccount->status !== 'ACTIVE') {
+                abort(422, 'Only active accounts can be deleted.');
+            }
 
             $lockedAccount->status = 'DELETED';
             $lockedAccount->save();
