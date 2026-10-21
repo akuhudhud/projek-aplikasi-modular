@@ -77,7 +77,7 @@ class RunnerLicenseVerificationController extends Controller
                         'previous_license_verification_id' =>
                             $verification->previous_license_verification_id,
                         'expires_at' => $verification->expires_at
-                            ?->toDateString(),
+                            ->toDateString(),
                         'status' => $verification->status,
                         'is_current' => $verification->is_current,
                         'submitted_at' => $verification->submitted_at,
@@ -271,7 +271,7 @@ class RunnerLicenseVerificationController extends Controller
                     'previous_license_verification_id' =>
                         $verification->previous_license_verification_id,
                     'expires_at' => $verification->expires_at
-                        ?->toDateString(),
+                        ->toDateString(),
                     'status' => $verification->status,
                     'is_current' => $verification->is_current,
                     'mime_type' => $verification->mime_type,
@@ -358,11 +358,8 @@ class RunnerLicenseVerificationController extends Controller
                 if (
                     $validated['decision']
                         === RunnerLicenseVerification::STATUS_VERIFIED
-                    && (
-                        $verification->expires_at === null
-                        || $verification->expires_at
-                            ->lt(now()->startOfDay())
-                    )
+                    && $verification->expires_at
+                        ->lt(now()->startOfDay())
                 ) {
                     throw new DomainException(
                         'Lesen telah tamat tempoh dan tidak boleh disahkan.'
@@ -553,7 +550,7 @@ class RunnerLicenseVerificationController extends Controller
             'license_class' => $verification->license_class,
             'previous_license_verification_id' =>
                 $verification->previous_license_verification_id,
-            'expires_at' => $verification->expires_at?->toDateString(),
+            'expires_at' => $verification->expires_at->toDateString(),
             'submitted_at' => $verification->submitted_at,
             'reviewed_at' => $verification->reviewed_at,
             'rejection_reason' =>
