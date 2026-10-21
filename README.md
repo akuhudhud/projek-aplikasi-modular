@@ -1,82 +1,83 @@
-# Super Runner — Direct Runner Marketplace
+Super Runner — Direct Runner Marketplace
 
 Repository source for the Super Runner backend and business modules.
 
-## Active release
+Active release
 
-**v0.4.0 — Direct Runner Marketplace**
+v0.4.1 — Marketplace Stabilization & API Contract Hardening
 
-**Status:** RELEASED / VERIFIED
+Status: RELEASED / VERIFIED
 
-**Release tag:** `v0.4.0`
+Release tag: "v0.4.1"
 
-**Verified release SHA:**
+Verified release SHA:
 
-`68c0c499f552a04513ceb7c0950b0a1e6be5efef`
+"8fba329b7f5af54e97c8b3bb8b35c3364ec7f837"
 
-- [GitHub Release v0.4.0](https://github.com/akuhudhud/projek-aplikasi-modular/releases/tag/v0.4.0)
-- [Backend Tests — CI #215](https://github.com/akuhudhud/projek-aplikasi-modular/actions/runs/39108684929)
-- [Verified release commit](https://github.com/akuhudhud/projek-aplikasi-modular/commit/68c0c499f552a04513ceb7c0950b0a1e6be5efef)
+- "GitHub Release v0.4.1" (https://github.com/akuhudhud/projek-aplikasi-modular/releases/tag/v0.4.1)
+- "Backend Tests — CI #221" (https://github.com/akuhudhud/projek-aplikasi-modular/actions/runs/39139960747)
+- "Verified release commit" (https://github.com/akuhudhud/projek-aplikasi-modular/commit/8fba329b7f5af54e97c8b3bb8b35c3364ec7f837)
 
-The release establishes the Direct Runner Marketplace workflow:
+The release strengthens Marketplace API validation, lifecycle guards, terminal-request access, quotation privacy, expiry handling, award idempotency, transaction rollback and MySQL concurrency regression coverage.
+
+The documented release verification reports that CI #221 passed on the verified SHA. The audit did not identify a confirmed new production defect requiring additional code changes.
+
+Next planned work
+
+v0.4.2 — Identity Verification & Role Eligibility
+
+This is a planned workstream, not an authorized implementation change. Repository and dependency audits, design decisions and acceptance criteria must be completed and approved before implementation begins.
+
+The proposed roadmap remains subject to separate approval for each release.
+
+Product workflow
 
 1. Customers create service requests.
 2. Eligible Runners submit quotations.
-3. Customers select one quotation.
+3. Customers compare and select one quotation.
 4. Marketplace records the winning quotation and registers and assigns the corresponding Core TASK.
+5. Core manages the generic TASK lifecycle, while Marketplace manages requests, quotations and award selection.
 
-Award processing preserves transactional consistency and retry protection.
+Award processing must preserve transactional consistency and retry protection.
 
-Automated pricing, automatic dispatch and automatic quotation selection are outside the active scope.
+Scope boundaries
 
-## v0.4.1 — Active work
+The following remain outside the active release scope unless separately approved:
 
-**Theme:** Marketplace Stabilization & API Contract Hardening.
+- Automatic pricing or fare calculation.
+- Automatic dispatch or quotation selection.
+- Activation of the Pick & Drop business workflow.
+- New Flutter or complete web interfaces.
+- Production OTP provider implementation.
+- SIDCORE/SUPERID integration without an approved contract.
 
-The work begins with a post-release audit, documentation reconciliation and verification of API contracts, authorization, quotation privacy, lifecycle behavior and regression coverage.
+Repository contents
 
-No implementation change should be made without a documented finding and approved acceptance criteria.
+- "backend/" — Laravel API, Core services, migrations and automated tests.
+- "modules/" — business modules.
+- ".github/workflows/" — automated backend CI workflows.
 
-See the project documentation in GitBook:
+Technical baseline
 
-- [Product scope and requirements](https://app.gitbook.com/s/BgBcq0Hr7peJWpy6ZF4H/v0.4.0-skop-produk-dan-keperluan)
-- [Architecture contracts](https://app.gitbook.com/s/BgBcq0Hr7peJWpy6ZF4H/v0.4.0-kontrak-seni-bina-dan-batas-tanggungjawab)
-- [Repository audit and regression matrix](https://app.gitbook.com/s/BgBcq0Hr7peJWpy6ZF4H/v0.4.0-audit-repositori-dan-matriks-regresi)
-- [Batch plan and verification gates](https://app.gitbook.com/s/BgBcq0Hr7peJWpy6ZF4H/v0.4.0-pelan-batch-dan-gerbang-pengesahan)
-
-## Repository contents
-
-- `backend/` — Laravel API, Core services, migrations and automated tests.
-- `modules/` — business modules.
-- `.github/workflows/backend-tests.yml` — automated backend CI.
-
-## Technical baseline
-
-- PHP `^8.3`
-- Laravel `^13.17`
+- PHP "^8.3"
+- Laravel "^13.17"
 - MySQL 8.x
 - PHPUnit and Larastan/PHPStan
 
-CI currently tests against PHP 8.4 and MySQL 8.0. Never commit secrets or real environment files.
+CI compatibility and results must be verified against the exact commit SHA being evaluated.
 
-## Engineering rules
+Engineering rules
 
-- Preserve release tags and commit history.
+- Preserve existing release tags and commit history.
 - Never edit existing migration history; use new migrations for approved schema changes.
-- Do not change Core or delete existing components without approved contracts and dependency/regression evidence.
-- CI results apply only to the exact SHA tested.
-- Do not duplicate existing tests without identifying a real coverage gap.
-- GitHub is the source of truth for code, tests and CI configuration.
-- GitBook is the source of truth for product decisions, contracts, audits and batch plans.
+- Do not change Core or remove existing components without a documented finding, approved contract and dependency/regression evidence.
+- Do not duplicate tests without identifying a genuine coverage gap.
+- GitHub is the source of truth for code, tests, CI configuration and releases.
+- GitBook is the source of truth for product decisions, architecture contracts, audits and batch plans.
+- Do not implement future roadmap items without their own audit, design lock and acceptance criteria.
 
-## Release scope boundaries
+Working method
 
-The following remain outside the active v0.4.1 scope unless separately approved:
+Audit → Design Lock → Baseline Approval → Batch Plan → Implement → Test → Commit → Verify → Document → Close.
 
-- Flutter User App or new web interfaces.
-- Activation of the Pick & Drop business workflow.
-- Production OTP provider implementation.
-- Automatic pricing, dispatch or quotation selection.
-- SIDCORE/SUPERID integration without an approved contract.
-
-Future v0.4.x releases require their own dependency audit, design decisions and acceptance criteria.
+The result of each verification must be tied to the exact SHA tested.
