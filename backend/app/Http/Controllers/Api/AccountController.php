@@ -147,7 +147,18 @@ class AccountController extends Controller
             'success' => true,
             'message' => 'Super Admin created successfully.',
             'data' => [
-                'account' => $newSuperAdmin,
+                'account' => [
+                    'id' => $newSuperAdmin->id,
+                    'name' => $newSuperAdmin->name,
+                    'job_title' => $newSuperAdmin->job_title,
+                    'phone' => $newSuperAdmin->phone,
+                    'email' => $newSuperAdmin->email,
+                    'profile_picture' => $newSuperAdmin->profile_picture,
+                    'role' => $newSuperAdmin->role,
+                    'status' => $newSuperAdmin->status,
+                    'created_at' => $newSuperAdmin->created_at,
+                    'updated_at' => $newSuperAdmin->updated_at,
+                ],
             ],
         ], 201);
     }
@@ -232,11 +243,24 @@ class AccountController extends Controller
             );
         });
 
+        $updatedTarget = $target->fresh();
+
         return response()->json([
             'success' => true,
             'message' => 'Super Admin job title updated successfully.',
             'data' => [
-                'account' => $target->fresh(),
+                'account' => [
+                    'id' => $updatedTarget->id,
+                    'name' => $updatedTarget->name,
+                    'job_title' => $updatedTarget->job_title,
+                    'phone' => $updatedTarget->phone,
+                    'email' => $updatedTarget->email,
+                    'profile_picture' => $updatedTarget->profile_picture,
+                    'role' => $updatedTarget->role,
+                    'status' => $updatedTarget->status,
+                    'created_at' => $updatedTarget->created_at,
+                    'updated_at' => $updatedTarget->updated_at,
+                ],
             ],
         ], 200);
     }
