@@ -20,15 +20,7 @@ class IdentityVerificationSubmissionService
 {
     private const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
-    public function __construct(
-        private AuditLogService $auditLogService
-    ) {
-    }
-
     /**
-     * Submit an identity verification application or resubmit a rejected
-     * application. The caller must already be authenticated as the owner.
-     *
      * @param array<int, UploadedFile> $files
      */
     public function submit(
@@ -82,7 +74,8 @@ class IdentityVerificationSubmissionService
 
                 if (
                     $verification !== null
-                    && $verification->status !== IdentityVerification::STATUS_REJECTED
+                    && $verification->status
+                        !== IdentityVerification::STATUS_REJECTED
                 ) {
                     throw new DomainException(
                         'Identity verification cannot be submitted from the current status.'
@@ -132,7 +125,10 @@ class IdentityVerificationSubmissionService
                         basename($path)
                     );
 
-                    if (!is_string($storedPath) || $storedPath === '') {
+                    if (
+                        !is_string($storedPath)
+                        || $storedPath === ''
+                    ) {
                         throw new RuntimeException(
                             'Identity document could not be stored.'
                         );
@@ -162,29 +158,39 @@ class IdentityVerificationSubmissionService
 
                 return $verification->fresh(['documents']);
             });
-
-            // Remove replaced documents only after the database transaction
-            // and audit record have committed successfully.
-            foreach ($oldPaths as $oldPath) {
-                Storage::disk('local')->delete($oldPath);
-            }
-
-            return $verification;
         } catch (Throwable $exception) {
-            // The database transaction has rolled back. Remove newly stored
-            // files so that failed submissions do not leave orphaned files.
+            // This catch handles transaction/submission failures only.
+            // The transaction has rolled back before new files are removed.
             foreach ($storedPaths as $storedPath) {
-                Storage::disk('local')->delete($storedPath);
+                try {
+                    Storage::disk('local')->delete($storedPath);
+                } catch (Throwable $cleanupException) {
+                    report($cleanupException);
+                }
             }
 
             throw $exception;
         }
+
+        /*
+         * The database transaction has committed successfully.
+         * Old-file cleanup must never enter the transaction-failure
+         * cleanup path, because the database now points to new files.
+         */
+        foreach ($oldPaths as $oldPath) {
+            try {
+                Storage::disk('local')->delete($oldPath);
+            } catch (Throwable $cleanupException) {
+                // Keep the committed submission and its new files intact.
+                // A cleanup failure may leave an orphaned old file.
+                report($cleanupException);
+            }
+        }
+
+        return $verification;
     }
 
     /**
-     * Inspect actual file content and require the filename extension to
-     * match it. Client-provided MIME headers are not trusted.
-     *
      * @return array{
      *     file: UploadedFile,
      *     mime_type: string,
@@ -202,7 +208,11 @@ class IdentityVerificationSubmissionService
 
         $size = $file->getSize();
 
-        if (!is_int($size) || $size < 1 || $size > self::MAX_FILE_BYTES) {
+        if (
+            !is_int($size)
+            || $size < 1
+            || $size > self::MAX_FILE_BYTES
+        ) {
             throw new InvalidArgumentException(
                 'Each identity document must be no larger than 10 MB.'
             );
@@ -219,7 +229,11 @@ class IdentityVerificationSubmissionService
             if (
                 !is_array($imageInfo)
                 || $imageInfo['mime'] !== 'image/jpeg'
-                || !in_array($clientExtension, ['jpg', 'jpeg'], true)
+                || !in_array(
+                    $clientExtension,
+                    ['jpg', 'jpeg'],
+                    true
+                )
             ) {
                 throw new InvalidArgumentException(
                     'An identity document has an unsupported or mismatched file type.'
