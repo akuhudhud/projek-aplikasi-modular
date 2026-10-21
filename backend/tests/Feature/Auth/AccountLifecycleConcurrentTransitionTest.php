@@ -46,6 +46,26 @@ class AccountLifecycleConcurrentTransitionTest extends TestCase
         );
     }
 
+    public function test_deactivate_rejects_account_that_is_no_longer_active(): void
+    {
+        $this->assertSelfServiceTransitionRejected(
+            'DEACTIVATED',
+            '/api/me/deactivate',
+            'Only active accounts can be deactivated.',
+            'ACCOUNT_DEACTIVATED'
+        );
+    }
+
+    public function test_delete_rejects_account_that_is_no_longer_active(): void
+    {
+        $this->assertSelfServiceTransitionRejected(
+            'DELETED',
+            '/api/me/delete',
+            'Only active accounts can be deleted.',
+            'ACCOUNT_DELETED'
+        );
+    }
+
     private function assertConcurrentTransitionRejected(
         string $initialStatus,
         string $concurrentStatus,
@@ -137,6 +157,87 @@ class AccountLifecycleConcurrentTransitionTest extends TestCase
 
         $this->assertDatabaseMissing('audit_logs', [
             'target_account_id' => $target->id,
+            'action' => $auditAction,
+        ]);
+    }
+
+    private function assertSelfServiceTransitionRejected(
+        string $concurrentStatus,
+        string $endpoint,
+        string $expectedMessage,
+        string $auditAction
+    ): void {
+        $account = Account::create([
+            'id' => 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            'name' => 'Account Owner',
+            'phone' => '60333333333',
+            'email' => 'owner@example.com',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'ACTIVE',
+        ]);
+
+        $token = 'self-service-transition-race-token';
+
+        Session::create([
+            'id' => 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+            'account_id' => $account->id,
+            'token_hash' => hash('sha256', $token),
+            'created_at' => now(),
+            'ended_at' => null,
+        ]);
+
+        $injected = false;
+
+        DB::listen(function (QueryExecuted $query) use (
+            $account,
+            $concurrentStatus,
+            &$injected
+        ): void {
+            if ($injected) {
+                return;
+            }
+
+            $sql = strtolower($query->sql);
+
+            if (
+                !str_contains($sql, 'select')
+                || !str_contains($sql, 'accounts')
+                || !in_array($account->id, $query->bindings, true)
+            ) {
+                return;
+            }
+
+            $injected = true;
+
+            DB::table('accounts')
+                ->where('id', $account->id)
+                ->update([
+                    'status' => $concurrentStatus,
+                ]);
+        });
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson($endpoint);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonPath('message', $expectedMessage);
+
+        $this->assertTrue(
+            $injected,
+            'The test did not inject the concurrent status change.'
+        );
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $account->id,
+            'status' => $concurrentStatus,
+        ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'target_account_id' => $account->id,
             'action' => $auditAction,
         ]);
     }
