@@ -96,23 +96,29 @@ class IdentityVerificationDeletionRollbackTest extends TestCase
         );
 
         $realDisk = Storage::disk('local');
+        $deleteCalls = 0;
+
         $disk = Mockery::mock($realDisk)->makePartial();
 
-        /*
-         * The first deletion succeeds and the second fails.
-         * Unmocked methods, including get, exists and put,
-         * continue to use the fake filesystem.
-         */
         $disk->shouldReceive('delete')
             ->twice()
-            ->andReturn(true, false);
+            ->andReturnUsing(
+                function ($path) use ($realDisk, &$deleteCalls): bool {
+                    $deleteCalls++;
+
+                    if ($deleteCalls === 1) {
+                        return $realDisk->delete($path);
+                    }
+
+                    return false;
+                }
+            );
 
         Storage::shouldReceive('disk')
             ->with('local')
             ->andReturn($disk);
 
         $auditLogService = Mockery::mock(AuditLogService::class);
-
         $auditLogService->shouldNotReceive('record');
 
         $service = new IdentityVerificationDeletionService(
@@ -135,6 +141,8 @@ class IdentityVerificationDeletionRollbackTest extends TestCase
                 $exception->getMessage()
             );
         }
+
+        $this->assertSame(2, $deleteCalls);
 
         $this->assertDatabaseHas('identity_verifications', [
             'id' => $verification->id,
