@@ -32,27 +32,30 @@ class IdentityVerificationSubmissionAuditIntegrityTest extends TestCase
             'status' => 'ACTIVE',
         ]);
 
-        $this->mock(AuditLogService::class, function ($mock): void {
-            $mock->shouldReceive('record')
-                ->once()
-                ->withArgs(function (
-                    Account $actor,
-                    Account $target,
-                    string $action,
-                    string $reason
-                ) use ($account): bool {
-                    return $actor->is($account)
-                        && $target->is($account)
-                        && $action === 'IDENTITY_VERIFICATION_SUBMITTED'
-                        && $reason ===
-                            'Identity verification application submitted or resubmitted.';
-                })
-                ->andThrow(
-                    new RuntimeException(
-                        'Simulated audit recording failure.'
-                    )
-                );
-        });
+        $this->mock(
+            AuditLogService::class,
+            function ($mock) use ($account): void {
+                $mock->shouldReceive('record')
+                    ->once()
+                    ->withArgs(function (
+                        Account $actor,
+                        Account $target,
+                        string $action,
+                        string $reason
+                    ) use ($account): bool {
+                        return $actor->is($account)
+                            && $target->is($account)
+                            && $action === 'IDENTITY_VERIFICATION_SUBMITTED'
+                            && $reason ===
+                                'Identity verification application submitted or resubmitted.';
+                    })
+                    ->andThrow(
+                        new RuntimeException(
+                            'Simulated audit recording failure.'
+                        )
+                    );
+            }
+        );
 
         try {
             app(IdentityVerificationSubmissionService::class)->submit(
