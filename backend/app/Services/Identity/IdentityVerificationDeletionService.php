@@ -49,9 +49,8 @@ class IdentityVerificationDeletionService
         $documents = $verification->documents()->get();
 
         /*
-         * Read every document before deleting anything.
-         * Keep the bytes temporarily so deleted files can be restored
-         * if a later file deletion or the database transaction fails.
+         * Read all documents before deleting any physical file.
+         * Contents are temporarily retained for rollback recovery.
          */
         $files = [];
 
@@ -59,12 +58,7 @@ class IdentityVerificationDeletionService
             $diskName = $document->disk;
             $path = $document->path;
 
-            if (
-                !is_string($diskName)
-                || $diskName === ''
-                || !is_string($path)
-                || $path === ''
-            ) {
+            if ($diskName === '' || $path === '') {
                 throw new RuntimeException(
                     'Metadata fail identiti tidak sah; pemadaman dibatalkan.'
                 );
@@ -103,8 +97,8 @@ class IdentityVerificationDeletionService
         }
 
         /*
-         * Delete physical files one by one.
-         * If any deletion fails, restore files already deleted.
+         * Delete files one by one.
+         * Restore already-deleted files if any deletion fails.
          */
         try {
             foreach ($files as $index => $file) {
@@ -139,8 +133,7 @@ class IdentityVerificationDeletionService
 
         /*
          * Delete database records and write the audit event atomically.
-         * Audit text is fixed so free-text input cannot accidentally put
-         * MyKad details or document contents into the audit log.
+         * Fixed audit text prevents free-text input from leaking into logs.
          */
         try {
             DB::transaction(function () use (
@@ -192,7 +185,14 @@ class IdentityVerificationDeletionService
     /**
      * Restore files deleted by this operation.
      *
-     * Returns true if any file could not be restored.
+     * @param array<int, array{
+     *     disk: string,
+     *     path: string,
+     *     contents: string,
+     *     deleted: bool
+     * }> $files
+     *
+     * @return bool True if any file could not be restored.
      */
     private function restoreDeletedFiles(array $files): bool
     {
