@@ -22,8 +22,7 @@ class IdentityVerificationController extends Controller
 {
     public function submit(
         Request $request,
-        IdentityVerificationSubmissionService $submissionService,
-        AuditLogService $auditLogService
+        IdentityVerificationSubmissionService $submissionService
     ): JsonResponse {
         $validated = $request->validate([
             'real_name' => ['required', 'string', 'max:255'],
@@ -46,13 +45,6 @@ class IdentityVerificationController extends Controller
                 $validated['real_name'],
                 $validated['mykad_number'],
                 $validated['documents']
-            );
-
-            $auditLogService->record(
-                $account,
-                $account,
-                'IDENTITY_VERIFICATION_SUBMITTED',
-                'Identity verification application submitted or resubmitted.'
             );
 
             return response()->json([
