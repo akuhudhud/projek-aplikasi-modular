@@ -15,6 +15,44 @@ class AccountLifecycleConcurrentTransitionTest extends TestCase
 
     public function test_suspend_rejects_stale_status_after_locked_read(): void
     {
+        $this->assertConcurrentTransitionRejected(
+            'ACTIVE',
+            'SUSPENDED',
+            'suspend',
+            'Account is already suspended.',
+            'ACCOUNT_SUSPENDED'
+        );
+    }
+
+    public function test_reactivate_rejects_stale_status_after_locked_read(): void
+    {
+        $this->assertConcurrentTransitionRejected(
+            'DEACTIVATED',
+            'ACTIVE',
+            'reactivate',
+            'Account is already active.',
+            'ACCOUNT_REACTIVATED'
+        );
+    }
+
+    public function test_unsuspend_rejects_stale_status_after_locked_read(): void
+    {
+        $this->assertConcurrentTransitionRejected(
+            'SUSPENDED',
+            'ACTIVE',
+            'unsuspend',
+            'Only suspended accounts can be unsuspended.',
+            'ACCOUNT_UNSUSPENDED'
+        );
+    }
+
+    private function assertConcurrentTransitionRejected(
+        string $initialStatus,
+        string $concurrentStatus,
+        string $endpoint,
+        string $expectedMessage,
+        string $auditAction
+    ): void {
         $root = Account::create([
             'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
             'name' => 'Root Admin',
@@ -42,13 +80,14 @@ class AccountLifecycleConcurrentTransitionTest extends TestCase
             'email' => 'target@example.com',
             'password' => 'Password1',
             'role' => 'USER',
-            'status' => 'ACTIVE',
+            'status' => $initialStatus,
         ]);
 
         $injected = false;
 
         DB::listen(function (QueryExecuted $query) use (
             $target,
+            $concurrentStatus,
             &$injected
         ): void {
             if ($injected) {
@@ -70,23 +109,21 @@ class AccountLifecycleConcurrentTransitionTest extends TestCase
             DB::table('accounts')
                 ->where('id', $target->id)
                 ->update([
-                    'status' => 'SUSPENDED',
+                    'status' => $concurrentStatus,
                 ]);
         });
 
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts/'.$target->id.'/suspend', [
-            'reason' => 'Administrative review required.',
-        ]);
+        )->postJson(
+            '/api/admin/accounts/'.$target->id.'/'.$endpoint,
+            ['reason' => 'Administrative review required.']
+        );
 
         $response
             ->assertStatus(422)
-            ->assertJsonPath(
-                'message',
-                'Account is already suspended.'
-            );
+            ->assertJsonPath('message', $expectedMessage);
 
         $this->assertTrue(
             $injected,
@@ -95,12 +132,12 @@ class AccountLifecycleConcurrentTransitionTest extends TestCase
 
         $this->assertDatabaseHas('accounts', [
             'id' => $target->id,
-            'status' => 'SUSPENDED',
+            'status' => $concurrentStatus,
         ]);
 
         $this->assertDatabaseMissing('audit_logs', [
             'target_account_id' => $target->id,
-            'action' => 'ACCOUNT_SUSPENDED',
+            'action' => $auditAction,
         ]);
     }
 }
