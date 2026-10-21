@@ -203,7 +203,7 @@ class IdentityVerificationDeletionService
      *     deleted: bool
      * }> $files
      *
-     * @return bool True if any file could not be restored.
+     * @return bool True if any file could not be restored and verified.
      */
     private function restoreDeletedFiles(array $files): bool
     {
@@ -223,6 +223,17 @@ class IdentityVerificationDeletionService
                 }
 
                 if (!$disk->exists($file['path'])) {
+                    $failed = true;
+                    continue;
+                }
+
+                // Kewujudan fail sahaja tidak membuktikan pemulihan tepat.
+                $restoredContents = $disk->get($file['path']);
+
+                if (
+                    !is_string($restoredContents)
+                    || $restoredContents !== $file['contents']
+                ) {
                     $failed = true;
                 }
             } catch (Throwable) {
