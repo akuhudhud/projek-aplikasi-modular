@@ -294,6 +294,7 @@ class SuperAdminCreationTest extends TestCase
                     'account' => [
                         'id',
                         'name',
+                        'job_title',
                         'phone',
                         'email',
                         'profile_picture',
@@ -304,6 +305,13 @@ class SuperAdminCreationTest extends TestCase
                     ],
                 ],
             ]);
+
+        $response
+            ->assertJsonMissingPath('data.account.password')
+            ->assertJsonMissingPath('data.account.reason')
+            ->assertJsonMissingPath('data.account.token_hash')
+            ->assertJsonMissingPath('data.account.failed_login_attempts')
+            ->assertJsonMissingPath('data.account.locked_until');
 
         $response->assertJsonMissing([
             'password' => 'Password1',
