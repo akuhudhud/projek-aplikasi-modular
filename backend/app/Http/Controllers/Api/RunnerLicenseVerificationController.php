@@ -1,589 +1,308 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Services;
 
-use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Models\DrivingLicenseCatalog;
+use App\Models\DrivingLicenseType;
+use App\Models\IdentityVerification;
 use App\Models\RunnerLicenseVerification;
-use App\Services\AuditLogService;
-use App\Services\RunnerLicenseVerificationService;
 use DomainException;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use RuntimeException;
+use Throwable;
 
-class RunnerLicenseVerificationController extends Controller
+class RunnerLicenseVerificationService
 {
-    public function index(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'status' => [
-                'sometimes',
-                'required',
-                'string',
-                'in:PENDING,VERIFIED,REJECTED',
-            ],
-            'license_type' => [
-                'sometimes',
-                'required',
-                'string',
-                'max:30',
-            ],
-            'account_id' => ['sometimes', 'required', 'uuid'],
-            'per_page' => [
-                'sometimes',
-                'integer',
-                'min:1',
-                'max:100',
-            ],
-        ]);
-
-        $query = RunnerLicenseVerification::query()
-            ->with('account:id,name')
-            ->where('status', $validated['status'] ?? 'PENDING');
-
-        if (isset($validated['license_type'])) {
-            $query->where(
-                'license_type',
-                strtoupper(trim($validated['license_type']))
-            );
-        }
-
-        if (isset($validated['account_id'])) {
-            $query->where('account_id', $validated['account_id']);
-        }
-
-        $applications = $query
-            ->orderByDesc('submitted_at')
-            ->paginate((int) ($validated['per_page'] ?? 20));
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'applications' => $applications->getCollection()
-                    ->map(fn (
-                        RunnerLicenseVerification $verification
-                    ): array => [
-                        'id' => $verification->id,
-                        'account_id' => $verification->account_id,
-                        'display_name' => $verification->account?->name,
-                        'license_type' => $verification->license_type,
-                        'license_class' => $verification->license_class,
-                        'previous_license_verification_id' =>
-                            $verification->previous_license_verification_id,
-                        'expires_at' => $verification->expires_at
-                            ->toDateString(),
-                        'status' => $verification->status,
-                        'is_current' => $verification->is_current,
-                        'submitted_at' => $verification->submitted_at,
-                        'reviewed_at' => $verification->reviewed_at,
-                    ])
-                    ->values(),
-                'pagination' => [
-                    'current_page' => $applications->currentPage(),
-                    'last_page' => $applications->lastPage(),
-                    'per_page' => $applications->perPage(),
-                    'total' => $applications->total(),
-                ],
-            ],
-        ]);
-    }
-
-    public function showMyStatus(Request $request): JsonResponse
-    {
-        /** @var Account $account */
-        $account = $request->attributes->get('account');
-
-        $currentLicenses = RunnerLicenseVerification::query()
-            ->where('account_id', $account->id)
-            ->where('is_current', true)
-            ->where(
-                'status',
-                RunnerLicenseVerification::STATUS_VERIFIED
-            )
-            ->orderByDesc('submitted_at')
-            ->get();
-
-        $pendingApplications = RunnerLicenseVerification::query()
-            ->where('account_id', $account->id)
-            ->where(
-                'status',
-                RunnerLicenseVerification::STATUS_PENDING
-            )
-            ->orderByDesc('submitted_at')
-            ->get();
-
-        $latestApplications = RunnerLicenseVerification::query()
-            ->where('account_id', $account->id)
-            ->orderByDesc('submitted_at')
-            ->get();
-
-        $currentLicense = $currentLicenses->first();
-        $pendingApplication = $pendingApplications->first();
-        $latestApplication = $latestApplications->first();
-
-        $displayedApplication = $pendingApplication
-            ?? $currentLicense
-            ?? $latestApplication;
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'runner_license_verification' => $displayedApplication === null
-                    ? $this->emptyStatusPayload()
-                    : $this->statusPayload($displayedApplication),
-
-                'current_license' => $currentLicense === null
-                    ? null
-                    : $this->statusPayload($currentLicense),
-
-                'pending_application' => $pendingApplication === null
-                    ? null
-                    : $this->statusPayload($pendingApplication),
-
-                'current_licenses' => $currentLicenses
-                    ->map(fn (
-                        RunnerLicenseVerification $verification
-                    ): array => $this->statusPayload($verification))
-                    ->values(),
-
-                'pending_applications' => $pendingApplications
-                    ->map(fn (
-                        RunnerLicenseVerification $verification
-                    ): array => $this->statusPayload($verification))
-                    ->values(),
-
-                'latest_applications' => $latestApplications
-                    ->map(fn (
-                        RunnerLicenseVerification $verification
-                    ): array => $this->statusPayload($verification))
-                    ->values(),
-            ],
-        ]);
-    }
+    private const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
     public function submit(
-        Request $request,
-        RunnerLicenseVerificationService $service,
-        AuditLogService $auditLogService
-    ): JsonResponse {
-        $validated = $request->validate([
-            'license_number' => ['required', 'string', 'max:100'],
-            'license_type' => [
-                'required',
-                'string',
-                'max:30',
-            ],
-            'license_class' => ['required', 'string', 'max:30'],
-            'expires_at' => ['required', 'date_format:Y-m-d'],
-            'document' => [
-                'required',
-                'file',
-                'mimes:jpg,jpeg,png,pdf',
-                'max:10240',
-            ],
-        ]);
+        Account $account,
+        string $licenseNumber,
+        string $licenseClass,
+        string $expiresAt,
+        UploadedFile $document,
+        ?string $licenseType = null,
+        ?callable $afterCreate = null
+    ): RunnerLicenseVerification {
+        $licenseNumber = trim($licenseNumber);
+        $licenseClass = strtoupper(trim($licenseClass));
+        $licenseType = $licenseType === null
+            ? ''
+            : strtoupper(trim($licenseType));
 
-        /** @var Account $account */
-        $account = $request->attributes->get('account');
-
-        try {
-            $verification = $service->submit(
-                $account,
-                $validated['license_number'],
-                $validated['license_class'],
-                $validated['expires_at'],
-                $validated['document'],
-                $validated['license_type'],
-                function (
-                    RunnerLicenseVerification $verification,
-                    Account $lockedAccount
-                ) use ($auditLogService): void {
-                    $auditLogService->record(
-                        $lockedAccount,
-                        $lockedAccount,
-                        'RUNNER_LICENSE_VERIFICATION_SUBMITTED',
-                        'Driving license verification submitted.'
-                    );
-                }
-            );
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Pengesahan lesen memandu berjaya dihantar.',
-                'data' => [
-                    'runner_license_verification' => [
-                        'id' => $verification->id,
-                        'status' => $verification->status,
-                        'is_current' => $verification->is_current,
-                        'license_type' => $verification->license_type,
-                        'license_class' => $verification->license_class,
-                        'previous_license_verification_id' =>
-                            $verification->previous_license_verification_id,
-                        'expires_at' => $verification->expires_at
-                            ->toDateString(),
-                        'submitted_at' => $verification->submitted_at,
-                    ],
-                ],
-            ], 201);
-        } catch (
-            DomainException | InvalidArgumentException $exception
-        ) {
-            return $this->errorResponse(
-                $exception->getMessage(),
-                422
-            );
-        } catch (ModelNotFoundException $exception) {
-            return $this->errorResponse(
-                'Akaun tidak ditemui.',
-                404
-            );
-        }
-    }
-
-    public function showForReview(string $accountId): JsonResponse
-    {
-        $verification = $this->findVerification($accountId);
-
-        if ($verification === null) {
-            return $this->errorResponse(
-                'Permohonan pengesahan lesen tidak ditemui.',
-                404
+        if ($licenseNumber === '' || $licenseClass === '') {
+            throw new InvalidArgumentException(
+                'Nombor lesen dan kelas lesen diperlukan.'
             );
         }
 
-        $licenseNumber = $verification->decryptLicenseNumber();
+        if ($licenseType === '' || strlen($licenseType) > 30) {
+            throw new InvalidArgumentException(
+                'Jenis lesen diperlukan dan mestilah sah.'
+            );
+        }
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'runner_license_verification' => [
-                    'id' => $verification->id,
-                    'account_id' => $verification->account_id,
-                    'display_name' => $verification->account?->name,
-                    'license_number_masked' => str_repeat(
-                        '*',
-                        max(0, strlen($licenseNumber) - 4)
-                    ).substr($licenseNumber, -4),
-                    'license_type' => $verification->license_type,
-                    'license_class' => $verification->license_class,
-                    'previous_license_verification_id' =>
-                        $verification->previous_license_verification_id,
-                    'expires_at' => $verification->expires_at
-                        ->toDateString(),
-                    'status' => $verification->status,
-                    'is_current' => $verification->is_current,
-                    'mime_type' => $verification->mime_type,
-                    'size_bytes' => $verification->size_bytes,
-                    'submitted_at' => $verification->submitted_at,
-                    'reviewed_at' => $verification->reviewed_at,
-                    'rejection_reason' =>
-                        $verification->status
-                            === RunnerLicenseVerification::STATUS_REJECTED
-                            ? $verification->rejection_reason
-                            : null,
-                ],
-            ],
-        ]);
-    }
+        if (!$document->isValid()) {
+            throw new InvalidArgumentException(
+                'Dokumen lesen tidak sah.'
+            );
+        }
 
-    public function decide(
-        Request $request,
-        string $accountId,
-        AuditLogService $auditLogService
-    ): JsonResponse {
-        $validated = $request->validate([
-            'decision' => [
-                'required',
-                'string',
-                'in:VERIFIED,REJECTED',
-            ],
-            'rejection_reason' => [
-                'required_if:decision,REJECTED',
-                'nullable',
-                'string',
-                'max:500',
-            ],
-        ]);
+        $size = $document->getSize();
 
-        $rejectionReason = isset($validated['rejection_reason'])
-            ? trim($validated['rejection_reason'])
-            : null;
+        if (!is_int($size) || $size < 1 || $size > self::MAX_FILE_BYTES) {
+            throw new InvalidArgumentException(
+                'Saiz dokumen lesen mestilah tidak melebihi 10 MB.'
+            );
+        }
+
+        $mimeType = $document->getMimeType();
+        $extension = strtolower(
+            $document->getClientOriginalExtension()
+        );
+
+        $allowedTypes = [
+            'image/jpeg' => ['jpg', 'jpeg'],
+            'image/png' => ['png'],
+            'application/pdf' => ['pdf'],
+        ];
 
         if (
-            $validated['decision']
-                === RunnerLicenseVerification::STATUS_REJECTED
-            && ($rejectionReason === null || $rejectionReason === '')
+            !isset($allowedTypes[$mimeType])
+            || !in_array($extension, $allowedTypes[$mimeType], true)
         ) {
-            return $this->errorResponse(
-                'Sebab penolakan diperlukan.',
-                422
+            throw new InvalidArgumentException(
+                'Dokumen lesen mestilah fail JPEG, PNG atau PDF yang sepadan.'
             );
         }
 
-        /** @var Account $actor */
-        $actor = $request->attributes->get('account');
+        $expiry = Carbon::createFromFormat('!Y-m-d', $expiresAt);
+
+        if (
+            $expiry === null
+            || $expiry->format('Y-m-d') !== $expiresAt
+        ) {
+            throw new InvalidArgumentException(
+                'Tarikh tamat lesen tidak sah.'
+            );
+        }
+
+        $expiry->startOfDay();
+
+        $filename = (string) Str::uuid().'.'.match ($mimeType) {
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            default => 'pdf',
+        };
+
+        $storedPath = null;
 
         try {
-            $verification = DB::transaction(function () use (
-                $accountId,
-                $actor,
-                $validated,
-                $rejectionReason,
-                $auditLogService
+            return DB::transaction(function () use (
+                $account,
+                $licenseNumber,
+                $licenseClass,
+                $licenseType,
+                $expiry,
+                $document,
+                $mimeType,
+                $size,
+                $filename,
+                $afterCreate,
+                &$storedPath
             ): RunnerLicenseVerification {
-                $found = $this->findVerification($accountId, true);
-
-                if ($found === null) {
-                    throw new ModelNotFoundException(
-                        'Permohonan pengesahan lesen tidak ditemui.'
-                    );
-                }
-
-                $verification = RunnerLicenseVerification::query()
-                    ->whereKey($found->id)
+                $lockedAccount = Account::query()
+                    ->whereKey($account->id)
                     ->lockForUpdate()
                     ->firstOrFail();
 
                 if (
-                    $verification->status
-                    !== RunnerLicenseVerification::STATUS_PENDING
+                    $lockedAccount->status !== 'ACTIVE'
+                    || !in_array(
+                        $lockedAccount->role,
+                        ['USER', 'SUPER_ADMIN'],
+                        true
+                    )
                 ) {
                     throw new DomainException(
-                        'Hanya permohonan lesen berstatus PENDING boleh disemak.'
+                        'Akaun tidak layak menghantar pengesahan lesen.'
+                    );
+                }
+
+                $identityVerified = IdentityVerification::query()
+                    ->where('account_id', $lockedAccount->id)
+                    ->where(
+                        'status',
+                        IdentityVerification::STATUS_VERIFIED
+                    )
+                    ->lockForUpdate()
+                    ->exists();
+
+                if (!$identityVerified) {
+                    throw new DomainException(
+                        'Identity verification is required before applying to become a Runner.'
                     );
                 }
 
                 if (
-                    $validated['decision']
-                        === RunnerLicenseVerification::STATUS_VERIFIED
-                    && $verification->expires_at
-                        ->lt(now()->startOfDay())
+                    $afterCreate === null
+                    && $lockedAccount->runner_status
+                        !== Account::RUNNER_STATUS_APPROVED
                 ) {
                     throw new DomainException(
-                        'Lesen telah tamat tempoh dan tidak boleh disahkan.'
+                        'Lesen tambahan hanya boleh dihantar selepas permohonan Runner diluluskan.'
                     );
                 }
 
-                $targetAccount = Account::query()
-                    ->whereKey($verification->account_id)
-                    ->firstOrFail();
-
+                /*
+                 * Callback boleh digunakan untuk dua tujuan:
+                 * 1. Mengemas kini status ketika permohonan Runner awal.
+                 * 2. Merekod audit bagi penghantaran lesen tambahan.
+                 *
+                 * Permohonan awal hanya dibenarkan untuk NOT_RUNNER.
+                 * Penghantaran lesen tambahan dengan callback audit juga
+                 * dibenarkan untuk Runner yang sudah APPROVED.
+                 */
                 if (
-                    $validated['decision']
-                    === RunnerLicenseVerification::STATUS_VERIFIED
+                    $afterCreate !== null
+                    && !in_array(
+                        $lockedAccount->runner_status,
+                        [
+                            Account::RUNNER_STATUS_NOT_RUNNER,
+                            Account::RUNNER_STATUS_APPROVED,
+                        ],
+                        true
+                    )
                 ) {
-                    RunnerLicenseVerification::query()
-                        ->where(
-                            'account_id',
-                            $verification->account_id
-                        )
-                        ->where(
-                            'license_type',
-                            $verification->license_type
-                        )
-                        ->where(
-                            'license_class',
-                            $verification->license_class
-                        )
-                        ->where('is_current', true)
-                        ->where(
-                            'status',
-                            RunnerLicenseVerification::STATUS_VERIFIED
-                        )
-                        ->where('id', '!=', $verification->id)
-                        ->lockForUpdate()
-                        ->update(['is_current' => false]);
-
-                    $verification->is_current = true;
-                } else {
-                    $verification->is_current = false;
+                    throw new DomainException(
+                        'A Runner application cannot be submitted from the current status.'
+                    );
                 }
 
-                $verification->status = $validated['decision'];
-                $verification->reviewer_account_id = $actor->id;
-                $verification->reviewed_at = now();
-                $verification->rejection_reason =
-                    $validated['decision']
-                        === RunnerLicenseVerification::STATUS_REJECTED
-                            ? $rejectionReason
-                            : null;
+                /*
+                 * Sahkan jenis induk daripada katalog dinamik.
+                 */
+                $typeEntry = DrivingLicenseType::query()
+                    ->where('code', $licenseType)
+                    ->where('is_active', true)
+                    ->lockForUpdate()
+                    ->first();
 
-                $verification->save();
+                if ($typeEntry === null) {
+                    throw new InvalidArgumentException(
+                        'Jenis lesen tidak sah atau tidak aktif.'
+                    );
+                }
 
-                $action = $validated['decision']
-                    === RunnerLicenseVerification::STATUS_VERIFIED
-                        ? 'RUNNER_LICENSE_VERIFICATION_VERIFIED'
-                        : 'RUNNER_LICENSE_VERIFICATION_REJECTED';
+                /*
+                 * Kelas mesti milik jenis induk yang dipilih.
+                 */
+                $catalogEntry = DrivingLicenseCatalog::query()
+                    ->where(
+                        'driving_license_type_id',
+                        $typeEntry->id
+                    )
+                    ->where('code', $licenseClass)
+                    ->where('is_active', true)
+                    ->lockForUpdate()
+                    ->first();
 
-                $reason = $validated['decision']
-                    === RunnerLicenseVerification::STATUS_VERIFIED
-                        ? 'Driving license verification marked VERIFIED.'
-                        : 'Driving license verification marked REJECTED.';
+                if ($catalogEntry === null) {
+                    throw new InvalidArgumentException(
+                        'Kelas lesen tidak sah, tidak aktif atau bukan milik jenis lesen yang dipilih.'
+                    );
+                }
 
-                $auditLogService->record(
-                    $actor,
-                    $targetAccount,
-                    $action,
-                    $reason
+                /*
+                 * Permohonan tertunda diperiksa berdasarkan
+                 * gabungan jenis dan kelas lesen.
+                 */
+                $pendingApplication = RunnerLicenseVerification::query()
+                    ->where('account_id', $lockedAccount->id)
+                    ->where('license_type', $typeEntry->code)
+                    ->where('license_class', $catalogEntry->code)
+                    ->where(
+                        'status',
+                        RunnerLicenseVerification::STATUS_PENDING
+                    )
+                    ->lockForUpdate()
+                    ->exists();
+
+                if ($pendingApplication) {
+                    throw new DomainException(
+                        'Masih terdapat permohonan PENDING untuk jenis dan kelas lesen ini.'
+                    );
+                }
+
+                /*
+                 * Sejarah lesen semasa juga mesti sepadan
+                 * dengan jenis dan kelas yang sama.
+                 */
+                $previous = RunnerLicenseVerification::query()
+                    ->where('account_id', $lockedAccount->id)
+                    ->where('license_type', $typeEntry->code)
+                    ->where('license_class', $catalogEntry->code)
+                    ->where(
+                        'status',
+                        RunnerLicenseVerification::STATUS_VERIFIED
+                    )
+                    ->where('is_current', true)
+                    ->orderByDesc('submitted_at')
+                    ->lockForUpdate()
+                    ->first();
+
+                $storedPath = Storage::disk('local')->putFileAs(
+                    'runner-license-documents',
+                    $document,
+                    $filename
                 );
 
-                return $verification->fresh();
+                if (!is_string($storedPath) || $storedPath === '') {
+                    throw new RuntimeException(
+                        'Dokumen lesen gagal disimpan.'
+                    );
+                }
+
+                $verification = RunnerLicenseVerification::query()->create([
+                    'id' => (string) Str::uuid(),
+                    'account_id' => $lockedAccount->id,
+                    'license_number_encrypted' =>
+                        Crypt::encryptString($licenseNumber),
+                    'license_type' => $typeEntry->code,
+                    'license_class' => $catalogEntry->code,
+                    'previous_license_verification_id' => $previous?->id,
+                    'expires_at' => $expiry->toDateString(),
+                    'status' => RunnerLicenseVerification::STATUS_PENDING,
+                    'is_current' => false,
+                    'submitted_at' => now(),
+                    'reviewed_at' => null,
+                    'reviewer_account_id' => null,
+                    'rejection_reason' => null,
+                    'disk' => 'local',
+                    'document_path' => $storedPath,
+                    'mime_type' => $mimeType,
+                    'size_bytes' => $size,
+                ]);
+
+                if ($afterCreate !== null) {
+                    $afterCreate($verification, $lockedAccount);
+                }
+
+                return $verification;
             });
+        } catch (Throwable $exception) {
+            if (is_string($storedPath) && $storedPath !== '') {
+                Storage::disk('local')->delete($storedPath);
+            }
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Keputusan pengesahan lesen disimpan.',
-                'data' => [
-                    'runner_license_verification' => [
-                        'id' => $verification->id,
-                        'account_id' => $verification->account_id,
-                        'license_type' => $verification->license_type,
-                        'license_class' => $verification->license_class,
-                        'previous_license_verification_id' =>
-                            $verification->previous_license_verification_id,
-                        'status' => $verification->status,
-                        'is_current' => $verification->is_current,
-                        'reviewed_at' => $verification->reviewed_at,
-                    ],
-                ],
-            ]);
-        } catch (DomainException $exception) {
-            return $this->errorResponse(
-                $exception->getMessage(),
-                422
-            );
-        } catch (ModelNotFoundException $exception) {
-            return $this->errorResponse(
-                'Permohonan pengesahan lesen tidak ditemui.',
-                404
-            );
+            throw $exception;
         }
-    }
-
-    public function downloadDocument(
-        string $accountId
-    ): StreamedResponse|JsonResponse {
-        $verification = $this->findVerification($accountId);
-
-        if ($verification === null) {
-            return $this->errorResponse(
-                'Dokumen lesen tidak ditemui.',
-                404
-            );
-        }
-
-        $disk = Storage::disk($verification->disk);
-
-        if (!$disk->exists($verification->document_path)) {
-            return $this->errorResponse(
-                'Dokumen lesen tidak ditemui.',
-                404
-            );
-        }
-
-        $extension = match ($verification->mime_type) {
-            'image/jpeg' => 'jpg',
-            'image/png' => 'png',
-            'application/pdf' => 'pdf',
-            default => 'bin',
-        };
-
-        return $disk->download(
-            $verification->document_path,
-            'runner-license-'.Str::uuid().'.'.$extension,
-            [
-                'Content-Type' => $verification->mime_type,
-                'Cache-Control' => 'private, no-store',
-                'X-Content-Type-Options' => 'nosniff',
-            ]
-        );
-    }
-
-    private function findVerification(
-        string $identifier,
-        bool $pendingFirst = false
-    ): ?RunnerLicenseVerification {
-        $byId = RunnerLicenseVerification::query()
-            ->with('account')
-            ->whereKey($identifier)
-            ->first();
-
-        if ($byId !== null) {
-            return $byId;
-        }
-
-        $query = RunnerLicenseVerification::query()
-            ->with('account')
-            ->where('account_id', $identifier);
-
-        if ($pendingFirst) {
-            $query->orderByRaw(
-                'CASE WHEN status = ? THEN 0 ELSE 1 END',
-                [RunnerLicenseVerification::STATUS_PENDING]
-            );
-        } else {
-            $query->orderByRaw(
-                'CASE WHEN status = ? THEN 0 WHEN is_current = 1 THEN 1 ELSE 2 END',
-                [RunnerLicenseVerification::STATUS_PENDING]
-            );
-        }
-
-        return $query
-            ->orderByDesc('submitted_at')
-            ->first();
-    }
-
-    private function statusPayload(
-        RunnerLicenseVerification $verification
-    ): array {
-        return [
-            'id' => $verification->id,
-            'status' => $verification->status,
-            'is_current' => $verification->is_current,
-            'license_type' => $verification->license_type,
-            'license_class' => $verification->license_class,
-            'previous_license_verification_id' =>
-                $verification->previous_license_verification_id,
-            'expires_at' => $verification->expires_at->toDateString(),
-            'submitted_at' => $verification->submitted_at,
-            'reviewed_at' => $verification->reviewed_at,
-            'rejection_reason' =>
-                $verification->status
-                    === RunnerLicenseVerification::STATUS_REJECTED
-                    ? $verification->rejection_reason
-                    : null,
-        ];
-    }
-
-    private function emptyStatusPayload(): array
-    {
-        return [
-            'id' => null,
-            'status' => 'NOT_SUBMITTED',
-            'is_current' => false,
-            'license_type' => null,
-            'license_class' => null,
-            'previous_license_verification_id' => null,
-            'expires_at' => null,
-            'submitted_at' => null,
-            'reviewed_at' => null,
-            'rejection_reason' => null,
-        ];
-    }
-
-    private function errorResponse(
-        string $message,
-        int $status
-    ): JsonResponse {
-        return response()->json([
-            'success' => false,
-            'message' => $message,
-        ], $status);
     }
 }
