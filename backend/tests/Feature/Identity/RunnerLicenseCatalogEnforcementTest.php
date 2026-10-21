@@ -131,7 +131,8 @@ class RunnerLicenseCatalogEnforcementTest extends TestCase
 
     private function submitLicense(
         string $licenseType,
-        string $licenseClass
+        string $licenseClass,
+        ?string $expiresAt = null
     ): \Illuminate\Testing\TestResponse {
         return $this->post(
             '/api/me/runner-application',
@@ -139,7 +140,8 @@ class RunnerLicenseCatalogEnforcementTest extends TestCase
                 'license_type' => $licenseType,
                 'license_number' => 'D123456789012',
                 'license_class' => $licenseClass,
-                'expires_at' => now()->addYear()->toDateString(),
+                'expires_at' => $expiresAt
+                    ?? now()->addYear()->toDateString(),
                 'document' => UploadedFile::fake()->image(
                     'license.jpg'
                 ),
@@ -211,6 +213,40 @@ class RunnerLicenseCatalogEnforcementTest extends TestCase
                 'license_type' => 'GENERAL',
                 'license_class' => 'D',
                 'status' => 'PENDING',
+            ]
+        );
+    }
+
+    public function test_expired_license_can_be_submitted_for_admin_review(): void
+    {
+        $account = $this->createVerifiedAccount();
+        $expiredDate = now()->subDay()->toDateString();
+
+        $this->submitLicense(
+            'GENERAL',
+            'D',
+            $expiredDate
+        )
+            ->assertCreated()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath(
+                'data.runner_license_verification.status',
+                'PENDING'
+            )
+            ->assertJsonPath(
+                'data.runner_license_verification.expires_at',
+                $expiredDate
+            );
+
+        $this->assertDatabaseHas(
+            'runner_license_verifications',
+            [
+                'account_id' => $account->id,
+                'license_type' => 'GENERAL',
+                'license_class' => 'D',
+                'expires_at' => $expiredDate,
+                'status' => 'PENDING',
+                'is_current' => false,
             ]
         );
     }
