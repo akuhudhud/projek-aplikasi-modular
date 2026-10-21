@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Services\Identity\IdentityVerificationDeletionService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
@@ -35,6 +36,11 @@ class IdentityVerificationDeletionController extends Controller
                 'success' => true,
                 'message' => 'Data pengesahan identiti berjaya dipadam.',
             ], 200);
+        } catch (ModelNotFoundException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 404);
         } catch (InvalidArgumentException $exception) {
             return response()->json([
                 'success' => false,
