@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Mockery;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -25,39 +26,17 @@ class IdentityVerificationDeletionRollbackTest extends TestCase
         $actor = $this->createAccount('ROOT_SUPER_ADMIN');
         $applicant = $this->createAccount('USER');
 
-        $verification = IdentityVerification::create([
-            'id' => (string) Str::uuid(),
-            'account_id' => $applicant->id,
-            'real_name' => 'Nama Ujian',
-            'mykad_number_encrypted' => Crypt::encryptString(
-                '900101145678'
-            ),
-            'status' => IdentityVerification::STATUS_PENDING,
-            'submitted_at' => now(),
-        ]);
+        [$verification, $documents] = $this->createVerificationWithDocuments(
+            $applicant,
+            ['%PDF-rollback-test-content']
+        );
 
-        $path = 'identity-documents/'.Str::uuid().'.pdf';
-        $contents = '%PDF-rollback-test-content';
-
-        Storage::disk('local')->put($path, $contents);
-
-        $document = IdentityVerificationDocument::create([
-            'id' => (string) Str::uuid(),
-            'identity_verification_id' => $verification->id,
-            'disk' => 'local',
-            'path' => $path,
-            'mime_type' => 'application/pdf',
-            'size_bytes' => strlen($contents),
-        ]);
-
-        $auditLogService = \Mockery::mock(AuditLogService::class);
+        $auditLogService = Mockery::mock(AuditLogService::class);
 
         $auditLogService
             ->shouldReceive('record')
             ->once()
-            ->andThrow(
-                new RuntimeException('Simulated audit failure.')
-            );
+            ->andThrow(new RuntimeException('Simulated audit failure.'));
 
         $service = new IdentityVerificationDeletionService(
             $auditLogService
@@ -85,18 +64,141 @@ class IdentityVerificationDeletionRollbackTest extends TestCase
             'account_id' => $applicant->id,
         ]);
 
-        $this->assertDatabaseHas('identity_verification_documents', [
-            'id' => $document->id,
-            'identity_verification_id' => $verification->id,
-            'path' => $path,
+        foreach ($documents as $document) {
+            $this->assertDatabaseHas('identity_verification_documents', [
+                'id' => $document['record']->id,
+                'identity_verification_id' => $verification->id,
+                'path' => $document['path'],
+            ]);
+
+            Storage::disk('local')->assertExists($document['path']);
+
+            $this->assertSame(
+                $document['contents'],
+                Storage::disk('local')->get($document['path'])
+            );
+        }
+    }
+
+    public function test_previous_files_are_restored_when_a_later_file_deletion_fails(): void
+    {
+        Storage::fake('local');
+
+        $actor = $this->createAccount('ROOT_SUPER_ADMIN');
+        $applicant = $this->createAccount('USER');
+
+        [$verification, $documents] = $this->createVerificationWithDocuments(
+            $applicant,
+            [
+                '%PDF-first-document',
+                '%PDF-second-document',
+            ]
+        );
+
+        $realDisk = Storage::disk('local');
+        $disk = Mockery::mock($realDisk)->makePartial();
+
+        /*
+         * The first deletion succeeds and the second fails.
+         * Unmocked methods, including get, exists and put,
+         * continue to use the fake filesystem.
+         */
+        $disk->shouldReceive('delete')
+            ->twice()
+            ->andReturn(true, false);
+
+        Storage::shouldReceive('disk')
+            ->with('local')
+            ->andReturn($disk);
+
+        $auditLogService = Mockery::mock(AuditLogService::class);
+
+        $auditLogService->shouldNotReceive('record');
+
+        $service = new IdentityVerificationDeletionService(
+            $auditLogService
+        );
+
+        try {
+            $service->delete(
+                $actor,
+                $applicant->id,
+                'Ujian kegagalan fail'
+            );
+
+            $this->fail(
+                'Pemadaman sepatutnya gagal apabila satu fail gagal dipadam.'
+            );
+        } catch (RuntimeException $exception) {
+            $this->assertSame(
+                'Pemadaman fail gagal. Fail yang telah dipadam dipulihkan dan rekod pangkalan data dikekalkan.',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseHas('identity_verifications', [
+            'id' => $verification->id,
+            'account_id' => $applicant->id,
         ]);
 
-        Storage::disk('local')->assertExists($path);
+        foreach ($documents as $document) {
+            $this->assertDatabaseHas('identity_verification_documents', [
+                'id' => $document['record']->id,
+                'identity_verification_id' => $verification->id,
+                'path' => $document['path'],
+            ]);
 
-        $this->assertSame(
-            $contents,
-            Storage::disk('local')->get($path)
-        );
+            $this->assertTrue(
+                $realDisk->exists($document['path']),
+                'Fail sepatutnya wujud semula: '.$document['path']
+            );
+
+            $this->assertSame(
+                $document['contents'],
+                $realDisk->get($document['path'])
+            );
+        }
+    }
+
+    private function createVerificationWithDocuments(
+        Account $applicant,
+        array $contentsList
+    ): array {
+        $verification = IdentityVerification::create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $applicant->id,
+            'real_name' => 'Nama Ujian',
+            'mykad_number_encrypted' => Crypt::encryptString(
+                '900101145678'
+            ),
+            'status' => IdentityVerification::STATUS_PENDING,
+            'submitted_at' => now(),
+        ]);
+
+        $documents = [];
+
+        foreach ($contentsList as $contents) {
+            $path = 'identity-documents/'.Str::uuid().'.pdf';
+
+            Storage::disk('local')->put($path, $contents);
+
+            $record = IdentityVerificationDocument::create([
+                'id' => (string) Str::uuid(),
+                'identity_verification_id' => $verification->id,
+                'disk' => 'local',
+                'path' => $path,
+                'mime_type' => 'application/pdf',
+                'size_bytes' => strlen($contents),
+            ]);
+
+            $documents[] = [
+                'record' => $record,
+                'path' => $path,
+                'contents' => $contents,
+            ];
+        }
+
+        return [$verification, $documents];
     }
 
     private function createAccount(string $role): Account
