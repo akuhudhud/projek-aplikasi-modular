@@ -361,28 +361,38 @@ class AccountController extends Controller
                     );
                 }
 
-                // Permission changes and their audit records share
+                // Permission changes and their single audit record share
                 // the same outer transaction.
                 $changes = $permissionService->replace(
                     $lockedTarget,
                     $validated['permissions']
                 );
 
-                foreach ($changes['granted'] as $permission) {
-                    $auditLogService->record(
-                        $actor,
-                        $lockedTarget,
-                        'ADMIN_PERMISSION_GRANTED',
-                        $reason.' Permission: '.$permission
-                    );
-                }
+                if (
+                    $changes['granted'] !== []
+                    || $changes['revoked'] !== []
+                ) {
+                    $details = [];
 
-                foreach ($changes['revoked'] as $permission) {
+                    if ($changes['granted'] !== []) {
+                        $details[] = 'Granted: '.implode(
+                            ', ',
+                            $changes['granted']
+                        );
+                    }
+
+                    if ($changes['revoked'] !== []) {
+                        $details[] = 'Revoked: '.implode(
+                            ', ',
+                            $changes['revoked']
+                        );
+                    }
+
                     $auditLogService->record(
                         $actor,
                         $lockedTarget,
-                        'ADMIN_PERMISSION_REVOKED',
-                        $reason.' Permission: '.$permission
+                        'ADMIN_PERMISSIONS_UPDATED',
+                        $reason.' | '.implode(' | ', $details)
                     );
                 }
 
