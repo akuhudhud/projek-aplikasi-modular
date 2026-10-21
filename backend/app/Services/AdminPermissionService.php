@@ -24,6 +24,7 @@ class AdminPermissionService
         'runners.suspend' => 'Menggantung kelayakan Runner',
         'runners.restore' => 'Memulihkan kelayakan Runner',
         'identity_verifications.review' => 'Menyemak pengesahan identiti',
+        'identity_verifications.delete_data' => 'Memadam data pengesahan identiti',
         'runner_license_verifications.review' => 'Menyemak pengesahan lesen memandu',
         'driving_license_types.manage' => 'Mengurus jenis lesen memandu',
         'driving_license_catalog.manage' => 'Mengurus kelas lesen memandu',
