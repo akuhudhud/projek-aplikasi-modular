@@ -8,7 +8,6 @@ use App\Services\AuditLogService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use InvalidArgumentException;
 use RuntimeException;
 use Throwable;
@@ -49,47 +48,54 @@ class IdentityVerificationDeletionService
 
         $documents = $verification->documents()->get();
 
-        $files = $documents->map(fn ($document): array => [
-            'disk' => $document->disk,
-            'path' => $document->path,
-        ])->all();
-
         /*
-         * Validate all file references before deleting any file.
-         * The disk and path come from trusted database records.
+         * Read every document before deleting anything.
+         * Keep the bytes temporarily so deleted files can be restored
+         * if a later file deletion or the database transaction fails.
          */
-        foreach ($files as $file) {
+        $files = [];
+
+        foreach ($documents as $document) {
+            $diskName = $document->disk;
+            $path = $document->path;
+
             if (
-                !is_string($file['disk'])
-                || $file['disk'] === ''
-                || !is_string($file['path'])
-                || $file['path'] === ''
+                !is_string($diskName)
+                || $diskName === ''
+                || !is_string($path)
+                || $path === ''
             ) {
                 throw new RuntimeException(
                     'Metadata fail identiti tidak sah; pemadaman dibatalkan.'
                 );
             }
-        }
-
-        /*
-         * Delete physical files first.
-         * If a deletion fails, stop before deleting database records.
-         */
-        foreach ($files as $file) {
-            $disk = Storage::disk($file['disk']);
 
             try {
-                if (
-                    $disk->exists($file['path'])
-                    && !$disk->delete($file['path'])
-                ) {
+                $disk = Storage::disk($diskName);
+
+                if (!$disk->exists($path)) {
                     throw new RuntimeException(
-                        'Fail dokumen identiti gagal dipadam.'
+                        'Fail dokumen identiti tidak ditemui; pemadaman dibatalkan.'
                     );
                 }
+
+                $contents = $disk->get($path);
+
+                if (!is_string($contents)) {
+                    throw new RuntimeException(
+                        'Fail dokumen identiti tidak dapat dibaca.'
+                    );
+                }
+
+                $files[] = [
+                    'disk' => $diskName,
+                    'path' => $path,
+                    'contents' => $contents,
+                    'deleted' => false,
+                ];
             } catch (Throwable $exception) {
                 throw new RuntimeException(
-                    'Pemadaman fail identiti gagal. Rekod pangkalan data dikekalkan.',
+                    'Pemeriksaan fail identiti gagal. Tiada rekod dipadam.',
                     0,
                     $exception
                 );
@@ -97,36 +103,122 @@ class IdentityVerificationDeletionService
         }
 
         /*
-         * Delete database records and write the audit event atomically.
-         * The audit entry contains the reason but never MyKad data or file contents.
+         * Delete physical files one by one.
+         * If any deletion fails, restore files already deleted.
          */
-        DB::transaction(function () use (
-            $actor,
-            $target,
-            $verification,
-            $reason
-        ): void {
-            $lockedVerification = IdentityVerification::query()
-                ->whereKey($verification->id)
-                ->lockForUpdate()
-                ->first();
+        try {
+            foreach ($files as $index => $file) {
+                $disk = Storage::disk($file['disk']);
 
-            if ($lockedVerification === null) {
-                throw new ModelNotFoundException(
-                    'Rekod pengesahan identiti tidak ditemui.'
+                if (!$disk->delete($file['path'])) {
+                    throw new RuntimeException(
+                        'Fail dokumen identiti gagal dipadam.'
+                    );
+                }
+
+                $files[$index]['deleted'] = true;
+            }
+        } catch (Throwable $exception) {
+            $restorationFailed = $this->restoreDeletedFiles($files);
+
+            if ($restorationFailed) {
+                throw new RuntimeException(
+                    'Pemadaman gagal dan pemulihan semua fail tidak dapat disahkan. '
+                    .'Rekod pangkalan data dikekalkan; pemeriksaan operasi diperlukan.',
+                    0,
+                    $exception
                 );
             }
 
-            $lockedVerification->documents()->delete();
-            $lockedVerification->delete();
+            throw new RuntimeException(
+                'Pemadaman fail gagal. Fail yang telah dipadam dipulihkan dan rekod pangkalan data dikekalkan.',
+                0,
+                $exception
+            );
+        }
 
-            $this->auditLogService->record(
+        /*
+         * Delete database records and write the audit event atomically.
+         * Audit text is fixed so free-text input cannot accidentally put
+         * MyKad details or document contents into the audit log.
+         */
+        try {
+            DB::transaction(function () use (
                 $actor,
                 $target,
-                'IDENTITY_VERIFICATION_DATA_DELETED',
-                'Identity verification data deleted. Reason: '
-                    .Str::limit($reason, 500, '')
+                $verification
+            ): void {
+                $lockedVerification = IdentityVerification::query()
+                    ->whereKey($verification->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($lockedVerification === null) {
+                    throw new ModelNotFoundException(
+                        'Rekod pengesahan identiti tidak ditemui.'
+                    );
+                }
+
+                $lockedVerification->documents()->delete();
+                $lockedVerification->delete();
+
+                $this->auditLogService->record(
+                    $actor,
+                    $target,
+                    'IDENTITY_VERIFICATION_DATA_DELETED',
+                    'Identity verification data and document metadata deleted.'
+                );
+            });
+        } catch (Throwable $exception) {
+            $restorationFailed = $this->restoreDeletedFiles($files);
+
+            if ($restorationFailed) {
+                throw new RuntimeException(
+                    'Transaksi pangkalan data gagal dan pemulihan semua fail tidak dapat disahkan. '
+                    .'Pemeriksaan operasi diperlukan.',
+                    0,
+                    $exception
+                );
+            }
+
+            throw new RuntimeException(
+                'Transaksi pangkalan data gagal. Fail dokumen telah dipulihkan.',
+                0,
+                $exception
             );
-        });
+        }
+    }
+
+    /**
+     * Restore files deleted by this operation.
+     *
+     * Returns true if any file could not be restored.
+     */
+    private function restoreDeletedFiles(array $files): bool
+    {
+        $failed = false;
+
+        foreach (array_reverse($files, true) as $file) {
+            if (!$file['deleted']) {
+                continue;
+            }
+
+            try {
+                $disk = Storage::disk($file['disk']);
+
+                if (!$disk->put($file['path'], $file['contents'])) {
+                    $failed = true;
+                    continue;
+                }
+
+                if (!$disk->exists($file['path'])) {
+                    $failed = true;
+                }
+            } catch (Throwable) {
+                $failed = true;
+            }
+        }
+
+        return $failed;
     }
 }
