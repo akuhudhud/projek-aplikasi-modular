@@ -405,6 +405,18 @@ class AuthController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            if (!$this->canManageAccount($admin, $lockedAccount)) {
+                abort(403, 'Unauthorized.');
+            }
+
+            if ($lockedAccount->status === 'ACTIVE') {
+                abort(422, 'Account is already active.');
+            }
+
+            if ($lockedAccount->status !== 'DEACTIVATED') {
+                abort(422, 'Only deactivated accounts can be reactivated.');
+            }
+
             $lockedAccount->status = 'ACTIVE';
             $lockedAccount->save();
 
@@ -471,6 +483,18 @@ class AuthController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            if (!$this->canManageAccount($admin, $lockedAccount)) {
+                abort(403, 'Unauthorized.');
+            }
+
+            if ($lockedAccount->status === 'SUSPENDED') {
+                abort(422, 'Account is already suspended.');
+            }
+
+            if ($lockedAccount->status !== 'ACTIVE') {
+                abort(422, 'Only active accounts can be suspended.');
+            }
+
             $lockedAccount->status = 'SUSPENDED';
             $lockedAccount->save();
 
@@ -534,6 +558,14 @@ class AuthController extends Controller
                 ->whereKey($account->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            if (!$this->canManageAccount($admin, $lockedAccount)) {
+                abort(403, 'Unauthorized.');
+            }
+
+            if ($lockedAccount->status !== 'SUSPENDED') {
+                abort(422, 'Only suspended accounts can be unsuspended.');
+            }
 
             $lockedAccount->status = 'ACTIVE';
             $lockedAccount->save();
