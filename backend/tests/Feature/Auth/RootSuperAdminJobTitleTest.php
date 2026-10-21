@@ -63,7 +63,10 @@ class RootSuperAdminJobTitleTest extends TestCase
             ->assertJsonPath(
                 'data.account.role',
                 'SUPER_ADMIN'
-            );
+            )
+            ->assertJsonMissingPath('data.account.password')
+            ->assertJsonMissingPath('data.account.failed_login_attempts')
+            ->assertJsonMissingPath('data.account.locked_until');
 
         $this->assertDatabaseHas('accounts', [
             'email' => 'ahmad@example.com',
@@ -108,7 +111,30 @@ class RootSuperAdminJobTitleTest extends TestCase
             ->assertJsonPath(
                 'data.account.role',
                 'SUPER_ADMIN'
-            );
+            )
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'data' => [
+                    'account' => [
+                        'id',
+                        'name',
+                        'job_title',
+                        'phone',
+                        'email',
+                        'profile_picture',
+                        'role',
+                        'status',
+                        'created_at',
+                        'updated_at',
+                    ],
+                ],
+            ])
+            ->assertJsonMissingPath('data.account.password')
+            ->assertJsonMissingPath('data.account.reason')
+            ->assertJsonMissingPath('data.account.token_hash')
+            ->assertJsonMissingPath('data.account.failed_login_attempts')
+            ->assertJsonMissingPath('data.account.locked_until');
 
         $this->assertDatabaseHas('accounts', [
             'id' => $admin->id,
@@ -142,7 +168,9 @@ class RootSuperAdminJobTitleTest extends TestCase
                 'reason' => 'Jawatan dikosongkan.',
             ]
         )->assertStatus(200)
-            ->assertJsonPath('data.account.job_title', null);
+            ->assertJsonPath('data.account.job_title', null)
+            ->assertJsonMissingPath('data.account.failed_login_attempts')
+            ->assertJsonMissingPath('data.account.locked_until');
 
         $this->assertDatabaseHas('accounts', [
             'id' => $admin->id,
