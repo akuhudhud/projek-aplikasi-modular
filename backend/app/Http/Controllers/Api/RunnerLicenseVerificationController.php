@@ -199,14 +199,18 @@ class RunnerLicenseVerificationController extends Controller
                 $validated['license_class'],
                 $validated['expires_at'],
                 $validated['document'],
-                $validated['license_type']
-            );
-
-            $auditLogService->record(
-                $account,
-                $account,
-                'RUNNER_LICENSE_VERIFICATION_SUBMITTED',
-                'Driving license verification submitted.'
+                $validated['license_type'],
+                function (
+                    RunnerLicenseVerification $verification,
+                    Account $lockedAccount
+                ) use ($auditLogService): void {
+                    $auditLogService->record(
+                        $lockedAccount,
+                        $lockedAccount,
+                        'RUNNER_LICENSE_VERIFICATION_SUBMITTED',
+                        'Driving license verification submitted.'
+                    );
+                }
             );
 
             return response()->json([
@@ -374,10 +378,6 @@ class RunnerLicenseVerificationController extends Controller
                     $validated['decision']
                     === RunnerLicenseVerification::STATUS_VERIFIED
                 ) {
-                    /*
-                     * Skop lesen semasa mesti sepadan dengan
-                     * jenis induk dan kelas lesen.
-                     */
                     RunnerLicenseVerification::query()
                         ->where(
                             'account_id',
