@@ -217,6 +217,39 @@ class RunnerLicenseCatalogEnforcementTest extends TestCase
         );
     }
 
+    public function test_pending_runner_application_cannot_be_submitted_again(): void
+    {
+        $account = $this->createVerifiedAccount();
+
+        $this->submitLicense('GENERAL', 'D')
+            ->assertCreated()
+            ->assertJsonPath(
+                'data.runner_application.runner_status',
+                Account::RUNNER_STATUS_PENDING
+            );
+
+        $this->submitLicense('GENERAL', 'D')
+            ->assertUnprocessable()
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $account->id,
+            'runner_status' => Account::RUNNER_STATUS_PENDING,
+        ]);
+
+        $this->assertDatabaseCount(
+            'runner_license_verifications',
+            1
+        );
+
+        $this->assertDatabaseHas('runner_license_verifications', [
+            'account_id' => $account->id,
+            'license_type' => 'GENERAL',
+            'license_class' => 'D',
+            'status' => 'PENDING',
+        ]);
+    }
+
     public function test_expired_license_can_be_submitted_for_admin_review(): void
     {
         $account = $this->createVerifiedAccount();
