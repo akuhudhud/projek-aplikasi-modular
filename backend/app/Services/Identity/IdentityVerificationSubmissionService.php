@@ -20,6 +20,11 @@ class IdentityVerificationSubmissionService
 {
     private const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
+    public function __construct(
+        private AuditLogService $auditLogService
+    ) {
+    }
+
     /**
      * @param array<int, UploadedFile> $files
      */
@@ -146,9 +151,8 @@ class IdentityVerificationSubmissionService
                     ]);
                 }
 
-                // The submission and its single audit event must commit
-                // or roll back together. Do not include MyKad data,
-                // document paths, or uploaded file contents in the audit.
+                // Submission and its audit event commit or roll back together.
+                // Never include MyKad data, document paths, or file contents.
                 $this->auditLogService->record(
                     $account,
                     $account,
@@ -159,7 +163,6 @@ class IdentityVerificationSubmissionService
                 return $verification->fresh(['documents']);
             });
         } catch (Throwable $exception) {
-            // This catch handles transaction/submission failures only.
             // The transaction has rolled back before new files are removed.
             foreach ($storedPaths as $storedPath) {
                 try {
@@ -172,17 +175,12 @@ class IdentityVerificationSubmissionService
             throw $exception;
         }
 
-        /*
-         * The database transaction has committed successfully.
-         * Old-file cleanup must never enter the transaction-failure
-         * cleanup path, because the database now points to new files.
-         */
+        // The transaction has committed. Never delete new files if old-file
+        // cleanup fails, because the database now references the new files.
         foreach ($oldPaths as $oldPath) {
             try {
                 Storage::disk('local')->delete($oldPath);
             } catch (Throwable $cleanupException) {
-                // Keep the committed submission and its new files intact.
-                // A cleanup failure may leave an orphaned old file.
                 report($cleanupException);
             }
         }
