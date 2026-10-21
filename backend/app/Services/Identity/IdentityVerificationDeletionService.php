@@ -32,128 +32,134 @@ class IdentityVerificationDeletionService
             );
         }
 
-        $verification = IdentityVerification::query()
-            ->where('account_id', $accountId)
-            ->first();
-
-        if ($verification === null) {
-            throw new ModelNotFoundException(
-                'Rekod pengesahan identiti tidak ditemui.'
-            );
-        }
-
-        $target = Account::query()
-            ->whereKey($verification->account_id)
-            ->firstOrFail();
-
-        $documents = $verification->documents()->get();
-
         /*
-         * Read all documents before deleting any physical file.
-         * Contents are temporarily retained for rollback recovery.
+         * Lock the account first, matching the submission service's
+         * lock order. This serializes deletion against resubmission.
          */
         $files = [];
+        $fileDeletionStarted = false;
+        $fileDeletionFailed = false;
+        $databaseMutationStarted = false;
 
-        foreach ($documents as $document) {
-            $diskName = $document->disk;
-            $path = $document->path;
-
-            if ($diskName === '' || $path === '') {
-                throw new RuntimeException(
-                    'Metadata fail identiti tidak sah; pemadaman dibatalkan.'
-                );
-            }
-
-            try {
-                $disk = Storage::disk($diskName);
-
-                if (!$disk->exists($path)) {
-                    throw new RuntimeException(
-                        'Fail dokumen identiti tidak ditemui; pemadaman dibatalkan.'
-                    );
-                }
-
-                $contents = $disk->get($path);
-
-                if (!is_string($contents)) {
-                    throw new RuntimeException(
-                        'Fail dokumen identiti tidak dapat dibaca.'
-                    );
-                }
-
-                $files[] = [
-                    'disk' => $diskName,
-                    'path' => $path,
-                    'contents' => $contents,
-                    'deleted' => false,
-                ];
-            } catch (Throwable $exception) {
-                throw new RuntimeException(
-                    'Pemeriksaan fail identiti gagal. Tiada rekod dipadam.',
-                    0,
-                    $exception
-                );
-            }
-        }
-
-        /*
-         * Delete files one by one.
-         * Restore already-deleted files if any deletion fails.
-         */
-        try {
-            foreach ($files as $index => $file) {
-                $disk = Storage::disk($file['disk']);
-
-                if (!$disk->delete($file['path'])) {
-                    throw new RuntimeException(
-                        'Fail dokumen identiti gagal dipadam.'
-                    );
-                }
-
-                $files[$index]['deleted'] = true;
-            }
-        } catch (Throwable $exception) {
-            $restorationFailed = $this->restoreDeletedFiles($files);
-
-            if ($restorationFailed) {
-                throw new RuntimeException(
-                    'Pemadaman gagal dan pemulihan semua fail tidak dapat disahkan. '
-                    .'Rekod pangkalan data dikekalkan; pemeriksaan operasi diperlukan.',
-                    0,
-                    $exception
-                );
-            }
-
-            throw new RuntimeException(
-                'Pemadaman fail gagal. Fail yang telah dipadam dipulihkan dan rekod pangkalan data dikekalkan.',
-                0,
-                $exception
-            );
-        }
-
-        /*
-         * Delete database records and write the audit event atomically.
-         * Fixed audit text prevents free-text input from leaking into logs.
-         */
         try {
             DB::transaction(function () use (
                 $actor,
-                $target,
-                $verification
+                $accountId,
+                &$files,
+                &$fileDeletionStarted,
+                &$fileDeletionFailed,
+                &$databaseMutationStarted
             ): void {
-                $lockedVerification = IdentityVerification::query()
-                    ->whereKey($verification->id)
+                $target = Account::query()
+                    ->whereKey($accountId)
                     ->lockForUpdate()
                     ->first();
 
-                if ($lockedVerification === null) {
+                if ($target === null) {
+                    throw new ModelNotFoundException(
+                        'Akaun tidak ditemui.'
+                    );
+                }
+
+                $verification = IdentityVerification::query()
+                    ->where('account_id', $target->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($verification === null) {
                     throw new ModelNotFoundException(
                         'Rekod pengesahan identiti tidak ditemui.'
                     );
                 }
 
-                $lockedVerification->documents()->delete();
-                $lockedVerification->delete();
+                $documents = $verification->documents()
+                    ->lockForUpdate()
+                    ->get();
+
+                /*
+                 * Read and retain every file before deleting any of them.
+                 */
+                foreach ($documents as $document) {
+                    $diskName = $document->disk;
+                    $path = $document->path;
+
+                    if (
+                        !is_string($diskName)
+                        || $diskName === ''
+                        || !is_string($path)
+                        || $path === ''
+                    ) {
+                        throw new RuntimeException(
+                            'Metadata fail identiti tidak sah; pemadaman dibatalkan.'
+                        );
+                    }
+
+                    try {
+                        $disk = Storage::disk($diskName);
+
+                        if (!$disk->exists($path)) {
+                            throw new RuntimeException(
+                                'Fail dokumen identiti tidak ditemui; pemadaman dibatalkan.'
+                            );
+                        }
+
+                        $contents = $disk->get($path);
+
+                        if (!is_string($contents)) {
+                            throw new RuntimeException(
+                                'Fail dokumen identiti tidak dapat dibaca.'
+                            );
+                        }
+
+                        $files[] = [
+                            'disk' => $diskName,
+                            'path' => $path,
+                            'contents' => $contents,
+                            'deleted' => false,
+                        ];
+                    } catch (Throwable $exception) {
+                        throw new RuntimeException(
+                            'Pemeriksaan fail identiti gagal. Tiada rekod dipadam.',
+                            0,
+                            $exception
+                        );
+                    }
+                }
+
+                /*
+                 * Keep database locks while deleting physical files.
+                 */
+                foreach ($files as $index => $file) {
+                    $fileDeletionStarted = true;
+
+                    try {
+                        $disk = Storage::disk($file['disk']);
+                        $deleted = $disk->delete($file['path']);
+
+                        if ($deleted || !$disk->exists($file['path'])) {
+                            $files[$index]['deleted'] = true;
+                        }
+
+                        if (!$deleted) {
+                            $fileDeletionFailed = true;
+
+                            throw new RuntimeException(
+                                'Fail dokumen identiti gagal dipadam.'
+                            );
+                        }
+                    } catch (Throwable $exception) {
+                        $fileDeletionFailed = true;
+                        throw $exception;
+                    }
+                }
+
+                /*
+                 * Database changes and audit record are atomic.
+                 */
+                $databaseMutationStarted = true;
+
+                $verification->documents()->delete();
+                $verification->delete();
 
                 $this->auditLogService->record(
                     $actor,
@@ -163,22 +169,41 @@ class IdentityVerificationDeletionService
                 );
             });
         } catch (Throwable $exception) {
+            /*
+             * The database transaction has rolled back before execution
+             * reaches this handler. Restore any files already deleted.
+             */
             $restorationFailed = $this->restoreDeletedFiles($files);
 
             if ($restorationFailed) {
                 throw new RuntimeException(
-                    'Transaksi pangkalan data gagal dan pemulihan semua fail tidak dapat disahkan. '
-                    .'Pemeriksaan operasi diperlukan.',
+                    'Pemulihan semua fail tidak dapat disahkan selepas pemadaman gagal. '
+                    .'Rekod pangkalan data dikekalkan; pemeriksaan operasi diperlukan.',
                     0,
                     $exception
                 );
             }
 
-            throw new RuntimeException(
-                'Transaksi pangkalan data gagal. Fail dokumen telah dipulihkan.',
-                0,
-                $exception
-            );
+            if (
+                $fileDeletionFailed
+                || ($fileDeletionStarted && !$databaseMutationStarted)
+            ) {
+                throw new RuntimeException(
+                    'Pemadaman fail gagal. Fail yang telah dipadam dipulihkan dan rekod pangkalan data dikekalkan.',
+                    0,
+                    $exception
+                );
+            }
+
+            if ($databaseMutationStarted) {
+                throw new RuntimeException(
+                    'Transaksi pangkalan data gagal. Fail dokumen telah dipulihkan.',
+                    0,
+                    $exception
+                );
+            }
+
+            throw $exception;
         }
     }
 
