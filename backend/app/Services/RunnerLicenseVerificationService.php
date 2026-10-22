@@ -57,7 +57,11 @@ class RunnerLicenseVerificationService
 
         $size = $document->getSize();
 
-        if (!is_int($size) || $size < 1 || $size > self::MAX_FILE_BYTES) {
+        if (
+            !is_int($size)
+            || $size < 1
+            || $size > self::MAX_FILE_BYTES
+        ) {
             throw new InvalidArgumentException(
                 'Saiz dokumen lesen mestilah tidak melebihi 10 MB.'
             );
@@ -76,7 +80,11 @@ class RunnerLicenseVerificationService
 
         if (
             !isset($allowedTypes[$mimeType])
-            || !in_array($extension, $allowedTypes[$mimeType], true)
+            || !in_array(
+                $extension,
+                $allowedTypes[$mimeType],
+                true
+            )
         ) {
             throw new InvalidArgumentException(
                 'Dokumen lesen mestilah fail JPEG, PNG atau PDF yang sepadan.'
@@ -151,6 +159,10 @@ class RunnerLicenseVerificationService
                     );
                 }
 
+                /*
+                 * Tanpa callback, penghantaran dianggap sebagai
+                 * lesen tambahan untuk Runner yang telah diluluskan.
+                 */
                 if (
                     $afterCreate === null
                     && $lockedAccount->runner_status
@@ -161,10 +173,27 @@ class RunnerLicenseVerificationService
                     );
                 }
 
+                /*
+                 * Callback digunakan untuk:
+                 * 1. Mengemas kini status permohonan Runner awal.
+                 * 2. Merekod audit penghantaran lesen tambahan.
+                 *
+                 * Permohonan awal dibenarkan untuk NOT_RUNNER.
+                 * Lesen tambahan dengan callback audit dibenarkan
+                 * untuk APPROVED.
+                 *
+                 * Status lain kekal disekat.
+                 */
                 if (
                     $afterCreate !== null
-                    && $lockedAccount->runner_status
-                        !== Account::RUNNER_STATUS_NOT_RUNNER
+                    && !in_array(
+                        $lockedAccount->runner_status,
+                        [
+                            Account::RUNNER_STATUS_NOT_RUNNER,
+                            Account::RUNNER_STATUS_APPROVED,
+                        ],
+                        true
+                    )
                 ) {
                     throw new DomainException(
                         'A Runner application cannot be submitted from the current status.'
@@ -172,7 +201,7 @@ class RunnerLicenseVerificationService
                 }
 
                 /*
-                 * Sahkan jenis induk daripada katalog dinamik.
+                 * Sahkan jenis lesen melalui katalog dinamik.
                  */
                 $typeEntry = DrivingLicenseType::query()
                     ->where('code', $licenseType)
@@ -187,9 +216,7 @@ class RunnerLicenseVerificationService
                 }
 
                 /*
-                 * Kelas mesti milik jenis induk yang dipilih.
-                 * Kod kelas yang sama boleh wujud di bawah
-                 * jenis induk yang berlainan.
+                 * Kelas lesen mesti milik jenis lesen yang dipilih.
                  */
                 $catalogEntry = DrivingLicenseCatalog::query()
                     ->where(
@@ -208,8 +235,8 @@ class RunnerLicenseVerificationService
                 }
 
                 /*
-                 * Permohonan tertunda diperiksa berdasarkan
-                 * gabungan jenis dan kelas lesen.
+                 * Sekat permohonan pending bagi gabungan jenis
+                 * dan kelas lesen yang sama.
                  */
                 $pendingApplication = RunnerLicenseVerification::query()
                     ->where('account_id', $lockedAccount->id)
@@ -229,8 +256,8 @@ class RunnerLicenseVerificationService
                 }
 
                 /*
-                 * Sejarah lesen semasa juga mesti sepadan
-                 * dengan jenis dan kelas yang sama.
+                 * Cari lesen semasa yang telah disahkan bagi
+                 * jenis dan kelas yang sama.
                  */
                 $previous = RunnerLicenseVerification::query()
                     ->where('account_id', $lockedAccount->id)
@@ -245,39 +272,53 @@ class RunnerLicenseVerificationService
                     ->lockForUpdate()
                     ->first();
 
+                /*
+                 * Simpan dokumen menggunakan nama fail rawak.
+                 */
                 $storedPath = Storage::disk('local')->putFileAs(
                     'runner-license-documents',
                     $document,
                     $filename
                 );
 
-                if (!is_string($storedPath) || $storedPath === '') {
+                if (
+                    !is_string($storedPath)
+                    || $storedPath === ''
+                ) {
                     throw new RuntimeException(
                         'Dokumen lesen gagal disimpan.'
                     );
                 }
 
-                $verification = RunnerLicenseVerification::query()->create([
-                    'id' => (string) Str::uuid(),
-                    'account_id' => $lockedAccount->id,
-                    'license_number_encrypted' =>
-                        Crypt::encryptString($licenseNumber),
-                    'license_type' => $typeEntry->code,
-                    'license_class' => $catalogEntry->code,
-                    'previous_license_verification_id' => $previous?->id,
-                    'expires_at' => $expiry->toDateString(),
-                    'status' => RunnerLicenseVerification::STATUS_PENDING,
-                    'is_current' => false,
-                    'submitted_at' => now(),
-                    'reviewed_at' => null,
-                    'reviewer_account_id' => null,
-                    'rejection_reason' => null,
-                    'disk' => 'local',
-                    'document_path' => $storedPath,
-                    'mime_type' => $mimeType,
-                    'size_bytes' => $size,
-                ]);
+                $verification = RunnerLicenseVerification::query()
+                    ->create([
+                        'id' => (string) Str::uuid(),
+                        'account_id' => $lockedAccount->id,
+                        'license_number_encrypted' =>
+                            Crypt::encryptString($licenseNumber),
+                        'license_type' => $typeEntry->code,
+                        'license_class' => $catalogEntry->code,
+                        'previous_license_verification_id' =>
+                            $previous?->id,
+                        'expires_at' => $expiry->toDateString(),
+                        'status' =>
+                            RunnerLicenseVerification::STATUS_PENDING,
+                        'is_current' => false,
+                        'submitted_at' => now(),
+                        'reviewed_at' => null,
+                        'reviewer_account_id' => null,
+                        'rejection_reason' => null,
+                        'disk' => 'local',
+                        'document_path' => $storedPath,
+                        'mime_type' => $mimeType,
+                        'size_bytes' => $size,
+                    ]);
 
+                /*
+                 * Callback berjalan dalam transaksi yang sama.
+                 * Jika audit gagal, perubahan pangkalan data
+                 * dibatalkan dan dokumen dipadam dalam catch.
+                 */
                 if ($afterCreate !== null) {
                     $afterCreate($verification, $lockedAccount);
                 }
@@ -285,7 +326,10 @@ class RunnerLicenseVerificationService
                 return $verification;
             });
         } catch (Throwable $exception) {
-            if (is_string($storedPath) && $storedPath !== '') {
+            if (
+                is_string($storedPath)
+                && $storedPath !== ''
+            ) {
                 Storage::disk('local')->delete($storedPath);
             }
 
