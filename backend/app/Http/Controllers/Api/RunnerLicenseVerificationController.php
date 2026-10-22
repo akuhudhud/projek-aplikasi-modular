@@ -192,6 +192,16 @@ class RunnerLicenseVerificationController extends Controller
         /** @var Account $account */
         $account = $request->attributes->get('account');
 
+        if (
+            $account->runner_status
+            !== Account::RUNNER_STATUS_APPROVED
+        ) {
+            return $this->errorResponse(
+                'Lesen tambahan hanya boleh dihantar selepas permohonan Runner diluluskan.',
+                422
+            );
+        }
+
         try {
             $verification = $service->submit(
                 $account,
