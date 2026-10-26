@@ -1,0 +1,139 @@
+<?php
+
+namespace Tests\Feature\Runner;
+
+use App\Http\Controllers\Api\RunnerPublicProfileController;
+use App\Models\Account;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Tests\TestCase;
+
+class RunnerPublicProfileLocationTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function createApprovedRunner(): Account
+    {
+        $account = Account::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Runner Location Test',
+            'phone' => null,
+            'email' => null,
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'ACTIVE',
+        ]);
+
+        $account->runner_status = Account::RUNNER_STATUS_APPROVED;
+        $account->save();
+
+        return $account->fresh();
+    }
+
+    private function makeAuthenticatedRequest(
+        Account $account,
+        array $data
+    ): Request {
+        $request = Request::create(
+            '/api/me/runner-profile',
+            'POST',
+            $data
+        );
+
+        $request->attributes->set('account', $account);
+
+        return $request;
+    }
+
+    public function test_runner_can_save_base_location_and_coverage_area(): void
+    {
+        $account = $this->createApprovedRunner();
+        $controller = app(RunnerPublicProfileController::class);
+
+        $response = $controller->save(
+            $this->makeAuthenticatedRequest($account, [
+                'public_slug' => 'runner-location-test',
+                'display_name' => 'Runner Location Test',
+                'base_location' => 'Tuaran, Sabah',
+                'coverage_area' => 'Tuaran, Tamparuli dan Kota Kinabalu',
+                'is_published' => true,
+            ])
+        );
+
+        $this->assertSame(201, $response->getStatusCode());
+
+        $this->assertDatabaseHas('runner_public_profiles', [
+            'account_id' => $account->id,
+            'public_slug' => 'runner-location-test',
+            'base_location' => 'Tuaran, Sabah',
+            'coverage_area' => 'Tuaran, Tamparuli dan Kota Kinabalu',
+            'is_published' => true,
+        ]);
+    }
+
+    public function test_public_profile_displays_base_location_and_coverage_area(): void
+    {
+        $account = $this->createApprovedRunner();
+        $controller = app(RunnerPublicProfileController::class);
+
+        $saveResponse = $controller->save(
+            $this->makeAuthenticatedRequest($account, [
+                'public_slug' => 'runner-location-public',
+                'display_name' => 'Runner Location Public',
+                'base_location' => 'Tuaran, Sabah',
+                'coverage_area' => 'Tuaran dan Tamparuli',
+                'is_published' => true,
+            ])
+        );
+
+        $this->assertSame(201, $saveResponse->getStatusCode());
+
+        $response = $controller->show('runner-location-public');
+
+        $this->assertSame(200, $response->getStatusCode());
+
+        $payload = $response->getData(true);
+        $profile = $payload['data']['profile'];
+
+        $this->assertSame('Tuaran, Sabah', $profile['base_location']);
+        $this->assertSame('Tuaran dan Tamparuli', $profile['coverage_area']);
+
+        $this->assertArrayNotHasKey('latitude', $profile);
+        $this->assertArrayNotHasKey('longitude', $profile);
+    }
+
+    public function test_updating_other_profile_fields_preserves_location_fields(): void
+    {
+        $account = $this->createApprovedRunner();
+        $controller = app(RunnerPublicProfileController::class);
+
+        $createResponse = $controller->save(
+            $this->makeAuthenticatedRequest($account, [
+                'public_slug' => 'runner-location-update',
+                'display_name' => 'Runner Location Update',
+                'base_location' => 'Tuaran, Sabah',
+                'coverage_area' => 'Tuaran dan Tamparuli',
+                'is_published' => true,
+            ])
+        );
+
+        $this->assertSame(201, $createResponse->getStatusCode());
+
+        $updateResponse = $controller->save(
+            $this->makeAuthenticatedRequest($account, [
+                'display_name' => 'Runner Updated Name',
+            ])
+        );
+
+        $this->assertSame(200, $updateResponse->getStatusCode());
+
+        $this->assertDatabaseHas('runner_public_profiles', [
+            'account_id' => $account->id,
+            'public_slug' => 'runner-location-update',
+            'display_name' => 'Runner Updated Name',
+            'base_location' => 'Tuaran, Sabah',
+            'coverage_area' => 'Tuaran dan Tamparuli',
+        ]);
+    }
+}
