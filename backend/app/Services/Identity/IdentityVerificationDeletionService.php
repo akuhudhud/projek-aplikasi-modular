@@ -5,7 +5,6 @@ namespace App\Services\Identity;
 use App\Models\Account;
 use App\Models\IdentityVerification;
 use App\Services\AuditLogService;
-use DomainException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -59,9 +58,8 @@ class IdentityVerificationDeletionService
                 }
 
                 /*
-                 * Jangan benarkan rekod identiti Runner yang masih aktif
-                 * atau sedang memohon dipadam sehingga status Runner
-                 * diselesaikan secara eksplisit.
+                 * Rekod identiti tidak boleh dipadam semasa permohonan
+                 * Runner masih PENDING atau status Runner APPROVED.
                  */
                 if (in_array(
                     $target->runner_status,
@@ -71,7 +69,7 @@ class IdentityVerificationDeletionService
                     ],
                     true
                 )) {
-                    throw new DomainException(
+                    throw new RuntimeException(
                         'Rekod pengesahan identiti tidak boleh dipadam semasa permohonan Runner masih PENDING atau status Runner APPROVED. Selesaikan status Runner terlebih dahulu.'
                     );
                 }
@@ -136,7 +134,6 @@ class IdentityVerificationDeletionService
 
                 /*
                  * Kekalkan kunci pangkalan data semasa pemadaman fail.
-                 * Semak kewujudan fail, bukan nilai pulangan delete().
                  */
                 foreach ($files as $index => $file) {
                     $fileDeletionStarted = true;
