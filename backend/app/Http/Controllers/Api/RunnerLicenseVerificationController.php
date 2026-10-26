@@ -347,6 +347,10 @@ class RunnerLicenseVerificationController extends Controller
                 $rejectionReason,
                 $auditLogService
             ): RunnerLicenseVerification {
+                /*
+                 * Resolve the identifier first. It may be a verification
+                 * ID or an account ID. This initial read is not locked.
+                 */
                 $found = $this->findVerification($accountId, true);
 
                 if ($found === null) {
@@ -355,10 +359,33 @@ class RunnerLicenseVerificationController extends Controller
                     );
                 }
 
+                /*
+                 * Lock the account first. Submission and review operations
+                 * for this account must follow the same lock order.
+                 */
+                $targetAccount = Account::query()
+                    ->whereKey($found->account_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                /*
+                 * Re-read and lock the exact verification after acquiring
+                 * the account lock, then validate its current ownership
+                 * and status again.
+                 */
                 $verification = RunnerLicenseVerification::query()
                     ->whereKey($found->id)
                     ->lockForUpdate()
-                    ->firstOrFail();
+                    ->first();
+
+                if (
+                    $verification === null
+                    || $verification->account_id !== $targetAccount->id
+                ) {
+                    throw new ModelNotFoundException(
+                        'Permohonan pengesahan lesen tidak ditemui.'
+                    );
+                }
 
                 if (
                     $verification->status
@@ -379,10 +406,6 @@ class RunnerLicenseVerificationController extends Controller
                         'Lesen telah tamat tempoh dan tidak boleh disahkan.'
                     );
                 }
-
-                $targetAccount = Account::query()
-                    ->whereKey($verification->account_id)
-                    ->firstOrFail();
 
                 if (
                     $validated['decision']
