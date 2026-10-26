@@ -255,6 +255,27 @@ class RunnerStatusService
                     true
                 )
             ) {
+                /*
+                 * Account is locked before this identity query.
+                 * IdentityVerificationController uses the same lock order.
+                 */
+                if ($nextStatus === Account::RUNNER_STATUS_APPROVED) {
+                    $identity = IdentityVerification::query()
+                        ->where('account_id', $target->id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (
+                        $identity === null
+                        || $identity->status
+                            !== IdentityVerification::STATUS_VERIFIED
+                    ) {
+                        throw new DomainException(
+                            'Pengesahan identiti mesti berstatus VERIFIED sebelum permohonan Runner diluluskan.'
+                        );
+                    }
+                }
+
                 $license = RunnerLicenseVerification::query()
                     ->where('account_id', $target->id)
                     ->where(
@@ -325,6 +346,22 @@ class RunnerStatusService
                 if (!$hasValidCurrentLicense) {
                     throw new DomainException(
                         'Runner tidak boleh dipulihkan tanpa lesen semasa yang disahkan dan masih sah.'
+                    );
+                }
+
+                // Semak identiti sekali lagi ketika memulihkan Runner digantung.
+                $identity = IdentityVerification::query()
+                    ->where('account_id', $target->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (
+                    $identity === null
+                    || $identity->status
+                        !== IdentityVerification::STATUS_VERIFIED
+                ) {
+                    throw new DomainException(
+                        'Runner tidak boleh dipulihkan tanpa pengesahan identiti VERIFIED.'
                     );
                 }
             }
