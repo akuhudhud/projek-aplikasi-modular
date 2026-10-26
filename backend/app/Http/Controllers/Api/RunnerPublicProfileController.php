@@ -49,7 +49,24 @@ class RunnerPublicProfileController extends Controller
                 'max:80',
             ],
             'bio' => ['sometimes', 'nullable', 'string', 'max:2000'],
-            'service_area' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'service_area' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:120',
+            ],
+            'base_location' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:120',
+            ],
+            'coverage_area' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:500',
+            ],
             'services' => ['sometimes', 'nullable', 'array', 'max:20'],
             'services.*' => ['required', 'string', 'max:64'],
             'is_published' => ['sometimes', 'boolean'],
@@ -96,6 +113,26 @@ class RunnerPublicProfileController extends Controller
                         : trim($validated['service_area'])
                 )
                 : ($profile !== null ? $profile->service_area : null),
+            'base_location' => array_key_exists(
+                'base_location',
+                $validated
+            )
+                ? (
+                    $validated['base_location'] === null
+                        ? null
+                        : trim($validated['base_location'])
+                )
+                : ($profile !== null ? $profile->base_location : null),
+            'coverage_area' => array_key_exists(
+                'coverage_area',
+                $validated
+            )
+                ? (
+                    $validated['coverage_area'] === null
+                        ? null
+                        : trim($validated['coverage_area'])
+                )
+                : ($profile !== null ? $profile->coverage_area : null),
             'services' => array_key_exists('services', $validated)
                 ? ($validated['services'] ?? [])
                 : (
@@ -168,6 +205,8 @@ class RunnerPublicProfileController extends Controller
                     'display_name' => $profile->display_name,
                     'bio' => $profile->bio,
                     'service_area' => $profile->service_area,
+                    'base_location' => $profile->base_location,
+                    'coverage_area' => $profile->coverage_area,
                     'services' => $profile->services ?? [],
                     'views_count' => $profile->views_count,
                 ],
@@ -255,6 +294,8 @@ class RunnerPublicProfileController extends Controller
             'display_name' => $profile->display_name,
             'bio' => $profile->bio,
             'service_area' => $profile->service_area,
+            'base_location' => $profile->base_location,
+            'coverage_area' => $profile->coverage_area,
             'services' => $profile->services ?? [],
             'is_published' => $profile->is_published,
             'views_count' => $profile->views_count,
