@@ -58,10 +58,7 @@ class IdentityVerificationController extends Controller
                 ],
             ], 201);
         } catch (DomainException | InvalidArgumentException $exception) {
-            return $this->errorResponse(
-                $exception->getMessage(),
-                422
-            );
+            return $this->errorResponse($exception->getMessage(), 422);
         }
     }
 
@@ -129,7 +126,7 @@ class IdentityVerificationController extends Controller
                     'real_name' => $verification->real_name,
                     'status' => $verification->status,
                     'mykad_number_masked' => str_repeat('*', 8)
-                        .substr($mykadNumber, -4),
+                        . substr($mykadNumber, -4),
                     'submitted_at' => $verification->submitted_at,
                     'reviewed_at' => $verification->reviewed_at,
                     'rejection_reason' =>
@@ -205,8 +202,23 @@ class IdentityVerificationController extends Controller
                 $rejectionReason,
                 $auditLogService
             ): IdentityVerification {
+                /*
+                 * Lock order is account first, then identity verification.
+                 * RunnerStatusService uses the same order during approval.
+                 */
+                $targetAccount = Account::query()
+                    ->whereKey($accountId)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($targetAccount === null) {
+                    throw new ModelNotFoundException(
+                        'Identity verification application not found.'
+                    );
+                }
+
                 $verification = IdentityVerification::query()
-                    ->where('account_id', $accountId)
+                    ->where('account_id', $targetAccount->id)
                     ->lockForUpdate()
                     ->first();
 
@@ -224,9 +236,13 @@ class IdentityVerificationController extends Controller
                     );
                 }
 
-                $targetAccount = Account::query()
-                    ->whereKey($verification->account_id)
-                    ->firstOrFail();
+                if (
+                    $validated['decision'] === IdentityVerification::STATUS_VERIFIED
+                ) {
+                    // The verified legal name becomes the account display name.
+                    $targetAccount->name = $verification->real_name;
+                    $targetAccount->save();
+                }
 
                 $verification->status = $validated['decision'];
                 $verification->reviewer_account_id = $actor->id;
@@ -247,7 +263,7 @@ class IdentityVerificationController extends Controller
                         ? 'Identity verification marked VERIFIED.'
                         : 'Identity verification marked REJECTED.';
 
-                // Never place MyKad data, documents, or free-text reasons in audit logs.
+                // Never put MyKad data, documents, or free-text reasons in audit logs.
                 $auditLogService->record(
                     $actor,
                     $targetAccount,
@@ -318,7 +334,7 @@ class IdentityVerificationController extends Controller
 
         return $disk->download(
             $document->path,
-            'identity-document-'.Str::uuid().'.'.$extension,
+            'identity-document-' . Str::uuid() . '.' . $extension,
             [
                 'Content-Type' => $document->mime_type,
                 'Cache-Control' => 'private, no-store',
