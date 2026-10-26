@@ -22,6 +22,8 @@ class RunnerPublicProfile extends Model
         'display_name',
         'bio',
         'service_area',
+        'base_location',
+        'coverage_area',
         'services',
         'is_published',
         'views_count',
