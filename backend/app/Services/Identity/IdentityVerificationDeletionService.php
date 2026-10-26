@@ -5,6 +5,7 @@ namespace App\Services\Identity;
 use App\Models\Account;
 use App\Models\IdentityVerification;
 use App\Services\AuditLogService;
+use DomainException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -54,6 +55,24 @@ class IdentityVerificationDeletionService
                 if ($target === null) {
                     throw new ModelNotFoundException(
                         'Akaun tidak ditemui.'
+                    );
+                }
+
+                /*
+                 * Jangan benarkan rekod identiti Runner yang masih aktif
+                 * atau sedang memohon dipadam sehingga status Runner
+                 * diselesaikan secara eksplisit.
+                 */
+                if (in_array(
+                    $target->runner_status,
+                    [
+                        Account::RUNNER_STATUS_PENDING,
+                        Account::RUNNER_STATUS_APPROVED,
+                    ],
+                    true
+                )) {
+                    throw new DomainException(
+                        'Rekod pengesahan identiti tidak boleh dipadam semasa permohonan Runner masih PENDING atau status Runner APPROVED. Selesaikan status Runner terlebih dahulu.'
                     );
                 }
 
