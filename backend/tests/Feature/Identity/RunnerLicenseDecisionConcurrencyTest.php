@@ -2,11 +2,10 @@
 
 namespace Tests\Feature\Identity;
 
-use App\Models\Account;
 use App\Models\AuditLog;
 use App\Models\RunnerLicenseVerification;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -78,6 +77,14 @@ class RunnerLicenseDecisionConcurrencyTest extends TestCase
                 'size_bytes' => 100,
             ]);
 
+            // Capture initial state in the parent before either worker starts.
+            $this->assertSame(
+                RunnerLicenseVerification::STATUS_PENDING,
+                RunnerLicenseVerification::query()
+                    ->whereKey($verificationId)
+                    ->value('status')
+            );
+
             $workerPath = __DIR__.'/../../Support/RunnerLicenseDecisionWorker.php';
 
             $this->startWorker(
@@ -102,6 +109,7 @@ class RunnerLicenseDecisionConcurrencyTest extends TestCase
                 );
             }
 
+            // Release both workers only after both have reached the barrier.
             foreach ($this->workers as $worker) {
                 fwrite($worker['pipes'][0], "GO\n");
                 fflush($worker['pipes'][0]);
@@ -146,20 +154,106 @@ class RunnerLicenseDecisionConcurrencyTest extends TestCase
                     ($result['http_status'] ?? null) === 422
             ));
 
-            $this->assertCount(1, $successes, json_encode($results));
-            $this->assertCount(1, $rejections, json_encode($results));
+            $this->assertCount(
+                1,
+                $successes,
+                'Expected exactly one accepted decision. Results: '
+                    .json_encode($results)
+            );
+
+            $this->assertCount(
+                1,
+                $rejections,
+                'Expected exactly one rejected competing decision. Results: '
+                    .json_encode($results)
+            );
 
             $this->assertSame(
-                RunnerLicenseVerification::STATUS_PENDING,
-                $results[0]['initial_status'] ?? null,
-                'Worker output must report the shared initial status.'
+                'Hanya permohonan lesen berstatus PENDING boleh disemak.',
+                $rejections[0]['response']['message'] ?? null,
+                'The losing decision must be rejected because the record is no longer PENDING.'
+            );
+
+            // Verify persisted state before cleanup.
+            $verification = RunnerLicenseVerification::query()
+                ->whereKey($verificationId)
+                ->firstOrFail();
+
+            $this->assertContains(
+                $verification->status,
+                [
+                    RunnerLicenseVerification::STATUS_VERIFIED,
+                    RunnerLicenseVerification::STATUS_REJECTED,
+                ],
+                'The final license status must be a completed decision.'
+            );
+
+            $this->assertNotNull(
+                $verification->reviewed_at,
+                'The final decision must have a review timestamp.'
+            );
+
+            $this->assertSame(
+                $actorId,
+                $verification->reviewer_account_id,
+                'The final decision must identify the reviewer.'
+            );
+
+            if (
+                $verification->status
+                === RunnerLicenseVerification::STATUS_VERIFIED
+            ) {
+                $this->assertTrue(
+                    (bool) $verification->is_current,
+                    'A verified license must be marked current.'
+                );
+
+                $this->assertNull(
+                    $verification->rejection_reason,
+                    'A verified license must not retain a rejection reason.'
+                );
+
+                $expectedAuditAction =
+                    'RUNNER_LICENSE_VERIFICATION_VERIFIED';
+            } else {
+                $this->assertFalse(
+                    (bool) $verification->is_current,
+                    'A rejected license must not be current.'
+                );
+
+                $this->assertSame(
+                    'Concurrency test rejection.',
+                    $verification->rejection_reason,
+                    'The rejected decision must persist its rejection reason.'
+                );
+
+                $expectedAuditAction =
+                    'RUNNER_LICENSE_VERIFICATION_REJECTED';
+            }
+
+            // The losing request must not create a second audit entry.
+            $auditLogs = AuditLog::query()
+                ->where('target_account_id', $targetId)
+                ->where('actor_account_id', $actorId)
+                ->get(['action']);
+
+            $this->assertCount(
+                1,
+                $auditLogs,
+                'Exactly one audit record must exist for the winning decision.'
+            );
+
+            $this->assertSame(
+                $expectedAuditAction,
+                $auditLogs->first()->action,
+                'The audit action must match the persisted final decision.'
             );
         } finally {
             $this->stopWorkers();
 
             AuditLog::query()
                 ->where('target_account_id', $targetId)
-                ->whereIn('actor_account_id', [$actorId])
+                ->where('actor_account_id', $actorId)
                 ->delete();
 
             RunnerLicenseVerification::query()
@@ -171,12 +265,9 @@ class RunnerLicenseDecisionConcurrencyTest extends TestCase
                 ->delete();
         }
 
-        $verification = RunnerLicenseVerification::query()
-            ->find($verificationId);
-
-        $this->assertNull(
-            $verification,
-            'Test cleanup should remove its temporary verification record.'
+        $this->assertDatabaseMissing(
+            'runner_license_verifications',
+            ['id' => $verificationId]
         );
     }
 
