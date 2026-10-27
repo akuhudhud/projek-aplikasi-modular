@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Api\RunnerLicenseVerificationController;
 use App\Models\Account;
-use App\Models\RunnerLicenseVerification;
 use App\Services\AuditLogService;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Http\Request;
@@ -51,10 +50,6 @@ try {
 
     $request->attributes->set('account', $actor);
 
-    $initialStatus = RunnerLicenseVerification::query()
-        ->whereKey($verificationId)
-        ->value('status');
-
     $controller = $app->make(
         RunnerLicenseVerificationController::class
     );
@@ -68,8 +63,10 @@ try {
     echo json_encode([
         'http_status' => $response->getStatusCode(),
         'decision' => $decision,
-        'initial_status' => $initialStatus,
-        'response' => json_decode($response->getContent(), true),
+        'response' => json_decode(
+            $response->getContent(),
+            true
+        ),
     ], JSON_THROW_ON_ERROR)."\n";
 } catch (Throwable $exception) {
     fwrite(
