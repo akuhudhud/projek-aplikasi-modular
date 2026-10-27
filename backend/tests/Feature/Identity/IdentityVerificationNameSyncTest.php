@@ -70,10 +70,10 @@ class IdentityVerificationNameSyncTest extends TestCase
         return $verification;
     }
 
-    public function test_verified_identity_updates_account_name(): void
+    public function test_verified_identity_does_not_change_account_display_name(): void
     {
         $root = $this->createAccount('ROOT_SUPER_ADMIN');
-        $this->createPendingVerification($root);
+        $verification = $this->createPendingVerification($root);
 
         $token = 'identity-name-sync-token';
 
@@ -92,20 +92,22 @@ class IdentityVerificationNameSyncTest extends TestCase
 
         $this->assertDatabaseHas('accounts', [
             'id' => $root->id,
-            'name' => 'Nama Penuh Disahkan',
+            'name' => 'Nama Akaun Asal',
         ]);
 
         $this->assertDatabaseHas('identity_verifications', [
+            'id' => $verification->id,
             'account_id' => $root->id,
+            'real_name' => 'Nama Penuh Disahkan',
             'status' => IdentityVerification::STATUS_VERIFIED,
             'reviewer_account_id' => $root->id,
         ]);
     }
 
-    public function test_rejected_identity_does_not_change_account_name(): void
+    public function test_rejected_identity_does_not_change_account_display_name(): void
     {
         $root = $this->createAccount('ROOT_SUPER_ADMIN');
-        $this->createPendingVerification($root);
+        $verification = $this->createPendingVerification($root);
 
         $token = 'identity-name-rejection-token';
 
@@ -131,8 +133,11 @@ class IdentityVerificationNameSyncTest extends TestCase
         ]);
 
         $this->assertDatabaseHas('identity_verifications', [
+            'id' => $verification->id,
             'account_id' => $root->id,
+            'real_name' => 'Nama Penuh Disahkan',
             'status' => IdentityVerification::STATUS_REJECTED,
+            'reviewer_account_id' => $root->id,
             'rejection_reason' => 'Dokumen tidak jelas.',
         ]);
     }
