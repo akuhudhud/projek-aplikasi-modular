@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\CoreTask;
+use App\Models\IdentityVerification;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
 use App\Models\RunnerPublicProfile;
@@ -197,19 +198,36 @@ class RunnerPublicProfileController extends Controller
 
         $profile->increment('views_count');
 
+        $publicProfile = [
+            'public_slug' => $profile->public_slug,
+            'display_name' => $profile->display_name,
+            'bio' => $profile->bio,
+            'service_area' => $profile->service_area,
+            'base_location' => $profile->base_location,
+            'coverage_area' => $profile->coverage_area,
+            'services' => $profile->services ?? [],
+            'views_count' => $profile->views_count,
+        ];
+
+        $verifiedIdentity = IdentityVerification::query()
+            ->where('account_id', $account->id)
+            ->where(
+                'status',
+                IdentityVerification::STATUS_VERIFIED
+            )
+            ->first(['real_name']);
+
+        if (
+            $verifiedIdentity !== null
+            && trim($verifiedIdentity->real_name) !== ''
+        ) {
+            $publicProfile['real_name'] = $verifiedIdentity->real_name;
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
-                'profile' => [
-                    'public_slug' => $profile->public_slug,
-                    'display_name' => $profile->display_name,
-                    'bio' => $profile->bio,
-                    'service_area' => $profile->service_area,
-                    'base_location' => $profile->base_location,
-                    'coverage_area' => $profile->coverage_area,
-                    'services' => $profile->services ?? [],
-                    'views_count' => $profile->views_count,
-                ],
+                'profile' => $publicProfile,
             ],
         ]);
     }
