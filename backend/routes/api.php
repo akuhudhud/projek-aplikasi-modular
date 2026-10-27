@@ -22,7 +22,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/register/complete', [AuthController::class, 'completeRegistration']);
-Route::post('/login', [AuthController::class, 'login']);
+
+Route::post('/login', [AuthController::class, 'login'])
+    ->middleware('throttle:login-ip');
 
 Route::post('/otp/request', [OtpController::class, 'request'])
     ->middleware([
