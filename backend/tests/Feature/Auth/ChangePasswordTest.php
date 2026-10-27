@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Requests\Auth\ChangePasswordRequest;
 use App\Models\Account;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -140,6 +142,43 @@ class ChangePasswordTest extends TestCase
                 'data.account.id',
                 $account->id
             );
+    }
+
+    public function test_change_password_rechecks_current_password_after_account_lock(): void
+    {
+        [$account] = $this->createAccountWithSession();
+
+        $staleAccount = $account->fresh();
+
+        $account->password = 'ConcurrentPassword3';
+        $account->save();
+
+        $request = ChangePasswordRequest::create(
+            '/api/me/change-password',
+            'POST',
+            [
+                'current_password' => 'Password1',
+                'new_password' => 'NewPassword2',
+                'new_password_confirmation' => 'NewPassword2',
+            ]
+        );
+        $request->attributes->set('account', $staleAccount);
+
+        $response = app(AuthController::class)->changePassword($request);
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertSame(
+            'Current password is incorrect.',
+            $response->getData(true)['message']
+        );
+
+        $this->assertTrue(
+            Hash::check('ConcurrentPassword3', $account->fresh()->password)
+        );
+
+        $this->assertNull(
+            Session::find('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')->ended_at
+        );
     }
 
     public function test_change_password_rejects_incorrect_current_password(): void
