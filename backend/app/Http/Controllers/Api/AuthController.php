@@ -296,27 +296,38 @@ class AuthController extends Controller
     {
         $account = $request->attributes->get('account');
 
-        if (!Hash::check($request->current_password, $account->password)) {
+        $passwordChanged = DB::transaction(
+            function () use ($account, $request): bool {
+                $lockedAccount = Account::query()
+                    ->whereKey($account->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if (!Hash::check(
+                    $request->current_password,
+                    $lockedAccount->password
+                )) {
+                    return false;
+                }
+
+                $lockedAccount->password = $request->new_password;
+                $lockedAccount->save();
+
+                $this->sessionService->endAllForAccount(
+                    $lockedAccount,
+                    SessionService::END_REASON_PASSWORD_CHANGED
+                );
+
+                return true;
+            }
+        );
+
+        if (!$passwordChanged) {
             return response()->json([
                 'success' => false,
                 'message' => 'Current password is incorrect.',
             ], 422);
         }
-
-        DB::transaction(function () use ($account, $request) {
-            $lockedAccount = Account::query()
-                ->whereKey($account->id)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            $lockedAccount->password = $request->new_password;
-            $lockedAccount->save();
-
-            $this->sessionService->endAllForAccount(
-                $lockedAccount,
-                SessionService::END_REASON_PASSWORD_CHANGED
-            );
-        });
 
         return response()->json([
             'success' => true,
