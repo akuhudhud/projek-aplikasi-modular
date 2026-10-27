@@ -22,6 +22,11 @@ class RouteServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->ip());
         });
 
+        RateLimiter::for('login-ip', function (Request $request) {
+            return Limit::perMinute(10)
+                ->by('login-ip:'.$request->ip());
+        });
+
         RateLimiter::for('otp-request-ip', function (Request $request) {
             if (app()->environment('testing')) {
                 return Limit::none();
