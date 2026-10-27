@@ -236,13 +236,11 @@ class IdentityVerificationController extends Controller
                     );
                 }
 
-                if (
-                    $validated['decision'] === IdentityVerification::STATUS_VERIFIED
-                ) {
-                    // The verified legal name becomes the account display name.
-                    $targetAccount->name = $verification->real_name;
-                    $targetAccount->save();
-                }
+                /*
+                 * Keep accounts.name as the user's Display Name.
+                 * The verified Real Name remains in identity_verifications.real_name.
+                 * Public profile logic controls whether the Real Name is exposed.
+                 */
 
                 $verification->status = $validated['decision'];
                 $verification->reviewer_account_id = $actor->id;
