@@ -66,39 +66,10 @@ class RunnerPublicProfileController extends Controller
                     mixed $value,
                     \Closure $fail
                 ): void {
-                    if ($value === null || trim($value) === '') {
-                        return;
-                    }
-
-                    $location = trim($value);
-
-                    // Reject latitude/longitude coordinate pairs.
-                    $looksLikeCoordinates = preg_match(
-                        '/^\s*[+-]?\d{1,3}(?:\.\d+)?\s*[,;\/]\s*[+-]?\d{1,3}(?:\.\d+)?\s*$/',
-                        $location
-                    ) === 1;
-
-                    $containsCoordinatePair = preg_match(
-                        '/(?<!\d)[+-]?\d{1,3}\.\d{3,}(?:\s*[,;\/]\s*|\s+)[+-]?\d{1,3}\.\d{3,}(?!\d)/',
-                        $location
-                    ) === 1;
-
-                    // Reject postcodes and common street-address markers.
-                    $containsPostcode = preg_match(
-                        '/(?<!\d)\d{5}(?!\d)/',
-                        $location
-                    ) === 1;
-
-                    $containsAddressMarker = preg_match(
-                        '/\b(?:jalan|jln|lorong|lrg|persiaran|lebuh|lebuh raya|highway|postcode|postal code|poskod|nombor|lot|unit|tingkat|blok|block|street address)\b/i',
-                        $location
-                    ) === 1;
-
                     if (
-                        $looksLikeCoordinates
-                        || $containsCoordinatePair
-                        || $containsPostcode
-                        || $containsAddressMarker
+                        $value !== null
+                        && trim($value) !== ''
+                        && !$this->isSafeAdministrativeAreaLabel($value)
                     ) {
                         $fail(
                             'Base location must contain an administrative-area label only. Do not enter coordinates, a postcode or a detailed street address.'
@@ -242,12 +213,19 @@ class RunnerPublicProfileController extends Controller
 
         $profile->increment('views_count');
 
+        // Legacy records must also comply with the public location privacy rule.
+        $publicBaseLocation = $this->isSafeAdministrativeAreaLabel(
+            $profile->base_location
+        )
+            ? $profile->base_location
+            : null;
+
         $publicProfile = [
             'public_slug' => $profile->public_slug,
             'display_name' => $profile->display_name,
             'bio' => $profile->bio,
             'service_area' => $profile->service_area,
-            'base_location' => $profile->base_location,
+            'base_location' => $publicBaseLocation,
             'coverage_area' => $profile->coverage_area,
             'services' => $profile->services ?? [],
             'views_count' => $profile->views_count,
@@ -339,6 +317,45 @@ class RunnerPublicProfileController extends Controller
                 ],
             ],
         ]);
+    }
+
+    /**
+     * Check whether a location label is safe to expose publicly.
+     *
+     * This deliberately applies to legacy database values as well as new input.
+     */
+    private function isSafeAdministrativeAreaLabel(?string $value): bool
+    {
+        if ($value === null || trim($value) === '') {
+            return true;
+        }
+
+        $location = trim($value);
+
+        $looksLikeCoordinates = preg_match(
+            '/^\s*[+-]?\d{1,3}(?:\.\d+)?\s*[,;\/]\s*[+-]?\d{1,3}(?:\.\d+)?\s*$/',
+            $location
+        ) === 1;
+
+        $containsCoordinatePair = preg_match(
+            '/(?<!\d)[+-]?\d{1,3}\.\d{3,}(?:\s*[,;\/]\s*|\s+)[+-]?\d{1,3}\.\d{3,}(?!\d)/',
+            $location
+        ) === 1;
+
+        $containsPostcode = preg_match(
+            '/(?<!\d)\d{5}(?!\d)/',
+            $location
+        ) === 1;
+
+        $containsAddressMarker = preg_match(
+            '/\b(?:jalan|jln|lorong|lrg|persiaran|lebuh|lebuh raya|highway|postcode|postal code|poskod|nombor|lot|unit|tingkat|blok|block|street address)\b/i',
+            $location
+        ) === 1;
+
+        return !$looksLikeCoordinates
+            && !$containsCoordinatePair
+            && !$containsPostcode
+            && !$containsAddressMarker;
     }
 
     private function isEligibleRunner(Account $account): bool
