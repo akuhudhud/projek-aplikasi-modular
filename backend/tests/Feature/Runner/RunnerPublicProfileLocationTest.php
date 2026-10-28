@@ -7,6 +7,7 @@ use App\Models\Account;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class RunnerPublicProfileLocationTest extends TestCase
@@ -101,6 +102,57 @@ class RunnerPublicProfileLocationTest extends TestCase
 
         $this->assertArrayNotHasKey('latitude', $profile);
         $this->assertArrayNotHasKey('longitude', $profile);
+    }
+
+    public function test_base_location_rejects_coordinate_pairs(): void
+    {
+        $account = $this->createApprovedRunner();
+        $controller = app(RunnerPublicProfileController::class);
+
+        $this->expectException(ValidationException::class);
+
+        $controller->save(
+            $this->makeAuthenticatedRequest($account, [
+                'public_slug' => 'runner-coordinate-test',
+                'display_name' => 'Runner Coordinate Test',
+                'base_location' => '5.9804, 116.0735',
+                'is_published' => true,
+            ])
+        );
+    }
+
+    public function test_base_location_rejects_detailed_street_address(): void
+    {
+        $account = $this->createApprovedRunner();
+        $controller = app(RunnerPublicProfileController::class);
+
+        $this->expectException(ValidationException::class);
+
+        $controller->save(
+            $this->makeAuthenticatedRequest($account, [
+                'public_slug' => 'runner-address-test',
+                'display_name' => 'Runner Address Test',
+                'base_location' => 'Jalan Tuaran, Kota Kinabalu',
+                'is_published' => true,
+            ])
+        );
+    }
+
+    public function test_base_location_rejects_postcode(): void
+    {
+        $account = $this->createApprovedRunner();
+        $controller = app(RunnerPublicProfileController::class);
+
+        $this->expectException(ValidationException::class);
+
+        $controller->save(
+            $this->makeAuthenticatedRequest($account, [
+                'public_slug' => 'runner-postcode-test',
+                'display_name' => 'Runner Postcode Test',
+                'base_location' => 'Tuaran 89200, Sabah',
+                'is_published' => true,
+            ])
+        );
     }
 
     public function test_updating_other_profile_fields_preserves_location_fields(): void
