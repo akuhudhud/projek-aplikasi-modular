@@ -4,8 +4,10 @@ namespace App\Console\Commands;
 
 use App\Models\IdentityVerificationDocument;
 use Illuminate\Console\Command;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 use Throwable;
 
 class EncryptLegacyIdentityDocuments extends Command
@@ -51,7 +53,7 @@ class EncryptLegacyIdentityDocuments extends Command
                     try {
                         $disk = Storage::disk($document->disk);
 
-                        if (!$disk->exists($document->path)) {
+                        if (!$this->fileExists($disk, $document->path)) {
                             $failure = true;
 
                             $this->error(
@@ -115,13 +117,18 @@ class EncryptLegacyIdentityDocuments extends Command
                             );
 
                             if ($stored !== true) {
-                                throw new \RuntimeException(
+                                throw new RuntimeException(
                                     'Encrypted document write failed.'
                                 );
                             }
 
-                            if (!$disk->exists($document->path)) {
-                                throw new \RuntimeException(
+                            if (
+                                !$this->fileExists(
+                                    $disk,
+                                    $document->path
+                                )
+                            ) {
+                                throw new RuntimeException(
                                     'Encrypted document is missing after write.'
                                 );
                             }
@@ -135,7 +142,7 @@ class EncryptLegacyIdentityDocuments extends Command
                                     self::ENCRYPTED_FILE_PREFIX
                                 )
                             ) {
-                                throw new \RuntimeException(
+                                throw new RuntimeException(
                                     'Encrypted document verification failed.'
                                 );
                             }
@@ -148,7 +155,7 @@ class EncryptLegacyIdentityDocuments extends Command
                             );
 
                             if ($decrypted !== $contents) {
-                                throw new \RuntimeException(
+                                throw new RuntimeException(
                                     'Encrypted document content mismatch.'
                                 );
                             }
@@ -163,7 +170,8 @@ class EncryptLegacyIdentityDocuments extends Command
                                     $contents
                                 );
 
-                                $restoreReadBack = $disk->exists(
+                                $restoreReadBack = $this->fileExists(
+                                    $disk,
                                     $document->path
                                 )
                                     ? $disk->get($document->path)
@@ -245,5 +253,17 @@ class EncryptLegacyIdentityDocuments extends Command
         );
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Storage state may change between filesystem operations.
+     *
+     * @phpstan-impure
+     */
+    private function fileExists(
+        FilesystemAdapter $disk,
+        string $path
+    ): bool {
+        return $disk->exists($path);
     }
 }
