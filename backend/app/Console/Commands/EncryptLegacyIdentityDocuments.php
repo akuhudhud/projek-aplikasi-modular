@@ -33,6 +33,98 @@ class EncryptLegacyIdentityDocuments extends Command
             return self::FAILURE;
         }
 
+        /*
+         * Preflight all documents before mutating any file.
+         *
+         * This prevents a missing, unreadable or undecryptable existing
+         * encrypted document later in the scan from being discovered only
+         * after earlier plaintext files have already been encrypted.
+         *
+         * This is not a transaction over external storage. Storage can still
+         * change between this pass and the migration pass.
+         */
+        $preflightFailed = false;
+
+        IdentityVerificationDocument::query()->chunkById(
+            100,
+            function ($documents) use (&$preflightFailed): bool {
+                foreach ($documents as $document) {
+                    try {
+                        $disk = Storage::disk($document->disk);
+
+                        if (!$this->fileExists($disk, $document->path)) {
+                            $preflightFailed = true;
+
+                            $this->error(
+                                'Preflight failed: a document file is missing. No files were changed.'
+                            );
+
+                            return false;
+                        }
+
+                        $contents = $disk->get($document->path);
+
+                        if (!is_string($contents)) {
+                            $preflightFailed = true;
+
+                            $this->error(
+                                'Preflight failed: a document could not be read. No files were changed.'
+                            );
+
+                            return false;
+                        }
+
+                        if (
+                            str_starts_with(
+                                $contents,
+                                self::ENCRYPTED_FILE_PREFIX
+                            )
+                        ) {
+                            try {
+                                Crypt::decryptString(
+                                    substr(
+                                        $contents,
+                                        strlen(self::ENCRYPTED_FILE_PREFIX)
+                                    )
+                                );
+                            } catch (Throwable $exception) {
+                                report($exception);
+
+                                $preflightFailed = true;
+
+                                $this->error(
+                                    'Preflight failed: an encrypted document could not be verified. No files were changed.'
+                                );
+
+                                return false;
+                            }
+                        }
+                    } catch (Throwable $exception) {
+                        report($exception);
+
+                        $preflightFailed = true;
+
+                        $this->error(
+                            'Preflight failed while checking document storage. No files were changed.'
+                        );
+
+                        return false;
+                    }
+                }
+
+                return true;
+            },
+            'id'
+        );
+
+        if ($preflightFailed) {
+            $this->error(
+                'Migration aborted during preflight. Inspect storage and APP_KEY before retrying.'
+            );
+
+            return self::FAILURE;
+        }
+
         $scanned = 0;
         $alreadyEncrypted = 0;
         $encrypted = 0;
@@ -81,14 +173,16 @@ class EncryptLegacyIdentityDocuments extends Command
                                 self::ENCRYPTED_FILE_PREFIX
                             )
                         ) {
-                            $payload = substr(
-                                $contents,
-                                strlen(self::ENCRYPTED_FILE_PREFIX)
-                            );
-
                             try {
-                                Crypt::decryptString($payload);
-                            } catch (Throwable) {
+                                Crypt::decryptString(
+                                    substr(
+                                        $contents,
+                                        strlen(self::ENCRYPTED_FILE_PREFIX)
+                                    )
+                                );
+                            } catch (Throwable $exception) {
+                                report($exception);
+
                                 $failure = true;
 
                                 $this->error(
@@ -231,11 +325,19 @@ class EncryptLegacyIdentityDocuments extends Command
                 .($scanned - $alreadyEncrypted)
             );
 
+            if ($failure) {
+                $this->error(
+                    'Dry run stopped because a document could not be processed.'
+                );
+
+                return self::FAILURE;
+            }
+
             $this->info(
                 'Dry run completed. No document files were changed.'
             );
 
-            return $failure ? self::FAILURE : self::SUCCESS;
+            return self::SUCCESS;
         }
 
         $this->line('Documents encrypted and verified: '.$encrypted);
