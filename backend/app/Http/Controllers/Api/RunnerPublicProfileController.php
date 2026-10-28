@@ -61,6 +61,50 @@ class RunnerPublicProfileController extends Controller
                 'nullable',
                 'string',
                 'max:120',
+                function (
+                    string $attribute,
+                    mixed $value,
+                    \Closure $fail
+                ): void {
+                    if ($value === null || trim($value) === '') {
+                        return;
+                    }
+
+                    $location = trim($value);
+
+                    // Reject latitude/longitude coordinate pairs.
+                    $looksLikeCoordinates = preg_match(
+                        '/^\s*[+-]?\d{1,3}(?:\.\d+)?\s*[,;\/]\s*[+-]?\d{1,3}(?:\.\d+)?\s*$/',
+                        $location
+                    ) === 1;
+
+                    $containsCoordinatePair = preg_match(
+                        '/(?<!\d)[+-]?\d{1,3}\.\d{3,}(?:\s*[,;\/]\s*|\s+)[+-]?\d{1,3}\.\d{3,}(?!\d)/',
+                        $location
+                    ) === 1;
+
+                    // Reject postcodes and common street-address markers.
+                    $containsPostcode = preg_match(
+                        '/(?<!\d)\d{5}(?!\d)/',
+                        $location
+                    ) === 1;
+
+                    $containsAddressMarker = preg_match(
+                        '/\b(?:jalan|jln|lorong|lrg|persiaran|lebuh|lebuh raya|highway|postcode|postal code|poskod|nombor|lot|unit|tingkat|blok|block|street address)\b/i',
+                        $location
+                    ) === 1;
+
+                    if (
+                        $looksLikeCoordinates
+                        || $containsCoordinatePair
+                        || $containsPostcode
+                        || $containsAddressMarker
+                    ) {
+                        $fail(
+                            'Base location must contain an administrative-area label only. Do not enter coordinates, a postcode or a detailed street address.'
+                        );
+                    }
+                },
             ],
             'coverage_area' => [
                 'sometimes',
