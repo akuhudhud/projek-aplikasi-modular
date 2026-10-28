@@ -30,7 +30,7 @@ class RunnerPublicProfileRealNameTest extends TestCase
             ->assertOk()
             ->assertJsonPath(
                 'data.profile.display_name',
-                'Nama Paparan Runner'
+                'Nama Akaun Runner'
             )
             ->assertJsonPath(
                 'data.profile.real_name',
@@ -59,7 +59,7 @@ class RunnerPublicProfileRealNameTest extends TestCase
             ->assertOk()
             ->assertJsonPath(
                 'data.profile.display_name',
-                'Nama Paparan Runner'
+                'Nama Akaun Runner'
             )
             ->assertJsonMissingPath('data.profile.real_name')
             ->assertJsonMissing([
@@ -77,9 +77,25 @@ class RunnerPublicProfileRealNameTest extends TestCase
             ->assertOk()
             ->assertJsonPath(
                 'data.profile.display_name',
-                'Nama Paparan Runner'
+                'Nama Akaun Runner'
             )
             ->assertJsonMissingPath('data.profile.real_name');
+    }
+
+    public function test_public_display_name_uses_current_account_name_not_legacy_profile_name(): void
+    {
+        $runner = $this->createApprovedRunner();
+        $this->createPublicProfile($runner);
+
+        $runner->name = 'Nama Akaun Dikemas Kini';
+        $runner->save();
+
+        $this->getJson('/api/runners/verified-runner')
+            ->assertOk()
+            ->assertJsonPath(
+                'data.profile.display_name',
+                'Nama Akaun Dikemas Kini'
+            );
     }
 
     private function createApprovedRunner(): Account
