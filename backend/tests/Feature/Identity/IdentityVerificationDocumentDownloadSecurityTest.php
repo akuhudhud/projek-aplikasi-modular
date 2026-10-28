@@ -17,6 +17,10 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const ENCRYPTED_FILE_PREFIX = 'SRIDENC1:';
+
+    private const DOCUMENT_CONTENT = '%PDF-test-content';
+
     private function createAccount(
         string $role = 'USER',
         string $status = 'ACTIVE'
@@ -59,7 +63,8 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
     }
 
     private function createVerificationWithDocument(
-        Account $account
+        Account $account,
+        bool $encrypted = true
     ): IdentityVerificationDocument {
         $verification = IdentityVerification::create([
             'id' => (string) Str::uuid(),
@@ -74,9 +79,14 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
 
         $path = 'identity-documents/'.Str::uuid().'.pdf';
 
+        $storedContents = $encrypted
+            ? self::ENCRYPTED_FILE_PREFIX
+                .Crypt::encryptString(self::DOCUMENT_CONTENT)
+            : self::DOCUMENT_CONTENT;
+
         Storage::disk('local')->put(
             $path,
-            '%PDF-test-content'
+            $storedContents
         );
 
         return IdentityVerificationDocument::create([
@@ -85,7 +95,7 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
             'disk' => 'local',
             'path' => $path,
             'mime_type' => 'application/pdf',
-            'size_bytes' => strlen('%PDF-test-content'),
+            'size_bytes' => strlen(self::DOCUMENT_CONTENT),
         ]);
     }
 
@@ -159,5 +169,84 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
                 'message',
                 'Identity document not found.'
             );
+    }
+
+    public function test_encrypted_document_is_decrypted_only_for_authorized_download(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->createAccount('SUPER_ADMIN');
+        $this->grantReviewPermission($admin);
+
+        $applicant = $this->createAccount();
+
+        $document = $this->createVerificationWithDocument($applicant);
+
+        $storedContents = Storage::disk('local')->get($document->path);
+
+        $this->assertIsString($storedContents);
+        $this->assertStringStartsWith(
+            self::ENCRYPTED_FILE_PREFIX,
+            $storedContents
+        );
+        $this->assertStringNotContainsString(
+            self::DOCUMENT_CONTENT,
+            $storedContents
+        );
+
+        $response = $this->asAccount(
+            $admin,
+            'identity-download-encrypted-document-token'
+        )->get(
+            '/api/admin/identity-verifications/'.$applicant->id
+                .'/documents/'.$document->id
+        );
+
+        $response->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('Cache-Control', 'private, no-store')
+            ->assertHeader('Pragma', 'no-cache')
+            ->assertHeader('X-Content-Type-Options', 'nosniff')
+            ->assertHeader('Content-Length', (string) strlen(
+                self::DOCUMENT_CONTENT
+            ));
+
+        $this->assertSame(
+            self::DOCUMENT_CONTENT,
+            $response->getContent()
+        );
+    }
+
+    public function test_legacy_plaintext_document_remains_downloadable(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->createAccount('SUPER_ADMIN');
+        $this->grantReviewPermission($admin);
+
+        $applicant = $this->createAccount();
+
+        $document = $this->createVerificationWithDocument(
+            $applicant,
+            false
+        );
+
+        $response = $this->asAccount(
+            $admin,
+            'identity-download-legacy-document-token'
+        )->get(
+            '/api/admin/identity-verifications/'.$applicant->id
+                .'/documents/'.$document->id
+        );
+
+        $response->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('Cache-Control', 'private, no-store')
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
+
+        $this->assertSame(
+            self::DOCUMENT_CONTENT,
+            $response->getContent()
+        );
     }
 }
