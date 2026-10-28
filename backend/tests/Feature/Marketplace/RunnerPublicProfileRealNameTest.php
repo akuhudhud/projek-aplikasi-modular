@@ -67,6 +67,29 @@ class RunnerPublicProfileRealNameTest extends TestCase
             ]);
     }
 
+    public function test_real_name_is_not_returned_when_identity_is_rejected(): void
+    {
+        $runner = $this->createApprovedRunner();
+
+        $this->createIdentityVerification(
+            $runner,
+            IdentityVerification::STATUS_REJECTED
+        );
+
+        $this->createPublicProfile($runner);
+
+        $this->getJson('/api/runners/verified-runner')
+            ->assertOk()
+            ->assertJsonPath(
+                'data.profile.display_name',
+                'Nama Akaun Runner'
+            )
+            ->assertJsonMissingPath('data.profile.real_name')
+            ->assertJsonMissing([
+                'real_name' => 'Nama Sebenar Disahkan',
+            ]);
+    }
+
     public function test_real_name_is_not_returned_without_identity_record(): void
     {
         $runner = $this->createApprovedRunner();
@@ -130,9 +153,14 @@ class RunnerPublicProfileRealNameTest extends TestCase
             ),
             'status' => $status,
             'submitted_at' => now(),
-            'reviewed_at' => $status === IdentityVerification::STATUS_VERIFIED
-                ? now()
-                : null,
+            'reviewed_at' => in_array(
+                $status,
+                [
+                    IdentityVerification::STATUS_VERIFIED,
+                    IdentityVerification::STATUS_REJECTED,
+                ],
+                true
+            ) ? now() : null,
         ]);
     }
 
