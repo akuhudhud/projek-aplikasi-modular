@@ -39,6 +39,10 @@ class RunnerPublicProfileTest extends TestCase
                 'data.profile.public_slug',
                 'runner-sabah-01'
             )
+            ->assertJsonPath(
+                'data.profile.display_name',
+                'Runner Profile Test'
+            )
             ->assertJsonPath('data.profile.is_published', true);
 
         $this->assertDatabaseHas('runner_public_profiles', [
@@ -89,7 +93,7 @@ class RunnerPublicProfileTest extends TestCase
             ->assertOk()
             ->assertJsonPath(
                 'data.profile.display_name',
-                'Public Runner'
+                'Runner Profile Test'
             )
             ->assertJsonPath('data.profile.views_count', 1)
             ->assertJsonMissingPath('data.profile.account_id')
@@ -176,7 +180,7 @@ class RunnerPublicProfileTest extends TestCase
             ->assertOk()
             ->assertJsonPath(
                 'data.profile.display_name',
-                'Original Name'
+                'Runner Profile Test'
             )
             ->assertJsonPath('data.profile.bio', 'Original bio')
             ->assertJsonPath('data.profile.service_area', 'Tuaran')
@@ -186,6 +190,7 @@ class RunnerPublicProfileTest extends TestCase
             )
             ->assertJsonPath('data.profile.is_published', true);
 
+        // The legacy profile name remains unchanged.
         $this->assertDatabaseHas('runner_public_profiles', [
             'account_id' => $runner->id,
             'display_name' => 'Original Name',
@@ -223,7 +228,7 @@ class RunnerPublicProfileTest extends TestCase
             ->assertOk()
             ->assertJsonPath(
                 'data.profile.display_name',
-                'Updated Name'
+                'Runner Profile Test'
             )
             ->assertJsonPath('data.profile.bio', 'Updated bio')
             ->assertJsonPath('data.profile.service_area', 'Tuaran')
@@ -233,9 +238,10 @@ class RunnerPublicProfileTest extends TestCase
             )
             ->assertJsonPath('data.profile.is_published', true);
 
+        // The legacy display_name is not updated from request input.
         $this->assertDatabaseHas('runner_public_profiles', [
             'account_id' => $runner->id,
-            'display_name' => 'Updated Name',
+            'display_name' => 'Original Name',
             'bio' => 'Updated bio',
             'service_area' => 'Tuaran',
             'is_published' => true,
