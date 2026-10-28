@@ -44,6 +44,8 @@ class RunnerPublicProfileController extends Controller
                 'min:3',
                 'max:50',
             ],
+            // Accepted for backward compatibility only.
+            // The canonical display name is accounts.name.
             'display_name' => [
                 $profile ? 'sometimes' : 'required',
                 'string',
@@ -112,9 +114,13 @@ class RunnerPublicProfileController extends Controller
 
         $values = [
             'public_slug' => $slug,
-            'display_name' => array_key_exists('display_name', $validated)
-                ? trim($validated['display_name'])
-                : $profile->display_name,
+
+            // Keep the legacy column unchanged for compatibility.
+            // Never use its value as the display-name source of truth.
+            'display_name' => $profile !== null
+                ? $profile->display_name
+                : trim($validated['display_name']),
+
             'bio' => array_key_exists('bio', $validated)
                 ? (
                     $validated['bio'] === null
@@ -122,6 +128,7 @@ class RunnerPublicProfileController extends Controller
                         : trim($validated['bio'])
                 )
                 : ($profile !== null ? $profile->bio : null),
+
             'service_area' => array_key_exists('service_area', $validated)
                 ? (
                     $validated['service_area'] === null
@@ -129,6 +136,7 @@ class RunnerPublicProfileController extends Controller
                         : trim($validated['service_area'])
                 )
                 : ($profile !== null ? $profile->service_area : null),
+
             'base_location' => array_key_exists(
                 'base_location',
                 $validated
@@ -139,6 +147,7 @@ class RunnerPublicProfileController extends Controller
                         : trim($validated['base_location'])
                 )
                 : ($profile !== null ? $profile->base_location : null),
+
             'coverage_area' => array_key_exists(
                 'coverage_area',
                 $validated
@@ -149,6 +158,7 @@ class RunnerPublicProfileController extends Controller
                         : trim($validated['coverage_area'])
                 )
                 : ($profile !== null ? $profile->coverage_area : null),
+
             'services' => array_key_exists('services', $validated)
                 ? ($validated['services'] ?? [])
                 : (
@@ -156,6 +166,7 @@ class RunnerPublicProfileController extends Controller
                         ? ($profile->services ?? [])
                         : []
                 ),
+
             'is_published' => $isPublished,
         ];
 
@@ -222,7 +233,11 @@ class RunnerPublicProfileController extends Controller
 
         $publicProfile = [
             'public_slug' => $profile->public_slug,
-            'display_name' => $profile->display_name,
+
+            // Canonical source: accounts.name.
+            // The legacy profile display_name is deliberately ignored.
+            'display_name' => $account->name,
+
             'bio' => $profile->bio,
             'service_area' => $profile->service_area,
             'base_location' => $publicBaseLocation,
@@ -370,7 +385,11 @@ class RunnerPublicProfileController extends Controller
             'profile_id' => $profile->profile_id,
             'account_id' => $profile->account_id,
             'public_slug' => $profile->public_slug,
-            'display_name' => $profile->display_name,
+
+            // Keep private and public profile payloads consistent.
+            'display_name' => $profile->account?->name
+                ?? $profile->display_name,
+
             'bio' => $profile->bio,
             'service_area' => $profile->service_area,
             'base_location' => $profile->base_location,
