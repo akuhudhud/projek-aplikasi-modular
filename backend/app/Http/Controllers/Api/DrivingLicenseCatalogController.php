@@ -296,9 +296,26 @@ class DrivingLicenseCatalogController extends Controller
                     );
                 }
 
-                if ($typeChanged && !(bool) $type->is_active) {
+                /*
+                 * Kelas tidak boleh dipindahkan ke induk tidak aktif.
+                 * Kelas juga tidak boleh diaktifkan apabila induknya
+                 * tidak aktif, walaupun ID induk tidak berubah.
+                 *
+                 * Jangan ubah status anak secara automatik apabila
+                 * status induk berubah.
+                 */
+                $requestingActivation = array_key_exists(
+                    'is_active',
+                    $validated
+                ) && (bool) $validated['is_active'];
+
+                if (
+                    !(bool) $type->is_active
+                    && ($typeChanged || $requestingActivation)
+                ) {
                     throw new DomainException(
-                        'Kelas hanya boleh dipindahkan ke jenis lesen aktif.'
+                        'Kelas lesen tidak boleh diaktifkan atau '
+                        .'dipindahkan ke jenis induk yang tidak aktif.'
                     );
                 }
 
