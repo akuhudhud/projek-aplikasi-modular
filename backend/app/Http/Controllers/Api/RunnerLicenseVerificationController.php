@@ -369,6 +369,22 @@ class RunnerLicenseVerificationController extends Controller
                     ->firstOrFail();
 
                 /*
+                 * Initial Runner applications use this PENDING license
+                 * record as part of the Runner decision transaction.
+                 * Prevent a separate license decision from changing it
+                 * and leaving the Runner application in an inconsistent
+                 * PENDING state.
+                 */
+                if (
+                    $targetAccount->runner_status
+                    === Account::RUNNER_STATUS_PENDING
+                ) {
+                    throw new DomainException(
+                        'Lesen bagi permohonan awal Runner mesti disemak melalui keputusan permohonan Runner.'
+                    );
+                }
+
+                /*
                  * Re-read and lock the exact verification after acquiring
                  * the account lock, then validate its current ownership
                  * and status again.
