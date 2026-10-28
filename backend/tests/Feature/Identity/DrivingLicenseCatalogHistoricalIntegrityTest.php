@@ -190,4 +190,46 @@ class DrivingLicenseCatalogHistoricalIntegrityTest extends TestCase
             'is_current' => true,
         ]);
     }
+
+    public function test_class_cannot_move_to_another_type_if_historical_record_uses_it(): void
+    {
+        $this->authenticateRoot();
+
+        $originalType = $this->createType();
+
+        $targetType = DrivingLicenseType::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'COMMERCIAL',
+            'name' => 'Jenis Lesen Komersial',
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $class = $this->createClass($originalType);
+        $runner = $this->createRunner();
+        $verification = $this->createVerification($runner);
+
+        $this->patchJson(
+            '/api/admin/driving-license-catalog/'.$class->id,
+            [
+                'driving_license_type_id' => $targetType->id,
+            ]
+        )->assertUnprocessable();
+
+        $this->assertDatabaseHas('driving_license_catalog', [
+            'id' => $class->id,
+            'driving_license_type_id' => $originalType->id,
+            'code' => 'D',
+            'is_active' => true,
+        ]);
+
+        $this->assertDatabaseHas('runner_license_verifications', [
+            'id' => $verification->id,
+            'license_type' => 'GENERAL',
+            'license_class' => 'D',
+            'status' => RunnerLicenseVerification::STATUS_VERIFIED,
+            'is_current' => true,
+        ]);
+    }
 }
