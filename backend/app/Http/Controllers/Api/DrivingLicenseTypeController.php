@@ -72,6 +72,15 @@ class DrivingLicenseTypeController extends Controller
             'sort_order' => ['sometimes', 'integer', 'min:0'],
         ]);
 
+        if (
+            array_key_exists('description', $validated)
+            && $validated['description'] !== null
+        ) {
+            $validated['description'] = trim(
+                $validated['description']
+            );
+        }
+
         /** @var Account $actor */
         $actor = $request->attributes->get('account');
 
