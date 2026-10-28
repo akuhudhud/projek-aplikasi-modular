@@ -9,17 +9,21 @@ use App\Models\IdentityVerificationDocument;
 use App\Services\AuditLogService;
 use App\Services\Identity\IdentityVerificationSubmissionService;
 use DomainException;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class IdentityVerificationController extends Controller
 {
+    private const ENCRYPTED_FILE_PREFIX = 'SRIDENC1:';
+
     public function submit(
         Request $request,
         IdentityVerificationSubmissionService $submissionService
@@ -58,7 +62,10 @@ class IdentityVerificationController extends Controller
                 ],
             ], 201);
         } catch (DomainException | InvalidArgumentException $exception) {
-            return $this->errorResponse($exception->getMessage(), 422);
+            return $this->errorResponse(
+                $exception->getMessage(),
+                422
+            );
         }
     }
 
@@ -241,7 +248,6 @@ class IdentityVerificationController extends Controller
                  * The verified Real Name remains in identity_verifications.real_name.
                  * Public profile logic controls whether the Real Name is exposed.
                  */
-
                 $verification->status = $validated['decision'];
                 $verification->reviewer_account_id = $actor->id;
                 $verification->reviewed_at = now();
@@ -299,7 +305,7 @@ class IdentityVerificationController extends Controller
     public function downloadDocument(
         string $accountId,
         string $documentId
-    ): StreamedResponse|JsonResponse {
+    ): Response|JsonResponse {
         $document = IdentityVerificationDocument::query()
             ->where('id', $documentId)
             ->whereHas('identityVerification', function ($query) use ($accountId): void {
@@ -323,6 +329,41 @@ class IdentityVerificationController extends Controller
             );
         }
 
+        $contents = $disk->get($document->path);
+
+        if (!is_string($contents)) {
+            return $this->errorResponse(
+                'Identity document could not be retrieved.',
+                500
+            );
+        }
+
+        /*
+         * New documents are encrypted at rest by
+         * IdentityVerificationSubmissionService.
+         *
+         * Legacy documents without the prefix remain readable
+         * until they are replaced or migrated.
+         */
+        if (str_starts_with($contents, self::ENCRYPTED_FILE_PREFIX)) {
+            $encryptedPayload = substr(
+                $contents,
+                strlen(self::ENCRYPTED_FILE_PREFIX)
+            );
+
+            try {
+                $contents = Crypt::decryptString($encryptedPayload);
+            } catch (DecryptException $exception) {
+                // Do not expose encrypted content or cryptographic details.
+                report($exception);
+
+                return $this->errorResponse(
+                    'Identity document could not be retrieved.',
+                    500
+                );
+            }
+        }
+
         $extension = match ($document->mime_type) {
             'image/jpeg' => 'jpg',
             'image/png' => 'png',
@@ -330,15 +371,16 @@ class IdentityVerificationController extends Controller
             default => 'bin',
         };
 
-        return $disk->download(
-            $document->path,
-            'identity-document-' . Str::uuid() . '.' . $extension,
-            [
-                'Content-Type' => $document->mime_type,
-                'Cache-Control' => 'private, no-store',
-                'X-Content-Type-Options' => 'nosniff',
-            ]
-        );
+        $filename = 'identity-document-' . Str::uuid() . '.' . $extension;
+
+        return response($contents, 200, [
+            'Content-Type' => $document->mime_type,
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Length' => (string) strlen($contents),
+            'Cache-Control' => 'private, no-store',
+            'Pragma' => 'no-cache',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     private function errorResponse(
