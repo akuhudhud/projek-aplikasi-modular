@@ -212,14 +212,12 @@ class EncryptLegacyIdentityDocumentsCommandTest extends TestCase
                     $writeCalls++;
 
                     if ($writeCalls === 1) {
-                        // Simulate a corrupt or incomplete encrypted write.
                         return $realDisk->put(
                             $path,
                             'CORRUPTED-ENCRYPTED-CONTENT'
                         );
                     }
 
-                    // The command should restore the exact original bytes.
                     return $realDisk->put($path, $contents);
                 }
             );
@@ -275,7 +273,8 @@ class EncryptLegacyIdentityDocumentsCommandTest extends TestCase
                 ),
             ]);
 
-            // Force Laravel to construct an encrypter using the changed key.
+            // Clear both cached facade and container instances.
+            Crypt::clearResolvedInstance('encrypter');
             $this->app->forgetInstance('encrypter');
 
             $exitCode = Artisan::call(
@@ -293,7 +292,8 @@ class EncryptLegacyIdentityDocumentsCommandTest extends TestCase
         } finally {
             config(['app.key' => $originalKey]);
 
-            // Restore the application's original encrypter for later tests.
+            // Restore the original encrypter for subsequent tests.
+            Crypt::clearResolvedInstance('encrypter');
             $this->app->forgetInstance('encrypter');
         }
     }
