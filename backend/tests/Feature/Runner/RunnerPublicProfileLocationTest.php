@@ -4,6 +4,7 @@ namespace Tests\Feature\Runner;
 
 use App\Http\Controllers\Api\RunnerPublicProfileController;
 use App\Models\Account;
+use App\Models\RunnerPublicProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -45,6 +46,26 @@ class RunnerPublicProfileLocationTest extends TestCase
         $request->attributes->set('account', $account);
 
         return $request;
+    }
+
+    private function createLegacyPublicProfile(
+        Account $account,
+        string $slug,
+        ?string $baseLocation
+    ): RunnerPublicProfile {
+        return RunnerPublicProfile::query()->create([
+            'profile_id' => (string) Str::uuid(),
+            'account_id' => $account->id,
+            'public_slug' => $slug,
+            'display_name' => 'Legacy Runner',
+            'bio' => null,
+            'service_area' => 'Tuaran',
+            'base_location' => $baseLocation,
+            'coverage_area' => 'Tuaran dan Tamparuli',
+            'services' => [],
+            'is_published' => true,
+            'views_count' => 0,
+        ]);
     }
 
     public function test_runner_can_save_base_location_and_coverage_area(): void
@@ -102,6 +123,73 @@ class RunnerPublicProfileLocationTest extends TestCase
 
         $this->assertArrayNotHasKey('latitude', $profile);
         $this->assertArrayNotHasKey('longitude', $profile);
+    }
+
+    public function test_public_profile_hides_unsafe_legacy_base_locations(): void
+    {
+        $unsafeLocations = [
+            '5.9804, 116.0735',
+            'Jalan Tuaran, Kota Kinabalu',
+            'Tuaran 89200, Sabah',
+        ];
+
+        foreach ($unsafeLocations as $index => $unsafeLocation) {
+            $account = $this->createApprovedRunner();
+            $slug = 'legacy-location-' . $index;
+
+            // Insert directly to simulate records saved before validation existed.
+            $this->createLegacyPublicProfile(
+                $account,
+                $slug,
+                $unsafeLocation
+            );
+
+            $response = app(RunnerPublicProfileController::class)
+                ->show($slug);
+
+            $this->assertSame(200, $response->getStatusCode());
+
+            $profile = $response->getData(true)['data']['profile'];
+
+            $this->assertNull(
+                $profile['base_location'],
+                'Unsafe legacy location must not be exposed publicly: '
+                    . $unsafeLocation
+            );
+
+            $this->assertSame(
+                'Legacy Runner',
+                $profile['display_name']
+            );
+
+            $this->assertSame(
+                'Tuaran dan Tamparuli',
+                $profile['coverage_area']
+            );
+        }
+    }
+
+    public function test_public_profile_keeps_safe_legacy_administrative_area(): void
+    {
+        $account = $this->createApprovedRunner();
+
+        $this->createLegacyPublicProfile(
+            $account,
+            'legacy-safe-location',
+            'Tuaran, Sabah'
+        );
+
+        $response = app(RunnerPublicProfileController::class)
+            ->show('legacy-safe-location');
+
+        $this->assertSame(200, $response->getStatusCode());
+
+        $profile = $response->getData(true)['data']['profile'];
+
+        $this->assertSame(
+            'Tuaran, Sabah',
+            $profile['base_location']
+        );
     }
 
     public function test_base_location_rejects_coordinate_pairs(): void
