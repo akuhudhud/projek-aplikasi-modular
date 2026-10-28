@@ -20,6 +20,8 @@ class IdentityVerificationSubmissionService
 {
     private const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
+    private const ENCRYPTED_FILE_PREFIX = 'SRIDENC1:';
+
     public function __construct(
         private AuditLogService $auditLogService
     ) {
@@ -121,32 +123,44 @@ class IdentityVerificationSubmissionService
                     $file = $validatedFile['file'];
 
                     $extension = $validatedFile['extension'];
+
                     $path = 'identity-documents/'
                         .Str::uuid().'.'.$extension;
 
-                    $storedPath = Storage::disk('local')->putFileAs(
-                        'identity-documents',
-                        $file,
-                        basename($path)
+                    /*
+                     * Encrypt the complete file contents before writing
+                     * them to disk. The prefix identifies the storage
+                     * format and allows the download endpoint to
+                     * distinguish encrypted files from legacy plaintext
+                     * files without adding a database column.
+                     *
+                     * Laravel's Crypt payload provides authenticated
+                     * encryption. APP_KEY must be protected and backed
+                     * up securely because it is required for decryption.
+                     */
+                    $encryptedContents = self::ENCRYPTED_FILE_PREFIX
+                        .Crypt::encryptString($file->get());
+
+                    $stored = Storage::disk('local')->put(
+                        $path,
+                        $encryptedContents
                     );
 
-                    if (
-                        !is_string($storedPath)
-                        || $storedPath === ''
-                    ) {
+                    if ($stored !== true) {
                         throw new RuntimeException(
                             'Identity document could not be stored.'
                         );
                     }
 
-                    $storedPaths[] = $storedPath;
+                    $storedPaths[] = $path;
 
                     IdentityVerificationDocument::create([
                         'id' => (string) Str::uuid(),
                         'identity_verification_id' => $verification->id,
                         'disk' => 'local',
-                        'path' => $storedPath,
+                        'path' => $path,
                         'mime_type' => $validatedFile['mime_type'],
+                        // Record original, unencrypted upload size.
                         'size_bytes' => $validatedFile['size_bytes'],
                     ]);
                 }
