@@ -120,6 +120,7 @@ class RunnerPublicProfileLocationTest extends TestCase
 
         $this->assertSame('Tuaran, Sabah', $profile['base_location']);
         $this->assertSame('Tuaran dan Tamparuli', $profile['coverage_area']);
+        $this->assertSame('Runner Location Test', $profile['display_name']);
 
         $this->assertArrayNotHasKey('latitude', $profile);
         $this->assertArrayNotHasKey('longitude', $profile);
@@ -158,7 +159,7 @@ class RunnerPublicProfileLocationTest extends TestCase
             );
 
             $this->assertSame(
-                'Legacy Runner',
+                'Runner Location Test',
                 $profile['display_name']
             );
 
@@ -189,6 +190,11 @@ class RunnerPublicProfileLocationTest extends TestCase
         $this->assertSame(
             'Tuaran, Sabah',
             $profile['base_location']
+        );
+
+        $this->assertSame(
+            'Runner Location Test',
+            $profile['display_name']
         );
     }
 
@@ -271,9 +277,19 @@ class RunnerPublicProfileLocationTest extends TestCase
         $this->assertDatabaseHas('runner_public_profiles', [
             'account_id' => $account->id,
             'public_slug' => 'runner-location-update',
-            'display_name' => 'Runner Updated Name',
+
+            // Legacy value is retained; account.name remains canonical.
+            'display_name' => 'Runner Location Update',
+
             'base_location' => 'Tuaran, Sabah',
             'coverage_area' => 'Tuaran dan Tamparuli',
         ]);
+
+        $payload = $updateResponse->getData(true);
+
+        $this->assertSame(
+            'Runner Location Test',
+            $payload['data']['profile']['display_name']
+        );
     }
 }
