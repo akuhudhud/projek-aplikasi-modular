@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Mockery;
 use Tests\TestCase;
 
 class EncryptLegacyIdentityDocumentsCommandTest extends TestCase
@@ -122,7 +123,6 @@ class EncryptLegacyIdentityDocumentsCommandTest extends TestCase
 
         $this->assertSame($contents, $decrypted);
 
-        // File path and database metadata must remain unchanged.
         $this->assertDatabaseHas('identity_verification_documents', [
             'id' => $document->id,
             'path' => $document->path,
@@ -166,7 +166,8 @@ class EncryptLegacyIdentityDocumentsCommandTest extends TestCase
             '%PDF-original-document'
         );
 
-        $corruptContents = self::PREFIX.'not-a-valid-laravel-encryption-payload';
+        $corruptContents = self::PREFIX
+            .'not-a-valid-laravel-encryption-payload';
 
         Storage::disk('local')->put(
             $document->path,
@@ -184,5 +185,116 @@ class EncryptLegacyIdentityDocumentsCommandTest extends TestCase
             $corruptContents,
             Storage::disk('local')->get($document->path)
         );
+    }
+
+    public function test_failed_encryption_write_restores_original_contents(): void
+    {
+        Storage::fake('local');
+
+        $originalContents = '%PDF-original-content';
+        $document = $this->createLegacyDocument($originalContents);
+
+        $realDisk = Storage::disk('local');
+        $writeCalls = 0;
+
+        $disk = Mockery::mock($realDisk)->makePartial();
+
+        $disk->shouldReceive('put')
+            ->twice()
+            ->andReturnUsing(
+                function (
+                    string $path,
+                    string $contents
+                ) use (
+                    $realDisk,
+                    &$writeCalls
+                ): bool {
+                    $writeCalls++;
+
+                    if ($writeCalls === 1) {
+                        // Simulate a corrupt or incomplete encrypted write.
+                        return $realDisk->put(
+                            $path,
+                            'CORRUPTED-ENCRYPTED-CONTENT'
+                        );
+                    }
+
+                    // The command should restore the exact original bytes.
+                    return $realDisk->put($path, $contents);
+                }
+            );
+
+        Storage::shouldReceive('disk')
+            ->with('local')
+            ->andReturn($disk);
+
+        $exitCode = Artisan::call(
+            'identity:encrypt-legacy-documents',
+            ['--force' => true]
+        );
+
+        $this->assertSame(Command::FAILURE, $exitCode);
+        $this->assertSame(2, $writeCalls);
+
+        $this->assertSame(
+            $originalContents,
+            $realDisk->get($document->path)
+        );
+
+        $this->assertDatabaseHas('identity_verification_documents', [
+            'id' => $document->id,
+            'path' => $document->path,
+        ]);
+    }
+
+    public function test_changed_app_key_does_not_overwrite_encrypted_document(): void
+    {
+        Storage::fake('local');
+
+        $originalContents = '%PDF-encrypted-with-original-key';
+        $document = $this->createLegacyDocument($originalContents);
+
+        $encryptedContents = self::PREFIX
+            .Crypt::encryptString($originalContents);
+
+        $realDisk = Storage::disk('local');
+
+        $realDisk->put(
+            $document->path,
+            $encryptedContents
+        );
+
+        $originalKey = config('app.key');
+
+        $this->assertIsString($originalKey);
+
+        try {
+            config([
+                'app.key' => 'base64:'.base64_encode(
+                    random_bytes(32)
+                ),
+            ]);
+
+            // Force Laravel to construct an encrypter using the changed key.
+            $this->app->forgetInstance('encrypter');
+
+            $exitCode = Artisan::call(
+                'identity:encrypt-legacy-documents',
+                ['--force' => true]
+            );
+
+            $this->assertSame(Command::FAILURE, $exitCode);
+
+            // A key mismatch must never cause an encrypted file to be replaced.
+            $this->assertSame(
+                $encryptedContents,
+                $realDisk->get($document->path)
+            );
+        } finally {
+            config(['app.key' => $originalKey]);
+
+            // Restore the application's original encrypter for later tests.
+            $this->app->forgetInstance('encrypter');
+        }
     }
 }
