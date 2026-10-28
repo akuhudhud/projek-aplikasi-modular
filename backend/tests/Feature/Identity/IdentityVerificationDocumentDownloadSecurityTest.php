@@ -204,12 +204,13 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
 
         $response->assertOk()
             ->assertHeader('Content-Type', 'application/pdf')
-            ->assertHeader('Cache-Control', 'private, no-store')
+            ->assertHeader('Cache-Control', 'no-store, private')
             ->assertHeader('Pragma', 'no-cache')
             ->assertHeader('X-Content-Type-Options', 'nosniff')
-            ->assertHeader('Content-Length', (string) strlen(
-                self::DOCUMENT_CONTENT
-            ));
+            ->assertHeader(
+                'Content-Length',
+                (string) strlen(self::DOCUMENT_CONTENT)
+            );
 
         $this->assertSame(
             self::DOCUMENT_CONTENT,
@@ -241,7 +242,7 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
 
         $response->assertOk()
             ->assertHeader('Content-Type', 'application/pdf')
-            ->assertHeader('Cache-Control', 'private, no-store')
+            ->assertHeader('Cache-Control', 'no-store, private')
             ->assertHeader('X-Content-Type-Options', 'nosniff');
 
         $this->assertSame(
