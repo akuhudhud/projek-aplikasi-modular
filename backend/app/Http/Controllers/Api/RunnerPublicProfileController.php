@@ -386,9 +386,8 @@ class RunnerPublicProfileController extends Controller
             'account_id' => $profile->account_id,
             'public_slug' => $profile->public_slug,
 
-            // Keep private and public profile payloads consistent.
-            'display_name' => $profile->account?->name
-                ?? $profile->display_name,
+            // Use the canonical account name.
+            'display_name' => $profile->account->name,
 
             'bio' => $profile->bio,
             'service_area' => $profile->service_area,
