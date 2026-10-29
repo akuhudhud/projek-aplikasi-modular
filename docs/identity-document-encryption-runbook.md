@@ -11,6 +11,8 @@ The migration command is:
 
 The command supports a non-mutating `--dry-run` mode and requires `--force` before changing files.
 
+The command performs a preflight validation pass before beginning migration writes. This reduces the risk of partially migrating documents when an existing file is missing, unreadable, corrupt or encrypted with an unavailable key.
+
 This runbook does not authorise an untested production migration.
 
 ## 2. Security requirements
@@ -24,7 +26,7 @@ This runbook does not authorise an untested production migration.
 - Do not change or regenerate `APP_KEY` as part of this migration.
 - Do not run the migration until backup restoration and key recovery have been tested.
 
-## 3. Understand the storage format
+## 3. Understand the storage format and preflight
 
 Newly submitted identity documents are stored with the prefix:
 
@@ -36,7 +38,13 @@ Legacy documents without this prefix are treated as plaintext by the current dow
 
 The migration command encrypts legacy files in place and verifies that the encrypted content can be decrypted to the exact original bytes.
 
-The command is designed to preserve the existing document path and database metadata. It stops when it encounters missing files or encrypted content that fails integrity verification.
+Before writing any migrated files, the command performs a preflight pass over the document records. It checks that referenced files can be accessed and that documents already marked with the encrypted prefix can be decrypted and verified with the currently configured application key.
+
+If preflight detects a missing or unreadable file, or an existing encrypted document that fails decryption or integrity verification, the command must fail before beginning migration writes.
+
+The command is designed to preserve existing document paths and database metadata.
+
+Preflight is not a transaction and does not guarantee that every subsequent storage operation will succeed. Storage failures, permission changes or other unexpected conditions during the migration pass can still occur after earlier documents have been migrated.
 
 ## 4. APP_KEY protection and recovery
 
@@ -87,7 +95,7 @@ php artisan identity:encrypt-legacy-documents --dry-run
 
 Review the command output and application logs.
 
-The dry run must not modify document files.
+The dry run must not modify document files. It must complete the applicable validation checks without writing migrated content.
 
 Investigate any missing file, unreadable document or encrypted document that fails integrity verification. Do not continue until the cause is understood and resolved.
 
@@ -118,16 +126,18 @@ Only after all approvals and checks pass, run:
 php artisan identity:encrypt-legacy-documents --force
 ```
 
+The command performs preflight validation before beginning migration writes. If preflight detects an existing problem, it should return failure without changing any document files.
+
 Monitor the complete command output and operational logs.
 
-The command must stop when it encounters a processing or verification failure. A failed command may have already encrypted earlier files in the batch; do not assume the entire migration was rolled back.
+Preflight does not make the full migration atomic. A failure during the subsequent migration pass can occur after earlier documents have already been encrypted. Do not assume that a failed command means every document remains unchanged or that the entire migration was rolled back.
 
 If the command fails:
 
 1. Stop further migration attempts.
 2. Preserve the command output and non-sensitive operational logs.
 3. Inspect the affected files and current database metadata.
-4. Determine whether a file was encrypted, restored or left in an uncertain state.
+4. Determine which files were migrated, restored or left in an uncertain state.
 5. Compare affected files with the protected backup.
 6. Escalate any unverified restoration or missing document.
 7. Do not repeatedly rerun the command until the state is understood.
