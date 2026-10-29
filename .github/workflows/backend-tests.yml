@@ -84,3 +84,60 @@ jobs:
 
       - name: Run MySQL concurrency regression test
         run: vendor/bin/phpunit --configuration phpunit.mysql.xml
+
+      - name: Verify runner ratings migration rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$DB_CONNECTION" != "mysql" ||
+                "$DB_DATABASE" != "laravel_testing" ||
+                "$APP_ENV" != "testing" ]]; then
+            echo "::error::Refusing rollback outside the isolated CI test database."
+            exit 1
+          fi
+
+          migration="database/migrations/2026_10_29_000001_create_runner_task_ratings_table.php"
+
+          if [[ ! -f "$migration" ]]; then
+            echo "::error::Ratings migration file not found: $migration"
+            exit 1
+          fi
+
+          echo "Preparing isolated CI database..."
+          php artisan migrate:fresh --force
+
+          echo "Checking that runner_task_ratings exists before rollback..."
+          php -r '
+          require "vendor/autoload.php";
+          $app = require "bootstrap/app.php";
+          $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
+          if (! Illuminate\Support\Facades\Schema::hasTable("runner_task_ratings")) {
+              fwrite(STDERR, "FAIL: runner_task_ratings does not exist before rollback.\n");
+              exit(1);
+          }
+
+          echo "PASS: runner_task_ratings exists before rollback.\n";
+          '
+
+          echo "Rolling back the runner ratings migration..."
+          php artisan migrate:rollback \
+            --path="$migration" \
+            --force
+
+          echo "Checking that runner_task_ratings was removed..."
+          php -r '
+          require "vendor/autoload.php";
+          $app = require "bootstrap/app.php";
+          $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
+          if (Illuminate\Support\Facades\Schema::hasTable("runner_task_ratings")) {
+              fwrite(STDERR, "FAIL: runner_task_ratings still exists after rollback.\n");
+              exit(1);
+          }
+
+          echo "PASS: runner_task_ratings was removed by rollback.\n";
+          '
+
+          echo "PASS: runner ratings migration rollback verification completed."
