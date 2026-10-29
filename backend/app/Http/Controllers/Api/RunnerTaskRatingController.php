@@ -84,6 +84,16 @@ class RunnerTaskRatingController extends Controller
                         );
                     }
 
+                    // Prevent a runner from rating their own task.
+                    if (
+                        $marketplaceRequest->customer_account_id
+                        === $task->assigned_account_id
+                    ) {
+                        throw new AuthorizationException(
+                            'A runner cannot rate their own task.'
+                        );
+                    }
+
                     $existing = RunnerTaskRating::query()
                         ->where('task_id', $task->task_id)
                         ->lockForUpdate()
@@ -102,7 +112,7 @@ class RunnerTaskRatingController extends Controller
 
                         $existing->rating = (int) $validated['rating'];
 
-                        // PATCH semantics: omitted review keeps its old value.
+                        // Omitted review preserves the existing review.
                         if (array_key_exists('review', $validated)) {
                             $existing->review = $validated['review'] === null
                                 ? null
@@ -139,7 +149,7 @@ class RunnerTaskRatingController extends Controller
         } catch (DomainException $exception) {
             return $this->error($exception->getMessage(), 422);
         } catch (QueryException) {
-            // Includes a concurrent attempt blocked by the unique task_id key.
+            // Handles concurrent requests conflicting with the unique task_id.
             $existing = RunnerTaskRating::query()
                 ->where('task_id', $taskId)
                 ->first();
