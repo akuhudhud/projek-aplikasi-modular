@@ -8,6 +8,7 @@ use App\Models\CoreTask;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
 use App\Models\RunnerPublicProfile;
+use App\Models\RunnerTaskRating;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -230,6 +231,16 @@ class RunnerPublicProfileController extends Controller
             ? $profile->base_location
             : null;
 
+        // Calculate the runner's aggregate rating.
+        $ratingSummary = RunnerTaskRating::query()
+            ->where('runner_account_id', $account->id)
+            ->selectRaw(
+                'COUNT(*) as rating_count, AVG(rating) as rating_average'
+            )
+            ->first();
+
+        $ratingCount = (int) $ratingSummary->rating_count;
+
         // Public profile displays Display Name only.
         // Real Name must not be exposed in this public response.
         $publicProfile = [
@@ -240,6 +251,10 @@ class RunnerPublicProfileController extends Controller
             'base_location' => $publicBaseLocation,
             'coverage_area' => $profile->coverage_area,
             'services' => $profile->services ?? [],
+            'rating_average' => $ratingCount > 0
+                ? round((float) $ratingSummary->rating_average, 1)
+                : null,
+            'rating_count' => $ratingCount,
             'views_count' => $profile->views_count,
         ];
 
