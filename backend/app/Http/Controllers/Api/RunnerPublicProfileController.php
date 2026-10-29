@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\CoreTask;
-use App\Models\IdentityVerification;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
 use App\Models\RunnerPublicProfile;
@@ -224,20 +223,18 @@ class RunnerPublicProfileController extends Controller
 
         $profile->increment('views_count');
 
-        // Legacy records must also comply with the public location privacy rule.
+        // Apply location privacy rules to legacy records too.
         $publicBaseLocation = $this->isSafeAdministrativeAreaLabel(
             $profile->base_location
         )
             ? $profile->base_location
             : null;
 
+        // Public profile displays Display Name only.
+        // Real Name must not be exposed in this public response.
         $publicProfile = [
             'public_slug' => $profile->public_slug,
-
-            // Canonical source: accounts.name.
-            // The legacy profile display_name is deliberately ignored.
             'display_name' => $account->name,
-
             'bio' => $profile->bio,
             'service_area' => $profile->service_area,
             'base_location' => $publicBaseLocation,
@@ -245,21 +242,6 @@ class RunnerPublicProfileController extends Controller
             'services' => $profile->services ?? [],
             'views_count' => $profile->views_count,
         ];
-
-        $verifiedIdentity = IdentityVerification::query()
-            ->where('account_id', $account->id)
-            ->where(
-                'status',
-                IdentityVerification::STATUS_VERIFIED
-            )
-            ->first(['real_name']);
-
-        if (
-            $verifiedIdentity !== null
-            && trim($verifiedIdentity->real_name) !== ''
-        ) {
-            $publicProfile['real_name'] = $verifiedIdentity->real_name;
-        }
 
         return response()->json([
             'success' => true,
@@ -336,8 +318,6 @@ class RunnerPublicProfileController extends Controller
 
     /**
      * Check whether a location label is safe to expose publicly.
-     *
-     * This deliberately applies to legacy database values as well as new input.
      */
     private function isSafeAdministrativeAreaLabel(?string $value): bool
     {
@@ -385,10 +365,7 @@ class RunnerPublicProfileController extends Controller
             'profile_id' => $profile->profile_id,
             'account_id' => $profile->account_id,
             'public_slug' => $profile->public_slug,
-
-            // Use the canonical account name.
             'display_name' => $profile->account->name,
-
             'bio' => $profile->bio,
             'service_area' => $profile->service_area,
             'base_location' => $profile->base_location,
