@@ -202,6 +202,49 @@ class RunnerTaskRatingApiTest extends TestCase
         $this->assertDatabaseCount('runner_task_ratings', 0);
     }
 
+    public function test_rating_cannot_be_deleted(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED
+        );
+
+        $task = $this->createCompletedMarketplaceTask(
+            $customer,
+            $runner
+        );
+
+        $token = 'rating-delete-test-token';
+        $this->authenticate($customer, $token);
+
+        $response = $this->withToken($token)
+            ->postJson(
+                '/api/core/tasks/'.$task->task_id.'/rating',
+                [
+                    'rating' => 5,
+                    'review' => 'Ujian rating kekal.',
+                ]
+            )
+            ->assertCreated();
+
+        $ratingId = $response->json('data.rating.rating_id');
+
+        $this->withToken($token)
+            ->deleteJson(
+                '/api/core/tasks/'.$task->task_id.'/rating'
+            )
+            ->assertStatus(405);
+
+        $this->assertDatabaseCount('runner_task_ratings', 1);
+
+        $this->assertDatabaseHas('runner_task_ratings', [
+            'rating_id' => $ratingId,
+            'task_id' => $task->task_id,
+            'rating' => 5,
+            'review' => 'Ujian rating kekal.',
+        ]);
+    }
+
     public function test_task_must_be_completed_before_rating(): void
     {
         $customer = $this->makeAccount();
