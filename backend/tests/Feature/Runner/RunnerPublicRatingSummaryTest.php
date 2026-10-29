@@ -1,407 +1,161 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace Tests\Feature\Runner;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\RunnerPublicProfileController;
 use App\Models\Account;
-use App\Models\CoreTask;
-use App\Models\MarketplaceQuotation;
-use App\Models\MarketplaceRequest;
 use App\Models\RunnerPublicProfile;
-use Illuminate\Database\QueryException;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use App\Models\RunnerTaskRating;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Tests\TestCase;
 
-class RunnerPublicProfileController extends Controller
+class RunnerPublicRatingSummaryTest extends TestCase
 {
-    public function save(Request $request): JsonResponse
+    use RefreshDatabase;
+
+    private function createPublishedRunnerProfile(): Account
     {
-        /** @var Account|null $account */
-        $account = $request->attributes->get('account');
-
-        if (!$account) {
-            return $this->error('Unauthorized.', 401);
-        }
-
-        if (!$this->isEligibleRunner($account)) {
-            return $this->error(
-                'Only active and approved runners can manage a public profile.',
-                403
-            );
-        }
-
-        $profile = RunnerPublicProfile::query()
-            ->where('account_id', $account->id)
-            ->first();
-
-        $validated = $request->validate([
-            'public_slug' => [
-                $profile ? 'sometimes' : 'required',
-                'string',
-                'alpha_dash',
-                'min:3',
-                'max:50',
-            ],
-            // Accepted for backward compatibility only.
-            // The canonical display name is accounts.name.
-            'display_name' => [
-                $profile ? 'sometimes' : 'required',
-                'string',
-                'max:80',
-            ],
-            'bio' => ['sometimes', 'nullable', 'string', 'max:2000'],
-            'service_area' => [
-                'sometimes',
-                'nullable',
-                'string',
-                'max:120',
-            ],
-            'base_location' => [
-                'sometimes',
-                'nullable',
-                'string',
-                'max:120',
-                function (
-                    string $attribute,
-                    mixed $value,
-                    \Closure $fail
-                ): void {
-                    if (
-                        $value !== null
-                        && trim($value) !== ''
-                        && !$this->isSafeAdministrativeAreaLabel($value)
-                    ) {
-                        $fail(
-                            'Base location must contain an administrative-area label only. Do not enter coordinates, a postcode or a detailed street address.'
-                        );
-                    }
-                },
-            ],
-            'coverage_area' => [
-                'sometimes',
-                'nullable',
-                'string',
-                'max:500',
-            ],
-            'services' => ['sometimes', 'nullable', 'array', 'max:20'],
-            'services.*' => ['required', 'string', 'max:64'],
-            'is_published' => ['sometimes', 'boolean'],
+        $account = Account::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Runner Rating Test',
+            'phone' => null,
+            'email' => null,
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'ACTIVE',
         ]);
 
-        $slug = strtolower(trim(
-            $validated['public_slug']
-                ?? ($profile !== null ? $profile->public_slug : '')
-        ));
+        $account->runner_status = Account::RUNNER_STATUS_APPROVED;
+        $account->save();
 
-        $slugTaken = RunnerPublicProfile::query()
-            ->where('public_slug', $slug)
-            ->where('account_id', '!=', $account->id)
-            ->exists();
+        RunnerPublicProfile::query()->create([
+            'profile_id' => (string) Str::uuid(),
+            'account_id' => $account->id,
+            'public_slug' => 'runner-rating-test',
+            'display_name' => 'Legacy Runner Name',
+            'bio' => 'Profil ujian rating.',
+            'service_area' => 'Tuaran',
+            'base_location' => 'Tuaran, Sabah',
+            'coverage_area' => 'Tuaran dan Tamparuli',
+            'services' => [],
+            'is_published' => true,
+            'views_count' => 0,
+        ]);
 
-        if ($slugTaken) {
-            return $this->error(
-                'This public profile URL is already in use.',
-                422
-            );
-        }
+        return $account->fresh();
+    }
 
-        $isPublished = (bool) (
-            $validated['is_published']
-                ?? ($profile !== null ? $profile->is_published : false)
+    private function createRating(
+        Account $runner,
+        int $rating,
+        ?string $review = null
+    ): RunnerTaskRating {
+        return RunnerTaskRating::query()->create([
+            'rating_id' => (string) Str::uuid(),
+            'task_id' => (string) Str::uuid(),
+            'customer_account_id' => (string) Str::uuid(),
+            'runner_account_id' => $runner->id,
+            'rating' => $rating,
+            'review' => $review,
+        ]);
+    }
+
+    public function test_public_profile_returns_average_and_rating_count(): void
+    {
+        $runner = $this->createPublishedRunnerProfile();
+
+        $this->createRating(
+            $runner,
+            5,
+            'Penghantaran sangat baik.'
         );
 
-        $values = [
-            'public_slug' => $slug,
+        $this->createRating($runner, 4);
 
-            // Keep the legacy column unchanged for compatibility.
-            // Never use its value as the display-name source of truth.
-            'display_name' => $profile !== null
-                ? $profile->display_name
-                : trim($validated['display_name']),
+        $this->createRating(
+            $runner,
+            3,
+            'Servis memuaskan.'
+        );
 
-            'bio' => array_key_exists('bio', $validated)
-                ? (
-                    $validated['bio'] === null
-                        ? null
-                        : trim($validated['bio'])
-                )
-                : ($profile !== null ? $profile->bio : null),
+        $response = app(RunnerPublicProfileController::class)
+            ->show('runner-rating-test');
 
-            'service_area' => array_key_exists('service_area', $validated)
-                ? (
-                    $validated['service_area'] === null
-                        ? null
-                        : trim($validated['service_area'])
-                )
-                : ($profile !== null ? $profile->service_area : null),
+        $this->assertSame(200, $response->getStatusCode());
 
-            'base_location' => array_key_exists(
-                'base_location',
-                $validated
-            )
-                ? (
-                    $validated['base_location'] === null
-                        ? null
-                        : trim($validated['base_location'])
-                )
-                : ($profile !== null ? $profile->base_location : null),
+        $profile = $response->getData(true)['data']['profile'];
 
-            'coverage_area' => array_key_exists(
-                'coverage_area',
-                $validated
-            )
-                ? (
-                    $validated['coverage_area'] === null
-                        ? null
-                        : trim($validated['coverage_area'])
-                )
-                : ($profile !== null ? $profile->coverage_area : null),
+        // (5 + 4 + 3) / 3 = 4.0
+        $this->assertSame(4.0, $profile['rating_average']);
+        $this->assertSame(3, $profile['rating_count']);
 
-            'services' => array_key_exists('services', $validated)
-                ? ($validated['services'] ?? [])
-                : (
-                    $profile !== null
-                        ? ($profile->services ?? [])
-                        : []
-                ),
+        $this->assertSame(
+            'Runner Rating Test',
+            $profile['display_name']
+        );
 
-            'is_published' => $isPublished,
-        ];
-
-        try {
-            if ($profile !== null) {
-                $profile->fill($values)->save();
-            } else {
-                $profile = RunnerPublicProfile::query()->create([
-                    'profile_id' => (string) Str::uuid(),
-                    'account_id' => $account->id,
-                    ...$values,
-                ]);
-            }
-        } catch (QueryException $exception) {
-            if (
-                RunnerPublicProfile::query()
-                    ->where('public_slug', $slug)
-                    ->where('account_id', '!=', $account->id)
-                    ->exists()
-            ) {
-                return $this->error(
-                    'This public profile URL is already in use.',
-                    422
-                );
-            }
-
-            throw $exception;
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Runner public profile saved.',
-            'data' => [
-                'profile' => $this->privatePayload($profile->fresh()),
-            ],
-        ], $profile->wasRecentlyCreated ? 201 : 200);
+        $this->assertArrayNotHasKey('review', $profile);
+        $this->assertArrayNotHasKey('reviews', $profile);
+        $this->assertArrayNotHasKey('customer_account_id', $profile);
+        $this->assertArrayNotHasKey('runner_account_id', $profile);
     }
 
-    public function show(string $slug): JsonResponse
+    public function test_public_profile_returns_null_average_when_no_ratings_exist(): void
     {
-        $profile = RunnerPublicProfile::query()
-            ->where('public_slug', strtolower($slug))
-            ->where('is_published', true)
-            ->first();
+        $this->createPublishedRunnerProfile();
 
-        if ($profile === null) {
-            return $this->error('Runner profile not found.', 404);
-        }
+        $response = app(RunnerPublicProfileController::class)
+            ->show('runner-rating-test');
 
-        $account = $profile->account;
+        $this->assertSame(200, $response->getStatusCode());
 
-        if ($account === null || !$this->isEligibleRunner($account)) {
-            return $this->error('Runner profile not found.', 404);
-        }
+        $profile = $response->getData(true)['data']['profile'];
 
-        $profile->increment('views_count');
-
-        // Apply location privacy rules to legacy records too.
-        $publicBaseLocation = $this->isSafeAdministrativeAreaLabel(
-            $profile->base_location
-        )
-            ? $profile->base_location
-            : null;
-
-        // Calculate the runner's aggregate rating.
-        // Query Builder avoids PHPStan treating aggregate aliases
-        // as undeclared RunnerTaskRating model properties.
-        $ratingSummary = DB::table('runner_task_ratings')
-            ->where('runner_account_id', $account->id)
-            ->selectRaw(
-                'COUNT(*) as rating_count, AVG(rating) as rating_average'
-            )
-            ->first();
-
-        $ratingCount = (int) ($ratingSummary->rating_count ?? 0);
-
-        $ratingAverage = $ratingCount > 0
-            ? round((float) $ratingSummary->rating_average, 1)
-            : null;
-
-        // Public profile displays Display Name only.
-        // Real Name must not be exposed in this public response.
-        $publicProfile = [
-            'public_slug' => $profile->public_slug,
-            'display_name' => $account->name,
-            'bio' => $profile->bio,
-            'service_area' => $profile->service_area,
-            'base_location' => $publicBaseLocation,
-            'coverage_area' => $profile->coverage_area,
-            'services' => $profile->services ?? [],
-            'rating_average' => $ratingAverage,
-            'rating_count' => $ratingCount,
-            'views_count' => $profile->views_count,
-        ];
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'profile' => $publicProfile,
-            ],
-        ]);
+        $this->assertNull($profile['rating_average']);
+        $this->assertSame(0, $profile['rating_count']);
     }
 
-    public function analytics(Request $request): JsonResponse
+    public function test_public_profile_rounds_average_to_one_decimal_place(): void
     {
-        /** @var Account|null $account */
-        $account = $request->attributes->get('account');
+        $runner = $this->createPublishedRunnerProfile();
 
-        if (!$account) {
-            return $this->error('Unauthorized.', 401);
-        }
+        $this->createRating($runner, 5);
+        $this->createRating($runner, 4);
+        $this->createRating($runner, 4);
 
-        if (!$this->isEligibleRunner($account)) {
-            return $this->error(
-                'Only active and approved runners can view profile analytics.',
-                403
-            );
-        }
+        $response = app(RunnerPublicProfileController::class)
+            ->show('runner-rating-test');
+
+        $this->assertSame(200, $response->getStatusCode());
+
+        $profile = $response->getData(true)['data']['profile'];
+
+        // (5 + 4 + 4) / 3 = 4.333..., dipaparkan sebagai 4.3.
+        $this->assertSame(4.3, $profile['rating_average']);
+        $this->assertSame(3, $profile['rating_count']);
+    }
+
+    public function test_unpublished_profile_does_not_expose_rating_summary(): void
+    {
+        $runner = $this->createPublishedRunnerProfile();
 
         $profile = RunnerPublicProfile::query()
-            ->where('account_id', $account->id)
-            ->first();
+            ->where('account_id', $runner->id)
+            ->firstOrFail();
 
-        if ($profile === null) {
-            return $this->error('Runner profile not found.', 404);
-        }
+        $profile->is_published = false;
+        $profile->save();
 
-        $profileRequests = MarketplaceRequest::query()
-            ->where(
-                'source_type',
-                MarketplaceRequest::SOURCE_RUNNER_PROFILE_LINK
-            )
-            ->where('target_runner_account_id', $account->id);
+        $this->createRating($runner, 5);
 
-        $requestCount = (clone $profileRequests)->count();
+        $response = app(RunnerPublicProfileController::class)
+            ->show('runner-rating-test');
 
-        $quotationCount = MarketplaceQuotation::query()
-            ->whereIn(
-                'request_id',
-                (clone $profileRequests)->select('request_id')
-            )
-            ->count();
+        $this->assertSame(404, $response->getStatusCode());
 
-        $completedTaskCount = CoreTask::query()
-            ->where('module_key', 'Marketplace')
-            ->where('task_type', 'MARKETPLACE_SERVICE_REQUEST')
-            ->where('source_type', 'marketplace_request')
-            ->where('assigned_account_id', $account->id)
-            ->where('generic_status', CoreTask::STATUS_COMPLETED)
-            ->whereIn(
-                'source_id',
-                (clone $profileRequests)->select('request_id')
-            )
-            ->count();
+        $payload = $response->getData(true);
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'analytics' => [
-                    'profile_views' => (int) $profile->views_count,
-                    'requests_from_profile' => $requestCount,
-                    'quotations_for_profile_requests' => $quotationCount,
-                    'completed_tasks_from_profile_requests' => $completedTaskCount,
-                ],
-            ],
-        ]);
-    }
-
-    /**
-     * Check whether a location label is safe to expose publicly.
-     */
-    private function isSafeAdministrativeAreaLabel(?string $value): bool
-    {
-        if ($value === null || trim($value) === '') {
-            return true;
-        }
-
-        $location = trim($value);
-
-        $looksLikeCoordinates = preg_match(
-            '/^\s*[+-]?\d{1,3}(?:\.\d+)?\s*[,;\/]\s*[+-]?\d{1,3}(?:\.\d+)?\s*$/',
-            $location
-        ) === 1;
-
-        $containsCoordinatePair = preg_match(
-            '/(?<!\d)[+-]?\d{1,3}\.\d{3,}(?:\s*[,;\/]\s*|\s+)[+-]?\d{1,3}\.\d{3,}(?!\d)/',
-            $location
-        ) === 1;
-
-        $containsPostcode = preg_match(
-            '/(?<!\d)\d{5}(?!\d)/',
-            $location
-        ) === 1;
-
-        $containsAddressMarker = preg_match(
-            '/\b(?:jalan|jln|lorong|lrg|persiaran|lebuh|lebuh raya|highway|postcode|postal code|poskod|nombor|lot|unit|tingkat|blok|block|street address)\b/i',
-            $location
-        ) === 1;
-
-        return !$looksLikeCoordinates
-            && !$containsCoordinatePair
-            && !$containsPostcode
-            && !$containsAddressMarker;
-    }
-
-    private function isEligibleRunner(Account $account): bool
-    {
-        return $account->status === 'ACTIVE'
-            && $account->runner_status === Account::RUNNER_STATUS_APPROVED;
-    }
-
-    private function privatePayload(RunnerPublicProfile $profile): array
-    {
-        return [
-            'profile_id' => $profile->profile_id,
-            'account_id' => $profile->account_id,
-            'public_slug' => $profile->public_slug,
-            'display_name' => $profile->account->name,
-            'bio' => $profile->bio,
-            'service_area' => $profile->service_area,
-            'base_location' => $profile->base_location,
-            'coverage_area' => $profile->coverage_area,
-            'services' => $profile->services ?? [],
-            'is_published' => $profile->is_published,
-            'views_count' => $profile->views_count,
-            'created_at' => $profile->created_at,
-            'updated_at' => $profile->updated_at,
-        ];
-    }
-
-    private function error(string $message, int $status): JsonResponse
-    {
-        return response()->json([
-            'success' => false,
-            'message' => $message,
-        ], $status);
+        $this->assertFalse($payload['success']);
     }
 }
