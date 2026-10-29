@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\ProfilePictureController;
 use App\Http\Controllers\Api\RunnerController;
 use App\Http\Controllers\Api\RunnerLicenseVerificationController;
 use App\Http\Controllers\Api\RunnerPublicProfileController;
+use App\Http\Controllers\Api\RunnerTaskRatingController;
 use App\Http\Middleware\AuthenticateSession;
 use App\Http\Middleware\ExpireMarketplaceItems;
 use Illuminate\Support\Facades\Route;
@@ -295,6 +296,22 @@ Route::post('/core/tasks/{taskId}/start', [
 Route::post('/core/tasks/{taskId}/complete', [
     CoreTaskController::class,
     'complete',
+])->middleware(AuthenticateSession::class);
+
+/*
+|--------------------------------------------------------------------------
+| Runner Task Ratings
+|--------------------------------------------------------------------------
+*/
+
+Route::post('/core/tasks/{taskId}/rating', [
+    RunnerTaskRatingController::class,
+    'storeOrUpdate',
+])->middleware(AuthenticateSession::class);
+
+Route::patch('/core/tasks/{taskId}/rating', [
+    RunnerTaskRatingController::class,
+    'storeOrUpdate',
 ])->middleware(AuthenticateSession::class);
 
 /*
