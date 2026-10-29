@@ -185,7 +185,6 @@ class RunnerTaskRatingApiTest extends TestCase
         $otherToken = 'other-customer-token';
         $this->authenticate($otherCustomer, $otherToken);
 
-        // Pelanggan lain tidak boleh menghantar rating bagi tugasan ini.
         $this->withToken($otherToken)
             ->postJson(
                 '/api/core/tasks/'.$task->task_id.'/rating',
@@ -197,7 +196,6 @@ class RunnerTaskRatingApiTest extends TestCase
             ->assertForbidden()
             ->assertJsonPath('success', false);
 
-        // Pelanggan lain juga tidak boleh mengubah rating sedia ada.
         $this->withToken($otherToken)
             ->patchJson(
                 '/api/core/tasks/'.$task->task_id.'/rating',
@@ -209,7 +207,6 @@ class RunnerTaskRatingApiTest extends TestCase
             ->assertForbidden()
             ->assertJsonPath('success', false);
 
-        // Rating asal mesti kekal dan tiada rekod tambahan.
         $this->assertDatabaseCount('runner_task_ratings', 1);
 
         $this->assertDatabaseHas('runner_task_ratings', [
@@ -300,22 +297,29 @@ class RunnerTaskRatingApiTest extends TestCase
             Account::RUNNER_STATUS_APPROVED
         );
 
-        $task = $this->createCompletedMarketplaceTask(
-            $customer,
-            $runner,
-            CoreTask::STATUS_IN_PROGRESS
-        );
-
-        $token = 'incomplete-task-customer-token';
+        $token = 'ineligible-task-customer-token';
         $this->authenticate($customer, $token);
 
-        $this->withToken($token)
-            ->postJson(
-                '/api/core/tasks/'.$task->task_id.'/rating',
-                ['rating' => 5]
-            )
-            ->assertUnprocessable()
-            ->assertJsonPath('success', false);
+        $ineligibleStatuses = [
+            CoreTask::STATUS_IN_PROGRESS,
+            CoreTask::STATUS_CANCELLED,
+        ];
+
+        foreach ($ineligibleStatuses as $status) {
+            $task = $this->createCompletedMarketplaceTask(
+                $customer,
+                $runner,
+                $status
+            );
+
+            $this->withToken($token)
+                ->postJson(
+                    '/api/core/tasks/'.$task->task_id.'/rating',
+                    ['rating' => 5]
+                )
+                ->assertUnprocessable()
+                ->assertJsonPath('success', false);
+        }
 
         $this->assertDatabaseCount('runner_task_ratings', 0);
     }
