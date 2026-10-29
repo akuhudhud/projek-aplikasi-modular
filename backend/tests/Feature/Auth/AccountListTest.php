@@ -4,8 +4,11 @@ namespace Tests\Feature\Auth;
 
 use App\Models\Account;
 use App\Models\AccountPermission;
+use App\Models\IdentityVerification;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class AccountListTest extends TestCase
@@ -50,6 +53,21 @@ class AccountListTest extends TestCase
             'password' => 'Password1',
             'role' => $role,
             'status' => $status,
+        ]);
+    }
+
+    private function createIdentityVerification(
+        Account $account,
+        string $status,
+        string $realName
+    ): IdentityVerification {
+        return IdentityVerification::create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $account->id,
+            'real_name' => $realName,
+            'mykad_number_encrypted' => Crypt::encryptString('900101145678'),
+            'status' => $status,
+            'submitted_at' => now(),
         ]);
     }
 
@@ -98,10 +116,7 @@ class AccountListTest extends TestCase
             'success' => true,
         ]);
 
-        $response->assertJsonCount(
-            3,
-            'data.accounts'
-        );
+        $response->assertJsonCount(3, 'data.accounts');
 
         $response->assertJsonFragment([
             'id' => $admin->id,
@@ -153,10 +168,7 @@ class AccountListTest extends TestCase
             'success' => true,
         ]);
 
-        $response->assertJsonCount(
-            1,
-            'data.accounts'
-        );
+        $response->assertJsonCount(1, 'data.accounts');
 
         $response->assertJsonFragment([
             'id' => $user->id,
@@ -165,6 +177,80 @@ class AccountListTest extends TestCase
 
         $response->assertJsonMissing([
             'id' => $admin->id,
+        ]);
+    }
+
+    public function test_account_list_shows_real_name_only_when_identity_is_verified(): void
+    {
+        $root = $this->createAccount(
+            'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            'Root Super Admin',
+            '60111111111',
+            'root@example.com',
+            'ROOT_SUPER_ADMIN'
+        );
+
+        $verifiedUser = $this->createAccount(
+            'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+            'Verified Display Name',
+            '60222222222',
+            'verified@example.com',
+            'USER'
+        );
+
+        $pendingUser = $this->createAccount(
+            'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            'Pending Display Name',
+            '60333333333',
+            'pending@example.com',
+            'USER'
+        );
+
+        $this->createIdentityVerification(
+            $verifiedUser,
+            IdentityVerification::STATUS_VERIFIED,
+            'Nama Sebenar Disahkan'
+        );
+
+        $this->createIdentityVerification(
+            $pendingUser,
+            IdentityVerification::STATUS_PENDING,
+            'Nama Sebenar Belum Disahkan'
+        );
+
+        $token = 'account-list-real-name-token';
+
+        $this->createSessionForAccount(
+            $root,
+            $token,
+            'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+        );
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->getJson('/api/admin/accounts');
+
+        $response->assertOk();
+
+        $response->assertJsonFragment([
+            'id' => $verifiedUser->id,
+            'name' => 'Verified Display Name',
+            'real_name' => 'Nama Sebenar Disahkan',
+        ]);
+
+        $response->assertJsonFragment([
+            'id' => $pendingUser->id,
+            'name' => 'Pending Display Name',
+            'real_name' => null,
+        ]);
+
+        $response->assertJsonMissing([
+            'real_name' => 'Nama Sebenar Belum Disahkan',
+        ]);
+
+        $response->assertJsonMissing([
+            'mykad_number_encrypted' => '900101145678',
         ]);
     }
 
@@ -241,6 +327,7 @@ class AccountListTest extends TestCase
                     '*' => [
                         'id',
                         'name',
+                        'real_name',
                         'phone',
                         'email',
                         'profile_picture',
