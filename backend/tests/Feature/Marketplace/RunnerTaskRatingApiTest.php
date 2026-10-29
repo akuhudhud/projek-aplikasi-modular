@@ -160,18 +160,66 @@ class RunnerTaskRatingApiTest extends TestCase
             $runner
         );
 
-        $token = 'other-customer-token';
-        $this->authenticate($otherCustomer, $token);
+        $ownerToken = 'rating-owner-token';
+        $this->authenticate($customer, $ownerToken);
 
-        $this->withToken($token)
+        $originalResponse = $this->withToken($ownerToken)
             ->postJson(
                 '/api/core/tasks/'.$task->task_id.'/rating',
-                ['rating' => 5]
+                [
+                    'rating' => 4,
+                    'review' => 'Ulasan asal pelanggan.',
+                ]
+            )
+            ->assertCreated()
+            ->assertJsonPath('data.rating.rating', 4)
+            ->assertJsonPath(
+                'data.rating.review',
+                'Ulasan asal pelanggan.'
+            );
+
+        $ratingId = $originalResponse->json(
+            'data.rating.rating_id'
+        );
+
+        $otherToken = 'other-customer-token';
+        $this->authenticate($otherCustomer, $otherToken);
+
+        // Pelanggan lain tidak boleh menghantar rating bagi tugasan ini.
+        $this->withToken($otherToken)
+            ->postJson(
+                '/api/core/tasks/'.$task->task_id.'/rating',
+                [
+                    'rating' => 1,
+                    'review' => 'Cubaan rating tanpa kebenaran.',
+                ]
             )
             ->assertForbidden()
             ->assertJsonPath('success', false);
 
-        $this->assertDatabaseCount('runner_task_ratings', 0);
+        // Pelanggan lain juga tidak boleh mengubah rating sedia ada.
+        $this->withToken($otherToken)
+            ->patchJson(
+                '/api/core/tasks/'.$task->task_id.'/rating',
+                [
+                    'rating' => 1,
+                    'review' => 'Cubaan mengubah rating tanpa kebenaran.',
+                ]
+            )
+            ->assertForbidden()
+            ->assertJsonPath('success', false);
+
+        // Rating asal mesti kekal dan tiada rekod tambahan.
+        $this->assertDatabaseCount('runner_task_ratings', 1);
+
+        $this->assertDatabaseHas('runner_task_ratings', [
+            'rating_id' => $ratingId,
+            'task_id' => $task->task_id,
+            'customer_account_id' => $customer->id,
+            'runner_account_id' => $runner->id,
+            'rating' => 4,
+            'review' => 'Ulasan asal pelanggan.',
+        ]);
     }
 
     public function test_runner_cannot_rate_their_own_task(): void
