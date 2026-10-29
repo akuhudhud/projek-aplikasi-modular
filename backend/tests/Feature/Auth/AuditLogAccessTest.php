@@ -13,8 +13,10 @@ class AuditLogAccessTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function grantPermission(Account $account, string $permission): void
-    {
+    private function grantPermission(
+        Account $account,
+        string $permission
+    ): void {
         AccountPermission::create([
             'account_id' => $account->id,
             'permission_key' => $permission,
@@ -253,5 +255,152 @@ class AuditLogAccessTest extends TestCase
         $response->assertJsonFragment([
             'reason' => 'Administrative review required.',
         ]);
+    }
+
+    public function test_admin_can_read_audit_log_after_actor_account_is_physically_deleted(): void
+    {
+        $admin = $this->createAccount(
+            'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            'Root Super Admin',
+            '60111111111',
+            'audit-actor-admin@example.com',
+            'ROOT_SUPER_ADMIN'
+        );
+
+        $actor = $this->createAccount(
+            'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+            'Deleted Audit Actor',
+            '60222222222',
+            'deleted-audit-actor@example.com',
+            'USER'
+        );
+
+        $target = $this->createAccount(
+            'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            'Remaining Audit Target',
+            '60333333333',
+            'remaining-audit-target@example.com',
+            'USER'
+        );
+
+        $token = 'audit-actor-deletion-access-token';
+
+        $this->createSessionForAccount(
+            $admin,
+            $token,
+            'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+        );
+
+        $auditLog = AuditLog::create([
+            'actor_account_id' => $actor->id,
+            'target_account_id' => $target->id,
+            'action' => 'ACCOUNT_UPDATED',
+            'reason' => 'Account update recorded before actor deletion.',
+        ]);
+
+        $auditLogId = $auditLog->id;
+        $actorId = $actor->id;
+        $targetId = $target->id;
+
+        $actor->delete();
+
+        $this->assertDatabaseMissing('accounts', [
+            'id' => $actorId,
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'id' => $auditLogId,
+            'actor_account_id' => $actorId,
+            'target_account_id' => $targetId,
+            'action' => 'ACCOUNT_UPDATED',
+            'reason' => 'Account update recorded before actor deletion.',
+        ]);
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->getJson('/api/admin/audit-logs');
+
+        $response
+            ->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+            ])
+            ->assertJsonFragment([
+                'id' => $auditLogId,
+                'actor_account_id' => $actorId,
+                'target_account_id' => $targetId,
+                'action' => 'ACCOUNT_UPDATED',
+                'reason' => 'Account update recorded before actor deletion.',
+            ]);
+    }
+
+    public function test_admin_can_read_audit_log_after_target_account_is_physically_deleted(): void
+    {
+        $admin = $this->createAccount(
+            'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            'Root Super Admin',
+            '60111111111',
+            'audit-retention-admin@example.com',
+            'ROOT_SUPER_ADMIN'
+        );
+
+        $target = $this->createAccount(
+            'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+            'Deleted Target',
+            '60222222222',
+            'audit-retention-target@example.com',
+            'USER'
+        );
+
+        $token = 'audit-retention-access-token';
+
+        $this->createSessionForAccount(
+            $admin,
+            $token,
+            'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+        );
+
+        $auditLog = AuditLog::create([
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $target->id,
+            'action' => 'ACCOUNT_SUSPENDED',
+            'reason' => 'Account suspended following an administrative review.',
+        ]);
+
+        $auditLogId = $auditLog->id;
+        $adminId = $admin->id;
+        $targetId = $target->id;
+
+        $target->delete();
+
+        $this->assertDatabaseMissing('accounts', [
+            'id' => $targetId,
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'id' => $auditLogId,
+            'actor_account_id' => $adminId,
+            'target_account_id' => $targetId,
+            'action' => 'ACCOUNT_SUSPENDED',
+        ]);
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->getJson('/api/admin/audit-logs');
+
+        $response
+            ->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+            ])
+            ->assertJsonFragment([
+                'id' => $auditLogId,
+                'actor_account_id' => $adminId,
+                'target_account_id' => $targetId,
+                'action' => 'ACCOUNT_SUSPENDED',
+                'reason' => 'Account suspended following an administrative review.',
+            ]);
     }
 }
