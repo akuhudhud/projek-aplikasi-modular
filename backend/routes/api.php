@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\ProfilePictureController;
 use App\Http\Controllers\Api\RunnerController;
 use App\Http\Controllers\Api\RunnerLicenseVerificationController;
 use App\Http\Controllers\Api\RunnerPublicProfileController;
+use App\Http\Controllers\Api\RunnerPublicReviewsController;
 use App\Http\Controllers\Api\RunnerTaskRatingController;
 use App\Http\Middleware\AuthenticateSession;
 use App\Http\Middleware\ExpireMarketplaceItems;
@@ -374,6 +375,11 @@ Route::middleware([
 Route::get('/runners/{slug}', [
     RunnerPublicProfileController::class,
     'show',
+]);
+
+Route::get('/runners/{slug}/reviews', [
+    RunnerPublicReviewsController::class,
+    'index',
 ]);
 
 Route::post('/me/runner-profile', [
