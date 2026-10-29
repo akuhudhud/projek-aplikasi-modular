@@ -5,7 +5,6 @@ namespace Tests\Feature\Marketplace;
 use App\Models\Account;
 use App\Models\CoreTask;
 use App\Models\MarketplaceRequest;
-use App\Models\RunnerTaskRating;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -168,6 +167,34 @@ class RunnerTaskRatingApiTest extends TestCase
             ->postJson(
                 '/api/core/tasks/'.$task->task_id.'/rating',
                 ['rating' => 5]
+            )
+            ->assertForbidden()
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseCount('runner_task_ratings', 0);
+    }
+
+    public function test_runner_cannot_rate_their_own_task(): void
+    {
+        $account = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED
+        );
+
+        $task = $this->createCompletedMarketplaceTask(
+            $account,
+            $account
+        );
+
+        $token = 'self-rating-token';
+        $this->authenticate($account, $token);
+
+        $this->withToken($token)
+            ->postJson(
+                '/api/core/tasks/'.$task->task_id.'/rating',
+                [
+                    'rating' => 5,
+                    'review' => 'Rating sendiri tidak dibenarkan.',
+                ]
             )
             ->assertForbidden()
             ->assertJsonPath('success', false);
