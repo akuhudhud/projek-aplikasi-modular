@@ -15,7 +15,7 @@ class RunnerPublicProfileRealNameTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_verified_real_name_is_returned_without_replacing_display_name(): void
+    public function test_verified_real_name_is_not_returned_in_public_profile(): void
     {
         $runner = $this->createApprovedRunner();
 
@@ -32,10 +32,10 @@ class RunnerPublicProfileRealNameTest extends TestCase
                 'data.profile.display_name',
                 'Nama Akaun Runner'
             )
-            ->assertJsonPath(
-                'data.profile.real_name',
-                'Nama Sebenar Disahkan'
-            )
+            ->assertJsonMissingPath('data.profile.real_name')
+            ->assertJsonMissing([
+                'real_name' => 'Nama Sebenar Disahkan',
+            ])
             ->assertJsonMissingPath('data.profile.account_id')
             ->assertJsonMissingPath('data.profile.phone')
             ->assertJsonMissingPath('data.profile.email')
@@ -108,6 +108,7 @@ class RunnerPublicProfileRealNameTest extends TestCase
     public function test_public_display_name_uses_current_account_name_not_legacy_profile_name(): void
     {
         $runner = $this->createApprovedRunner();
+
         $this->createPublicProfile($runner);
 
         $runner->name = 'Nama Akaun Dikemas Kini';
@@ -118,7 +119,8 @@ class RunnerPublicProfileRealNameTest extends TestCase
             ->assertJsonPath(
                 'data.profile.display_name',
                 'Nama Akaun Dikemas Kini'
-            );
+            )
+            ->assertJsonMissingPath('data.profile.real_name');
     }
 
     private function createApprovedRunner(): Account
