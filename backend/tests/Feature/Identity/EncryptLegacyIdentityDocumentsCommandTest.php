@@ -21,7 +21,8 @@ class EncryptLegacyIdentityDocumentsCommandTest extends TestCase
     private const PREFIX = 'SRIDENC1:';
 
     private function createLegacyDocument(
-        string $contents
+        string $contents,
+        ?string $documentId = null
     ): IdentityVerificationDocument {
         $account = Account::create([
             'id' => (string) Str::uuid(),
@@ -49,7 +50,7 @@ class EncryptLegacyIdentityDocumentsCommandTest extends TestCase
         Storage::disk('local')->put($path, $contents);
 
         return IdentityVerificationDocument::create([
-            'id' => (string) Str::uuid(),
+            'id' => $documentId ?? (string) Str::uuid(),
             'identity_verification_id' => $verification->id,
             'disk' => 'local',
             'path' => $path,
@@ -273,7 +274,6 @@ class EncryptLegacyIdentityDocumentsCommandTest extends TestCase
                 ),
             ]);
 
-            // Clear both cached facade and container instances.
             Crypt::clearResolvedInstance('encrypter');
             $this->app->forgetInstance('encrypter');
 
@@ -284,7 +284,6 @@ class EncryptLegacyIdentityDocumentsCommandTest extends TestCase
 
             $this->assertSame(Command::FAILURE, $exitCode);
 
-            // A key mismatch must never cause an encrypted file to be replaced.
             $this->assertSame(
                 $encryptedContents,
                 $realDisk->get($document->path)
@@ -292,7 +291,72 @@ class EncryptLegacyIdentityDocumentsCommandTest extends TestCase
         } finally {
             config(['app.key' => $originalKey]);
 
-            // Restore the original encrypter for subsequent tests.
+            Crypt::clearResolvedInstance('encrypter');
+            $this->app->forgetInstance('encrypter');
+        }
+    }
+
+    public function test_changed_app_key_does_not_partially_encrypt_earlier_legacy_documents(): void
+    {
+        Storage::fake('local');
+
+        $legacyContents = '%PDF-legacy-document-must-remain-unchanged';
+
+        $legacyDocument = $this->createLegacyDocument(
+            $legacyContents,
+            '00000000-0000-4000-8000-000000000001'
+        );
+
+        $encryptedOriginalContents = '%PDF-encrypted-with-original-key';
+
+        $encryptedDocument = $this->createLegacyDocument(
+            $encryptedOriginalContents,
+            '00000000-0000-4000-8000-000000000002'
+        );
+
+        $encryptedContents = self::PREFIX
+            .Crypt::encryptString($encryptedOriginalContents);
+
+        $disk = Storage::disk('local');
+
+        $disk->put(
+            $encryptedDocument->path,
+            $encryptedContents
+        );
+
+        $originalKey = config('app.key');
+
+        $this->assertIsString($originalKey);
+
+        try {
+            config([
+                'app.key' => 'base64:'.base64_encode(
+                    random_bytes(32)
+                ),
+            ]);
+
+            Crypt::clearResolvedInstance('encrypter');
+            $this->app->forgetInstance('encrypter');
+
+            $exitCode = Artisan::call(
+                'identity:encrypt-legacy-documents',
+                ['--force' => true]
+            );
+
+            $this->assertSame(Command::FAILURE, $exitCode);
+
+            $this->assertSame(
+                $legacyContents,
+                $disk->get($legacyDocument->path)
+            );
+
+            $this->assertSame(
+                $encryptedContents,
+                $disk->get($encryptedDocument->path)
+            );
+        } finally {
+            config(['app.key' => $originalKey]);
+
             Crypt::clearResolvedInstance('encrypter');
             $this->app->forgetInstance('encrypter');
         }
