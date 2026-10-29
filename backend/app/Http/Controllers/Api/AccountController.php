@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Models\IdentityVerification;
 use App\Services\AdminPermissionService;
 use App\Services\AuditLogService;
 use Illuminate\Http\JsonResponse;
@@ -38,6 +39,9 @@ class AccountController extends Controller
         }
 
         $accounts = $query
+            ->with([
+                'identityVerification:id,account_id,real_name,status',
+            ])
             ->orderBy('created_at')
             ->get([
                 'id',
@@ -51,6 +55,18 @@ class AccountController extends Controller
                 'created_at',
                 'updated_at',
             ]);
+
+        $accounts->each(function (Account $account): void {
+            $verification = $account->identityVerification;
+
+            $realName = $verification !== null
+                && $verification->status
+                    === IdentityVerification::STATUS_VERIFIED
+                ? $verification->real_name
+                : null;
+
+            $account->setAttribute('real_name', $realName);
+        });
 
         return response()->json([
             'success' => true,
@@ -385,8 +401,6 @@ class AccountController extends Controller
                     );
                 }
 
-                // Permission changes and their single audit record share
-                // the same outer transaction.
                 $changes = $permissionService->replace(
                     $lockedTarget,
                     $validated['permissions']
