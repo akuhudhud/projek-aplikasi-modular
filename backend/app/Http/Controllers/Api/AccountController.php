@@ -66,6 +66,9 @@ class AccountController extends Controller
                 : null;
 
             $account->setAttribute('real_name', $realName);
+
+            // Prevent the identity record from appearing in the JSON response.
+            $account->unsetRelation('identityVerification');
         });
 
         return response()->json([
@@ -245,7 +248,10 @@ class AccountController extends Controller
                 ->firstOrFail();
 
             if ($lockedTarget->role !== 'SUPER_ADMIN') {
-                abort(422, 'Only appointed Super Admins can have this job title updated.');
+                abort(
+                    422,
+                    'Only appointed Super Admins can have this job title updated.'
+                );
             }
 
             $lockedTarget->job_title = $validated['job_title'];
