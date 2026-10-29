@@ -403,4 +403,102 @@ class AuditLogAccessTest extends TestCase
                 'reason' => 'Account suspended following an administrative review.',
             ]);
     }
+
+    public function test_audit_log_survives_physical_account_deletion(): void
+    {
+        $actor = $this->createAccount(
+            '11111111-1111-4111-8111-111111111111',
+            'Audit Actor',
+            '60444444444',
+            'audit-actor-retention@example.com',
+            'USER'
+        );
+
+        $target = $this->createAccount(
+            '22222222-2222-4222-8222-222222222222',
+            'Audit Target',
+            '60555555555',
+            'audit-target-retention@example.com',
+            'USER'
+        );
+
+        $auditLog = AuditLog::create([
+            'actor_account_id' => $actor->id,
+            'target_account_id' => $target->id,
+            'action' => 'ACCOUNT_SUSPENDED',
+            'reason' => 'Account suspended following an audit test.',
+        ]);
+
+        $auditLogId = $auditLog->id;
+        $actorId = $actor->id;
+        $targetId = $target->id;
+
+        $target->delete();
+
+        $this->assertDatabaseMissing('accounts', [
+            'id' => $targetId,
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'id' => $auditLogId,
+            'actor_account_id' => $actorId,
+            'target_account_id' => $targetId,
+            'action' => 'ACCOUNT_SUSPENDED',
+            'reason' => 'Account suspended following an audit test.',
+        ]);
+
+        $storedAuditLog = AuditLog::findOrFail($auditLogId);
+
+        $this->assertNull($storedAuditLog->target);
+        $this->assertNotNull($storedAuditLog->actor);
+    }
+
+    public function test_audit_log_survives_physical_deletion_of_actor_account(): void
+    {
+        $actor = $this->createAccount(
+            '33333333-3333-4333-8333-333333333333',
+            'Deleted Audit Actor',
+            '60666666666',
+            'deleted-audit-actor-retention@example.com',
+            'USER'
+        );
+
+        $target = $this->createAccount(
+            '44444444-4444-4444-8444-444444444444',
+            'Remaining Audit Target',
+            '60777777777',
+            'remaining-audit-target-retention@example.com',
+            'USER'
+        );
+
+        $auditLog = AuditLog::create([
+            'actor_account_id' => $actor->id,
+            'target_account_id' => $target->id,
+            'action' => 'ACCOUNT_UPDATED',
+            'reason' => 'Account updated before actor deletion.',
+        ]);
+
+        $auditLogId = $auditLog->id;
+        $actorId = $actor->id;
+        $targetId = $target->id;
+
+        $actor->delete();
+
+        $this->assertDatabaseMissing('accounts', [
+            'id' => $actorId,
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'id' => $auditLogId,
+            'actor_account_id' => $actorId,
+            'target_account_id' => $targetId,
+            'action' => 'ACCOUNT_UPDATED',
+            'reason' => 'Account updated before actor deletion.',
+        ]);
+
+        $storedAuditLog = AuditLog::findOrFail($auditLogId);
+
+        $this->assertNull($storedAuditLog->actor);
+        $this->assertNotNull($storedAuditLog->target);
+    }
 }
