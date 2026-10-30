@@ -20,12 +20,8 @@ class MarketplaceController extends Controller
     ) {
     }
 
-    /**
-     * List requests owned by the account or available to an approved runner.
-     */
     public function index(Request $request): JsonResponse
     {
-        /** @var Account|null $account */
         $account = $request->attributes->get('account');
 
         if (!$account) {
@@ -86,13 +82,8 @@ class MarketplaceController extends Controller
         ]);
     }
 
-    /**
-     * Show a request only to its owner or an eligible runner
-     * participating in an open request or holding the winning quotation.
-     */
     public function show(Request $request, string $requestId): JsonResponse
     {
-        /** @var Account|null $account */
         $account = $request->attributes->get('account');
 
         if (!$account) {
@@ -207,14 +198,8 @@ class MarketplaceController extends Controller
         ]);
     }
 
-    /**
-     * Create a Marketplace request.
-     *
-     * Profile-origin requests identify the target by public slug, not account ID.
-     */
     public function store(Request $request): JsonResponse
     {
-        /** @var Account|null $account */
         $account = $request->attributes->get('account');
 
         if (!$account) {
@@ -244,18 +229,20 @@ class MarketplaceController extends Controller
                 'string',
                 'max:10000',
             ],
+
             'pickup_location_snapshot' => [
-                'nullable',
+                'required_if:task_class,PICKUP_DELIVERY',
                 'array',
             ],
             'delivery_location_snapshot' => [
-                'nullable',
+                'required_if:task_class,PICKUP_DELIVERY',
                 'array',
             ],
             'task_location_snapshot' => [
-                'nullable',
+                'required_if:task_class,NON_DELIVERY',
                 'array',
             ],
+
             'expires_at' => [
                 'nullable',
                 'date',
@@ -279,14 +266,10 @@ class MarketplaceController extends Controller
         }
     }
 
-    /**
-     * Submit a quotation for a request.
-     */
     public function submitQuotation(
         Request $request,
         string $requestId
     ): JsonResponse {
-        /** @var Account|null $account */
         $account = $request->attributes->get('account');
 
         if (!$account) {
@@ -346,14 +329,10 @@ class MarketplaceController extends Controller
         }
     }
 
-    /**
-     * Select a quotation. The service performs the atomic award operation.
-     */
     public function awardQuotation(
         Request $request,
         string $requestId
     ): JsonResponse {
-        /** @var Account|null $account */
         $account = $request->attributes->get('account');
 
         if (!$account) {
