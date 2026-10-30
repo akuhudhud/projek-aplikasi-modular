@@ -77,7 +77,7 @@ jobs:
         run: >-
           vendor/bin/phpunit
           --configuration phpunit.xml
-          --filter 'CompleteRegistrationTest::test_registration_completion_creates_active_user_and_session'
+          --filter 'RegistrationFlowTest::test_registration_completion_creates_active_user_and_session'
 
       - name: Run full feature test suite
         run: vendor/bin/phpunit --configuration phpunit.xml
