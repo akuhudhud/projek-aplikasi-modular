@@ -234,10 +234,10 @@ class MarketplaceController extends Controller
                 'min:3',
                 'max:50',
             ],
-            'service_type' => [
+            'task_class' => [
                 'required',
                 'string',
-                'max:64',
+                'in:PICKUP_DELIVERY,NON_DELIVERY',
             ],
             'description' => [
                 'required',
@@ -249,6 +249,10 @@ class MarketplaceController extends Controller
                 'array',
             ],
             'delivery_location_snapshot' => [
+                'nullable',
+                'array',
+            ],
+            'task_location_snapshot' => [
                 'nullable',
                 'array',
             ],
@@ -408,10 +412,11 @@ class MarketplaceController extends Controller
             'customer_account_id',
             'target_runner_account_id',
             'source_type',
-            'service_type',
+            'task_class',
             'description',
             'pickup_location_snapshot',
             'delivery_location_snapshot',
+            'task_location_snapshot',
             'status',
             'winning_quotation_id',
             'expires_at',
