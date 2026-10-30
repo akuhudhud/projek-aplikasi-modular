@@ -25,7 +25,7 @@ class MarketplaceLifecycleApiTest extends TestCase
 
         $created = $this->withToken($customerToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request to be cancelled.',
             ])
             ->assertCreated();
@@ -72,7 +72,7 @@ class MarketplaceLifecycleApiTest extends TestCase
 
         $created = $this->withToken($ownerToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request owned by another customer.',
             ])
             ->assertCreated();
@@ -102,7 +102,7 @@ class MarketplaceLifecycleApiTest extends TestCase
 
         $created = $this->withToken($customerToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request with a withdrawable quote.',
             ])
             ->assertCreated();
@@ -151,7 +151,7 @@ class MarketplaceLifecycleApiTest extends TestCase
 
         $created = $this->withToken($customerToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request for quotation resubmission.',
             ])
             ->assertCreated();
@@ -250,7 +250,7 @@ class MarketplaceLifecycleApiTest extends TestCase
 
         $created = $this->withToken($customerToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request with another runner quote.',
             ])
             ->assertCreated();
@@ -298,7 +298,7 @@ class MarketplaceLifecycleApiTest extends TestCase
             'request_id' => $requestId,
             'customer_account_id' => $customer->id,
             'source_type' => MarketplaceRequest::SOURCE_MARKETPLACE,
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Expired marketplace request.',
             'status' => MarketplaceRequest::STATUS_OPEN,
             'expires_at' => $expiredAt,
