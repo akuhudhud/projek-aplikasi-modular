@@ -70,7 +70,6 @@ class MarketplaceIndexContractApiTest extends TestCase
             );
         }
 
-        // Set deterministic timestamps to verify descending ordering.
         foreach ($requestIds as $index => $requestId) {
             DB::table('marketplace_requests')
                 ->where('request_id', $requestId)
@@ -108,15 +107,8 @@ class MarketplaceIndexContractApiTest extends TestCase
         $this->assertCount(25, $firstPageIds);
         $this->assertCount(1, $secondPageIds);
 
-        $this->assertCount(
-            25,
-            array_unique($firstPageIds)
-        );
-
-        $this->assertCount(
-            1,
-            array_unique($secondPageIds)
-        );
+        $this->assertCount(25, array_unique($firstPageIds));
+        $this->assertCount(1, array_unique($secondPageIds));
 
         $this->assertSame(
             [],
@@ -126,15 +118,8 @@ class MarketplaceIndexContractApiTest extends TestCase
             ))
         );
 
-        $this->assertSame(
-            $requestIds[0],
-            $firstPageIds[0]
-        );
-
-        $this->assertSame(
-            $requestIds[25],
-            $secondPageIds[0]
-        );
+        $this->assertSame($requestIds[0], $firstPageIds[0]);
+        $this->assertSame($requestIds[25], $secondPageIds[0]);
     }
 
     public function test_available_index_includes_general_open_requests_and_excludes_expired_or_other_runner_requests(): void
@@ -174,7 +159,7 @@ class MarketplaceIndexContractApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'source_type' => 'runner_profile_link',
                 'target_runner_slug' => 'index-contract-runner-two',
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request intended for another runner.',
             ])
             ->assertCreated();
@@ -213,25 +198,10 @@ class MarketplaceIndexContractApiTest extends TestCase
             $response->json('data.requests')
         )->pluck('request_id')->all();
 
-        $this->assertSame(
-            [$generalRequestId],
-            $visibleRequestIds
-        );
-
-        $this->assertNotContains(
-            $expiredRequestId,
-            $visibleRequestIds
-        );
-
-        $this->assertNotContains(
-            $targetedRequestId,
-            $visibleRequestIds
-        );
-
-        $this->assertNotContains(
-            $cancelledRequestId,
-            $visibleRequestIds
-        );
+        $this->assertSame([$generalRequestId], $visibleRequestIds);
+        $this->assertNotContains($expiredRequestId, $visibleRequestIds);
+        $this->assertNotContains($targetedRequestId, $visibleRequestIds);
+        $this->assertNotContains($cancelledRequestId, $visibleRequestIds);
     }
 
     private function createRequest(
@@ -240,7 +210,7 @@ class MarketplaceIndexContractApiTest extends TestCase
     ): string {
         $response = $this->withToken($token)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => $description,
             ])
             ->assertCreated()
