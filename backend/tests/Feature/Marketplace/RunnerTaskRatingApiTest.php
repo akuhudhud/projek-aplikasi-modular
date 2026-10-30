@@ -6,7 +6,9 @@ use App\Models\Account;
 use App\Models\CoreTask;
 use App\Models\MarketplaceRequest;
 use App\Models\Session;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -206,6 +208,44 @@ class RunnerTaskRatingApiTest extends TestCase
             ->assertJsonPath('success', false);
 
         $this->assertDatabaseCount('runner_task_ratings', 0);
+    }
+
+    public function test_database_rejects_rating_below_zero(): void
+    {
+        try {
+            DB::table('runner_task_ratings')->insert([
+                'rating_id' => (string) Str::uuid(),
+                'task_id' => (string) Str::uuid(),
+                'customer_account_id' => (string) Str::uuid(),
+                'runner_account_id' => (string) Str::uuid(),
+                'rating' => -1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $this->fail('Database accepted a rating below zero.');
+        } catch (QueryException) {
+            $this->assertDatabaseCount('runner_task_ratings', 0);
+        }
+    }
+
+    public function test_database_rejects_rating_above_five(): void
+    {
+        try {
+            DB::table('runner_task_ratings')->insert([
+                'rating_id' => (string) Str::uuid(),
+                'task_id' => (string) Str::uuid(),
+                'customer_account_id' => (string) Str::uuid(),
+                'runner_account_id' => (string) Str::uuid(),
+                'rating' => 6,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $this->fail('Database accepted a rating above five.');
+        } catch (QueryException) {
+            $this->assertDatabaseCount('runner_task_ratings', 0);
+        }
     }
 
     public function test_another_customer_cannot_rate_or_edit_the_task(): void
