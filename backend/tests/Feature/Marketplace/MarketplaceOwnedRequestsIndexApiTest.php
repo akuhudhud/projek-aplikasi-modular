@@ -23,7 +23,7 @@ class MarketplaceOwnedRequestsIndexApiTest extends TestCase
 
         $firstRequest = $this->withToken($customerOneToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'First customer private request.',
             ])
             ->assertCreated();
@@ -34,7 +34,7 @@ class MarketplaceOwnedRequestsIndexApiTest extends TestCase
 
         $secondRequest = $this->withToken($customerTwoToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Second customer private request.',
             ])
             ->assertCreated();
@@ -86,7 +86,7 @@ class MarketplaceOwnedRequestsIndexApiTest extends TestCase
 
         $created = $this->withToken($token)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Explicit mine view request.',
             ])
             ->assertCreated();
