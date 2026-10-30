@@ -39,7 +39,7 @@ class MarketplaceAvailableRequestsApiTest extends TestCase
 
         $generalRequest = $this->withToken($customerToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Open request available to all approved runners.',
             ])
             ->assertCreated();
@@ -52,7 +52,7 @@ class MarketplaceAvailableRequestsApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'source_type' => 'runner_profile_link',
                 'target_runner_slug' => 'available-runner-one',
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request intended for runner one only.',
             ])
             ->assertCreated();
@@ -65,7 +65,7 @@ class MarketplaceAvailableRequestsApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'source_type' => 'runner_profile_link',
                 'target_runner_slug' => 'available-runner-two',
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request intended for runner two only.',
             ])
             ->assertCreated();
