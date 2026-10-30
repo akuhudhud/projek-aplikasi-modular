@@ -36,6 +36,7 @@ class RunnerPublicReviewsController extends Controller
             ->whereNotNull('review')
             ->whereRaw("TRIM(review) <> ''")
             ->orderByDesc('created_at')
+            ->orderByDesc('rating_id')
             ->paginate(20);
 
         return response()->json([
