@@ -95,6 +95,24 @@ class RunnerPublicRatingReviewTest extends TestCase
         $this->assertArrayNotHasKey('runner_account_id', $profile);
     }
 
+    public function test_public_profile_counts_zero_as_a_valid_rating(): void
+    {
+        $runner = $this->createRunner();
+
+        $this->createRating($runner, 0);
+        $this->createRating($runner, 5);
+
+        $response = app(RunnerPublicProfileController::class)
+            ->show('runner-rating-test');
+
+        $this->assertSame(200, $response->getStatusCode());
+
+        $profile = $response->getData(true)['data']['profile'];
+
+        $this->assertSame(2.5, $profile['rating_average']);
+        $this->assertSame(2, $profile['rating_count']);
+    }
+
     public function test_public_profile_returns_null_average_when_no_ratings_exist(): void
     {
         $this->createRunner();
