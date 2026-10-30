@@ -299,4 +299,54 @@ class RunnerPublicRatingReviewTest extends TestCase
 
         $this->assertCount(1, $secondPage->json('data.reviews'));
     }
+
+    public function test_public_reviews_do_not_duplicate_or_skip_records_with_identical_timestamps(): void
+    {
+        $runner = $this->createRunner('runner-reviews-test');
+        $timestamp = now();
+
+        for ($index = 1; $index <= 21; $index++) {
+            $rating = $this->createRating(
+                $runner,
+                5,
+                'Ulasan nombor '.$index
+            );
+
+            $rating->created_at = $timestamp;
+            $rating->updated_at = $timestamp;
+            $rating->save();
+        }
+
+        $firstPage = $this->getJson(
+            '/api/runners/runner-reviews-test/reviews?page=1'
+        )->assertOk();
+
+        $secondPage = $this->getJson(
+            '/api/runners/runner-reviews-test/reviews?page=2'
+        )->assertOk();
+
+        $firstReviews = collect(
+            $firstPage->json('data.reviews')
+        )->pluck('review');
+
+        $secondReviews = collect(
+            $secondPage->json('data.reviews')
+        )->pluck('review');
+
+        $allReviews = $firstReviews->concat($secondReviews);
+
+        $this->assertCount(20, $firstReviews);
+        $this->assertCount(1, $secondReviews);
+        $this->assertCount(21, $allReviews);
+        $this->assertCount(21, $allReviews->unique());
+
+        $this->assertEqualsCanonicalizing(
+            collect(range(1, 21))
+                ->map(
+                    fn (int $number): string => 'Ulasan nombor '.$number
+                )
+                ->all(),
+            $allReviews->all()
+        );
+    }
 }
