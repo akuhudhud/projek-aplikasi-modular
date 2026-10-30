@@ -21,10 +21,11 @@ class MarketplaceSchemaTest extends TestCase
             'customer_account_id',
             'target_runner_account_id',
             'source_type',
-            'service_type',
+            'task_class',
             'description',
             'pickup_location_snapshot',
             'delivery_location_snapshot',
+            'task_location_snapshot',
             'status',
             'winning_quotation_id',
             'expires_at',
@@ -33,6 +34,10 @@ class MarketplaceSchemaTest extends TestCase
             'created_at',
             'updated_at',
         ]));
+
+        $this->assertFalse(
+            Schema::hasColumn('marketplace_requests', 'service_type')
+        );
 
         $this->assertTrue(Schema::hasTable('marketplace_quotations'));
 
@@ -66,6 +71,43 @@ class MarketplaceSchemaTest extends TestCase
         $this->assertSame('quotation_id', $quotation->getKeyName());
         $this->assertSame('string', $quotation->getKeyType());
         $this->assertFalse($quotation->getIncrementing());
+    }
+
+    public function test_request_model_supports_task_class_and_location_snapshots(): void
+    {
+        $request = new MarketplaceRequest();
+
+        $this->assertContains('task_class', $request->getFillable());
+
+        $this->assertContains(
+            'task_location_snapshot',
+            $request->getFillable()
+        );
+
+        $this->assertSame(
+            'array',
+            $request->getCasts()['task_location_snapshot']
+        );
+
+        $this->assertSame(
+            'array',
+            $request->getCasts()['pickup_location_snapshot']
+        );
+
+        $this->assertSame(
+            'array',
+            $request->getCasts()['delivery_location_snapshot']
+        );
+
+        $this->assertSame(
+            'PICKUP_DELIVERY',
+            MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY
+        );
+
+        $this->assertSame(
+            'NON_DELIVERY',
+            MarketplaceRequest::TASK_CLASS_NON_DELIVERY
+        );
     }
 
     public function test_marketplace_lifecycle_constants_are_defined(): void
