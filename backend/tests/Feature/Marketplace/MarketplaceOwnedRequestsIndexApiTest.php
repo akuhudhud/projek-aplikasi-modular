@@ -25,6 +25,12 @@ class MarketplaceOwnedRequestsIndexApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'First customer private request.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
             ])
             ->assertCreated();
 
@@ -36,6 +42,12 @@ class MarketplaceOwnedRequestsIndexApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Second customer private request.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
             ])
             ->assertCreated();
 
@@ -88,6 +100,12 @@ class MarketplaceOwnedRequestsIndexApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Explicit mine view request.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
             ])
             ->assertCreated();
 
