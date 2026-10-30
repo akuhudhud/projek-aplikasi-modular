@@ -161,6 +161,12 @@ class MarketplaceIndexContractApiTest extends TestCase
                 'target_runner_slug' => 'index-contract-runner-two',
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request intended for another runner.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
             ])
             ->assertCreated();
 
@@ -212,6 +218,12 @@ class MarketplaceIndexContractApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => $description,
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
             ])
             ->assertCreated()
             ->assertJsonPath('data.request.status', 'OPEN');
