@@ -35,6 +35,12 @@ class MarketplaceExpiryServiceTest extends TestCase
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Request that has passed its deadline.',
+            'pickup_location_snapshot' => [
+                'address' => 'Pickup location',
+            ],
+            'delivery_location_snapshot' => [
+                'address' => 'Delivery location',
+            ],
         ]);
 
         $quotation = $this->marketplace->submitQuotation(
@@ -72,6 +78,12 @@ class MarketplaceExpiryServiceTest extends TestCase
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Request with an expired quotation.',
+            'pickup_location_snapshot' => [
+                'address' => 'Pickup location',
+            ],
+            'delivery_location_snapshot' => [
+                'address' => 'Delivery location',
+            ],
         ]);
 
         $quotation = $this->marketplace->submitQuotation(
@@ -109,6 +121,12 @@ class MarketplaceExpiryServiceTest extends TestCase
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'An expired quotation must not be awarded.',
+            'pickup_location_snapshot' => [
+                'address' => 'Pickup location',
+            ],
+            'delivery_location_snapshot' => [
+                'address' => 'Delivery location',
+            ],
         ]);
 
         $quotation = $this->marketplace->submitQuotation(
@@ -164,11 +182,23 @@ class MarketplaceExpiryServiceTest extends TestCase
         $awardRequest = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Quotation expiry boundary for award.',
+            'pickup_location_snapshot' => [
+                'address' => 'Pickup location',
+            ],
+            'delivery_location_snapshot' => [
+                'address' => 'Delivery location',
+            ],
         ]);
 
         $withdrawRequest = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Quotation expiry boundary for withdrawal.',
+            'pickup_location_snapshot' => [
+                'address' => 'Pickup location',
+            ],
+            'delivery_location_snapshot' => [
+                'address' => 'Delivery location',
+            ],
         ]);
 
         $awardQuotation = $this->marketplace->submitQuotation(
@@ -262,6 +292,12 @@ class MarketplaceExpiryServiceTest extends TestCase
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Expired request cannot be awarded.',
+            'pickup_location_snapshot' => [
+                'address' => 'Pickup location',
+            ],
+            'delivery_location_snapshot' => [
+                'address' => 'Delivery location',
+            ],
         ]);
 
         $quotation = $this->marketplace->submitQuotation(
@@ -314,6 +350,12 @@ class MarketplaceExpiryServiceTest extends TestCase
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Expired request cannot accept quotes.',
+            'pickup_location_snapshot' => [
+                'address' => 'Pickup location',
+            ],
+            'delivery_location_snapshot' => [
+                'address' => 'Delivery location',
+            ],
         ]);
 
         $request->forceFill([
