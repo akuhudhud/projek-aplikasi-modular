@@ -3,11 +3,14 @@
 namespace Tests\Feature\Modules\PickAndDrop;
 
 use App\Providers\ModuleDiscoveryServiceProvider;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\PickAndDrop\Providers\PickAndDropServiceProvider;
 use Tests\TestCase;
 
 class PickAndDropModuleFoundationTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_generic_module_discovery_provider_is_registered(): void
     {
         $providers = config('app.providers', []);
@@ -57,5 +60,8 @@ class PickAndDropModuleFoundationTest extends TestCase
     {
         $this->postJson('/api/pick-and-drop/requests', [])
             ->assertNotFound();
+
+        $this->assertDatabaseCount('pick_and_drop_requests', 0);
+        $this->assertDatabaseCount('pick_and_drop_tasks', 0);
     }
 }
