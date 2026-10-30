@@ -42,7 +42,7 @@ class MarketplaceLifecycleController extends Controller
                         'request_id',
                         'customer_account_id',
                         'source_type',
-                        'service_type',
+                        'task_class',
                         'status',
                         'cancelled_at',
                         'updated_at',
