@@ -23,7 +23,7 @@ class MarketplaceRequestAccessApiTest extends TestCase
 
         $created = $this->withToken($ownerToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Private request owned by another customer.',
             ])
             ->assertCreated()
