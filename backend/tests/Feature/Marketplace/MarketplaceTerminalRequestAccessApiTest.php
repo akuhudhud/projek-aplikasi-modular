@@ -17,16 +17,14 @@ class MarketplaceTerminalRequestAccessApiTest extends TestCase
     public function test_owner_can_view_cancelled_request_but_runner_cannot(): void
     {
         $owner = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $ownerToken = $this->createSessionToken($owner);
         $runnerToken = $this->createSessionToken($runner);
 
         $created = $this->withToken($ownerToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Cancelled request access regression.',
             ])
             ->assertCreated();
@@ -61,16 +59,14 @@ class MarketplaceTerminalRequestAccessApiTest extends TestCase
     public function test_owner_can_view_expired_request_but_runner_cannot(): void
     {
         $owner = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $ownerToken = $this->createSessionToken($owner);
         $runnerToken = $this->createSessionToken($runner);
 
         $created = $this->withToken($ownerToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Expired request access regression.',
             ])
             ->assertCreated();
