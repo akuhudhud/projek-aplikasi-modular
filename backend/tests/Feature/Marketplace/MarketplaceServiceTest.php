@@ -38,6 +38,7 @@ class MarketplaceServiceTest extends TestCase
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Collect and deliver an item.',
+            ...$this->validPickupDeliveryLocations(),
         ]);
 
         $quotation = $this->marketplace->submitQuotation(
@@ -72,6 +73,7 @@ class MarketplaceServiceTest extends TestCase
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Deliver a parcel.',
+            ...$this->validPickupDeliveryLocations(),
         ]);
 
         $winningQuote = $this->marketplace->submitQuotation(
@@ -133,6 +135,7 @@ class MarketplaceServiceTest extends TestCase
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Deliver documents.',
+            ...$this->validPickupDeliveryLocations(),
         ]);
 
         $quote = $this->marketplace->submitQuotation(
@@ -167,6 +170,7 @@ class MarketplaceServiceTest extends TestCase
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Collect a package.',
+            ...$this->validPickupDeliveryLocations(),
         ]);
 
         $this->expectException(DomainException::class);
@@ -188,6 +192,7 @@ class MarketplaceServiceTest extends TestCase
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Deliver an item after runner approval changes.',
+            ...$this->validPickupDeliveryLocations(),
         ]);
 
         $quotation = $this->marketplace->submitQuotation(
@@ -240,6 +245,7 @@ class MarketplaceServiceTest extends TestCase
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Request must not be assigned to a suspended account.',
+            ...$this->validPickupDeliveryLocations(),
         ]);
 
         $quotation = $this->marketplace->submitQuotation(
@@ -297,11 +303,13 @@ class MarketplaceServiceTest extends TestCase
         $firstRequest = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'First independent customer request.',
+            ...$this->validPickupDeliveryLocations(),
         ]);
 
         $secondRequest = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Second independent customer request.',
+            ...$this->validPickupDeliveryLocations(),
         ]);
 
         $quotation = $this->marketplace->submitQuotation(
@@ -356,6 +364,7 @@ class MarketplaceServiceTest extends TestCase
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Deliver an item.',
+            ...$this->validPickupDeliveryLocations(),
         ]);
 
         $quote = $this->marketplace->submitQuotation(
@@ -393,6 +402,7 @@ class MarketplaceServiceTest extends TestCase
             'target_runner_slug' => 'target-runner-profile',
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Request through runner profile.',
+            ...$this->validPickupDeliveryLocations(),
         ]);
 
         $this->assertSame(
@@ -431,6 +441,124 @@ class MarketplaceServiceTest extends TestCase
             $quotation->status
         );
         $this->assertDatabaseCount('core_tasks', 0);
+    }
+
+    public function test_pickup_delivery_requires_both_locations_at_service_layer(): void
+    {
+        $customer = $this->makeAccount();
+
+        $invalidPayloads = [
+            [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Missing pickup location.',
+                'delivery_location_snapshot' => ['address' => 'Lokasi B'],
+            ],
+            [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Empty pickup location.',
+                'pickup_location_snapshot' => [],
+                'delivery_location_snapshot' => ['address' => 'Lokasi B'],
+            ],
+            [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Missing delivery location.',
+                'pickup_location_snapshot' => ['address' => 'Lokasi A'],
+            ],
+            [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Empty delivery location.',
+                'pickup_location_snapshot' => ['address' => 'Lokasi A'],
+                'delivery_location_snapshot' => [],
+            ],
+        ];
+
+        foreach ($invalidPayloads as $payload) {
+            try {
+                $this->marketplace->createRequest($customer, $payload);
+                $this->fail(
+                    'Invalid pickup and delivery locations must be rejected.'
+                );
+            } catch (DomainException $exception) {
+                $this->assertSame(
+                    'Pickup and delivery locations are required for this task class.',
+                    $exception->getMessage()
+                );
+            }
+
+            $this->assertDatabaseCount('marketplace_requests', 0);
+        }
+    }
+
+    public function test_non_delivery_requires_task_location_at_service_layer(): void
+    {
+        $customer = $this->makeAccount();
+
+        $invalidPayloads = [
+            [
+                'task_class' => 'NON_DELIVERY',
+                'description' => 'Missing task location.',
+            ],
+            [
+                'task_class' => 'NON_DELIVERY',
+                'description' => 'Empty task location.',
+                'task_location_snapshot' => [],
+            ],
+        ];
+
+        foreach ($invalidPayloads as $payload) {
+            try {
+                $this->marketplace->createRequest($customer, $payload);
+                $this->fail('Invalid task location must be rejected.');
+            } catch (DomainException $exception) {
+                $this->assertSame(
+                    'Task location is required for this task class.',
+                    $exception->getMessage()
+                );
+            }
+
+            $this->assertDatabaseCount('marketplace_requests', 0);
+        }
+    }
+
+    public function test_non_delivery_request_stores_only_task_location(): void
+    {
+        $customer = $this->makeAccount();
+
+        $request = $this->marketplace->createRequest($customer, [
+            'task_class' => 'NON_DELIVERY',
+            'description' => 'Complete a task at the customer location.',
+            'task_location_snapshot' => [
+                'label' => 'Lokasi tugasan',
+                'address' => 'Lokasi C',
+            ],
+        ]);
+
+        $this->assertSame(
+            MarketplaceRequest::TASK_CLASS_NON_DELIVERY,
+            $request->task_class
+        );
+        $this->assertSame(
+            'Lokasi C',
+            $request->task_location_snapshot['address']
+        );
+        $this->assertNull($request->pickup_location_snapshot);
+        $this->assertNull($request->delivery_location_snapshot);
+        $this->assertDatabaseCount('marketplace_requests', 1);
+        $this->assertDatabaseCount('core_tasks', 0);
+    }
+
+    private function validPickupDeliveryLocations(): array
+    {
+        return [
+            'pickup_location_snapshot' => [
+                'label' => 'Lokasi pickup',
+                'address' => 'Lokasi A',
+            ],
+            'delivery_location_snapshot' => [
+                'label' => 'Lokasi delivery',
+                'address' => 'Lokasi B',
+            ],
+        ];
     }
 
     private function createPublicProfile(
