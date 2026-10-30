@@ -18,12 +18,8 @@ class MarketplaceAwardApiTest extends TestCase
     public function test_awarding_quotation_marks_competing_quotation_not_selected(): void
     {
         $customer = $this->makeAccount();
-        $runnerOne = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
-        $runnerTwo = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runnerOne = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $runnerTwo = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $customerToken = $this->createSessionToken($customer);
         $runnerOneToken = $this->createSessionToken($runnerOne);
@@ -31,7 +27,7 @@ class MarketplaceAwardApiTest extends TestCase
 
         $created = $this->withToken($customerToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request with competing quotations.',
             ])
             ->assertCreated();
@@ -113,16 +109,14 @@ class MarketplaceAwardApiTest extends TestCase
     public function test_retrying_same_award_through_api_does_not_create_duplicate_core_task(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $customerToken = $this->createSessionToken($customer);
         $runnerToken = $this->createSessionToken($runner);
 
         $created = $this->withToken($customerToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request for award retry test.',
             ])
             ->assertCreated();
@@ -136,9 +130,7 @@ class MarketplaceAwardApiTest extends TestCase
             )
             ->assertCreated();
 
-        $quotationId = $quote->json(
-            'data.quotation.quotation_id'
-        );
+        $quotationId = $quote->json('data.quotation.quotation_id');
 
         $firstAward = $this->withToken($customerToken)
             ->postJson(
@@ -188,16 +180,14 @@ class MarketplaceAwardApiTest extends TestCase
     public function test_runner_suspended_before_award_cannot_be_selected(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $customerToken = $this->createSessionToken($customer);
         $runnerToken = $this->createSessionToken($runner);
 
         $request = $this->withToken($customerToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Runner eligibility is rechecked at award.',
             ])
             ->assertCreated();
@@ -211,9 +201,7 @@ class MarketplaceAwardApiTest extends TestCase
             )
             ->assertCreated();
 
-        $quotationId = $quotation->json(
-            'data.quotation.quotation_id'
-        );
+        $quotationId = $quotation->json('data.quotation.quotation_id');
 
         $runner->forceFill([
             'status' => 'SUSPENDED',
