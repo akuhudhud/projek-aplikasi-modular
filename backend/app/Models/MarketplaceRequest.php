@@ -25,6 +25,10 @@ class MarketplaceRequest extends Model
 
     public const SOURCE_RUNNER_PROFILE_LINK = 'runner_profile_link';
 
+    public const TASK_CLASS_PICKUP_DELIVERY = 'PICKUP_DELIVERY';
+
+    public const TASK_CLASS_NON_DELIVERY = 'NON_DELIVERY';
+
     protected $table = 'marketplace_requests';
 
     protected $primaryKey = 'request_id';
@@ -38,10 +42,11 @@ class MarketplaceRequest extends Model
         'customer_account_id',
         'target_runner_account_id',
         'source_type',
-        'service_type',
+        'task_class',
         'description',
         'pickup_location_snapshot',
         'delivery_location_snapshot',
+        'task_location_snapshot',
         'status',
         'winning_quotation_id',
         'expires_at',
@@ -52,6 +57,7 @@ class MarketplaceRequest extends Model
     protected $casts = [
         'pickup_location_snapshot' => 'array',
         'delivery_location_snapshot' => 'array',
+        'task_location_snapshot' => 'array',
         'expires_at' => 'datetime',
         'awarded_at' => 'datetime',
         'cancelled_at' => 'datetime',
