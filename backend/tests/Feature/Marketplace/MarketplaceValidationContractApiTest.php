@@ -23,7 +23,7 @@ class MarketplaceValidationContractApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [])
             ->assertUnprocessable()
             ->assertJsonValidationErrors([
-                'service_type',
+                'task_class',
                 'description',
             ]);
 
@@ -41,7 +41,7 @@ class MarketplaceValidationContractApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'source_type' => 'INVALID_SOURCE',
                 'target_runner_slug' => 'invalid slug!',
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request with invalid optional fields.',
                 'pickup_location_snapshot' => 'not-an-array',
                 'delivery_location_snapshot' => 'not-an-array',
@@ -73,7 +73,7 @@ class MarketplaceValidationContractApiTest extends TestCase
 
         $created = $this->withToken($customerToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request for API validation testing.',
             ])
             ->assertCreated();
@@ -118,7 +118,7 @@ class MarketplaceValidationContractApiTest extends TestCase
 
         $created = $this->withToken($token)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request for award validation testing.',
             ])
             ->assertCreated();
