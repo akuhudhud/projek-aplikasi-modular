@@ -15,11 +15,12 @@ return new class extends Migration
             $table->uuid('target_runner_account_id')->nullable();
 
             $table->string('source_type', 32)->default('marketplace');
-            $table->string('service_type', 64);
+            $table->string('task_class', 64);
             $table->text('description');
 
             $table->json('pickup_location_snapshot')->nullable();
             $table->json('delivery_location_snapshot')->nullable();
+            $table->json('task_location_snapshot')->nullable();
 
             $table->string('status', 32)->default('OPEN');
             $table->uuid('winning_quotation_id')->nullable();
