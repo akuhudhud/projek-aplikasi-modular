@@ -31,6 +31,12 @@ class MarketplaceQuotationPrivacyApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request with private runner quotations.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
             ])
             ->assertCreated();
 
