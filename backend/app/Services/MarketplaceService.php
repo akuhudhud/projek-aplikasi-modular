@@ -107,12 +107,20 @@ class MarketplaceService
             );
         }
 
-        $serviceType = trim((string) ($data['service_type'] ?? ''));
+        $taskClass = strtoupper(trim(
+            (string) ($data['task_class'] ?? '')
+        ));
+
         $description = trim((string) ($data['description'] ?? ''));
 
-        if ($serviceType === '' || mb_strlen($serviceType) > 64) {
+        $allowedTaskClasses = [
+            MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY,
+            MarketplaceRequest::TASK_CLASS_NON_DELIVERY,
+        ];
+
+        if (!in_array($taskClass, $allowedTaskClasses, true)) {
             throw new DomainException(
-                'Service type is required and must not exceed 64 characters.'
+                'Task class must be PICKUP_DELIVERY or NON_DELIVERY.'
             );
         }
 
@@ -124,7 +132,7 @@ class MarketplaceService
             $customer,
             $sourceType,
             $targetRunnerSlug,
-            $serviceType,
+            $taskClass,
             $description,
             $data
         ): MarketplaceRequest {
@@ -166,17 +174,44 @@ class MarketplaceService
                 $targetRunnerId = $targetRunner->id;
             }
 
+            $locationData = [
+                'pickup_location_snapshot' => null,
+                'delivery_location_snapshot' => null,
+                'task_location_snapshot' => null,
+            ];
+
+            if (
+                $taskClass
+                === MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY
+            ) {
+                $locationData['pickup_location_snapshot'] =
+                    $data['pickup_location_snapshot'] ?? null;
+
+                $locationData['delivery_location_snapshot'] =
+                    $data['delivery_location_snapshot'] ?? null;
+            }
+
+            if (
+                $taskClass
+                === MarketplaceRequest::TASK_CLASS_NON_DELIVERY
+            ) {
+                $locationData['task_location_snapshot'] =
+                    $data['task_location_snapshot'] ?? null;
+            }
+
             return MarketplaceRequest::query()->create([
                 'request_id' => (string) Str::uuid(),
                 'customer_account_id' => $customer->id,
                 'target_runner_account_id' => $targetRunnerId,
                 'source_type' => $sourceType,
-                'service_type' => $serviceType,
+                'task_class' => $taskClass,
                 'description' => $description,
                 'pickup_location_snapshot' =>
-                    $data['pickup_location_snapshot'] ?? null,
+                    $locationData['pickup_location_snapshot'],
                 'delivery_location_snapshot' =>
-                    $data['delivery_location_snapshot'] ?? null,
+                    $locationData['delivery_location_snapshot'],
+                'task_location_snapshot' =>
+                    $locationData['task_location_snapshot'],
                 'status' => MarketplaceRequest::STATUS_OPEN,
                 'expires_at' => $data['expires_at'] ?? null,
             ]);
