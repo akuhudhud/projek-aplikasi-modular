@@ -29,6 +29,12 @@ class MarketplaceQuotationExpiryApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request with an expired quotation.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
             ])
             ->assertCreated();
 
@@ -88,6 +94,12 @@ class MarketplaceQuotationExpiryApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request with an expired quotation.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
             ])
             ->assertCreated();
 
