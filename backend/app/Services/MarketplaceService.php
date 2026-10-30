@@ -128,6 +128,37 @@ class MarketplaceService
             throw new DomainException('Request description is required.');
         }
 
+        // PICKUP_DELIVERY requires both pickup and delivery locations.
+        if (
+            $taskClass === MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY
+            && (
+                !isset($data['pickup_location_snapshot'])
+                || !is_array($data['pickup_location_snapshot'])
+                || $data['pickup_location_snapshot'] === []
+                || !isset($data['delivery_location_snapshot'])
+                || !is_array($data['delivery_location_snapshot'])
+                || $data['delivery_location_snapshot'] === []
+            )
+        ) {
+            throw new DomainException(
+                'Pickup and delivery locations are required for this task class.'
+            );
+        }
+
+        // NON_DELIVERY requires a task location.
+        if (
+            $taskClass === MarketplaceRequest::TASK_CLASS_NON_DELIVERY
+            && (
+                !isset($data['task_location_snapshot'])
+                || !is_array($data['task_location_snapshot'])
+                || $data['task_location_snapshot'] === []
+            )
+        ) {
+            throw new DomainException(
+                'Task location is required for this task class.'
+            );
+        }
+
         return DB::transaction(function () use (
             $customer,
             $sourceType,
@@ -185,10 +216,10 @@ class MarketplaceService
                 === MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY
             ) {
                 $locationData['pickup_location_snapshot'] =
-                    $data['pickup_location_snapshot'] ?? null;
+                    $data['pickup_location_snapshot'];
 
                 $locationData['delivery_location_snapshot'] =
-                    $data['delivery_location_snapshot'] ?? null;
+                    $data['delivery_location_snapshot'];
             }
 
             if (
@@ -196,7 +227,7 @@ class MarketplaceService
                 === MarketplaceRequest::TASK_CLASS_NON_DELIVERY
             ) {
                 $locationData['task_location_snapshot'] =
-                    $data['task_location_snapshot'] ?? null;
+                    $data['task_location_snapshot'];
             }
 
             return MarketplaceRequest::query()->create([
