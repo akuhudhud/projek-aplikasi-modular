@@ -71,6 +71,12 @@ class MarketplaceApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Deliver a document.',
+                'pickup_location_snapshot' => [
+                    'label' => 'Document pickup',
+                ],
+                'delivery_location_snapshot' => [
+                    'label' => 'Document delivery',
+                ],
             ])
             ->assertCreated();
 
@@ -146,6 +152,12 @@ class MarketplaceApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Deliver a package.',
+                'pickup_location_snapshot' => [
+                    'label' => 'Package pickup',
+                ],
+                'delivery_location_snapshot' => [
+                    'label' => 'Package delivery',
+                ],
             ])
             ->assertCreated();
 
@@ -205,6 +217,12 @@ class MarketplaceApiTest extends TestCase
                 'target_runner_slug' => 'target-runner-profile',
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request for a specific runner.',
+                'pickup_location_snapshot' => [
+                    'label' => 'Specific runner pickup',
+                ],
+                'delivery_location_snapshot' => [
+                    'label' => 'Specific runner delivery',
+                ],
             ])
             ->assertCreated()
             ->assertJsonPath(
@@ -264,6 +282,12 @@ class MarketplaceApiTest extends TestCase
                 'target_runner_slug' => 'unpublished-runner-profile',
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'This request must be rejected.',
+                'pickup_location_snapshot' => [
+                    'label' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'label' => 'Delivery location',
+                ],
             ])
             ->assertUnprocessable()
             ->assertJsonPath('success', false);
@@ -281,6 +305,12 @@ class MarketplaceApiTest extends TestCase
                 'source_type' => 'runner_profile_link',
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Missing profile slug.',
+                'pickup_location_snapshot' => [
+                    'label' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'label' => 'Delivery location',
+                ],
             ])
             ->assertUnprocessable();
 
@@ -301,6 +331,12 @@ class MarketplaceApiTest extends TestCase
                 'target_runner_slug' => 'marketplace-invalid-target',
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Marketplace requests cannot target a runner.',
+                'pickup_location_snapshot' => [
+                    'label' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'label' => 'Delivery location',
+                ],
             ])
             ->assertUnprocessable();
 
