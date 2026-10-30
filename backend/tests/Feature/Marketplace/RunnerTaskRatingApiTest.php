@@ -147,6 +147,67 @@ class RunnerTaskRatingApiTest extends TestCase
         ]);
     }
 
+    public function test_zero_is_a_valid_rating(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED
+        );
+
+        $task = $this->createCompletedMarketplaceTask(
+            $customer,
+            $runner
+        );
+
+        $token = 'zero-rating-token';
+        $this->authenticate($customer, $token);
+
+        $this->withToken($token)
+            ->postJson(
+                '/api/core/tasks/'.$task->task_id.'/rating',
+                ['rating' => 0]
+            )
+            ->assertCreated()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.rating.rating', 0);
+
+        $this->assertDatabaseHas('runner_task_ratings', [
+            'task_id' => $task->task_id,
+            'rating' => 0,
+        ]);
+
+        $this->assertDatabaseCount('runner_task_ratings', 1);
+    }
+
+    public function test_patch_without_existing_rating_does_not_create_rating(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED
+        );
+
+        $task = $this->createCompletedMarketplaceTask(
+            $customer,
+            $runner
+        );
+
+        $token = 'patch-without-rating-token';
+        $this->authenticate($customer, $token);
+
+        $this->withToken($token)
+            ->patchJson(
+                '/api/core/tasks/'.$task->task_id.'/rating',
+                [
+                    'rating' => 4,
+                    'review' => 'Tidak sepatutnya dicipta.',
+                ]
+            )
+            ->assertNotFound()
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseCount('runner_task_ratings', 0);
+    }
+
     public function test_another_customer_cannot_rate_or_edit_the_task(): void
     {
         $customer = $this->makeAccount();
@@ -324,7 +385,7 @@ class RunnerTaskRatingApiTest extends TestCase
         $this->assertDatabaseCount('runner_task_ratings', 0);
     }
 
-    public function test_rating_must_be_an_integer_between_one_and_five(): void
+    public function test_rating_must_be_an_integer_between_zero_and_five(): void
     {
         $customer = $this->makeAccount();
         $runner = $this->makeAccount(
@@ -339,7 +400,7 @@ class RunnerTaskRatingApiTest extends TestCase
         $token = 'invalid-rating-token';
         $this->authenticate($customer, $token);
 
-        foreach ([0, 6, '4.5', 'invalid'] as $value) {
+        foreach ([-1, 6, '4.5', 'invalid'] as $value) {
             $this->withToken($token)
                 ->postJson(
                     '/api/core/tasks/'.$task->task_id.'/rating',
