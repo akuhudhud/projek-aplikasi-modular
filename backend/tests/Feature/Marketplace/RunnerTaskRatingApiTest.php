@@ -60,7 +60,7 @@ class RunnerTaskRatingApiTest extends TestCase
             'customer_account_id' => $customer->id,
             'target_runner_account_id' => $runner->id,
             'source_type' => MarketplaceRequest::SOURCE_MARKETPLACE,
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY,
             'description' => 'Rating API test request.',
             'status' => MarketplaceRequest::STATUS_AWARDED,
             'awarded_at' => now(),
