@@ -41,6 +41,12 @@ class MarketplaceAvailableRequestsApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Open request available to all approved runners.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
             ])
             ->assertCreated();
 
@@ -54,6 +60,12 @@ class MarketplaceAvailableRequestsApiTest extends TestCase
                 'target_runner_slug' => 'available-runner-one',
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request intended for runner one only.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
             ])
             ->assertCreated();
 
@@ -67,6 +79,12 @@ class MarketplaceAvailableRequestsApiTest extends TestCase
                 'target_runner_slug' => 'available-runner-two',
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request intended for runner two only.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
             ])
             ->assertCreated();
 
