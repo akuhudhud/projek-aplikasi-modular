@@ -27,6 +27,12 @@ class MarketplaceLifecycleApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request to be cancelled.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
             ])
             ->assertCreated();
 
@@ -74,6 +80,12 @@ class MarketplaceLifecycleApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request owned by another customer.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
             ])
             ->assertCreated();
 
@@ -104,6 +116,12 @@ class MarketplaceLifecycleApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request with a withdrawable quote.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
             ])
             ->assertCreated();
 
@@ -153,6 +171,12 @@ class MarketplaceLifecycleApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request for quotation resubmission.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
             ])
             ->assertCreated();
 
@@ -252,6 +276,12 @@ class MarketplaceLifecycleApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request with another runner quote.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
             ])
             ->assertCreated();
 
