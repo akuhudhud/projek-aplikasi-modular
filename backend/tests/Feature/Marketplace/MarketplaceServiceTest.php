@@ -36,7 +36,7 @@ class MarketplaceServiceTest extends TestCase
         );
 
         $request = $this->marketplace->createRequest($customer, [
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Collect and deliver an item.',
         ]);
 
@@ -70,7 +70,7 @@ class MarketplaceServiceTest extends TestCase
         );
 
         $request = $this->marketplace->createRequest($customer, [
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Deliver a parcel.',
         ]);
 
@@ -131,7 +131,7 @@ class MarketplaceServiceTest extends TestCase
         );
 
         $request = $this->marketplace->createRequest($customer, [
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Deliver documents.',
         ]);
 
@@ -165,7 +165,7 @@ class MarketplaceServiceTest extends TestCase
         );
 
         $request = $this->marketplace->createRequest($customer, [
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Collect a package.',
         ]);
 
@@ -186,7 +186,7 @@ class MarketplaceServiceTest extends TestCase
         );
 
         $request = $this->marketplace->createRequest($customer, [
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Deliver an item after runner approval changes.',
         ]);
 
@@ -238,7 +238,7 @@ class MarketplaceServiceTest extends TestCase
         );
 
         $request = $this->marketplace->createRequest($customer, [
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Request must not be assigned to a suspended account.',
         ]);
 
@@ -295,12 +295,12 @@ class MarketplaceServiceTest extends TestCase
         );
 
         $firstRequest = $this->marketplace->createRequest($customer, [
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'First independent customer request.',
         ]);
 
         $secondRequest = $this->marketplace->createRequest($customer, [
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Second independent customer request.',
         ]);
 
@@ -354,7 +354,7 @@ class MarketplaceServiceTest extends TestCase
         );
 
         $request = $this->marketplace->createRequest($customer, [
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Deliver an item.',
         ]);
 
@@ -391,7 +391,7 @@ class MarketplaceServiceTest extends TestCase
         $request = $this->marketplace->createRequest($customer, [
             'source_type' => MarketplaceRequest::SOURCE_RUNNER_PROFILE_LINK,
             'target_runner_slug' => 'target-runner-profile',
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Request through runner profile.',
         ]);
 
