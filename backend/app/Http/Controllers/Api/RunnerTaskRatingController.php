@@ -34,12 +34,16 @@ class RunnerTaskRatingController extends Controller
             'review' => ['sometimes', 'nullable', 'string', 'max:5000'],
         ]);
 
+        // PATCH is strictly for editing an existing rating.
+        $requireExisting = $request->isMethod('PATCH');
+
         try {
             [$rating, $created] = DB::transaction(
                 function () use (
                     $account,
                     $taskId,
-                    $validated
+                    $validated,
+                    $requireExisting
                 ): array {
                     $task = CoreTask::query()
                         ->whereKey($taskId)
@@ -124,6 +128,15 @@ class RunnerTaskRatingController extends Controller
                         return [$existing->refresh(), false];
                     }
 
+                    // PATCH must never create a new rating.
+                    if ($requireExisting) {
+                        throw (new ModelNotFoundException())
+                            ->setModel(
+                                RunnerTaskRating::class,
+                                [$task->task_id]
+                            );
+                    }
+
                     $values = [
                         'rating_id' => (string) Str::uuid(),
                         'task_id' => $task->task_id,
@@ -142,7 +155,14 @@ class RunnerTaskRatingController extends Controller
                 },
                 3
             );
-        } catch (ModelNotFoundException) {
+        } catch (ModelNotFoundException $exception) {
+            if ($exception->getModel() === RunnerTaskRating::class) {
+                return $this->error(
+                    'No rating exists for this task to update.',
+                    404
+                );
+            }
+
             return $this->error('Task not found.', 404);
         } catch (AuthorizationException $exception) {
             return $this->error($exception->getMessage(), 403);
