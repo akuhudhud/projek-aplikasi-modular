@@ -34,7 +34,7 @@ class MarketplaceAwardRollbackTest extends TestCase
         );
 
         $request = $marketplace->createRequest($customer, [
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Request for award rollback verification.',
         ]);
 
