@@ -36,6 +36,12 @@ class MarketplaceAwardRollbackTest extends TestCase
         $request = $marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Request for award rollback verification.',
+            'pickup_location_snapshot' => [
+                'address' => 'Pickup location',
+            ],
+            'delivery_location_snapshot' => [
+                'address' => 'Delivery location',
+            ],
         ]);
 
         $quotation = $marketplace->submitQuotation(
