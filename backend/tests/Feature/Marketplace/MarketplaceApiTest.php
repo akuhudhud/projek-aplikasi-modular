@@ -30,7 +30,7 @@ class MarketplaceApiTest extends TestCase
 
         $response = $this->withToken($token)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Collect and deliver a parcel.',
                 'pickup_location_snapshot' => [
                     'label' => 'Point A',
@@ -69,7 +69,7 @@ class MarketplaceApiTest extends TestCase
 
         $created = $this->withToken($customerToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Deliver a document.',
             ])
             ->assertCreated();
@@ -144,7 +144,7 @@ class MarketplaceApiTest extends TestCase
 
         $created = $this->withToken($ownerToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Deliver a package.',
             ])
             ->assertCreated();
@@ -203,7 +203,7 @@ class MarketplaceApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'source_type' => 'runner_profile_link',
                 'target_runner_slug' => 'target-runner-profile',
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request for a specific runner.',
             ])
             ->assertCreated()
@@ -262,7 +262,7 @@ class MarketplaceApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'source_type' => 'runner_profile_link',
                 'target_runner_slug' => 'unpublished-runner-profile',
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'This request must be rejected.',
             ])
             ->assertUnprocessable()
@@ -279,7 +279,7 @@ class MarketplaceApiTest extends TestCase
         $this->withToken($token)
             ->postJson('/api/marketplace/requests', [
                 'source_type' => 'runner_profile_link',
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Missing profile slug.',
             ])
             ->assertUnprocessable();
@@ -299,7 +299,7 @@ class MarketplaceApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'source_type' => 'marketplace',
                 'target_runner_slug' => 'marketplace-invalid-target',
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Marketplace requests cannot target a runner.',
             ])
             ->assertUnprocessable();
