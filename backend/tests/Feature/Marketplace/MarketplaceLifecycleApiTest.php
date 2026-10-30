@@ -329,6 +329,12 @@ class MarketplaceLifecycleApiTest extends TestCase
             'customer_account_id' => $customer->id,
             'source_type' => MarketplaceRequest::SOURCE_MARKETPLACE,
             'task_class' => 'PICKUP_DELIVERY',
+            'pickup_location_snapshot' => [
+                'address' => 'Pickup location',
+            ],
+            'delivery_location_snapshot' => [
+                'address' => 'Delivery location',
+            ],
             'description' => 'Expired marketplace request.',
             'status' => MarketplaceRequest::STATUS_OPEN,
             'expires_at' => $expiredAt,
