@@ -27,27 +27,49 @@ class MarketplaceCoreTaskSourceReferenceApiTest extends TestCase
         ];
 
         foreach ($taskClasses as $index => $taskClass) {
+            $payload = [
+                'task_class' => $taskClass,
+                'description' => 'Source reference test '.$index,
+            ];
+
+            if ($taskClass === 'PICKUP_DELIVERY') {
+                $payload['pickup_location_snapshot'] = [
+                    'address' => 'Pickup location '.$index,
+                ];
+
+                $payload['delivery_location_snapshot'] = [
+                    'address' => 'Delivery location '.$index,
+                ];
+            } else {
+                $payload['task_location_snapshot'] = [
+                    'address' => 'Task location '.$index,
+                ];
+            }
+
             $created = $this->withToken($customerToken)
-                ->postJson('/api/marketplace/requests', [
-                    'task_class' => $taskClass,
-                    'description' => 'Source reference test '.$index,
-                ])
-                ->assertCreated();
+                ->postJson('/api/marketplace/requests', $payload)
+                ->assertCreated()
+                ->assertJsonPath('success', true);
 
             $requestId = $created->json(
                 'data.request.request_id'
             );
+
+            $this->assertNotEmpty($requestId);
 
             $quotation = $this->withToken($runnerToken)
                 ->postJson(
                     '/api/marketplace/requests/'.$requestId.'/quotations',
                     ['amount' => '20.00']
                 )
-                ->assertCreated();
+                ->assertCreated()
+                ->assertJsonPath('success', true);
 
             $quotationId = $quotation->json(
                 'data.quotation.quotation_id'
             );
+
+            $this->assertNotEmpty($quotationId);
 
             $award = $this->withToken($customerToken)
                 ->postJson(
@@ -58,6 +80,8 @@ class MarketplaceCoreTaskSourceReferenceApiTest extends TestCase
                 ->assertJsonPath('success', true);
 
             $taskId = $award->json('data.task.task_id');
+
+            $this->assertNotEmpty($taskId);
 
             $this->assertDatabaseHas('marketplace_requests', [
                 'request_id' => $requestId,
