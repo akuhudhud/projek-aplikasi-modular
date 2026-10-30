@@ -48,7 +48,7 @@ class MarketplaceAwardConcurrencyTest extends TestCase
             'request_id' => $requestId,
             'customer_account_id' => $customer->id,
             'source_type' => MarketplaceRequest::SOURCE_MARKETPLACE,
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY,
             'description' => 'Concurrent award integration test.',
             'status' => MarketplaceRequest::STATUS_OPEN,
         ]);
@@ -102,7 +102,6 @@ class MarketplaceAwardConcurrencyTest extends TestCase
                 );
             }
 
-            // Release both workers only after both have reached the barrier.
             foreach ($this->workers as $worker) {
                 fwrite($worker['pipes'][0], "GO\n");
                 fflush($worker['pipes'][0]);
