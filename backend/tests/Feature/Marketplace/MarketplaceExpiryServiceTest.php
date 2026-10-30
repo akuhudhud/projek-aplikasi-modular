@@ -33,7 +33,7 @@ class MarketplaceExpiryServiceTest extends TestCase
         );
 
         $request = $this->marketplace->createRequest($customer, [
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Request that has passed its deadline.',
         ]);
 
@@ -70,7 +70,7 @@ class MarketplaceExpiryServiceTest extends TestCase
         );
 
         $request = $this->marketplace->createRequest($customer, [
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Request with an expired quotation.',
         ]);
 
@@ -107,7 +107,7 @@ class MarketplaceExpiryServiceTest extends TestCase
         );
 
         $request = $this->marketplace->createRequest($customer, [
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'An expired quotation must not be awarded.',
         ]);
 
@@ -162,12 +162,12 @@ class MarketplaceExpiryServiceTest extends TestCase
         );
 
         $awardRequest = $this->marketplace->createRequest($customer, [
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Quotation expiry boundary for award.',
         ]);
 
         $withdrawRequest = $this->marketplace->createRequest($customer, [
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Quotation expiry boundary for withdrawal.',
         ]);
 
@@ -260,7 +260,7 @@ class MarketplaceExpiryServiceTest extends TestCase
         );
 
         $request = $this->marketplace->createRequest($customer, [
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Expired request cannot be awarded.',
         ]);
 
@@ -312,7 +312,7 @@ class MarketplaceExpiryServiceTest extends TestCase
         );
 
         $request = $this->marketplace->createRequest($customer, [
-            'service_type' => 'GENERAL_SERVICE',
+            'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Expired request cannot accept quotes.',
         ]);
 
