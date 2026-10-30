@@ -132,6 +132,49 @@ class MarketplaceTaskClassApiTest extends TestCase
         $this->assertDatabaseCount('core_tasks', 0);
     }
 
+    public function test_pickup_delivery_requires_both_pickup_and_delivery_locations(): void
+    {
+        $customer = $this->makeAccount();
+        $token = $this->createSessionToken($customer);
+
+        $this->withToken($token)
+            ->postJson('/api/marketplace/requests', [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Request without required locations.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Lokasi A',
+                ],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'delivery_location_snapshot',
+            ]);
+
+        $this->assertDatabaseCount('marketplace_requests', 0);
+        $this->assertDatabaseCount('marketplace_quotations', 0);
+        $this->assertDatabaseCount('core_tasks', 0);
+    }
+
+    public function test_non_delivery_requires_task_location(): void
+    {
+        $customer = $this->makeAccount();
+        $token = $this->createSessionToken($customer);
+
+        $this->withToken($token)
+            ->postJson('/api/marketplace/requests', [
+                'task_class' => 'NON_DELIVERY',
+                'description' => 'Request without task location.',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'task_location_snapshot',
+            ]);
+
+        $this->assertDatabaseCount('marketplace_requests', 0);
+        $this->assertDatabaseCount('marketplace_quotations', 0);
+        $this->assertDatabaseCount('core_tasks', 0);
+    }
+
     private function makeAccount(): Account
     {
         $id = (string) Str::uuid();
