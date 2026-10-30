@@ -19,7 +19,7 @@ return new class extends Migration
             $table->uuid('customer_account_id');
             $table->uuid('runner_account_id');
 
-            // Julat sah 1–5 akan dikuatkuasakan oleh API.
+            // Julat sah 0–5 dikuatkuasakan oleh API dan database.
             $table->unsignedTinyInteger('rating');
 
             // Rating wajib, teks ulasan pilihan.
