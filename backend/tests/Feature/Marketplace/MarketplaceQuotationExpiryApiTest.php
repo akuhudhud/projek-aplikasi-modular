@@ -27,7 +27,7 @@ class MarketplaceQuotationExpiryApiTest extends TestCase
 
         $created = $this->withToken($customerToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request with an expired quotation.',
             ])
             ->assertCreated();
@@ -86,7 +86,7 @@ class MarketplaceQuotationExpiryApiTest extends TestCase
 
         $created = $this->withToken($customerToken)
             ->postJson('/api/marketplace/requests', [
-                'service_type' => 'GENERAL_SERVICE',
+                'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request with an expired quotation.',
             ])
             ->assertCreated();
