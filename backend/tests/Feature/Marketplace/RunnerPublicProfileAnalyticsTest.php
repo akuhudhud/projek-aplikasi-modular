@@ -131,7 +131,7 @@ class RunnerPublicProfileAnalyticsTest extends TestCase
                     ? $runner->id
                     : null,
             'source_type' => $sourceType,
-            'service_type' => 'DELIVERY',
+            'task_class' => MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY,
             'description' => 'Analytics test request',
             'status' => MarketplaceRequest::STATUS_OPEN,
         ]);
