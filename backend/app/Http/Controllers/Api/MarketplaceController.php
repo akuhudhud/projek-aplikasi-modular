@@ -69,7 +69,10 @@ class MarketplaceController extends Controller
             'data' => [
                 'requests' => $requests->getCollection()
                     ->map(fn (MarketplaceRequest $item) =>
-                        $this->requestPayload($item)
+                        $this->requestPayload(
+                            $item,
+                            $view === 'mine'
+                        )
                     )
                     ->values(),
                 'pagination' => [
@@ -157,7 +160,10 @@ class MarketplaceController extends Controller
             }
         }
 
-        $payload = $this->requestPayload($marketplaceRequest);
+        $payload = $this->requestPayload(
+            $marketplaceRequest,
+            $isOwner
+        );
 
         if ($isOwner) {
             $payload['quotations'] = $marketplaceRequest
@@ -229,7 +235,6 @@ class MarketplaceController extends Controller
                 'string',
                 'max:10000',
             ],
-
             'pickup_location_snapshot' => [
                 'required_if:task_class,PICKUP_DELIVERY',
                 'array',
@@ -242,7 +247,6 @@ class MarketplaceController extends Controller
                 'required_if:task_class,NON_DELIVERY',
                 'array',
             ],
-
             'expires_at' => [
                 'nullable',
                 'date',
@@ -384,9 +388,10 @@ class MarketplaceController extends Controller
     }
 
     private function requestPayload(
-        MarketplaceRequest $marketplaceRequest
+        MarketplaceRequest $marketplaceRequest,
+        bool $includeInternalReferences = true
     ): array {
-        return $marketplaceRequest->only([
+        $payload = $marketplaceRequest->only([
             'request_id',
             'customer_account_id',
             'target_runner_account_id',
@@ -404,6 +409,16 @@ class MarketplaceController extends Controller
             'created_at',
             'updated_at',
         ]);
+
+        if (!$includeInternalReferences) {
+            unset(
+                $payload['customer_account_id'],
+                $payload['target_runner_account_id'],
+                $payload['winning_quotation_id']
+            );
+        }
+
+        return $payload;
     }
 
     private function error(string $message, int $status): JsonResponse
