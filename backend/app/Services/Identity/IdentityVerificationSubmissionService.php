@@ -8,7 +8,6 @@ use App\Models\IdentityVerificationDocument;
 use App\Services\AuditLogService;
 use DomainException;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -19,8 +18,6 @@ use Throwable;
 class IdentityVerificationSubmissionService
 {
     private const MAX_FILE_BYTES = 10 * 1024 * 1024;
-
-    private const ENCRYPTED_FILE_PREFIX = 'SRIDENC1:';
 
     public function __construct(
         private AuditLogService $auditLogService
@@ -42,6 +39,12 @@ class IdentityVerificationSubmissionService
         if ($realName === '' || $mykadNumber === '') {
             throw new InvalidArgumentException(
                 'Real name and MyKad number are required.'
+            );
+        }
+
+        if (!preg_match('/^\d{12}$/', $mykadNumber)) {
+            throw new InvalidArgumentException(
+                'MyKad number must contain exactly 12 digits.'
             );
         }
 
@@ -97,8 +100,7 @@ class IdentityVerificationSubmissionService
                     $verification->documents()->delete();
 
                     $verification->real_name = $realName;
-                    $verification->mykad_number_encrypted =
-                        Crypt::encryptString($mykadNumber);
+                    $verification->mykad_number = $mykadNumber;
                     $verification->status =
                         IdentityVerification::STATUS_PENDING;
                     $verification->submitted_at = now();
@@ -111,8 +113,7 @@ class IdentityVerificationSubmissionService
                         'id' => (string) Str::uuid(),
                         'account_id' => $account->id,
                         'real_name' => $realName,
-                        'mykad_number_encrypted' =>
-                            Crypt::encryptString($mykadNumber),
+                        'mykad_number' => $mykadNumber,
                         'status' => IdentityVerification::STATUS_PENDING,
                         'submitted_at' => now(),
                     ]);
@@ -122,51 +123,33 @@ class IdentityVerificationSubmissionService
                     /** @var UploadedFile $file */
                     $file = $validatedFile['file'];
 
-                    $extension = $validatedFile['extension'];
-
                     $path = 'identity-documents/'
-                        .Str::uuid().'.'.$extension;
+                        .Str::uuid().'.'.$validatedFile['extension'];
 
-                    /*
-                     * Encrypt the complete file contents before writing
-                     * them to disk. The prefix identifies the storage
-                     * format and allows the download endpoint to
-                     * distinguish encrypted files from legacy plaintext
-                     * files without adding a database column.
-                     *
-                     * Laravel's Crypt payload provides authenticated
-                     * encryption. APP_KEY must be protected and backed
-                     * up securely because it is required for decryption.
-                     */
-                    $encryptedContents = self::ENCRYPTED_FILE_PREFIX
-                        .Crypt::encryptString($file->get());
-
-                    $stored = Storage::disk('local')->put(
-                        $path,
-                        $encryptedContents
+                    $stored = Storage::disk('local')->putFileAs(
+                        'identity-documents',
+                        $file,
+                        basename($path)
                     );
 
-                    if ($stored !== true) {
+                    if (!is_string($stored) || $stored === '') {
                         throw new RuntimeException(
                             'Identity document could not be stored.'
                         );
                     }
 
-                    $storedPaths[] = $path;
+                    $storedPaths[] = $stored;
 
                     IdentityVerificationDocument::create([
                         'id' => (string) Str::uuid(),
                         'identity_verification_id' => $verification->id,
                         'disk' => 'local',
-                        'path' => $path,
+                        'path' => $stored,
                         'mime_type' => $validatedFile['mime_type'],
-                        // Record original, unencrypted upload size.
                         'size_bytes' => $validatedFile['size_bytes'],
                     ]);
                 }
 
-                // Submission and its audit event commit or roll back together.
-                // Never include MyKad data, document paths, or file contents.
                 $this->auditLogService->record(
                     $account,
                     $account,
@@ -177,7 +160,6 @@ class IdentityVerificationSubmissionService
                 return $verification->fresh(['documents']);
             });
         } catch (Throwable $exception) {
-            // The transaction has rolled back before new files are removed.
             foreach ($storedPaths as $storedPath) {
                 try {
                     Storage::disk('local')->delete($storedPath);
@@ -189,8 +171,6 @@ class IdentityVerificationSubmissionService
             throw $exception;
         }
 
-        // The transaction has committed. Never delete new files if old-file
-        // cleanup fails, because the database now references the new files.
         foreach ($oldPaths as $oldPath) {
             try {
                 Storage::disk('local')->delete($oldPath);
@@ -241,11 +221,7 @@ class IdentityVerificationSubmissionService
             if (
                 !is_array($imageInfo)
                 || $imageInfo['mime'] !== 'image/jpeg'
-                || !in_array(
-                    $clientExtension,
-                    ['jpg', 'jpeg'],
-                    true
-                )
+                || !in_array($clientExtension, ['jpg', 'jpeg'], true)
             ) {
                 throw new InvalidArgumentException(
                     'An identity document has an unsupported or mismatched file type.'
