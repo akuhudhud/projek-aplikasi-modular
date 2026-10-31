@@ -8,7 +8,6 @@ use App\Services\Identity\IdentityVerificationSubmissionService;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Tests\TestCase;
@@ -30,7 +29,7 @@ class IdentityVerificationSubmissionServiceTest extends TestCase
         ]);
     }
 
-    public function test_submission_encrypts_mykad_and_stores_document_privately(): void
+    public function test_submission_stores_mykad_as_plaintext_and_document_privately(): void
     {
         Storage::fake('local');
 
@@ -55,21 +54,9 @@ class IdentityVerificationSubmissionServiceTest extends TestCase
 
         $this->assertSame('Real Name', $verification->real_name);
 
-        $this->assertNotSame(
-            $mykadNumber,
-            $verification->mykad_number_encrypted
-        );
-
         $this->assertSame(
             $mykadNumber,
-            Crypt::decryptString(
-                $verification->mykad_number_encrypted
-            )
-        );
-
-        $this->assertSame(
-            $mykadNumber,
-            $verification->decryptMykadNumber()
+            $verification->mykad_number
         );
 
         $this->assertCount(1, $verification->documents);
@@ -98,6 +85,7 @@ class IdentityVerificationSubmissionServiceTest extends TestCase
         $this->assertDatabaseHas('identity_verifications', [
             'id' => $verification->id,
             'account_id' => $account->id,
+            'mykad_number' => $mykadNumber,
             'status' => IdentityVerification::STATUS_PENDING,
         ]);
     }
@@ -258,6 +246,11 @@ class IdentityVerificationSubmissionServiceTest extends TestCase
         $this->assertSame(
             IdentityVerification::STATUS_PENDING,
             $resubmitted->status
+        );
+
+        $this->assertSame(
+            '900101121234',
+            $resubmitted->mykad_number
         );
 
         $this->assertNull($resubmitted->reviewed_at);
