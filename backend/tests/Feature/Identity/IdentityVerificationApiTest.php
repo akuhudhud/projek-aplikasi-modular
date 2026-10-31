@@ -9,7 +9,6 @@ use App\Models\IdentityVerificationDocument;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -72,7 +71,7 @@ class IdentityVerificationApiTest extends TestCase
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'real_name' => 'Contoh Nama Sebenar',
-            'mykad_number_encrypted' => Crypt::encryptString($mykad),
+            'mykad_number' => $mykad,
             'status' => IdentityVerification::STATUS_PENDING,
             'submitted_at' => now(),
         ]);
@@ -117,7 +116,7 @@ class IdentityVerificationApiTest extends TestCase
             );
     }
 
-    public function test_identity_submission_stores_encrypted_mykad_and_returns_only_status(): void
+    public function test_identity_submission_stores_plaintext_mykad_and_returns_only_status(): void
     {
         Storage::fake('local');
 
@@ -149,15 +148,16 @@ class IdentityVerificationApiTest extends TestCase
             ->where('account_id', $account->id)
             ->firstOrFail();
 
-        $this->assertNotSame(
-            '900101145678',
-            $verification->mykad_number_encrypted
-        );
-
         $this->assertSame(
             '900101145678',
-            $verification->decryptMykadNumber()
+            $verification->mykad_number
         );
+
+        $this->assertDatabaseHas('identity_verifications', [
+            'id' => $verification->id,
+            'account_id' => $account->id,
+            'mykad_number' => '900101145678',
+        ]);
 
         $this->assertDatabaseHas('audit_logs', [
             'actor_account_id' => $account->id,
@@ -212,7 +212,7 @@ class IdentityVerificationApiTest extends TestCase
                 $verification->documents->first()->id
             )
             ->assertJsonMissingPath(
-                'data.identity_verification.mykad_number_encrypted'
+                'data.identity_verification.mykad_number'
             )
             ->assertJsonMissingPath(
                 'data.identity_verification.documents.0.path'
