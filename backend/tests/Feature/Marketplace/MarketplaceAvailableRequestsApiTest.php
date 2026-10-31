@@ -126,6 +126,23 @@ class MarketplaceAvailableRequestsApiTest extends TestCase
             $otherRunnerRequestId,
             $visibleRequestIds
         );
+
+        foreach ($requests as $request) {
+            $this->assertArrayNotHasKey(
+                'customer_account_id',
+                $request
+            );
+
+            $this->assertArrayNotHasKey(
+                'target_runner_account_id',
+                $request
+            );
+
+            $this->assertArrayNotHasKey(
+                'winning_quotation_id',
+                $request
+            );
+        }
     }
 
     private function createPublicProfile(
