@@ -11,7 +11,6 @@ use App\Models\RunnerLicenseVerification;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -47,9 +46,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'real_name' => 'Contoh Nama Sebenar',
-            'mykad_number_encrypted' => Crypt::encryptString(
-                '900101145678'
-            ),
+            'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_VERIFIED,
             'submitted_at' => now(),
             'reviewed_at' => now(),
@@ -72,9 +69,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
         return RunnerLicenseVerification::create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'license_number_encrypted' => Crypt::encryptString(
-                $licenseNumber
-            ),
+            'license_number' => $licenseNumber,
             'license_type' => 'GENERAL',
             'license_class' => 'D',
             'expires_at' => now()->addYear()->toDateString(),
@@ -232,15 +227,16 @@ class RunnerLicenseVerificationApiTest extends TestCase
             ->where('account_id', $account->id)
             ->firstOrFail();
 
-        $this->assertNotSame(
-            'D123456789012',
-            $verification->license_number_encrypted
-        );
-
         $this->assertSame(
             'D123456789012',
-            $verification->decryptLicenseNumber()
+            $verification->license_number
         );
+
+        $this->assertDatabaseHas('runner_license_verifications', [
+            'id' => $verification->id,
+            'account_id' => $account->id,
+            'license_number' => 'D123456789012',
+        ]);
 
         $this->assertSame(
             RunnerLicenseVerification::STATUS_PENDING,
@@ -387,7 +383,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
 
         $originalId = $original->id;
         $originalPath = $original->document_path;
-        $originalLicenseNumber = $original->decryptLicenseNumber();
+        $originalLicenseNumber = $original->license_number;
         $originalSubmittedAt = $original->submitted_at;
         $originalReviewedAt = $original->reviewed_at;
         $originalRejectionReason = $original->rejection_reason;
@@ -421,7 +417,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
         $this->assertSame($originalId, $original->id);
         $this->assertSame(
             $originalLicenseNumber,
-            $original->decryptLicenseNumber()
+            $original->license_number
         );
         $this->assertSame($originalPath, $original->document_path);
         $this->assertTrue(
@@ -457,7 +453,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
         $this->assertFalse($renewal->is_current);
         $this->assertSame(
             'D987654321098',
-            $renewal->decryptLicenseNumber()
+            $renewal->license_number
         );
         $this->assertNull($renewal->reviewed_at);
         $this->assertNull($renewal->rejection_reason);
