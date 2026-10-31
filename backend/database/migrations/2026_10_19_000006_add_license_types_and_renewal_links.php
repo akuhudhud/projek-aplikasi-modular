@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('runner_license_verifications', function (Blueprint $table) {
             $table->string('license_type', 30)
-                ->after('license_number_encrypted');
+                ->after('license_number');
 
             $table->uuid('previous_license_verification_id')
                 ->nullable()
