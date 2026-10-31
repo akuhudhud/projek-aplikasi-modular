@@ -9,12 +9,10 @@ use App\Models\IdentityVerificationDocument;
 use App\Services\AuditLogService;
 use App\Services\Identity\IdentityVerificationSubmissionService;
 use DomainException;
-use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -22,8 +20,6 @@ use InvalidArgumentException;
 
 class IdentityVerificationController extends Controller
 {
-    private const ENCRYPTED_FILE_PREFIX = 'SRIDENC1:';
-
     public function submit(
         Request $request,
         IdentityVerificationSubmissionService $submissionService
@@ -122,7 +118,7 @@ class IdentityVerificationController extends Controller
             );
         }
 
-        $mykadNumber = $verification->decryptMykadNumber();
+        $mykadNumber = $verification->mykad_number;
 
         return response()->json([
             'success' => true,
@@ -336,32 +332,6 @@ class IdentityVerificationController extends Controller
                 'Identity document could not be retrieved.',
                 500
             );
-        }
-
-        /*
-         * New documents are encrypted at rest by
-         * IdentityVerificationSubmissionService.
-         *
-         * Legacy documents without the prefix remain readable
-         * until they are replaced or migrated.
-         */
-        if (str_starts_with($contents, self::ENCRYPTED_FILE_PREFIX)) {
-            $encryptedPayload = substr(
-                $contents,
-                strlen(self::ENCRYPTED_FILE_PREFIX)
-            );
-
-            try {
-                $contents = Crypt::decryptString($encryptedPayload);
-            } catch (DecryptException $exception) {
-                // Do not expose encrypted content or cryptographic details.
-                report($exception);
-
-                return $this->errorResponse(
-                    'Identity document could not be retrieved.',
-                    500
-                );
-            }
         }
 
         $extension = match ($document->mime_type) {
