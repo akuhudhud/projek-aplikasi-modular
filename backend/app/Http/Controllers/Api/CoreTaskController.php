@@ -43,25 +43,31 @@ class CoreTaskController extends Controller
             );
         }
 
+        $columns = [
+            'task_id',
+            'module_key',
+            'task_type',
+            'source_type',
+            'source_id',
+            'assigned_account_id',
+            'generic_status',
+            'assigned_at',
+            'started_at',
+            'completed_at',
+            'cancelled_at',
+            'created_at',
+            'updated_at',
+        ];
+
+        // Internal creator reference is available to privileged admins only.
+        if ($isPrivileged) {
+            $columns[] = 'created_by_account_id';
+        }
+
         $tasks = $query
             ->orderByDesc('created_at')
             ->orderBy('task_id')
-            ->paginate(50, [
-                'task_id',
-                'module_key',
-                'task_type',
-                'source_type',
-                'source_id',
-                'created_by_account_id',
-                'assigned_account_id',
-                'generic_status',
-                'assigned_at',
-                'started_at',
-                'completed_at',
-                'cancelled_at',
-                'created_at',
-                'updated_at',
-            ]);
+            ->paginate(50, $columns);
 
         return response()->json([
             'success' => true,
