@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Crypt;
 
 class IdentityVerification extends Model
 {
@@ -27,7 +26,7 @@ class IdentityVerification extends Model
         'id',
         'account_id',
         'real_name',
-        'mykad_number_encrypted',
+        'mykad_number',
         'status',
         'submitted_at',
         'reviewed_at',
@@ -36,7 +35,7 @@ class IdentityVerification extends Model
     ];
 
     protected $hidden = [
-        'mykad_number_encrypted',
+        'mykad_number',
     ];
 
     protected $casts = [
@@ -44,28 +43,13 @@ class IdentityVerification extends Model
         'reviewed_at' => 'datetime',
     ];
 
-    /**
-     * @return BelongsTo<Account, $this>
-     */
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);
     }
 
-    /**
-     * @return HasMany<IdentityVerificationDocument, $this>
-     */
     public function documents(): HasMany
     {
         return $this->hasMany(IdentityVerificationDocument::class);
-    }
-
-    /**
-     * Return the decrypted MyKad number only for explicitly authorized
-     * internal use. Never serialize this value into an API response.
-     */
-    public function decryptMykadNumber(): string
-    {
-        return Crypt::decryptString($this->mykad_number_encrypted);
     }
 }
