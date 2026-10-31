@@ -51,8 +51,138 @@ class MarketplaceRequestAccessApiTest extends TestCase
         ]);
     }
 
-    private function makeAccount(): Account
+    public function test_runner_who_lost_quotation_cannot_view_awarded_request(): void
     {
+        $customer = $this->makeAccount();
+
+        $winningRunner = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED
+        );
+
+        $losingRunner = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED
+        );
+
+        $customerToken = $this->createSessionToken($customer);
+        $winningRunnerToken = $this->createSessionToken($winningRunner);
+        $losingRunnerToken = $this->createSessionToken($losingRunner);
+
+        $created = $this->withToken($customerToken)
+            ->postJson('/api/marketplace/requests', [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Access control after quotation award.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Private pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Private delivery location',
+                ],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('success', true);
+
+        $requestId = $created->json('data.request.request_id');
+
+        $this->assertNotEmpty($requestId);
+
+        // Both runners may view the request while it is open.
+        $this->withToken($winningRunnerToken)
+            ->getJson('/api/marketplace/requests/'.$requestId)
+            ->assertOk()
+            ->assertJsonPath('data.request.status', 'OPEN');
+
+        $this->withToken($losingRunnerToken)
+            ->getJson('/api/marketplace/requests/'.$requestId)
+            ->assertOk()
+            ->assertJsonPath('data.request.status', 'OPEN');
+
+        // Both runners submit quotations.
+        $winningQuotation = $this->withToken($winningRunnerToken)
+            ->postJson(
+                '/api/marketplace/requests/'.$requestId.'/quotations',
+                [
+                    'amount' => '20.00',
+                ]
+            )
+            ->assertCreated()
+            ->assertJsonPath('success', true);
+
+        $losingQuotation = $this->withToken($losingRunnerToken)
+            ->postJson(
+                '/api/marketplace/requests/'.$requestId.'/quotations',
+                [
+                    'amount' => '18.00',
+                ]
+            )
+            ->assertCreated()
+            ->assertJsonPath('success', true);
+
+        $winningQuotationId = $winningQuotation->json(
+            'data.quotation.quotation_id'
+        );
+
+        $losingQuotationId = $losingQuotation->json(
+            'data.quotation.quotation_id'
+        );
+
+        $this->assertNotEmpty($winningQuotationId);
+        $this->assertNotEmpty($losingQuotationId);
+
+        // Customer awards the winning runner's quotation.
+        $this->withToken($customerToken)
+            ->postJson(
+                '/api/marketplace/requests/'.$requestId.'/award',
+                [
+                    'quotation_id' => $winningQuotationId,
+                ]
+            )
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath(
+                'data.task.assigned_account_id',
+                $winningRunner->id
+            );
+
+        // Winning runner retains access to the request and its locations.
+        $this->withToken($winningRunnerToken)
+            ->getJson('/api/marketplace/requests/'.$requestId)
+            ->assertOk()
+            ->assertJsonPath('data.request.status', 'AWARDED')
+            ->assertJsonPath(
+                'data.request.pickup_location_snapshot.address',
+                'Private pickup location'
+            )
+            ->assertJsonPath(
+                'data.request.delivery_location_snapshot.address',
+                'Private delivery location'
+            );
+
+        // Losing runner must no longer access the request or its locations.
+        $this->withToken($losingRunnerToken)
+            ->getJson('/api/marketplace/requests/'.$requestId)
+            ->assertNotFound()
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseHas('marketplace_requests', [
+            'request_id' => $requestId,
+            'status' => 'AWARDED',
+            'winning_quotation_id' => $winningQuotationId,
+        ]);
+
+        $this->assertDatabaseHas('marketplace_quotations', [
+            'quotation_id' => $winningQuotationId,
+            'status' => 'ACCEPTED',
+        ]);
+
+        $this->assertDatabaseHas('marketplace_quotations', [
+            'quotation_id' => $losingQuotationId,
+            'status' => 'NOT_SELECTED',
+        ]);
+    }
+
+    private function makeAccount(
+        string $runnerStatus = Account::RUNNER_STATUS_NOT_RUNNER
+    ): Account {
         $id = (string) Str::uuid();
         $now = now();
 
@@ -62,7 +192,7 @@ class MarketplaceRequestAccessApiTest extends TestCase
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
-            'runner_status' => Account::RUNNER_STATUS_NOT_RUNNER,
+            'runner_status' => $runnerStatus,
             'created_at' => $now,
             'updated_at' => $now,
         ]);
