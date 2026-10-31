@@ -12,20 +12,16 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->uuid('account_id')->unique();
             $table->string('real_name');
-            $table->text('mykad_number_encrypted');
+            $table->string('mykad_number', 12);
             $table->string('status', 30)->default('PENDING')->index();
             $table->timestamp('submitted_at');
             $table->timestamp('reviewed_at')->nullable();
 
             // Keep reviewer identity as a historical UUID.
-            // This avoids deleting verification history if an admin account
-            // is later removed from the accounts table.
             $table->uuid('reviewer_account_id')->nullable();
             $table->text('rejection_reason')->nullable();
             $table->timestamps();
 
-            // Identity records must be explicitly removed before an account
-            // can be physically deleted.
             $table->foreign('account_id')
                 ->references('id')
                 ->on('accounts')
