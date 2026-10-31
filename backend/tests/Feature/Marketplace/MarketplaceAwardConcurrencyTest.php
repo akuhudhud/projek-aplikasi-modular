@@ -49,6 +49,12 @@ class MarketplaceAwardConcurrencyTest extends TestCase
             'customer_account_id' => $customer->id,
             'source_type' => MarketplaceRequest::SOURCE_MARKETPLACE,
             'task_class' => MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY,
+            'pickup_location_snapshot' => [
+                'address' => 'Pickup location',
+            ],
+            'delivery_location_snapshot' => [
+                'address' => 'Delivery location',
+            ],
             'description' => 'Concurrent award integration test.',
             'status' => MarketplaceRequest::STATUS_OPEN,
         ]);
