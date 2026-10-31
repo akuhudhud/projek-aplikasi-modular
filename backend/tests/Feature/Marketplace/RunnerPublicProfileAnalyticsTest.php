@@ -132,6 +132,12 @@ class RunnerPublicProfileAnalyticsTest extends TestCase
                     : null,
             'source_type' => $sourceType,
             'task_class' => MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY,
+            'pickup_location_snapshot' => [
+                'address' => 'Pickup location',
+            ],
+            'delivery_location_snapshot' => [
+                'address' => 'Delivery location',
+            ],
             'description' => 'Analytics test request',
             'status' => MarketplaceRequest::STATUS_OPEN,
         ]);
