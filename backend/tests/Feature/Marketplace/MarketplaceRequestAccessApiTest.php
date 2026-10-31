@@ -85,16 +85,52 @@ class MarketplaceRequestAccessApiTest extends TestCase
 
         $this->assertNotEmpty($requestId);
 
-        // Both runners may view the request while it is open.
+        // Customer retains internal references.
+        $this->withToken($customerToken)
+            ->getJson('/api/marketplace/requests/'.$requestId)
+            ->assertOk()
+            ->assertJsonPath(
+                'data.request.customer_account_id',
+                $customer->id
+            )
+            ->assertJsonPath(
+                'data.request.target_runner_account_id',
+                null
+            )
+            ->assertJsonPath(
+                'data.request.winning_quotation_id',
+                null
+            );
+
+        // Both runners may view the request while it is open,
+        // but must not receive internal references.
         $this->withToken($winningRunnerToken)
             ->getJson('/api/marketplace/requests/'.$requestId)
             ->assertOk()
-            ->assertJsonPath('data.request.status', 'OPEN');
+            ->assertJsonPath('data.request.status', 'OPEN')
+            ->assertJsonMissingPath(
+                'data.request.customer_account_id'
+            )
+            ->assertJsonMissingPath(
+                'data.request.target_runner_account_id'
+            )
+            ->assertJsonMissingPath(
+                'data.request.winning_quotation_id'
+            );
 
         $this->withToken($losingRunnerToken)
             ->getJson('/api/marketplace/requests/'.$requestId)
             ->assertOk()
-            ->assertJsonPath('data.request.status', 'OPEN');
+            ->assertJsonPath('data.request.status', 'OPEN')
+            ->assertJsonMissingPath(
+                'data.request.customer_account_id'
+            )
+            ->assertJsonMissingPath(
+                'data.request.target_runner_account_id'
+            )
+            ->assertJsonMissingPath(
+                'data.request.winning_quotation_id'
+            );
 
         // Both runners submit quotations.
         $winningQuotation = $this->withToken($winningRunnerToken)
@@ -143,7 +179,21 @@ class MarketplaceRequestAccessApiTest extends TestCase
                 $winningRunner->id
             );
 
-        // Winning runner retains access to the request and its locations.
+        // Customer can still see all internal references after award.
+        $this->withToken($customerToken)
+            ->getJson('/api/marketplace/requests/'.$requestId)
+            ->assertOk()
+            ->assertJsonPath(
+                'data.request.customer_account_id',
+                $customer->id
+            )
+            ->assertJsonPath(
+                'data.request.winning_quotation_id',
+                $winningQuotationId
+            );
+
+        // Winning runner retains access to task locations,
+        // but not internal customer/request references.
         $this->withToken($winningRunnerToken)
             ->getJson('/api/marketplace/requests/'.$requestId)
             ->assertOk()
@@ -155,9 +205,18 @@ class MarketplaceRequestAccessApiTest extends TestCase
             ->assertJsonPath(
                 'data.request.delivery_location_snapshot.address',
                 'Private delivery location'
+            )
+            ->assertJsonMissingPath(
+                'data.request.customer_account_id'
+            )
+            ->assertJsonMissingPath(
+                'data.request.target_runner_account_id'
+            )
+            ->assertJsonMissingPath(
+                'data.request.winning_quotation_id'
             );
 
-        // Losing runner must no longer access the request or its locations.
+        // Losing runner must no longer access the request.
         $this->withToken($losingRunnerToken)
             ->getJson('/api/marketplace/requests/'.$requestId)
             ->assertNotFound()
