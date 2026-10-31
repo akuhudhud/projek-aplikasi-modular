@@ -10,7 +10,6 @@ use App\Models\RunnerLicenseVerification;
 use DomainException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -80,11 +79,7 @@ class RunnerLicenseVerificationService
 
         if (
             !isset($allowedTypes[$mimeType])
-            || !in_array(
-                $extension,
-                $allowedTypes[$mimeType],
-                true
-            )
+            || !in_array($extension, $allowedTypes[$mimeType], true)
         ) {
             throw new InvalidArgumentException(
                 'Dokumen lesen mestilah fail JPEG, PNG atau PDF yang sepadan.'
@@ -159,10 +154,6 @@ class RunnerLicenseVerificationService
                     );
                 }
 
-                /*
-                 * Tanpa callback, penghantaran dianggap sebagai
-                 * lesen tambahan untuk Runner yang telah diluluskan.
-                 */
                 if (
                     $afterCreate === null
                     && $lockedAccount->runner_status
@@ -173,17 +164,6 @@ class RunnerLicenseVerificationService
                     );
                 }
 
-                /*
-                 * Callback digunakan untuk:
-                 * 1. Mengemas kini status permohonan Runner awal.
-                 * 2. Merekod audit penghantaran lesen tambahan.
-                 *
-                 * Permohonan awal dibenarkan untuk NOT_RUNNER.
-                 * Lesen tambahan dengan callback audit dibenarkan
-                 * untuk APPROVED.
-                 *
-                 * Status lain kekal disekat.
-                 */
                 if (
                     $afterCreate !== null
                     && !in_array(
@@ -200,9 +180,6 @@ class RunnerLicenseVerificationService
                     );
                 }
 
-                /*
-                 * Sahkan jenis lesen melalui katalog dinamik.
-                 */
                 $typeEntry = DrivingLicenseType::query()
                     ->where('code', $licenseType)
                     ->where('is_active', true)
@@ -215,9 +192,6 @@ class RunnerLicenseVerificationService
                     );
                 }
 
-                /*
-                 * Kelas lesen mesti milik jenis lesen yang dipilih.
-                 */
                 $catalogEntry = DrivingLicenseCatalog::query()
                     ->where(
                         'driving_license_type_id',
@@ -234,10 +208,6 @@ class RunnerLicenseVerificationService
                     );
                 }
 
-                /*
-                 * Sekat permohonan pending bagi gabungan jenis
-                 * dan kelas lesen yang sama.
-                 */
                 $pendingApplication = RunnerLicenseVerification::query()
                     ->where('account_id', $lockedAccount->id)
                     ->where('license_type', $typeEntry->code)
@@ -255,10 +225,6 @@ class RunnerLicenseVerificationService
                     );
                 }
 
-                /*
-                 * Cari lesen semasa yang telah disahkan bagi
-                 * jenis dan kelas yang sama.
-                 */
                 $previous = RunnerLicenseVerification::query()
                     ->where('account_id', $lockedAccount->id)
                     ->where('license_type', $typeEntry->code)
@@ -272,9 +238,6 @@ class RunnerLicenseVerificationService
                     ->lockForUpdate()
                     ->first();
 
-                /*
-                 * Simpan dokumen menggunakan nama fail rawak.
-                 */
                 $storedPath = Storage::disk('local')->putFileAs(
                     'runner-license-documents',
                     $document,
@@ -294,8 +257,7 @@ class RunnerLicenseVerificationService
                     ->create([
                         'id' => (string) Str::uuid(),
                         'account_id' => $lockedAccount->id,
-                        'license_number_encrypted' =>
-                            Crypt::encryptString($licenseNumber),
+                        'license_number' => $licenseNumber,
                         'license_type' => $typeEntry->code,
                         'license_class' => $catalogEntry->code,
                         'previous_license_verification_id' =>
@@ -314,11 +276,6 @@ class RunnerLicenseVerificationService
                         'size_bytes' => $size,
                     ]);
 
-                /*
-                 * Callback berjalan dalam transaksi yang sama.
-                 * Jika audit gagal, perubahan pangkalan data
-                 * dibatalkan dan dokumen dipadam dalam catch.
-                 */
                 if ($afterCreate !== null) {
                     $afterCreate($verification, $lockedAccount);
                 }
