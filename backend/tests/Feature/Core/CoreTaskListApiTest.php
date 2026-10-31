@@ -45,7 +45,8 @@ class CoreTaskListApiTest extends TestCase
         string $taskId,
         string $sourceId,
         ?string $assignedAccountId,
-        string $status = CoreTask::STATUS_ASSIGNED
+        string $status = CoreTask::STATUS_ASSIGNED,
+        ?string $createdByAccountId = null
     ): CoreTask {
         return CoreTask::create([
             'task_id' => $taskId,
@@ -53,7 +54,8 @@ class CoreTaskListApiTest extends TestCase
             'task_type' => 'PICK_AND_DROP_REQUEST',
             'source_type' => 'pick_and_drop_request',
             'source_id' => $sourceId,
-            'created_by_account_id' => $assignedAccountId,
+            'created_by_account_id' => $createdByAccountId
+                ?? $assignedAccountId,
             'assigned_account_id' => $assignedAccountId,
             'generic_status' => $status,
         ]);
@@ -86,7 +88,9 @@ class CoreTaskListApiTest extends TestCase
         $this->createTask(
             '11111111-1111-4111-8111-111111111111',
             'source-user-one',
-            $user->id
+            $user->id,
+            CoreTask::STATUS_ASSIGNED,
+            $otherUser->id
         );
 
         $this->createTask(
@@ -121,7 +125,25 @@ class CoreTaskListApiTest extends TestCase
             ])
             ->assertJsonMissing([
                 'task_id' => '33333333-3333-4333-8333-333333333333',
-            ]);
+            ])
+            ->assertJsonMissingPath(
+                'data.tasks.0.created_by_account_id'
+            );
+
+        $this->assertSame(
+            $user->id,
+            $response->json('data.tasks.0.assigned_account_id')
+        );
+
+        $this->assertArrayNotHasKey(
+            'created_by_account_id',
+            $response->json('data.tasks.0')
+        );
+
+        $this->assertNotSame(
+            $user->id,
+            $otherUser->id
+        );
     }
 
     public function test_super_admin_can_view_all_core_tasks(): void
@@ -172,6 +194,11 @@ class CoreTaskListApiTest extends TestCase
             ->assertJsonFragment([
                 'task_id' => '22222222-2222-4222-8222-222222222222',
             ]);
+
+        $this->assertSame(
+            $user->id,
+            $response->json('data.tasks.0.created_by_account_id')
+        );
     }
 
     public function test_core_task_list_returns_safe_fields_and_pagination(): void
@@ -209,7 +236,6 @@ class CoreTaskListApiTest extends TestCase
                             'task_type',
                             'source_type',
                             'source_id',
-                            'created_by_account_id',
                             'assigned_account_id',
                             'generic_status',
                             'assigned_at',
@@ -229,7 +255,10 @@ class CoreTaskListApiTest extends TestCase
                 ],
             ])
             ->assertJsonPath('data.pagination.total', 1)
-            ->assertJsonPath('data.pagination.per_page', 50);
+            ->assertJsonPath('data.pagination.per_page', 50)
+            ->assertJsonMissingPath(
+                'data.tasks.0.created_by_account_id'
+            );
 
         $response->assertJsonMissingPath('data.tasks.0.password');
         $response->assertJsonMissingPath('data.tasks.0.token_hash');
