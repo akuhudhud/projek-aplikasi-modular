@@ -12,8 +12,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->uuid('account_id')->unique();
 
-            // Nombor lesen disimpan dalam bentuk encrypted.
-            $table->text('license_number_encrypted');
+            $table->string('license_number', 100);
             $table->string('license_class', 30);
             $table->date('expires_at');
 
