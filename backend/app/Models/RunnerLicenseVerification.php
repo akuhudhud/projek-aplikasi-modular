@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Crypt;
 
 class RunnerLicenseVerification extends Model
 {
@@ -23,7 +22,7 @@ class RunnerLicenseVerification extends Model
     protected $fillable = [
         'id',
         'account_id',
-        'license_number_encrypted',
+        'license_number',
         'license_type',
         'license_class',
         'previous_license_verification_id',
@@ -41,7 +40,7 @@ class RunnerLicenseVerification extends Model
     ];
 
     protected $hidden = [
-        'license_number_encrypted',
+        'license_number',
         'document_path',
         'disk',
     ];
@@ -54,29 +53,16 @@ class RunnerLicenseVerification extends Model
         'size_bytes' => 'integer',
     ];
 
-    /**
-     * @return BelongsTo<Account, $this>
-     */
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);
     }
 
-    /**
-     * @return BelongsTo<self, $this>
-     */
     public function previousVerification(): BelongsTo
     {
         return $this->belongsTo(
             self::class,
             'previous_license_verification_id'
-        );
-    }
-
-    public function decryptLicenseNumber(): string
-    {
-        return Crypt::decryptString(
-            $this->license_number_encrypted
         );
     }
 }
