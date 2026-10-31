@@ -267,7 +267,7 @@ class RunnerLicenseVerificationController extends Controller
             );
         }
 
-        $licenseNumber = $verification->decryptLicenseNumber();
+        $licenseNumber = $verification->license_number;
 
         return response()->json([
             'success' => true,
