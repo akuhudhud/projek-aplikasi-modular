@@ -13,7 +13,6 @@ use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -81,9 +80,7 @@ class RunnerStatusServiceTest extends TestCase
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'real_name' => 'Contoh Nama Sebenar',
-            'mykad_number_encrypted' => Crypt::encryptString(
-                '900101145678'
-            ),
+            'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_VERIFIED,
             'submitted_at' => now(),
             'reviewed_at' => now(),
@@ -96,9 +93,7 @@ class RunnerStatusServiceTest extends TestCase
         return RunnerLicenseVerification::query()->create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'license_number_encrypted' => Crypt::encryptString(
-                'D123456789012'
-            ),
+            'license_number' => 'D123456789012',
             'license_type' => $this->licenseType->code,
             'license_class' => 'D',
             'expires_at' => now()->addYear()->toDateString(),
