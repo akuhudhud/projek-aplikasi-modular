@@ -11,7 +11,6 @@ use App\Models\RunnerLicenseVerification;
 use App\Services\RunnerStatusService;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -81,7 +80,7 @@ class RunnerApprovalIdentityRecheckTest extends TestCase
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'real_name' => 'Nama Identiti Ujian',
-            'mykad_number_encrypted' => Crypt::encryptString('900101145678'),
+            'mykad_number' => '900101145678',
             'status' => $status,
             'submitted_at' => now(),
             'reviewed_at' => now(),
@@ -94,9 +93,7 @@ class RunnerApprovalIdentityRecheckTest extends TestCase
         return RunnerLicenseVerification::query()->create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'license_number_encrypted' => Crypt::encryptString(
-                'D123456789012'
-            ),
+            'license_number' => 'D123456789012',
             'license_type' => $this->licenseType->code,
             'license_class' => 'D',
             'expires_at' => now()->addYear()->toDateString(),
