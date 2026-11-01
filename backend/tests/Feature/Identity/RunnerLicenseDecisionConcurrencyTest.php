@@ -4,7 +4,6 @@ namespace Tests\Feature\Identity;
 
 use App\Models\AuditLog;
 use App\Models\RunnerLicenseVerification;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -58,9 +57,7 @@ class RunnerLicenseDecisionConcurrencyTest extends TestCase
             RunnerLicenseVerification::query()->create([
                 'id' => $verificationId,
                 'account_id' => $targetId,
-                'license_number_encrypted' => Crypt::encryptString(
-                    'D123456789012'
-                ),
+                'license_number' => 'D123456789012',
                 'license_type' => 'GENERAL',
                 'license_class' => 'D',
                 'previous_license_verification_id' => null,
