@@ -10,7 +10,6 @@ use App\Models\Session;
 use App\Services\AuditLogService;
 use App\Services\Identity\IdentityVerificationDeletionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -72,9 +71,7 @@ class IdentityVerificationDeletionTest extends TestCase
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'real_name' => 'Nama Ujian',
-            'mykad_number_encrypted' => Crypt::encryptString(
-                '900101145678'
-            ),
+            'mykad_number' => '900101145678',
             'status' => $status,
             'submitted_at' => now(),
             'verified_at' => $status === IdentityVerification::STATUS_VERIFIED
