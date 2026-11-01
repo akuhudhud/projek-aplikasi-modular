@@ -6,7 +6,6 @@ use App\Models\Account;
 use App\Models\IdentityVerification;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -55,9 +54,7 @@ class IdentityVerificationDisplayNameTest extends TestCase
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'real_name' => $realName,
-            'mykad_number_encrypted' => Crypt::encryptString(
-                '900101145678'
-            ),
+            'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_PENDING,
             'submitted_at' => now(),
         ]);
