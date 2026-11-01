@@ -8,7 +8,6 @@ use App\Models\IdentityVerification;
 use App\Models\IdentityVerificationDocument;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -16,8 +15,6 @@ use Tests\TestCase;
 class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
 {
     use RefreshDatabase;
-
-    private const ENCRYPTED_FILE_PREFIX = 'SRIDENC1:';
 
     private const DOCUMENT_CONTENT = '%PDF-test-content';
 
@@ -63,30 +60,22 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
     }
 
     private function createVerificationWithDocument(
-        Account $account,
-        bool $encrypted = true
+        Account $account
     ): IdentityVerificationDocument {
         $verification = IdentityVerification::create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'real_name' => 'Nama Ujian Sulit',
-            'mykad_number_encrypted' => Crypt::encryptString(
-                '900101145678'
-            ),
+            'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_PENDING,
             'submitted_at' => now(),
         ]);
 
         $path = 'identity-documents/'.Str::uuid().'.pdf';
 
-        $storedContents = $encrypted
-            ? self::ENCRYPTED_FILE_PREFIX
-                .Crypt::encryptString(self::DOCUMENT_CONTENT)
-            : self::DOCUMENT_CONTENT;
-
         Storage::disk('local')->put(
             $path,
-            $storedContents
+            self::DOCUMENT_CONTENT
         );
 
         return IdentityVerificationDocument::create([
@@ -171,7 +160,7 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
             );
     }
 
-    public function test_encrypted_document_is_decrypted_only_for_authorized_download(): void
+    public function test_authorized_reviewer_can_download_plaintext_document(): void
     {
         Storage::fake('local');
 
@@ -184,19 +173,14 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
 
         $storedContents = Storage::disk('local')->get($document->path);
 
-        $this->assertIsString($storedContents);
-        $this->assertStringStartsWith(
-            self::ENCRYPTED_FILE_PREFIX,
-            $storedContents
-        );
-        $this->assertStringNotContainsString(
+        $this->assertSame(
             self::DOCUMENT_CONTENT,
             $storedContents
         );
 
         $response = $this->asAccount(
             $admin,
-            'identity-download-encrypted-document-token'
+            'identity-download-plaintext-document-token'
         )->get(
             '/api/admin/identity-verifications/'.$applicant->id
                 .'/documents/'.$document->id
@@ -211,39 +195,6 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
                 'Content-Length',
                 (string) strlen(self::DOCUMENT_CONTENT)
             );
-
-        $this->assertSame(
-            self::DOCUMENT_CONTENT,
-            $response->getContent()
-        );
-    }
-
-    public function test_legacy_plaintext_document_remains_downloadable(): void
-    {
-        Storage::fake('local');
-
-        $admin = $this->createAccount('SUPER_ADMIN');
-        $this->grantReviewPermission($admin);
-
-        $applicant = $this->createAccount();
-
-        $document = $this->createVerificationWithDocument(
-            $applicant,
-            false
-        );
-
-        $response = $this->asAccount(
-            $admin,
-            'identity-download-legacy-document-token'
-        )->get(
-            '/api/admin/identity-verifications/'.$applicant->id
-                .'/documents/'.$document->id
-        );
-
-        $response->assertOk()
-            ->assertHeader('Content-Type', 'application/pdf')
-            ->assertHeader('Cache-Control', 'no-store, private')
-            ->assertHeader('X-Content-Type-Options', 'nosniff');
 
         $this->assertSame(
             self::DOCUMENT_CONTENT,
