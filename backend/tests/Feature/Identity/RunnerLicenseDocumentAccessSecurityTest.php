@@ -8,7 +8,6 @@ use App\Models\DrivingLicenseType;
 use App\Models\RunnerLicenseVerification;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -67,9 +66,7 @@ class RunnerLicenseDocumentAccessSecurityTest extends TestCase
         return RunnerLicenseVerification::create([
             'id' => (string) Str::uuid(),
             'account_id' => $applicant->id,
-            'license_number_encrypted' => Crypt::encryptString(
-                'D123456789012'
-            ),
+            'license_number' => 'D123456789012',
             'license_type' => 'GENERAL',
             'license_class' => 'D',
             'expires_at' => now()->addYear()->toDateString(),
