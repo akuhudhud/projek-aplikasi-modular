@@ -8,7 +8,6 @@ use App\Models\IdentityVerificationDocument;
 use App\Services\AuditLogService;
 use App\Services\Identity\IdentityVerificationDeletionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Mockery;
@@ -30,9 +29,7 @@ class IdentityVerificationRestoreIntegrityTest extends TestCase
             'id' => (string) Str::uuid(),
             'account_id' => $applicant->id,
             'real_name' => 'Nama Ujian',
-            'mykad_number_encrypted' => Crypt::encryptString(
-                '900101145678'
-            ),
+            'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_PENDING,
             'submitted_at' => now(),
         ]);
