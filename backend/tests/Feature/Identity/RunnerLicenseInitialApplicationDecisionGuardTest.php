@@ -7,7 +7,6 @@ use App\Models\IdentityVerification;
 use App\Models\RunnerLicenseVerification;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -37,9 +36,7 @@ class RunnerLicenseInitialApplicationDecisionGuardTest extends TestCase
             'id' => (string) Str::uuid(),
             'account_id' => $applicant->id,
             'real_name' => 'Nama Pemohon',
-            'mykad_number_encrypted' => Crypt::encryptString(
-                '900101145678'
-            ),
+            'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_VERIFIED,
             'submitted_at' => now(),
             'reviewed_at' => now(),
@@ -58,9 +55,7 @@ class RunnerLicenseInitialApplicationDecisionGuardTest extends TestCase
         $verification = RunnerLicenseVerification::query()->create([
             'id' => (string) Str::uuid(),
             'account_id' => $applicant->id,
-            'license_number_encrypted' => Crypt::encryptString(
-                'D123456789012'
-            ),
+            'license_number' => 'D123456789012',
             'license_type' => 'GENERAL',
             'license_class' => 'D',
             'previous_license_verification_id' => null,
