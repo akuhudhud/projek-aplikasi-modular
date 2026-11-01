@@ -7,7 +7,6 @@ use App\Models\IdentityVerification;
 use App\Models\IdentityVerificationDocument;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -49,7 +48,7 @@ class IdentityVerificationNameSyncTest extends TestCase
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'real_name' => 'Nama Penuh Disahkan',
-            'mykad_number_encrypted' => Crypt::encryptString('900101145678'),
+            'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_PENDING,
             'submitted_at' => now(),
         ]);
