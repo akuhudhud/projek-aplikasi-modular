@@ -7,7 +7,6 @@ use App\Models\IdentityVerification;
 use App\Models\RunnerPublicProfile;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -313,9 +312,7 @@ class RunnerPublicProfileTest extends TestCase
             ->assertJsonMissingPath('data.profile.account_id')
             ->assertJsonMissingPath('data.profile.phone')
             ->assertJsonMissingPath('data.profile.email')
-            ->assertJsonMissingPath(
-                'data.profile.mykad_number_encrypted'
-            );
+            ->assertJsonMissingPath('data.profile.mykad_number');
     }
 
     public function test_real_name_is_not_returned_when_identity_is_pending(): void
@@ -461,9 +458,7 @@ class RunnerPublicProfileTest extends TestCase
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'real_name' => 'Nama Sebenar Disahkan',
-            'mykad_number_encrypted' => Crypt::encryptString(
-                '900101145678'
-            ),
+            'mykad_number' => '900101145678',
             'status' => $status,
             'submitted_at' => now(),
             'reviewed_at' => in_array(
