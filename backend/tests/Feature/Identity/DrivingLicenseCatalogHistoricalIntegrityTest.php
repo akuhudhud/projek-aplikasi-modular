@@ -8,7 +8,6 @@ use App\Models\DrivingLicenseType;
 use App\Models\RunnerLicenseVerification;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -86,9 +85,7 @@ class DrivingLicenseCatalogHistoricalIntegrityTest extends TestCase
         return RunnerLicenseVerification::query()->create([
             'id' => (string) Str::uuid(),
             'account_id' => $runner->id,
-            'license_number_encrypted' => Crypt::encryptString(
-                'D123456789012'
-            ),
+            'license_number' => 'D123456789012',
             'license_type' => 'GENERAL',
             'license_class' => 'D',
             'previous_license_verification_id' => null,
