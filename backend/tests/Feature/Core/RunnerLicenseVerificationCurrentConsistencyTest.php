@@ -7,7 +7,6 @@ use App\Models\AccountPermission;
 use App\Models\RunnerLicenseVerification;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -54,9 +53,7 @@ class RunnerLicenseVerificationCurrentConsistencyTest extends TestCase
         return RunnerLicenseVerification::query()->create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'license_number_encrypted' => Crypt::encryptString(
-                $licenseNumber
-            ),
+            'license_number' => $licenseNumber,
             'license_type' => 'GENERAL',
             'license_class' => 'D',
             'previous_license_verification_id' => null,
