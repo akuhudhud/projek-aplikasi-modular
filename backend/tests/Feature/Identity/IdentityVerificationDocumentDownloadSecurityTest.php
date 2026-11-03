@@ -88,6 +88,20 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
         ]);
     }
 
+    public function test_unauthenticated_user_cannot_download_identity_document(): void
+    {
+        Storage::fake('local');
+
+        $applicant = $this->createAccount();
+        $document = $this->createVerificationWithDocument($applicant);
+
+        $this->get(
+            '/api/admin/identity-verifications/'.$applicant->id
+                .'/documents/'.$document->id
+        )->assertUnauthorized()
+            ->assertJsonPath('success', false);
+    }
+
     public function test_admin_without_review_permission_cannot_download_identity_document(): void
     {
         Storage::fake('local');
