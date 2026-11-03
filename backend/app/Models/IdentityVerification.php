@@ -4,16 +4,19 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class RunnerLicenseVerification extends Model
+class IdentityVerification extends Model
 {
+    public const STATUS_NOT_SUBMITTED = 'NOT_SUBMITTED';
+
     public const STATUS_PENDING = 'PENDING';
 
     public const STATUS_VERIFIED = 'VERIFIED';
 
     public const STATUS_REJECTED = 'REJECTED';
 
-    protected $table = 'runner_license_verifications';
+    protected $table = 'identity_verifications';
 
     protected $keyType = 'string';
 
@@ -22,35 +25,22 @@ class RunnerLicenseVerification extends Model
     protected $fillable = [
         'id',
         'account_id',
-        'license_number',
-        'license_type',
-        'license_class',
-        'previous_license_verification_id',
-        'expires_at',
+        'real_name',
+        'mykad_number',
         'status',
-        'is_current',
         'submitted_at',
         'reviewed_at',
         'reviewer_account_id',
         'rejection_reason',
-        'disk',
-        'document_path',
-        'mime_type',
-        'size_bytes',
     ];
 
     protected $hidden = [
-        'license_number',
-        'document_path',
-        'disk',
+        'mykad_number',
     ];
 
     protected $casts = [
-        'expires_at' => 'date',
-        'is_current' => 'boolean',
         'submitted_at' => 'datetime',
         'reviewed_at' => 'datetime',
-        'size_bytes' => 'integer',
     ];
 
     /**
@@ -62,13 +52,10 @@ class RunnerLicenseVerification extends Model
     }
 
     /**
-     * @return BelongsTo<RunnerLicenseVerification, $this>
+     * @return HasMany<IdentityVerificationDocument, $this>
      */
-    public function previousVerification(): BelongsTo
+    public function documents(): HasMany
     {
-        return $this->belongsTo(
-            self::class,
-            'previous_license_verification_id'
-        );
+        return $this->hasMany(IdentityVerificationDocument::class);
     }
 }
