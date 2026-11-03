@@ -4,19 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class IdentityVerification extends Model
+class RunnerLicenseVerification extends Model
 {
-    public const STATUS_NOT_SUBMITTED = 'NOT_SUBMITTED';
-
     public const STATUS_PENDING = 'PENDING';
 
     public const STATUS_VERIFIED = 'VERIFIED';
 
     public const STATUS_REJECTED = 'REJECTED';
 
-    protected $table = 'identity_verifications';
+    protected $table = 'runner_license_verifications';
 
     protected $keyType = 'string';
 
@@ -25,22 +22,35 @@ class IdentityVerification extends Model
     protected $fillable = [
         'id',
         'account_id',
-        'real_name',
-        'mykad_number',
+        'license_number',
+        'license_type',
+        'license_class',
+        'previous_license_verification_id',
+        'expires_at',
         'status',
+        'is_current',
         'submitted_at',
         'reviewed_at',
         'reviewer_account_id',
         'rejection_reason',
+        'disk',
+        'document_path',
+        'mime_type',
+        'size_bytes',
     ];
 
     protected $hidden = [
-        'mykad_number',
+        'license_number',
+        'document_path',
+        'disk',
     ];
 
     protected $casts = [
+        'expires_at' => 'date',
+        'is_current' => 'boolean',
         'submitted_at' => 'datetime',
         'reviewed_at' => 'datetime',
+        'size_bytes' => 'integer',
     ];
 
     /**
@@ -52,10 +62,13 @@ class IdentityVerification extends Model
     }
 
     /**
-     * @return HasMany<IdentityVerificationDocument, $this>
+     * @return BelongsTo<RunnerLicenseVerification, $this>
      */
-    public function documents(): HasMany
+    public function previousVerification(): BelongsTo
     {
-        return $this->hasMany(IdentityVerificationDocument::class);
+        return $this->belongsTo(
+            self::class,
+            'previous_license_verification_id'
+        );
     }
 }
