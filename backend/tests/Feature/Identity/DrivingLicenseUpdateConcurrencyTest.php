@@ -65,18 +65,23 @@ class DrivingLicenseUpdateConcurrencyTest extends TestCase
 
             $this->assertCount(
                 1,
+                $rejections,
+                'Expected the concurrent loser to receive HTTP 422. Results: '
+                    .json_encode($results)
+            );
+
+            $this->assertCount(
+                0,
                 $exceptions,
-                'Expected the concurrent loser to expose the unhandled unique constraint. Results: '
+                'No worker should throw an unhandled exception. Results: '
                     .json_encode($results)
             );
 
             $this->assertSame(
-                'Illuminate\\Database\\UniqueConstraintViolationException',
-                $exceptions[0]['exception'] ?? null,
+                'Kod jenis lesen sudah wujud.',
+                $rejections[0]['body']['message'] ?? null,
                 json_encode($results)
             );
-
-            $this->assertCount(0, $rejections, json_encode($results));
 
             $this->assertSame(
                 1,
