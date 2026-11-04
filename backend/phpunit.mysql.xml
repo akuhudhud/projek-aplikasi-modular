@@ -10,6 +10,7 @@
             <file>tests/Feature/Marketplace/MarketplaceAwardConcurrencyTest.php</file>
             <file>tests/Feature/Identity/DrivingLicenseCreationConcurrencyTest.php</file>
             <file>tests/Feature/Identity/DrivingLicenseUpdateConcurrencyTest.php</file>
+            <file>tests/Feature/Identity/DrivingLicenseCatalogUpdateConcurrencyTest.php</file>
         </testsuite>
     </testsuites>
 
