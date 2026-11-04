@@ -42,6 +42,7 @@ class MarketplaceClosedRequestAccessApiTest extends TestCase
                 'delivery_location_snapshot' => [
                     'address' => 'Private delivery address',
                 ],
+                'expires_at' => now()->addHours(2)->toISOString(),
             ])
             ->assertCreated();
 
