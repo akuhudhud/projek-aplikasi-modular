@@ -22,6 +22,7 @@ class MarketplaceTaskClassApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Ambil barang dan hantar ke alamat pelanggan.',
+                'expires_at' => now()->addHours(2)->toISOString(),
                 'pickup_location_snapshot' => [
                     'label' => 'Lokasi pengambilan',
                     'address' => 'Lokasi A',
@@ -72,6 +73,7 @@ class MarketplaceTaskClassApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'NON_DELIVERY',
                 'description' => 'Bantu urus tugasan di lokasi pelanggan.',
+                'expires_at' => now()->addHours(2)->toISOString(),
                 'task_location_snapshot' => [
                     'label' => 'Lokasi tugasan',
                     'address' => 'Lokasi C',
@@ -121,6 +123,7 @@ class MarketplaceTaskClassApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'GENERAL_SERVICE',
                 'description' => 'Unsupported task class.',
+                'expires_at' => now()->addHours(2)->toISOString(),
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors([
@@ -141,6 +144,7 @@ class MarketplaceTaskClassApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request without required locations.',
+                'expires_at' => now()->addHours(2)->toISOString(),
                 'pickup_location_snapshot' => [
                     'address' => 'Lokasi A',
                 ],
@@ -164,6 +168,7 @@ class MarketplaceTaskClassApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'NON_DELIVERY',
                 'description' => 'Request without task location.',
+                'expires_at' => now()->addHours(2)->toISOString(),
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors([
