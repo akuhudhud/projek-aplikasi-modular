@@ -41,6 +41,7 @@ class MarketplaceExpiryServiceTest extends TestCase
             'delivery_location_snapshot' => [
                 'address' => 'Delivery location',
             ],
+            'expires_at' => now()->addHours(2),
         ]);
 
         $quotation = $this->marketplace->submitQuotation(
@@ -84,6 +85,7 @@ class MarketplaceExpiryServiceTest extends TestCase
             'delivery_location_snapshot' => [
                 'address' => 'Delivery location',
             ],
+            'expires_at' => now()->addHours(2),
         ]);
 
         $quotation = $this->marketplace->submitQuotation(
@@ -127,6 +129,7 @@ class MarketplaceExpiryServiceTest extends TestCase
             'delivery_location_snapshot' => [
                 'address' => 'Delivery location',
             ],
+            'expires_at' => now()->addHours(2),
         ]);
 
         $quotation = $this->marketplace->submitQuotation(
@@ -188,6 +191,7 @@ class MarketplaceExpiryServiceTest extends TestCase
             'delivery_location_snapshot' => [
                 'address' => 'Delivery location',
             ],
+            'expires_at' => now()->addHours(2),
         ]);
 
         $withdrawRequest = $this->marketplace->createRequest($customer, [
@@ -199,6 +203,7 @@ class MarketplaceExpiryServiceTest extends TestCase
             'delivery_location_snapshot' => [
                 'address' => 'Delivery location',
             ],
+            'expires_at' => now()->addHours(2),
         ]);
 
         $awardQuotation = $this->marketplace->submitQuotation(
@@ -298,6 +303,7 @@ class MarketplaceExpiryServiceTest extends TestCase
             'delivery_location_snapshot' => [
                 'address' => 'Delivery location',
             ],
+            'expires_at' => now()->addHours(2),
         ]);
 
         $quotation = $this->marketplace->submitQuotation(
@@ -356,6 +362,7 @@ class MarketplaceExpiryServiceTest extends TestCase
             'delivery_location_snapshot' => [
                 'address' => 'Delivery location',
             ],
+            'expires_at' => now()->addHours(2),
         ]);
 
         $request->forceFill([
