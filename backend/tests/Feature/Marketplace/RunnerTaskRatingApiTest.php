@@ -70,6 +70,7 @@ class RunnerTaskRatingApiTest extends TestCase
             'description' => 'Rating API test request.',
             'status' => MarketplaceRequest::STATUS_AWARDED,
             'awarded_at' => now(),
+            'expires_at' => now()->addHours(2),
         ]);
 
         return CoreTask::query()->create([
