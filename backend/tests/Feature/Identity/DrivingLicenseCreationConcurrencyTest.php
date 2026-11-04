@@ -17,7 +17,12 @@ class DrivingLicenseCreationConcurrencyTest extends TestCase
     {
         $this->requireMysqlConcurrency();
 
-        $suffix = strtolower(str_replace('-', '', (string) Str::uuid()));
+        $suffix = substr(
+            strtolower(str_replace('-', '', (string) Str::uuid())),
+            0,
+            12
+        );
+
         $actor = $this->makeAccount('type-concurrency-'.$suffix);
         $code = 'TYPE_'.$suffix;
 
@@ -64,7 +69,12 @@ class DrivingLicenseCreationConcurrencyTest extends TestCase
     {
         $this->requireMysqlConcurrency();
 
-        $suffix = strtolower(str_replace('-', '', (string) Str::uuid()));
+        $suffix = substr(
+            strtolower(str_replace('-', '', (string) Str::uuid())),
+            0,
+            12
+        );
+
         $actor = $this->makeAccount('catalog-concurrency-'.$suffix);
 
         $type = DrivingLicenseType::query()->create([
