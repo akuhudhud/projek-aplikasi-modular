@@ -452,23 +452,27 @@ class MarketplaceServiceTest extends TestCase
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Missing pickup location.',
                 'delivery_location_snapshot' => ['address' => 'Lokasi B'],
+                'expires_at' => now()->addHours(2),
             ],
             [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Empty pickup location.',
                 'pickup_location_snapshot' => [],
                 'delivery_location_snapshot' => ['address' => 'Lokasi B'],
+                'expires_at' => now()->addHours(2),
             ],
             [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Missing delivery location.',
                 'pickup_location_snapshot' => ['address' => 'Lokasi A'],
+                'expires_at' => now()->addHours(2),
             ],
             [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Empty delivery location.',
                 'pickup_location_snapshot' => ['address' => 'Lokasi A'],
                 'delivery_location_snapshot' => [],
+                'expires_at' => now()->addHours(2),
             ],
         ];
 
@@ -497,11 +501,13 @@ class MarketplaceServiceTest extends TestCase
             [
                 'task_class' => 'NON_DELIVERY',
                 'description' => 'Missing task location.',
+                'expires_at' => now()->addHours(2),
             ],
             [
                 'task_class' => 'NON_DELIVERY',
                 'description' => 'Empty task location.',
                 'task_location_snapshot' => [],
+                'expires_at' => now()->addHours(2),
             ],
         ];
 
@@ -531,6 +537,7 @@ class MarketplaceServiceTest extends TestCase
                 'label' => 'Lokasi tugasan',
                 'address' => 'Lokasi C',
             ],
+            'expires_at' => now()->addHours(2),
         ]);
 
         $this->assertSame(
@@ -558,6 +565,7 @@ class MarketplaceServiceTest extends TestCase
                 'label' => 'Lokasi delivery',
                 'address' => 'Lokasi B',
             ],
+            'expires_at' => now()->addHours(2),
         ];
     }
 
