@@ -42,6 +42,7 @@ class MarketplaceAwardRollbackTest extends TestCase
             'delivery_location_snapshot' => [
                 'address' => 'Delivery location',
             ],
+            'expires_at' => now()->addHours(2),
         ]);
 
         $quotation = $marketplace->submitQuotation(
