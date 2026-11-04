@@ -1,0 +1,258 @@
+<?php
+
+namespace Tests\Feature\Identity;
+
+use App\Models\Account;
+use App\Models\DrivingLicenseType;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Tests\TestCase;
+
+class DrivingLicenseUpdateConcurrencyTest extends TestCase
+{
+    private array $workers = [];
+
+    public function test_concurrent_updates_cannot_assign_same_license_type_code(): void
+    {
+        $this->requireMysqlConcurrency();
+
+        $suffix = substr(
+            strtolower(str_replace('-', '', (string) Str::uuid())),
+            0,
+            12
+        );
+
+        $actor = $this->makeAccount('type-update-'.$suffix);
+        $first = $this->makeType('FIRST_'.$suffix);
+        $second = $this->makeType('SECOND_'.$suffix);
+        $newCode = 'SHARED_'.$suffix;
+
+        try {
+            $results = $this->runConcurrentUpdates(
+                $actor->id,
+                [$first->id, $second->id],
+                $newCode
+            );
+
+            $exceptions = array_values(array_filter(
+                $results,
+                fn (array $result): bool =>
+                    ($result['result'] ?? null) === 'EXCEPTION'
+            ));
+
+            $successes = array_values(array_filter(
+                $results,
+                fn (array $result): bool =>
+                    ($result['result'] ?? null) === 'SUCCESS'
+                    && ($result['status'] ?? null) === 200
+            ));
+
+            $rejections = array_values(array_filter(
+                $results,
+                fn (array $result): bool =>
+                    ($result['result'] ?? null) === 'REJECTED'
+                    && ($result['status'] ?? null) === 422
+            ));
+
+            $this->assertSame(
+                1,
+                DrivingLicenseType::query()
+                    ->where('code', $newCode)
+                    ->count()
+            );
+
+            $this->assertCount(1, $successes, json_encode($results));
+
+            $this->assertCount(
+                1,
+                $exceptions,
+                'Expected the concurrent loser to expose the unhandled unique constraint. Results: '
+                    .json_encode($results)
+            );
+
+            $this->assertSame(
+                'Illuminate\\Database\\UniqueConstraintViolationException',
+                $exceptions[0]['exception'] ?? null,
+                json_encode($results)
+            );
+
+            $this->assertCount(0, $rejections, json_encode($results));
+
+            $this->assertSame(
+                1,
+                DB::table('audit_logs')
+                    ->where('actor_account_id', $actor->id)
+                    ->where('action', 'DRIVING_LICENSE_TYPE_UPDATED')
+                    ->count()
+            );
+        } finally {
+            $this->stopWorkers();
+
+            DB::table('audit_logs')
+                ->where('actor_account_id', $actor->id)
+                ->delete();
+
+            DrivingLicenseType::query()
+                ->whereIn('id', [$first->id, $second->id])
+                ->delete();
+
+            Account::query()->whereKey($actor->id)->delete();
+        }
+    }
+
+    private function requireMysqlConcurrency(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped(
+                'Driving license update concurrency requires MySQL.'
+            );
+        }
+
+        if (!function_exists('proc_open')) {
+            $this->markTestSkipped(
+                'Driving license update concurrency requires proc_open.'
+            );
+        }
+    }
+
+    private function makeAccount(string $name): Account
+    {
+        $id = (string) Str::uuid();
+        $now = now();
+
+        DB::table('accounts')->insert([
+            'id' => $id,
+            'name' => $name,
+            'password' => bcrypt('TestPassword123'),
+            'role' => 'ROOT_SUPER_ADMIN',
+            'status' => 'ACTIVE',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        return Account::query()->findOrFail($id);
+    }
+
+    private function makeType(string $code): DrivingLicenseType
+    {
+        return DrivingLicenseType::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => $code,
+            'name' => 'Concurrency '.$code,
+            'description' => null,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+    }
+
+    private function runConcurrentUpdates(
+        string $actorId,
+        array $typeIds,
+        string $newCode
+    ): array {
+        $workerPath = __DIR__.'/../../Support/DrivingLicenseUpdateWorker.php';
+
+        foreach ($typeIds as $typeId) {
+            $pipes = [];
+
+            $process = proc_open(
+                [
+                    PHP_BINARY,
+                    $workerPath,
+                    $actorId,
+                    $typeId,
+                    $newCode,
+                ],
+                [
+                    0 => ['pipe', 'r'],
+                    1 => ['pipe', 'w'],
+                    2 => ['pipe', 'w'],
+                ],
+                $pipes,
+                dirname(__DIR__, 3)
+            );
+
+            $this->assertIsResource(
+                $process,
+                'Unable to start driving license update worker.'
+            );
+
+            stream_set_blocking($pipes[1], true);
+            stream_set_blocking($pipes[2], true);
+
+            $this->workers[] = [
+                'process' => $process,
+                'pipes' => $pipes,
+            ];
+        }
+
+        foreach ($this->workers as $worker) {
+            $this->assertSame(
+                "READY\n",
+                fgets($worker['pipes'][1]),
+                'A worker failed to reach the concurrency barrier.'
+            );
+        }
+
+        foreach ($this->workers as $worker) {
+            fwrite($worker['pipes'][0], "GO\n");
+            fflush($worker['pipes'][0]);
+            fclose($worker['pipes'][0]);
+        }
+
+        $results = [];
+
+        foreach ($this->workers as $index => $worker) {
+            $output = stream_get_contents($worker['pipes'][1]);
+            $errorOutput = stream_get_contents($worker['pipes'][2]);
+
+            fclose($worker['pipes'][1]);
+            fclose($worker['pipes'][2]);
+
+            $exitCode = proc_close($worker['process']);
+            $this->workers[$index]['process'] = null;
+
+            $this->assertSame(
+                0,
+                $exitCode,
+                'Update worker failed: '.$errorOutput
+            );
+
+            $results[] = json_decode(
+                trim($output),
+                true,
+                512,
+                JSON_THROW_ON_ERROR
+            );
+        }
+
+        $this->workers = [];
+
+        return $results;
+    }
+
+    private function stopWorkers(): void
+    {
+        foreach ($this->workers as $worker) {
+            if (!is_resource($worker['process'])) {
+                continue;
+            }
+
+            $status = proc_get_status($worker['process']);
+
+            if ($status['running']) {
+                proc_terminate($worker['process']);
+            }
+
+            foreach ($worker['pipes'] as $pipe) {
+                if (is_resource($pipe)) {
+                    fclose($pipe);
+                }
+            }
+
+            proc_close($worker['process']);
+        }
+
+        $this->workers = [];
+    }
+}
