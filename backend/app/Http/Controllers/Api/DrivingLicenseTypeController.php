@@ -238,6 +238,11 @@ class DrivingLicenseTypeController extends Controller
                 'success' => false,
                 'message' => $exception->getMessage(),
             ], 422);
+        } catch (UniqueConstraintViolationException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kod jenis lesen sudah wujud.',
+            ], 422);
         }
 
         return response()->json([
