@@ -30,6 +30,7 @@ class MarketplaceCoreTaskSourceReferenceApiTest extends TestCase
             $payload = [
                 'task_class' => $taskClass,
                 'description' => 'Source reference test '.$index,
+                'expires_at' => now()->addHours(2)->toISOString(),
             ];
 
             if ($taskClass === 'PICKUP_DELIVERY') {
