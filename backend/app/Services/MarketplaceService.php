@@ -11,6 +11,7 @@ use App\Models\MarketplaceRequest;
 use App\Models\RunnerPublicProfile;
 use DomainException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -128,6 +129,41 @@ class MarketplaceService
             throw new DomainException('Request description is required.');
         }
 
+        /*
+         * Customer-defined request expiry is mandatory.
+         * The selected expiry must be in the future and no more
+         * than 24 hours from the request creation time.
+         */
+        $expiresAtInput = $data['expires_at'] ?? null;
+
+        if ($expiresAtInput === null || $expiresAtInput === '') {
+            throw new DomainException(
+                'Request expiry date and time are required.'
+            );
+        }
+
+        try {
+            $expiresAt = Carbon::parse($expiresAtInput);
+        } catch (\Throwable) {
+            throw new DomainException(
+                'Request expiry date and time are invalid.'
+            );
+        }
+
+        $now = now();
+
+        if ($expiresAt->lessThanOrEqualTo($now)) {
+            throw new DomainException(
+                'Request expiry must be in the future.'
+            );
+        }
+
+        if ($expiresAt->greaterThan($now->copy()->addHours(24))) {
+            throw new DomainException(
+                'Request expiry cannot exceed 24 hours.'
+            );
+        }
+
         // PICKUP_DELIVERY requires both pickup and delivery locations.
         if (
             $taskClass === MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY
@@ -165,7 +201,8 @@ class MarketplaceService
             $targetRunnerSlug,
             $taskClass,
             $description,
-            $data
+            $data,
+            $expiresAt
         ): MarketplaceRequest {
             $targetRunnerId = null;
 
@@ -244,7 +281,7 @@ class MarketplaceService
                 'task_location_snapshot' =>
                     $locationData['task_location_snapshot'],
                 'status' => MarketplaceRequest::STATUS_OPEN,
-                'expires_at' => $data['expires_at'] ?? null,
+                'expires_at' => $expiresAt,
             ]);
         });
     }
