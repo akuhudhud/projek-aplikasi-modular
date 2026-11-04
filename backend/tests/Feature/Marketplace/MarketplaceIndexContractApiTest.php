@@ -161,6 +161,7 @@ class MarketplaceIndexContractApiTest extends TestCase
                 'target_runner_slug' => 'index-contract-runner-two',
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request intended for another runner.',
+                'expires_at' => now()->addHours(2)->toISOString(),
                 'pickup_location_snapshot' => [
                     'address' => 'Pickup location',
                 ],
@@ -218,6 +219,7 @@ class MarketplaceIndexContractApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => $description,
+                'expires_at' => now()->addHours(2)->toISOString(),
                 'pickup_location_snapshot' => [
                     'address' => 'Pickup location',
                 ],
