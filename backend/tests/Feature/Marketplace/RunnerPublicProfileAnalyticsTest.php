@@ -140,6 +140,7 @@ class RunnerPublicProfileAnalyticsTest extends TestCase
             ],
             'description' => 'Analytics test request',
             'status' => MarketplaceRequest::STATUS_OPEN,
+            'expires_at' => now()->addHours(2),
         ]);
     }
 
