@@ -35,6 +35,7 @@ class MarketplaceAwardApiTest extends TestCase
                 'delivery_location_snapshot' => [
                     'address' => 'Delivery location',
                 ],
+                'expires_at' => now()->addHours(2)->toISOString(),
             ])
             ->assertCreated();
 
@@ -130,6 +131,7 @@ class MarketplaceAwardApiTest extends TestCase
                 'delivery_location_snapshot' => [
                     'address' => 'Delivery location',
                 ],
+                'expires_at' => now()->addHours(2)->toISOString(),
             ])
             ->assertCreated();
 
@@ -207,6 +209,7 @@ class MarketplaceAwardApiTest extends TestCase
                 'delivery_location_snapshot' => [
                     'address' => 'Delivery location',
                 ],
+                'expires_at' => now()->addHours(2)->toISOString(),
             ])
             ->assertCreated();
 
