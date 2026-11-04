@@ -57,6 +57,7 @@ class MarketplaceAwardConcurrencyTest extends TestCase
             ],
             'description' => 'Concurrent award integration test.',
             'status' => MarketplaceRequest::STATUS_OPEN,
+            'expires_at' => $now->copy()->addHours(2),
         ]);
 
         MarketplaceQuotation::query()->create([
