@@ -30,6 +30,7 @@ class MarketplaceCoreTaskResolutionApiTest extends TestCase
             $payload = [
                 'task_class' => $taskClass,
                 'description' => 'Core task resolution test '.$index,
+                'expires_at' => now()->addHours(2)->toISOString(),
             ];
 
             if ($taskClass === 'PICKUP_DELIVERY') {
