@@ -9,6 +9,7 @@ use App\Models\DrivingLicenseType;
 use App\Models\RunnerLicenseVerification;
 use App\Services\AuditLogService;
 use DomainException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -371,6 +372,11 @@ class DrivingLicenseCatalogController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $exception->getMessage(),
+            ], 422);
+        } catch (UniqueConstraintViolationException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kod kelas sudah wujud dalam jenis lesen ini.',
             ], 422);
         }
 
