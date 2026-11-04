@@ -26,6 +26,7 @@ class MarketplaceTerminalRequestAccessApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Cancelled request access regression.',
+                'expires_at' => now()->addHours(2)->toISOString(),
                 'pickup_location_snapshot' => [
                     'address' => 'Pickup location',
                 ],
@@ -74,6 +75,7 @@ class MarketplaceTerminalRequestAccessApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Expired request access regression.',
+                'expires_at' => now()->addHours(2)->toISOString(),
                 'pickup_location_snapshot' => [
                     'address' => 'Pickup location',
                 ],
