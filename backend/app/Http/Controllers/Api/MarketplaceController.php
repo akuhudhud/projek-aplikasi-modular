@@ -248,9 +248,10 @@ class MarketplaceController extends Controller
                 'array',
             ],
             'expires_at' => [
-                'nullable',
+                'required',
                 'date',
                 'after:now',
+                'before_or_equal:'.now()->addHours(24)->toDateTimeString(),
             ],
         ]);
 
