@@ -25,6 +25,7 @@ class MarketplaceValidationContractApiTest extends TestCase
             ->assertJsonValidationErrors([
                 'task_class',
                 'description',
+                'expires_at',
             ]);
 
         $this->assertDatabaseCount('marketplace_requests', 0);
@@ -75,6 +76,7 @@ class MarketplaceValidationContractApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request for API validation testing.',
+                'expires_at' => now()->addHours(2)->toISOString(),
                 'pickup_location_snapshot' => [
                     'address' => 'Pickup location',
                 ],
@@ -126,6 +128,7 @@ class MarketplaceValidationContractApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request for award validation testing.',
+                'expires_at' => now()->addHours(2)->toISOString(),
                 'pickup_location_snapshot' => [
                     'address' => 'Pickup location',
                 ],
