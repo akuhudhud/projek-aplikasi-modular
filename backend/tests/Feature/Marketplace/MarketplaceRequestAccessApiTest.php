@@ -25,6 +25,7 @@ class MarketplaceRequestAccessApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Private request owned by another customer.',
+                'expires_at' => now()->addHours(2)->toISOString(),
                 'pickup_location_snapshot' => [
                     'address' => 'Pickup location',
                 ],
@@ -71,6 +72,7 @@ class MarketplaceRequestAccessApiTest extends TestCase
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Access control after quotation award.',
+                'expires_at' => now()->addHours(2)->toISOString(),
                 'pickup_location_snapshot' => [
                     'address' => 'Private pickup location',
                 ],
