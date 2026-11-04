@@ -8,6 +8,7 @@ use App\Models\DrivingLicenseType;
 use App\Models\RunnerLicenseVerification;
 use App\Services\AuditLogService;
 use DomainException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -84,29 +85,36 @@ class DrivingLicenseTypeController extends Controller
         /** @var Account $actor */
         $actor = $request->attributes->get('account');
 
-        $type = DB::transaction(function () use (
-            $validated,
-            $actor,
-            $auditLogService
-        ): DrivingLicenseType {
-            $type = DrivingLicenseType::query()->create([
-                'id' => (string) Str::uuid(),
-                'code' => $validated['code'],
-                'name' => $validated['name'],
-                'description' => $validated['description'] ?? null,
-                'is_active' => true,
-                'sort_order' => $validated['sort_order'] ?? 0,
-            ]);
-
-            $auditLogService->record(
+        try {
+            $type = DB::transaction(function () use (
+                $validated,
                 $actor,
-                $actor,
-                'DRIVING_LICENSE_TYPE_CREATED',
-                'Created driving license type '.$type->code.'.'
-            );
+                $auditLogService
+            ): DrivingLicenseType {
+                $type = DrivingLicenseType::query()->create([
+                    'id' => (string) Str::uuid(),
+                    'code' => $validated['code'],
+                    'name' => $validated['name'],
+                    'description' => $validated['description'] ?? null,
+                    'is_active' => true,
+                    'sort_order' => $validated['sort_order'] ?? 0,
+                ]);
 
-            return $type;
-        });
+                $auditLogService->record(
+                    $actor,
+                    $actor,
+                    'DRIVING_LICENSE_TYPE_CREATED',
+                    'Created driving license type '.$type->code.'.'
+                );
+
+                return $type;
+            });
+        } catch (UniqueConstraintViolationException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kod jenis lesen sudah wujud.',
+            ], 422);
+        }
 
         return response()->json([
             'success' => true,
