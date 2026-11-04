@@ -38,6 +38,7 @@ class MarketplaceApiTest extends TestCase
                 'delivery_location_snapshot' => [
                     'label' => 'Point B',
                 ],
+                'expires_at' => now()->addHours(2)->toISOString(),
             ]);
 
         $response
@@ -77,6 +78,7 @@ class MarketplaceApiTest extends TestCase
                 'delivery_location_snapshot' => [
                     'label' => 'Document delivery',
                 ],
+                'expires_at' => now()->addHours(2)->toISOString(),
             ])
             ->assertCreated();
 
@@ -158,6 +160,7 @@ class MarketplaceApiTest extends TestCase
                 'delivery_location_snapshot' => [
                     'label' => 'Package delivery',
                 ],
+                'expires_at' => now()->addHours(2)->toISOString(),
             ])
             ->assertCreated();
 
@@ -223,6 +226,7 @@ class MarketplaceApiTest extends TestCase
                 'delivery_location_snapshot' => [
                     'label' => 'Specific runner delivery',
                 ],
+                'expires_at' => now()->addHours(2)->toISOString(),
             ])
             ->assertCreated()
             ->assertJsonPath(
@@ -288,6 +292,7 @@ class MarketplaceApiTest extends TestCase
                 'delivery_location_snapshot' => [
                     'label' => 'Delivery location',
                 ],
+                'expires_at' => now()->addHours(2)->toISOString(),
             ])
             ->assertUnprocessable()
             ->assertJsonPath('success', false);
@@ -311,6 +316,7 @@ class MarketplaceApiTest extends TestCase
                 'delivery_location_snapshot' => [
                     'label' => 'Delivery location',
                 ],
+                'expires_at' => now()->addHours(2)->toISOString(),
             ])
             ->assertUnprocessable();
 
@@ -337,6 +343,7 @@ class MarketplaceApiTest extends TestCase
                 'delivery_location_snapshot' => [
                     'label' => 'Delivery location',
                 ],
+                'expires_at' => now()->addHours(2)->toISOString(),
             ])
             ->assertUnprocessable();
 
