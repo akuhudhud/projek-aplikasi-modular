@@ -52,11 +52,8 @@ class MarketplaceController extends Controller
                         ->whereNull('target_runner_account_id')
                         ->orWhere('target_runner_account_id', $account->id);
                 })
-                ->where(function ($builder) {
-                    $builder
-                        ->whereNull('expires_at')
-                        ->orWhere('expires_at', '>', now());
-                });
+                ->whereNotNull('expires_at')
+                ->where('expires_at', '>', now());
         }
 
         $requests = $query
@@ -120,10 +117,8 @@ class MarketplaceController extends Controller
                     $marketplaceRequest->target_runner_account_id === null
                     || $isTargetRunner
                 )
-                && (
-                    $marketplaceRequest->expires_at === null
-                    || $marketplaceRequest->expires_at->isFuture()
-                );
+                && $marketplaceRequest->expires_at !== null
+                && $marketplaceRequest->expires_at->isFuture();
 
             $canViewAwardedRequest = false;
 
