@@ -231,11 +231,13 @@ class CustomerTaskWebApiTest extends TestCase
                 'data.request.task_location_snapshot.address',
                 'Task location'
             )
-            ->assertJsonMissingPath(
-                'data.request.pickup_location_snapshot'
+            ->assertJsonPath(
+                'data.request.pickup_location_snapshot',
+                null
             )
-            ->assertJsonMissingPath(
-                'data.request.delivery_location_snapshot'
+            ->assertJsonPath(
+                'data.request.delivery_location_snapshot',
+                null
             )
             ->assertJsonMissingPath('data.task.task_class');
     }
