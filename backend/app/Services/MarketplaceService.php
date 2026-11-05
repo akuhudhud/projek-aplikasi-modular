@@ -30,8 +30,11 @@ class MarketplaceService
 
             $expiredRequests = MarketplaceRequest::query()
                 ->where('status', MarketplaceRequest::STATUS_OPEN)
-                ->whereNotNull('expires_at')
-                ->where('expires_at', '<=', $now)
+                ->where(function ($query) use ($now) {
+                    $query
+                        ->whereNull('expires_at')
+                        ->orWhere('expires_at', '<=', $now);
+                })
                 ->lockForUpdate()
                 ->get();
 
@@ -734,8 +737,10 @@ class MarketplaceService
     ): bool {
         if (
             $request->status !== MarketplaceRequest::STATUS_OPEN
-            || !$request->expires_at
-            || $request->expires_at->isFuture()
+            || (
+                $request->expires_at !== null
+                && $request->expires_at->isFuture()
+            )
         ) {
             return false;
         }
