@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Web\AuthController;
+use App\Http\Controllers\Web\CustomerTaskController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('web/auth')
@@ -17,4 +18,15 @@ Route::prefix('web/auth')
             Route::post('/logout', [AuthController::class, 'logout'])
                 ->name('logout');
         });
+    });
+
+Route::prefix('web/customer')
+    ->name('web.customer.')
+    ->middleware('web.auth')
+    ->group(function (): void {
+        Route::get('/tasks', [CustomerTaskController::class, 'index'])
+            ->name('tasks.index');
+
+        Route::get('/tasks/{taskId}', [CustomerTaskController::class, 'show'])
+            ->name('tasks.show');
     });
