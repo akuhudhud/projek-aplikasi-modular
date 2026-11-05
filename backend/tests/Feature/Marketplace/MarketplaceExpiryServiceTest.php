@@ -395,6 +395,99 @@ class MarketplaceExpiryServiceTest extends TestCase
         $this->assertDatabaseCount('core_tasks', 0);
     }
 
+    public function test_open_request_without_expiry_is_expired_and_submitted_quotations_are_expired(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED
+        );
+
+        $request = $this->marketplace->createRequest($customer, [
+            'task_class' => 'PICKUP_DELIVERY',
+            'description' => 'Legacy request without an expiry.',
+            'pickup_location_snapshot' => [
+                'address' => 'Pickup location',
+            ],
+            'delivery_location_snapshot' => [
+                'address' => 'Delivery location',
+            ],
+            'expires_at' => now()->addHours(2),
+        ]);
+
+        $quotation = $this->marketplace->submitQuotation(
+            $runner,
+            $request->request_id,
+            25.00
+        );
+
+        $request->forceFill([
+            'expires_at' => null,
+        ])->save();
+
+        $this->marketplace->expireDueItems();
+
+        $this->assertSame(
+            MarketplaceRequest::STATUS_EXPIRED,
+            $request->fresh()->status
+        );
+
+        $this->assertSame(
+            MarketplaceQuotation::STATUS_EXPIRED,
+            $quotation->fresh()->status
+        );
+
+        $this->assertDatabaseCount('core_tasks', 0);
+    }
+
+    public function test_request_without_expiry_cannot_accept_new_quotations(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED
+        );
+
+        $request = $this->marketplace->createRequest($customer, [
+            'task_class' => 'PICKUP_DELIVERY',
+            'description' => 'Legacy request cannot accept quotations.',
+            'pickup_location_snapshot' => [
+                'address' => 'Pickup location',
+            ],
+            'delivery_location_snapshot' => [
+                'address' => 'Delivery location',
+            ],
+            'expires_at' => now()->addHours(2),
+        ]);
+
+        $request->forceFill([
+            'expires_at' => null,
+        ])->save();
+
+        try {
+            $this->marketplace->submitQuotation(
+                $runner,
+                $request->request_id,
+                15.00
+            );
+
+            $this->fail(
+                'A request without an expiry must not accept quotations.'
+            );
+        } catch (DomainException $exception) {
+            $this->assertStringContainsString(
+                'no longer accepting quotations',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertSame(
+            MarketplaceRequest::STATUS_EXPIRED,
+            $request->fresh()->status
+        );
+
+        $this->assertDatabaseCount('marketplace_quotations', 0);
+        $this->assertDatabaseCount('core_tasks', 0);
+    }
+
     private function makeAccount(
         string $runnerStatus = Account::RUNNER_STATUS_NOT_RUNNER
     ): Account {
