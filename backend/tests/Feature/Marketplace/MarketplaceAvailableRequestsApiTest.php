@@ -55,6 +55,24 @@ class MarketplaceAvailableRequestsApiTest extends TestCase
             'data.request.request_id'
         );
 
+        $nullExpiryRequest = $this->withToken($customerToken)
+            ->postJson('/api/marketplace/requests', [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Legacy request without expiry.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
+                'expires_at' => now()->addHours(2)->toISOString(),
+            ])
+            ->assertCreated();
+
+        $nullExpiryRequestId = $nullExpiryRequest->json(
+            'data.request.request_id'
+        );
+
         $targetedRequest = $this->withToken($customerToken)
             ->postJson('/api/marketplace/requests', [
                 'source_type' => 'runner_profile_link',
@@ -102,6 +120,13 @@ class MarketplaceAvailableRequestsApiTest extends TestCase
                 'updated_at' => now(),
             ]);
 
+        DB::table('marketplace_requests')
+            ->where('request_id', $nullExpiryRequestId)
+            ->update([
+                'expires_at' => null,
+                'updated_at' => now(),
+            ]);
+
         $response = $this->withToken($runnerOneToken)
             ->getJson('/api/marketplace/requests?view=available')
             ->assertOk()
@@ -126,9 +151,20 @@ class MarketplaceAvailableRequestsApiTest extends TestCase
         );
 
         $this->assertNotContains(
+            $nullExpiryRequestId,
+            $visibleRequestIds
+        );
+
+        $this->assertNotContains(
             $otherRunnerRequestId,
             $visibleRequestIds
         );
+
+        $this->withToken($runnerOneToken)
+            ->getJson(
+                '/api/marketplace/requests/'.$nullExpiryRequestId
+            )
+            ->assertNotFound();
 
         foreach ($requests as $request) {
             $this->assertArrayNotHasKey(
