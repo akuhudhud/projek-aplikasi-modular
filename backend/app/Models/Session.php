@@ -38,6 +38,9 @@ class Session extends Model
         'ended_at' => 'datetime',
     ];
 
+    /**
+     * @return BelongsTo<Account, $this>
+     */
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);
