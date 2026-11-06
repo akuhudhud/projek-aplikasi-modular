@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Web\AuthController;
+use App\Http\Controllers\Web\RegistrationController;
 use App\Http\Controllers\Web\CustomerMarketplaceRequestController;
 use App\Http\Controllers\Web\CustomerTaskController;
 use Illuminate\Support\Facades\Route;
@@ -11,6 +12,17 @@ Route::prefix('web/auth')
         Route::post('/login', [AuthController::class, 'login'])
             ->middleware('throttle:login-ip')
             ->name('login');
+
+        Route::post('/register/otp/request', [RegistrationController::class, 'requestOtp'])
+            ->middleware('throttle:otp-request-ip')
+            ->name('register.otp.request');
+
+        Route::post('/register/otp/verify', [RegistrationController::class, 'verifyOtp'])
+            ->middleware('throttle:otp-verify-ip')
+            ->name('register.otp.verify');
+
+        Route::post('/register/complete', [RegistrationController::class, 'complete'])
+            ->name('register.complete');
 
         Route::middleware('web.auth')->group(function (): void {
             Route::get('/me', [AuthController::class, 'me'])
