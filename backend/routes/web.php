@@ -37,6 +37,3 @@ Route::prefix('web/customer')
         Route::post('/requests', [CustomerMarketplaceRequestController::class, 'store'])
             ->name('requests.store');
     });
-
-Route::view('/customer', 'customer')
-    ->name('customer.app');
