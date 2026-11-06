@@ -30,3 +30,6 @@ Route::prefix('web/customer')
         Route::get('/tasks/{taskId}', [CustomerTaskController::class, 'show'])
             ->name('tasks.show');
     });
+
+Route::view('/customer', 'customer')
+    ->name('customer.app');
