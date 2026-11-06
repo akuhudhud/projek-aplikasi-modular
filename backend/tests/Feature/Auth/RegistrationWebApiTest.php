@@ -4,7 +4,6 @@ namespace Tests\Feature\Auth;
 
 use App\Http\Middleware\AuthenticateWebSession;
 use App\Models\Account;
-use App\Models\RegistrationVerification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -226,6 +225,12 @@ class RegistrationWebApiTest extends TestCase
             'token_hash' => hash('sha256', $sessionToken),
             'ended_at' => null,
         ]);
+
+        $this->getJson('/web/auth/me')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.account.id', $account->id)
+            ->assertJsonPath('data.account.name', 'New Customer');
     }
 
     public function test_registration_verification_token_cannot_be_reused(): void
@@ -336,5 +341,58 @@ class RegistrationWebApiTest extends TestCase
 
         $this->assertNotNull($account->email_verified_at);
         $this->assertNull($account->phone);
+    }
+
+    public function test_registration_complete_rejects_contact_registered_after_otp_verification(): void
+    {
+        $request = $this->postJson(
+            '/web/auth/register/otp/request',
+            [
+                'channel' => 'phone',
+                'contact' => '60123456789',
+                'purpose' => 'REGISTRATION',
+            ]
+        );
+
+        $verify = $this->postJson(
+            '/web/auth/register/otp/verify',
+            [
+                'verification_id' => $request->json(
+                    'data.verification_id'
+                ),
+                'otp' => '123456',
+            ]
+        );
+
+        $verificationToken = $verify->json(
+            'data.verification_token'
+        );
+
+        Account::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Existing Customer',
+            'phone' => '60123456789',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'ACTIVE',
+        ]);
+
+        $this->postJson(
+            '/web/auth/register/complete',
+            [
+                'verification_token' => $verificationToken,
+                'name' => 'Duplicate Customer',
+                'password' => 'Password1',
+                'password_confirmation' => 'Password1',
+            ]
+        )
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath(
+                'message',
+                'An account already exists for this contact.'
+            );
+
+        $this->assertDatabaseCount('accounts', 1);
     }
 }
