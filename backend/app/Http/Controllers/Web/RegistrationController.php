@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Exceptions\OtpDeliveryException;
+use App\Exceptions\OtpResendException;
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\AuthenticateWebSession;
 use App\Http\Requests\Auth\CompleteRegistrationRequest;
@@ -11,6 +13,7 @@ use App\Models\Account;
 use App\Models\RegistrationVerification;
 use App\Services\Otp\OtpService;
 use App\Services\Session\SessionService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -56,7 +59,7 @@ class RegistrationController extends Controller
                 $request->contact,
                 'REGISTRATION'
             );
-        } catch (\App\Exceptions\OtpResendException $exception) {
+        } catch (OtpResendException $exception) {
             $response = [
                 'success' => false,
                 'message' => $exception->getMessage(),
@@ -68,7 +71,7 @@ class RegistrationController extends Controller
             }
 
             return response()->json($response, 429);
-        } catch (\App\Exceptions\OtpDeliveryException $exception) {
+        } catch (OtpDeliveryException $exception) {
             report($exception);
 
             return response()->json([
@@ -207,6 +210,34 @@ class RegistrationController extends Controller
                 'success' => false,
                 'message' => $exception->getMessage(),
             ], 422);
+        } catch (QueryException $exception) {
+            if ($this->isDuplicateContactConstraint($exception)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'An account already exists for this contact.',
+                ], 422);
+            }
+
+            throw $exception;
         }
+    }
+
+    private function isDuplicateContactConstraint(
+        QueryException $exception
+    ): bool {
+        $message = strtolower($exception->getMessage());
+
+        $isUniqueViolation = str_contains($message, 'unique constraint')
+            || str_contains($message, 'duplicate entry')
+            || str_contains($message, 'unique violation');
+
+        if (!$isUniqueViolation) {
+            return false;
+        }
+
+        return str_contains($message, 'accounts_phone_unique')
+            || str_contains($message, 'accounts_email_unique')
+            || str_contains($message, 'accounts.phone')
+            || str_contains($message, 'accounts.email');
     }
 }
