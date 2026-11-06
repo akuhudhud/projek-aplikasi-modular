@@ -205,11 +205,6 @@ class RegistrationController extends Controller
                     ],
                 ], 201);
             });
-        } catch (RuntimeException $exception) {
-            return response()->json([
-                'success' => false,
-                'message' => $exception->getMessage(),
-            ], 422);
         } catch (QueryException $exception) {
             if ($this->isDuplicateContactConstraint($exception)) {
                 return response()->json([
@@ -219,6 +214,11 @@ class RegistrationController extends Controller
             }
 
             throw $exception;
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
         }
     }
 
