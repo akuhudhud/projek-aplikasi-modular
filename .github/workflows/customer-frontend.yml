@@ -1,0 +1,48 @@
+
+name: Customer Frontend CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/customer/**'
+      - '.github/workflows/customer-frontend.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'frontend/customer/**'
+      - '.github/workflows/customer-frontend.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  customer-frontend:
+    name: Customer Frontend Build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend/customer
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/customer/package.json
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: TypeScript type check
+        run: npm run typecheck
+
+      - name: Build Customer application
+        run: npm run build
