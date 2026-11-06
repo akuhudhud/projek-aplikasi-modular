@@ -76,6 +76,21 @@ export interface CustomerMarketplaceRequest {
     created_at: string;
 }
 
+export interface CustomerOwnMarketplaceRequest {
+    request_id: string;
+    task_class: 'PICKUP_DELIVERY' | 'NON_DELIVERY';
+    description: string;
+    pickup_location_snapshot: Record<string, unknown> | null;
+    delivery_location_snapshot: Record<string, unknown> | null;
+    task_location_snapshot: Record<string, unknown> | null;
+    status: string;
+    expires_at: string | null;
+    awarded_at: string | null;
+    cancelled_at: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
 interface ApiResponse<T> {
     success: boolean;
     message?: string;
@@ -104,6 +119,11 @@ interface CustomerTaskData {
 
 interface CustomerMarketplaceRequestData {
     request: CustomerMarketplaceRequest;
+}
+
+interface CustomerOwnMarketplaceRequestsData {
+    requests: CustomerOwnMarketplaceRequest[];
+    pagination: CustomerTaskPagination;
 }
 
 const api = axios.create({
@@ -168,5 +188,20 @@ export const customerApi = {
         );
 
         return response.data.data.request;
+    },
+
+    async getRequests(
+        page = 1,
+    ): Promise<CustomerOwnMarketplaceRequestsData> {
+        const response = await api.get<
+            ApiResponse<CustomerOwnMarketplaceRequestsData>
+        >(
+            '/web/customer/requests',
+            {
+                params: { page },
+            },
+        );
+
+        return response.data.data;
     },
 };
