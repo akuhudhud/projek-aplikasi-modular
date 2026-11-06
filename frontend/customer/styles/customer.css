@@ -575,6 +575,73 @@ textarea {
     min-height: 48px;
 }
 
+/* Customer Registration OTP */
+
+.customer-registration-steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 24px 0;
+}
+
+.customer-registration-steps span {
+    padding: 10px 5px;
+    border: 1px solid #e5e7eb;
+    border-radius: 9px;
+    background: #f9fafb;
+    color: #a1a1aa;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.customer-registration-steps span.active {
+    border-color: #eab308;
+    background: #fef9c3;
+    color: #713f12;
+}
+
+.customer-login > p {
+    margin-top: 22px;
+    color: #737373;
+    font-size: 14px;
+    line-height: 1.6;
+    text-align: center;
+}
+
+.customer-login > p button {
+    min-height: auto;
+    padding: 4px 6px;
+    background: transparent;
+    color: #92400e;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.customer-login > p button:hover:not(:disabled) {
+    background: #fef3c7;
+    color: #78350f;
+}
+
+.customer-login form > button + button {
+    margin-top: -12px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    color: #404040;
+}
+
+.customer-login form > button + button:hover:not(:disabled) {
+    background: #f4f4f5;
+    color: #171717;
+}
+
+#customer-app input[inputmode="numeric"] {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 8px;
+    text-align: center;
+}
+
 /* Responsive */
 
 @media (max-width: 760px) {
@@ -654,5 +721,14 @@ textarea {
 
     #customer-app .customer-request-location {
         padding: 16px;
+    }
+
+    .customer-registration-steps {
+        gap: 5px;
+    }
+
+    .customer-registration-steps span {
+        padding: 9px 3px;
+        font-size: 10px;
     }
 }
