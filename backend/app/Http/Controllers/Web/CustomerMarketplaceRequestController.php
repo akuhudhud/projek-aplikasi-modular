@@ -17,6 +17,52 @@ class CustomerMarketplaceRequestController extends Controller
     ) {
     }
 
+    public function index(Request $request): JsonResponse
+    {
+        $account = $request->attributes->get('account');
+
+        if (!$account instanceof Account) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
+        $requests = MarketplaceRequest::query()
+            ->where('customer_account_id', $account->id)
+            ->orderByDesc('created_at')
+            ->orderBy('request_id')
+            ->paginate(25);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'requests' => $requests->getCollection()
+                    ->map(fn (MarketplaceRequest $item) => $item->only([
+                        'request_id',
+                        'task_class',
+                        'description',
+                        'pickup_location_snapshot',
+                        'delivery_location_snapshot',
+                        'task_location_snapshot',
+                        'status',
+                        'expires_at',
+                        'awarded_at',
+                        'cancelled_at',
+                        'created_at',
+                        'updated_at',
+                    ]))
+                    ->values(),
+                'pagination' => [
+                    'current_page' => $requests->currentPage(),
+                    'per_page' => $requests->perPage(),
+                    'total' => $requests->total(),
+                    'last_page' => $requests->lastPage(),
+                ],
+            ],
+        ], 200);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $account = $request->attributes->get('account');
