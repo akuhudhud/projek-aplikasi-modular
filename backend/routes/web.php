@@ -28,6 +28,10 @@ Route::prefix('web/auth')
             ->name('register.otp.verify');
 
         Route::post('/register/complete', [RegistrationController::class, 'complete'])
+            ->middleware([
+                'throttle:registration-complete-ip',
+                'throttle:registration-complete-token',
+            ])
             ->name('register.complete');
 
         Route::middleware('web.auth')->group(function (): void {
