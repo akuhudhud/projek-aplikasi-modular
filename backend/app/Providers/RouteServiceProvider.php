@@ -76,6 +76,29 @@ class RouteServiceProvider extends ServiceProvider
                 ));
         });
 
+        RateLimiter::for('registration-complete-ip', function (Request $request) {
+            if (app()->environment('testing')) {
+                return Limit::none();
+            }
+
+            return Limit::perMinute(5)
+                ->by('registration-complete-ip:'.$request->ip());
+        });
+
+        RateLimiter::for('registration-complete-token', function (Request $request) {
+            if (app()->environment('testing')) {
+                return Limit::none();
+            }
+
+            $token = (string) $request->input('verification_token');
+
+            return Limit::perMinute(5)
+                ->by('registration-complete-token:'.hash(
+                    'sha256',
+                    $token
+                ));
+        });
+
         $this->routes(function () {
             Route::middleware('api')
                 ->prefix('api')
