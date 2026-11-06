@@ -6,10 +6,12 @@ import {
     customerApi,
     type CustomerAccount,
     type CustomerTaskItem,
+    type CustomerRequestPayload,
 } from './customer/api';
 import '../css/customer.css';
 
-type Page = 'dashboard' | 'tasks' | 'profile';
+type Page = 'dashboard' | 'tasks' | 'profile' | 'request';
+type TaskClass = 'PICKUP_DELIVERY' | 'NON_DELIVERY';
 
 function formatDate(value: string | null): string {
     if (!value) return '—';
@@ -24,6 +26,15 @@ function taskClassLabel(taskClass: string): string {
     return taskClass === 'PICKUP_DELIVERY'
         ? 'Pickup & Delivery'
         : 'Non-Delivery';
+}
+
+function getDefaultExpiry(): string {
+    const date = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const offset = date.getTimezoneOffset() * 60000;
+
+    return new Date(date.getTime() - offset)
+        .toISOString()
+        .slice(0, 16);
 }
 
 function CustomerApp() {
@@ -41,6 +52,21 @@ function CustomerApp() {
     const [taskLastPage, setTaskLastPage] = useState(1);
     const [tasksLoading, setTasksLoading] = useState(false);
     const [selectedTask, setSelectedTask] = useState<CustomerTaskItem | null>(null);
+
+    const [taskClass, setTaskClass] = useState<TaskClass>('PICKUP_DELIVERY');
+    const [description, setDescription] = useState('');
+    const [pickupAddress, setPickupAddress] = useState('');
+    const [pickupContact, setPickupContact] = useState('');
+    const [pickupPhone, setPickupPhone] = useState('');
+    const [deliveryAddress, setDeliveryAddress] = useState('');
+    const [deliveryContact, setDeliveryContact] = useState('');
+    const [deliveryPhone, setDeliveryPhone] = useState('');
+    const [taskAddress, setTaskAddress] = useState('');
+    const [taskContact, setTaskContact] = useState('');
+    const [taskPhone, setTaskPhone] = useState('');
+    const [expiresAt, setExpiresAt] = useState(getDefaultExpiry());
+    const [requestLoading, setRequestLoading] = useState(false);
+    const [requestSuccess, setRequestSuccess] = useState('');
 
     useEffect(() => {
         let mounted = true;
@@ -141,6 +167,80 @@ function CustomerApp() {
 
     function openTask(item: CustomerTaskItem) {
         setSelectedTask(item);
+    }
+
+    function resetRequestForm() {
+        setTaskClass('PICKUP_DELIVERY');
+        setDescription('');
+        setPickupAddress('');
+        setPickupContact('');
+        setPickupPhone('');
+        setDeliveryAddress('');
+        setDeliveryContact('');
+        setDeliveryPhone('');
+        setTaskAddress('');
+        setTaskContact('');
+        setTaskPhone('');
+        setExpiresAt(getDefaultExpiry());
+    }
+
+    async function handleCreateRequest(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        setError('');
+        setRequestSuccess('');
+        setRequestLoading(true);
+
+        try {
+            const payload: CustomerRequestPayload = {
+                task_class: taskClass,
+                description: description.trim(),
+                expires_at: new Date(expiresAt).toISOString(),
+                ...(taskClass === 'PICKUP_DELIVERY'
+                    ? {
+                        pickup_location_snapshot: {
+                            address: pickupAddress.trim(),
+                            contact_name: pickupContact.trim() || null,
+                            phone: pickupPhone.trim() || null,
+                        },
+                        delivery_location_snapshot: {
+                            address: deliveryAddress.trim(),
+                            contact_name: deliveryContact.trim() || null,
+                            phone: deliveryPhone.trim() || null,
+                        },
+                    }
+                    : {
+                        task_location_snapshot: {
+                            address: taskAddress.trim(),
+                            contact_name: taskContact.trim() || null,
+                            phone: taskPhone.trim() || null,
+                        },
+                    }),
+            };
+
+            await customerApi.createRequest(payload);
+
+            setRequestSuccess('Permintaan tugasan berjaya dihantar.');
+            resetRequestForm();
+            setTaskPage(1);
+        } catch (err) {
+            if (axios.isAxiosError(err)) {
+                const responseErrors = err.response?.data?.errors;
+                const firstValidationError = responseErrors
+                    ? Object.values(responseErrors).flat()[0]
+                    : null;
+
+                setError(
+                    typeof firstValidationError === 'string'
+                        ? firstValidationError
+                        : err.response?.data?.message ??
+                            'Tidak berjaya menghantar permintaan.',
+                );
+            } else {
+                setError('Ralat berlaku. Sila cuba semula.');
+            }
+        } finally {
+            setRequestLoading(false);
+        }
     }
 
     function renderTaskList() {
@@ -375,6 +475,178 @@ function CustomerApp() {
         );
     }
 
+    function renderLocationFields(
+        title: string,
+        address: string,
+        setAddress: (value: string) => void,
+        contact: string,
+        setContact: (value: string) => void,
+        phone: string,
+        setPhone: (value: string) => void,
+    ) {
+        return (
+            <fieldset className="customer-request-location">
+                <legend>{title}</legend>
+
+                <div>
+                    <label>Alamat / Lokasi</label>
+                    <textarea
+                        value={address}
+                        onChange={(event) => setAddress(event.target.value)}
+                        required
+                        rows={3}
+                        maxLength={2000}
+                        disabled={requestLoading}
+                    />
+                </div>
+
+                <div>
+                    <label>Nama Orang Dihubungi (Pilihan)</label>
+                    <input
+                        type="text"
+                        value={contact}
+                        onChange={(event) => setContact(event.target.value)}
+                        maxLength={150}
+                        disabled={requestLoading}
+                    />
+                </div>
+
+                <div>
+                    <label>Nombor Telefon (Pilihan)</label>
+                    <input
+                        type="tel"
+                        value={phone}
+                        onChange={(event) => setPhone(event.target.value)}
+                        maxLength={30}
+                        disabled={requestLoading}
+                    />
+                </div>
+            </fieldset>
+        );
+    }
+
+    function renderRequestForm() {
+        return (
+            <section className="customer-panel">
+                <h2>Cipta Open Request</h2>
+                <p>
+                    Nyatakan tugasan yang anda perlukan. Runner boleh melihat
+                    permintaan ini dan menghantar sebut harga.
+                </p>
+
+                {requestSuccess && (
+                    <p className="customer-request-success" role="status">
+                        {requestSuccess}
+                    </p>
+                )}
+
+                <form onSubmit={handleCreateRequest}>
+                    <div>
+                        <label htmlFor="request-task-class">
+                            Jenis Tugasan
+                        </label>
+                        <select
+                            id="request-task-class"
+                            value={taskClass}
+                            onChange={(event) => {
+                                setTaskClass(event.target.value as TaskClass);
+                            }}
+                            disabled={requestLoading}
+                        >
+                            <option value="PICKUP_DELIVERY">
+                                Pickup & Delivery
+                            </option>
+                            <option value="NON_DELIVERY">
+                                Non-Delivery
+                            </option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label htmlFor="request-description">
+                            Penerangan Tugasan
+                        </label>
+                        <textarea
+                            id="request-description"
+                            value={description}
+                            onChange={(event) => setDescription(event.target.value)}
+                            required
+                            maxLength={10000}
+                            rows={5}
+                            disabled={requestLoading}
+                            placeholder="Terangkan tugasan yang anda perlukan..."
+                        />
+                    </div>
+
+                    {taskClass === 'PICKUP_DELIVERY' && (
+                        <>
+                            {renderLocationFields(
+                                'Lokasi Pickup',
+                                pickupAddress,
+                                setPickupAddress,
+                                pickupContact,
+                                setPickupContact,
+                                pickupPhone,
+                                setPickupPhone,
+                            )}
+
+                            {renderLocationFields(
+                                'Lokasi Delivery',
+                                deliveryAddress,
+                                setDeliveryAddress,
+                                deliveryContact,
+                                setDeliveryContact,
+                                deliveryPhone,
+                                setDeliveryPhone,
+                            )}
+                        </>
+                    )}
+
+                    {taskClass === 'NON_DELIVERY' && (
+                        renderLocationFields(
+                            'Lokasi Tugasan',
+                            taskAddress,
+                            setTaskAddress,
+                            taskContact,
+                            setTaskContact,
+                            taskPhone,
+                            setTaskPhone,
+                        )
+                    )}
+
+                    <div>
+                        <label htmlFor="request-expiry">
+                            Tarikh dan Masa Tamat Permintaan
+                        </label>
+                        <input
+                            id="request-expiry"
+                            type="datetime-local"
+                            value={expiresAt}
+                            onChange={(event) => setExpiresAt(event.target.value)}
+                            min={getDefaultExpiry().slice(0, 0) + new Date(
+                                Date.now() + 60000 -
+                                new Date().getTimezoneOffset() * 60000,
+                            ).toISOString().slice(0, 16)}
+                            required
+                            disabled={requestLoading}
+                        />
+                        <small>
+                            Permintaan mesti tamat dalam tempoh maksimum 24 jam.
+                        </small>
+                    </div>
+
+                    {error && <p role="alert">{error}</p>}
+
+                    <button type="submit" disabled={requestLoading}>
+                        {requestLoading
+                            ? 'Menghantar permintaan...'
+                            : 'Hantar Open Request'}
+                    </button>
+                </form>
+            </section>
+        );
+    }
+
     if (checkingSession) {
         return (
             <main className="customer-loading">
@@ -467,6 +739,20 @@ function CustomerApp() {
                     >
                         Dashboard
                     </button>
+
+                    <button
+                        type="button"
+                        className={page === 'request' ? 'active' : ''}
+                        onClick={() => {
+                            setSelectedTask(null);
+                            setError('');
+                            setRequestSuccess('');
+                            setPage('request');
+                        }}
+                    >
+                        Open Request
+                    </button>
+
                     <button
                         type="button"
                         className={page === 'tasks' ? 'active' : ''}
@@ -477,6 +763,7 @@ function CustomerApp() {
                     >
                         Tugasan Saya
                     </button>
+
                     <button
                         type="button"
                         className={page === 'profile' ? 'active' : ''}
@@ -490,7 +777,9 @@ function CustomerApp() {
                 </nav>
 
                 <main className="customer-content">
-                    {error && <p role="alert">{error}</p>}
+                    {error && page !== 'request' && (
+                        <p role="alert">{error}</p>
+                    )}
 
                     {selectedTask
                         ? renderTaskDetail(selectedTask)
@@ -503,7 +792,9 @@ function CustomerApp() {
                                         {renderTaskList()}
                                     </section>
                                 )
-                                : renderProfile()}
+                                : page === 'request'
+                                    ? renderRequestForm()
+                                    : renderProfile()}
                 </main>
             </div>
         </div>
