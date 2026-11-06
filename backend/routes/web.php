@@ -14,11 +14,17 @@ Route::prefix('web/auth')
             ->name('login');
 
         Route::post('/register/otp/request', [RegistrationController::class, 'requestOtp'])
-            ->middleware('throttle:otp-request-ip')
+            ->middleware([
+                'throttle:otp-request-ip',
+                'throttle:otp-request-contact',
+            ])
             ->name('register.otp.request');
 
         Route::post('/register/otp/verify', [RegistrationController::class, 'verifyOtp'])
-            ->middleware('throttle:otp-verify-ip')
+            ->middleware([
+                'throttle:otp-verify-ip',
+                'throttle:otp-verify-id',
+            ])
             ->name('register.otp.verify');
 
         Route::post('/register/complete', [RegistrationController::class, 'complete'])
