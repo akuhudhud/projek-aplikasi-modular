@@ -1,3 +1,4 @@
+
 import { useEffect, useState, type FormEvent } from 'react';
 import axios from 'axios';
 import { StrictMode } from 'react';
@@ -997,4 +998,17 @@ if (rootElement) {
             <CustomerApp />
         </StrictMode>,
     );
+}
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker
+            .register('/sw.js')
+            .catch((error) => {
+                console.error(
+                    'Customer Service Worker registration failed:',
+                    error,
+                );
+            });
+    });
 }
