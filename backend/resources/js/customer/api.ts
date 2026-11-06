@@ -10,6 +10,46 @@ export interface CustomerAccount {
     status: string;
 }
 
+export interface CustomerTask {
+    task_id: string;
+    module_key: string;
+    task_type: string;
+    source_type: string;
+    source_id: string;
+    generic_status: string;
+    assigned_at: string | null;
+    started_at: string | null;
+    completed_at: string | null;
+    cancelled_at: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CustomerTaskRequest {
+    request_id: string;
+    task_class: 'PICKUP_DELIVERY' | 'NON_DELIVERY';
+    description: string;
+    pickup_location_snapshot: Record<string, unknown> | null;
+    delivery_location_snapshot: Record<string, unknown> | null;
+    task_location_snapshot: Record<string, unknown> | null;
+    status: string;
+    expires_at: string | null;
+    awarded_at: string | null;
+    cancelled_at: string | null;
+}
+
+export interface CustomerTaskItem {
+    task: CustomerTask;
+    request: CustomerTaskRequest;
+}
+
+export interface CustomerTaskPagination {
+    current_page: number;
+    per_page: number;
+    total: number;
+    last_page: number;
+}
+
 interface ApiResponse<T> {
     success: boolean;
     message?: string;
@@ -24,6 +64,16 @@ interface LoginPayload {
 
 interface AccountData {
     account: CustomerAccount;
+}
+
+interface CustomerTasksData {
+    tasks: CustomerTaskItem[];
+    pagination: CustomerTaskPagination;
+}
+
+interface CustomerTaskData {
+    task: CustomerTask;
+    request: CustomerTaskRequest;
 }
 
 const api = axios.create({
@@ -56,5 +106,24 @@ export const customerApi = {
 
     async logout(): Promise<void> {
         await api.post('/web/auth/logout');
+    },
+
+    async getTasks(page = 1): Promise<CustomerTasksData> {
+        const response = await api.get<ApiResponse<CustomerTasksData>>(
+            '/web/customer/tasks',
+            {
+                params: { page },
+            },
+        );
+
+        return response.data.data;
+    },
+
+    async getTask(taskId: string): Promise<CustomerTaskData> {
+        const response = await api.get<ApiResponse<CustomerTaskData>>(
+            `/web/customer/tasks/${encodeURIComponent(taskId)}`,
+        );
+
+        return response.data.data;
     },
 };
