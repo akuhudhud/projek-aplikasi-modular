@@ -9,7 +9,7 @@ import {
     type CustomerRequestPayload,
     type CustomerOwnMarketplaceRequest,
 } from './api';
-import '../styles/customer.css';
+import '../css/customer.css';
 
 type Page = 'dashboard' | 'tasks' | 'profile' | 'request';
 type TaskClass = 'PICKUP_DELIVERY' | 'NON_DELIVERY';
@@ -576,195 +576,254 @@ function CustomerApp() {
                 <legend>{title}</legend>
 
                 <div>
-                    <label>Alamat</label>
+                    <label>Alamat / Lokasi</label>
                     <textarea
-                        required
                         value={address}
                         onChange={(event) => setAddress(event.target.value)}
+                        required
+                        rows={3}
+                        maxLength={2000}
+                        disabled={requestLoading}
                     />
                 </div>
 
                 <div>
-                    <label>Nama untuk dihubungi (pilihan)</label>
+                    <label>Nama Orang Dihubungi (Pilihan)</label>
                     <input
+                        type="text"
                         value={contact}
                         onChange={(event) => setContact(event.target.value)}
+                        maxLength={150}
+                        disabled={requestLoading}
                     />
                 </div>
 
                 <div>
-                    <label>Nombor telefon (pilihan)</label>
+                    <label>Nombor Telefon (Pilihan)</label>
                     <input
+                        type="tel"
                         value={phone}
                         onChange={(event) => setPhone(event.target.value)}
+                        maxLength={30}
+                        disabled={requestLoading}
                     />
                 </div>
             </fieldset>
         );
     }
 
-    function renderRequestForm() {
+    function renderOwnRequests() {
         return (
             <section className="customer-panel">
-                <h2>Open Request</h2>
-                <p>
-                    Nyatakan tugasan yang anda perlukan. Runner yang diluluskan
-                    boleh melihat permintaan dan menghantar sebut harga.
-                </p>
+                <div className="customer-section-heading">
+                    <div>
+                        <h2>Open Request Saya</h2>
+                        <p>Jumlah permintaan: {ownRequestTotal}</p>
+                    </div>
+                </div>
 
-                {requestSuccess && (
-                    <p className="customer-request-success" role="status">
-                        {requestSuccess}
-                    </p>
+                {ownRequestsLoading ? (
+                    <p>Memuatkan senarai permintaan...</p>
+                ) : ownRequestsError ? (
+                    <p role="alert">{ownRequestsError}</p>
+                ) : ownRequests.length === 0 ? (
+                    <section className="customer-empty">
+                        <h3>Belum ada Open Request</h3>
+                        <p>Permintaan yang anda cipta akan dipaparkan di sini.</p>
+                    </section>
+                ) : (
+                    <>
+                        <div className="customer-task-list">
+                            {ownRequests.map((request) => (
+                                <article
+                                    className="customer-task-card"
+                                    key={request.request_id}
+                                >
+                                    <span className="customer-task-card-top">
+                                        {taskClassLabel(request.task_class)}
+                                    </span>
+
+                                    <strong>{request.description}</strong>
+
+                                    <span>Status: {request.status}</span>
+
+                                    <span>
+                                        Tarikh luput: {formatDate(request.expires_at)}
+                                    </span>
+
+                                    <span>
+                                        Dicipta: {formatDate(request.created_at)}
+                                    </span>
+                                </article>
+                            ))}
+                        </div>
+
+                        <div className="customer-pagination">
+                            <button
+                                type="button"
+                                disabled={
+                                    ownRequestPage <= 1 || ownRequestsLoading
+                                }
+                                onClick={() => setOwnRequestPage(
+                                    (current) => current - 1,
+                                )}
+                            >
+                                Sebelum
+                            </button>
+
+                            <span>
+                                {ownRequestPage} / {ownRequestLastPage}
+                            </span>
+
+                            <button
+                                type="button"
+                                disabled={
+                                    ownRequestPage >= ownRequestLastPage ||
+                                    ownRequestsLoading
+                                }
+                                onClick={() => setOwnRequestPage(
+                                    (current) => current + 1,
+                                )}
+                            >
+                                Seterusnya
+                            </button>
+                        </div>
+                    </>
                 )}
-
-                <form onSubmit={handleCreateRequest}>
-                    <div>
-                        <label>Jenis Tugasan</label>
-                        <select
-                            value={taskClass}
-                            onChange={(event) =>
-                                setTaskClass(event.target.value as TaskClass)
-                            }
-                        >
-                            <option value="PICKUP_DELIVERY">Pickup & Delivery</option>
-                            <option value="NON_DELIVERY">Non-Delivery</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label>Penerangan Tugasan</label>
-                        <textarea
-                            required
-                            value={description}
-                            onChange={(event) => setDescription(event.target.value)}
-                        />
-                    </div>
-
-                    {taskClass === 'PICKUP_DELIVERY' ? (
-                        <>
-                            {renderLocationFields(
-                                'Lokasi Pickup',
-                                pickupAddress,
-                                setPickupAddress,
-                                pickupContact,
-                                setPickupContact,
-                                pickupPhone,
-                                setPickupPhone,
-                            )}
-
-                            {renderLocationFields(
-                                'Lokasi Delivery',
-                                deliveryAddress,
-                                setDeliveryAddress,
-                                deliveryContact,
-                                setDeliveryContact,
-                                deliveryPhone,
-                                setDeliveryPhone,
-                            )}
-                        </>
-                    ) : (
-                        renderLocationFields(
-                            'Lokasi Tugasan',
-                            taskAddress,
-                            setTaskAddress,
-                            taskContact,
-                            setTaskContact,
-                            taskPhone,
-                            setTaskPhone,
-                        )
-                    )}
-
-                    <div>
-                        <label>Permintaan tamat pada</label>
-                        <input
-                            type="datetime-local"
-                            required
-                            value={expiresAt}
-                            onChange={(event) => setExpiresAt(event.target.value)}
-                        />
-                        <small>
-                            Permintaan akan tamat secara automatik apabila tempoh ini
-                            dicapai.
-                        </small>
-                    </div>
-
-                    <button type="submit" disabled={requestLoading}>
-                        {requestLoading ? 'Menghantar...' : 'Hantar Open Request'}
-                    </button>
-                </form>
-
-                <section className="customer-own-requests">
-                    <h3>Permintaan Saya</h3>
-
-                    {ownRequestsLoading ? (
-                        <p>Memuatkan permintaan...</p>
-                    ) : ownRequestsError ? (
-                        <p role="alert">{ownRequestsError}</p>
-                    ) : ownRequests.length === 0 ? (
-                        <p>Belum ada permintaan.</p>
-                    ) : (
-                        <>
-                            <div className="customer-task-list">
-                                {ownRequests.map((request) => (
-                                    <article
-                                        className="customer-task-card"
-                                        key={request.request_id}
-                                    >
-                                        <span className="customer-task-card-top">
-                                            {taskClassLabel(request.task_class)}
-                                        </span>
-                                        <strong>{request.description}</strong>
-                                        <span>Status: {request.status}</span>
-                                        <span>
-                                            Tamat: {formatDate(request.expires_at)}
-                                        </span>
-                                    </article>
-                                ))}
-                            </div>
-
-                            <div className="customer-pagination">
-                                <button
-                                    type="button"
-                                    disabled={ownRequestPage <= 1 || ownRequestsLoading}
-                                    onClick={() =>
-                                        setOwnRequestPage((current) => current - 1)
-                                    }
-                                >
-                                    Sebelum
-                                </button>
-
-                                <span>
-                                    {ownRequestPage} / {ownRequestLastPage}
-                                    {' · '}
-                                    {ownRequestTotal} permintaan
-                                </span>
-
-                                <button
-                                    type="button"
-                                    disabled={
-                                        ownRequestPage >= ownRequestLastPage ||
-                                        ownRequestsLoading
-                                    }
-                                    onClick={() =>
-                                        setOwnRequestPage((current) => current + 1)
-                                    }
-                                >
-                                    Seterusnya
-                                </button>
-                            </div>
-                        </>
-                    )}
-                </section>
             </section>
+        );
+    }
+
+    function renderRequestForm() {
+        return (
+            <>
+                <section className="customer-panel">
+                    <h2>Cipta Open Request</h2>
+                    <p>
+                        Nyatakan tugasan yang anda perlukan. Runner boleh melihat
+                        permintaan ini dan menghantar sebut harga.
+                    </p>
+
+                    {requestSuccess && (
+                        <p className="customer-request-success" role="status">
+                            {requestSuccess}
+                        </p>
+                    )}
+
+                    <form onSubmit={handleCreateRequest}>
+                        <div>
+                            <label htmlFor="request-task-class">
+                                Jenis Tugasan
+                            </label>
+                            <select
+                                id="request-task-class"
+                                value={taskClass}
+                                onChange={(event) => {
+                                    setTaskClass(event.target.value as TaskClass);
+                                }}
+                                disabled={requestLoading}
+                            >
+                                <option value="PICKUP_DELIVERY">
+                                    Pickup & Delivery
+                                </option>
+                                <option value="NON_DELIVERY">
+                                    Non-Delivery
+                                </option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label htmlFor="request-description">
+                                Penerangan Tugasan
+                            </label>
+                            <textarea
+                                id="request-description"
+                                value={description}
+                                onChange={(event) => setDescription(event.target.value)}
+                                required
+                                maxLength={10000}
+                                rows={5}
+                                disabled={requestLoading}
+                                placeholder="Terangkan tugasan yang anda perlukan..."
+                            />
+                        </div>
+
+                        {taskClass === 'PICKUP_DELIVERY' && (
+                            <>
+                                {renderLocationFields(
+                                    'Lokasi Pickup',
+                                    pickupAddress,
+                                    setPickupAddress,
+                                    pickupContact,
+                                    setPickupContact,
+                                    pickupPhone,
+                                    setPickupPhone,
+                                )}
+
+                                {renderLocationFields(
+                                    'Lokasi Delivery',
+                                    deliveryAddress,
+                                    setDeliveryAddress,
+                                    deliveryContact,
+                                    setDeliveryContact,
+                                    deliveryPhone,
+                                    setDeliveryPhone,
+                                )}
+                            </>
+                        )}
+
+                        {taskClass === 'NON_DELIVERY' && (
+                            renderLocationFields(
+                                'Lokasi Tugasan',
+                                taskAddress,
+                                setTaskAddress,
+                                taskContact,
+                                setTaskContact,
+                                taskPhone,
+                                setTaskPhone,
+                            )
+                        )}
+
+                        <div>
+                            <label htmlFor="request-expiry">
+                                Tarikh dan Masa Tamat Permintaan
+                            </label>
+                            <input
+                                id="request-expiry"
+                                type="datetime-local"
+                                value={expiresAt}
+                                onChange={(event) => setExpiresAt(event.target.value)}
+                                min={getDefaultExpiry().slice(0, 0) + new Date(
+                                    Date.now() + 60000 -
+                                    new Date().getTimezoneOffset() * 60000,
+                                ).toISOString().slice(0, 16)}
+                                required
+                                disabled={requestLoading}
+                            />
+                            <small>
+                                Permintaan mesti tamat dalam tempoh maksimum 24 jam.
+                            </small>
+                        </div>
+
+                        {error && <p role="alert">{error}</p>}
+
+                        <button type="submit" disabled={requestLoading}>
+                            {requestLoading
+                                ? 'Menghantar permintaan...'
+                                : 'Hantar Open Request'}
+                        </button>
+                    </form>
+                </section>
+
+                {renderOwnRequests()}
+            </>
         );
     }
 
     if (checkingSession) {
         return (
             <main className="customer-loading">
-                <h1>Super Runner</h1>
-                <p>Memeriksa sesi akaun...</p>
+                <p>Memeriksa sesi...</p>
             </main>
         );
     }
@@ -777,24 +836,30 @@ function CustomerApp() {
 
                 <form onSubmit={handleLogin}>
                     <div>
-                        <label>Nombor Telefon atau E-mel</label>
+                        <label htmlFor="identifier">
+                            Nombor Telefon atau E-mel
+                        </label>
                         <input
+                            id="identifier"
                             type="text"
                             autoComplete="username"
-                            required
                             value={identifier}
                             onChange={(event) => setIdentifier(event.target.value)}
+                            required
+                            disabled={loading}
                         />
                     </div>
 
                     <div>
-                        <label>Kata Laluan</label>
+                        <label htmlFor="password">Kata Laluan</label>
                         <input
+                            id="password"
                             type="password"
                             autoComplete="current-password"
-                            required
                             value={password}
                             onChange={(event) => setPassword(event.target.value)}
+                            required
+                            disabled={loading}
                         />
                     </div>
 
@@ -811,7 +876,15 @@ function CustomerApp() {
     return (
         <div className="customer-layout">
             <header className="customer-header">
-                <a className="customer-brand" href="/">
+                <a
+                    className="customer-brand"
+                    href="#dashboard"
+                    onClick={(event) => {
+                        event.preventDefault();
+                        closeTaskDetail();
+                        setPage('dashboard');
+                    }}
+                >
                     Super Runner
                 </a>
 
@@ -822,13 +895,13 @@ function CustomerApp() {
                         onClick={handleLogout}
                         disabled={loading}
                     >
-                        Log Keluar
+                        {loading ? '...' : 'Logout'}
                     </button>
                 </div>
             </header>
 
             <div className="customer-body">
-                <nav className="customer-sidebar">
+                <nav className="customer-sidebar" aria-label="Menu utama">
                     <button
                         type="button"
                         className={page === 'dashboard' ? 'active' : ''}
@@ -838,6 +911,19 @@ function CustomerApp() {
                         }}
                     >
                         Dashboard
+                    </button>
+
+                    <button
+                        type="button"
+                        className={page === 'request' ? 'active' : ''}
+                        onClick={() => {
+                            closeTaskDetail();
+                            setError('');
+                            setRequestSuccess('');
+                            setPage('request');
+                        }}
+                    >
+                        Open Request
                     </button>
 
                     <button
@@ -853,31 +939,22 @@ function CustomerApp() {
 
                     <button
                         type="button"
-                        className={page === 'request' ? 'active' : ''}
-                        onClick={() => {
-                            closeTaskDetail();
-                            setPage('request');
-                        }}
-                    >
-                        Open Request
-                    </button>
-
-                    <button
-                        type="button"
                         className={page === 'profile' ? 'active' : ''}
                         onClick={() => {
                             closeTaskDetail();
                             setPage('profile');
                         }}
                     >
-                        Profil Saya
+                        Profil
                     </button>
                 </nav>
 
                 <main className="customer-content">
-                    {error && <p role="alert">{error}</p>}
+                    {error && page !== 'request' && (
+                        <p role="alert">{error}</p>
+                    )}
 
-                    {taskDetailLoading ? (
+                    {selectedTaskId && taskDetailLoading ? (
                         <section className="customer-panel">
                             <p>Memuatkan butiran tugasan...</p>
                         </section>
