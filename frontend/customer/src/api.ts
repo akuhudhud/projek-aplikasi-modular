@@ -126,6 +126,34 @@ interface CustomerOwnMarketplaceRequestsData {
     pagination: CustomerTaskPagination;
 }
 
+export interface RegistrationOtpRequestPayload {
+    channel: 'phone' | 'email';
+    contact: string;
+    purpose: 'REGISTRATION';
+}
+
+export interface RegistrationOtpRequestResult {
+    verification_id: string;
+    expires_at: string;
+}
+
+export interface RegistrationOtpVerifyPayload {
+    verification_id: string;
+    otp: string;
+}
+
+export interface RegistrationOtpVerifyResult {
+    verification_token: string;
+    expires_at: string;
+}
+
+export interface RegistrationCompletePayload {
+    verification_token: string;
+    name: string;
+    password: string;
+    password_confirmation: string;
+}
+
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL ?? '/',
     withCredentials: true,
@@ -156,6 +184,43 @@ export const customerApi = {
 
     async logout(): Promise<void> {
         await api.post('/web/auth/logout');
+    },
+
+    async requestRegistrationOtp(
+        payload: RegistrationOtpRequestPayload,
+    ): Promise<RegistrationOtpRequestResult> {
+        const response = await api.post<
+            ApiResponse<RegistrationOtpRequestResult>
+        >(
+            '/web/auth/register/otp/request',
+            payload,
+        );
+
+        return response.data.data;
+    },
+
+    async verifyRegistrationOtp(
+        payload: RegistrationOtpVerifyPayload,
+    ): Promise<RegistrationOtpVerifyResult> {
+        const response = await api.post<
+            ApiResponse<RegistrationOtpVerifyResult>
+        >(
+            '/web/auth/register/otp/verify',
+            payload,
+        );
+
+        return response.data.data;
+    },
+
+    async completeRegistration(
+        payload: RegistrationCompletePayload,
+    ): Promise<CustomerAccount> {
+        const response = await api.post<ApiResponse<AccountData>>(
+            '/web/auth/register/complete',
+            payload,
+        );
+
+        return response.data.data.account;
     },
 
     async getTasks(page = 1): Promise<CustomerTasksData> {
