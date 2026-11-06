@@ -3,11 +3,32 @@
 namespace App\Http\Requests\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class RequestOtpRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $channel = $this->input('channel');
+        $contact = $this->input('contact');
+
+        if (!is_string($contact)) {
+            return;
+        }
+
+        $contact = trim($contact);
+
+        if ($channel === 'email') {
+            $contact = strtolower($contact);
+        } elseif ($channel === 'phone') {
+            $contact = preg_replace('/[\s\-\(\)]/', '', $contact) ?? $contact;
+        }
+
+        $this->merge([
+            'contact' => $contact,
+        ]);
+    }
+
     public function authorize(): bool
     {
         return true;
