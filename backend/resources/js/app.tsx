@@ -3,6 +3,7 @@ import axios from 'axios';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { customerApi, type CustomerAccount } from './customer/api';
+import '../css/customer.css';
 
 function CustomerApp() {
     const [account, setAccount] = useState<CustomerAccount | null>(null);
