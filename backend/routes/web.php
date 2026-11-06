@@ -31,6 +31,9 @@ Route::prefix('web/customer')
         Route::get('/tasks/{taskId}', [CustomerTaskController::class, 'show'])
             ->name('tasks.show');
 
+        Route::get('/requests', [CustomerMarketplaceRequestController::class, 'index'])
+            ->name('requests.index');
+
         Route::post('/requests', [CustomerMarketplaceRequestController::class, 'store'])
             ->name('requests.store');
     });
