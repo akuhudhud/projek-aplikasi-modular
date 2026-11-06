@@ -1,0 +1,923 @@
+import { useEffect, useState, type FormEvent } from 'react';
+import axios from 'axios';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import {
+    customerApi,
+    type CustomerAccount,
+    type CustomerTaskItem,
+    type CustomerRequestPayload,
+    type CustomerOwnMarketplaceRequest,
+} from './api';
+import '../styles/customer.css';
+
+type Page = 'dashboard' | 'tasks' | 'profile' | 'request';
+type TaskClass = 'PICKUP_DELIVERY' | 'NON_DELIVERY';
+
+function formatDate(value: string | null): string {
+    if (!value) return '—';
+
+    return new Intl.DateTimeFormat('ms-MY', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(new Date(value));
+}
+
+function taskClassLabel(taskClass: string): string {
+    return taskClass === 'PICKUP_DELIVERY'
+        ? 'Pickup & Delivery'
+        : 'Non-Delivery';
+}
+
+function getDefaultExpiry(): string {
+    const date = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const offset = date.getTimezoneOffset() * 60000;
+
+    return new Date(date.getTime() - offset)
+        .toISOString()
+        .slice(0, 16);
+}
+
+function CustomerApp() {
+    const [account, setAccount] = useState<CustomerAccount | null>(null);
+    const [identifier, setIdentifier] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [checkingSession, setCheckingSession] = useState(true);
+
+    const [page, setPage] = useState<Page>('dashboard');
+    const [tasks, setTasks] = useState<CustomerTaskItem[]>([]);
+    const [taskTotal, setTaskTotal] = useState(0);
+    const [taskPage, setTaskPage] = useState(1);
+    const [taskLastPage, setTaskLastPage] = useState(1);
+    const [tasksLoading, setTasksLoading] = useState(false);
+
+    const [selectedTask, setSelectedTask] = useState<CustomerTaskItem | null>(null);
+    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+    const [taskDetailLoading, setTaskDetailLoading] = useState(false);
+    const [taskDetailError, setTaskDetailError] = useState('');
+
+    const [taskClass, setTaskClass] = useState<TaskClass>('PICKUP_DELIVERY');
+    const [description, setDescription] = useState('');
+    const [pickupAddress, setPickupAddress] = useState('');
+    const [pickupContact, setPickupContact] = useState('');
+    const [pickupPhone, setPickupPhone] = useState('');
+    const [deliveryAddress, setDeliveryAddress] = useState('');
+    const [deliveryContact, setDeliveryContact] = useState('');
+    const [deliveryPhone, setDeliveryPhone] = useState('');
+    const [taskAddress, setTaskAddress] = useState('');
+    const [taskContact, setTaskContact] = useState('');
+    const [taskPhone, setTaskPhone] = useState('');
+    const [expiresAt, setExpiresAt] = useState(getDefaultExpiry());
+    const [requestLoading, setRequestLoading] = useState(false);
+    const [requestSuccess, setRequestSuccess] = useState('');
+
+    const [ownRequests, setOwnRequests] = useState<CustomerOwnMarketplaceRequest[]>([]);
+    const [ownRequestPage, setOwnRequestPage] = useState(1);
+    const [ownRequestLastPage, setOwnRequestLastPage] = useState(1);
+    const [ownRequestTotal, setOwnRequestTotal] = useState(0);
+    const [ownRequestsLoading, setOwnRequestsLoading] = useState(false);
+    const [ownRequestsError, setOwnRequestsError] = useState('');
+
+    useEffect(() => {
+        let mounted = true;
+
+        customerApi.me()
+            .then((currentAccount) => {
+                if (mounted) setAccount(currentAccount);
+            })
+            .catch(() => {
+                if (mounted) setAccount(null);
+            })
+            .finally(() => {
+                if (mounted) setCheckingSession(false);
+            });
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!account) return;
+
+        let mounted = true;
+        setTasksLoading(true);
+
+        customerApi.getTasks(taskPage)
+            .then((result) => {
+                if (!mounted) return;
+
+                setTasks(result.tasks);
+                setTaskTotal(result.pagination.total);
+                setTaskLastPage(result.pagination.last_page);
+            })
+            .catch(() => {
+                if (mounted) {
+                    setError('Tidak berjaya memuatkan senarai tugasan.');
+                }
+            })
+            .finally(() => {
+                if (mounted) setTasksLoading(false);
+            });
+
+        return () => {
+            mounted = false;
+        };
+    }, [account, taskPage]);
+
+    useEffect(() => {
+        if (!selectedTaskId) return;
+
+        let mounted = true;
+
+        setSelectedTask(null);
+        setTaskDetailError('');
+        setTaskDetailLoading(true);
+
+        customerApi.getTask(selectedTaskId)
+            .then((result) => {
+                if (!mounted) return;
+
+                setSelectedTask({
+                    task: result.task,
+                    request: result.request,
+                });
+            })
+            .catch(() => {
+                if (mounted) {
+                    setTaskDetailError(
+                        'Tidak berjaya memuatkan butiran tugasan. Sila cuba semula.',
+                    );
+                }
+            })
+            .finally(() => {
+                if (mounted) setTaskDetailLoading(false);
+            });
+
+        return () => {
+            mounted = false;
+        };
+    }, [selectedTaskId]);
+
+    useEffect(() => {
+        if (!account || page !== 'request') return;
+
+        let mounted = true;
+        setOwnRequestsLoading(true);
+        setOwnRequestsError('');
+
+        customerApi.getRequests(ownRequestPage)
+            .then((result) => {
+                if (!mounted) return;
+
+                setOwnRequests(result.requests);
+                setOwnRequestTotal(result.pagination.total);
+                setOwnRequestLastPage(result.pagination.last_page);
+            })
+            .catch(() => {
+                if (mounted) {
+                    setOwnRequestsError(
+                        'Tidak berjaya memuatkan senarai Open Request.',
+                    );
+                }
+            })
+            .finally(() => {
+                if (mounted) setOwnRequestsLoading(false);
+            });
+
+        return () => {
+            mounted = false;
+        };
+    }, [account, page, ownRequestPage]);
+
+    function closeTaskDetail() {
+        setSelectedTaskId(null);
+        setSelectedTask(null);
+        setTaskDetailError('');
+        setTaskDetailLoading(false);
+    }
+
+    async function handleLogin(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        setError('');
+        setLoading(true);
+
+        try {
+            const value = identifier.trim();
+
+            const currentAccount = await customerApi.login({
+                ...(value.includes('@')
+                    ? { email: value }
+                    : { phone: value }),
+                password,
+            });
+
+            setAccount(currentAccount);
+            setPassword('');
+            setPage('dashboard');
+        } catch (err) {
+            if (axios.isAxiosError(err)) {
+                setError(
+                    err.response?.data?.message ??
+                    'Login gagal. Sila semak maklumat anda.',
+                );
+            } else {
+                setError('Ralat berlaku. Sila cuba semula.');
+            }
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function handleLogout() {
+        setError('');
+        setLoading(true);
+
+        try {
+            await customerApi.logout();
+            setAccount(null);
+            setIdentifier('');
+            setPassword('');
+            setTasks([]);
+            setOwnRequests([]);
+            closeTaskDetail();
+        } catch {
+            setError('Tidak berjaya logout. Sila cuba semula.');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function openTask(item: CustomerTaskItem) {
+        setSelectedTask(null);
+        setTaskDetailError('');
+        setSelectedTaskId(item.task.task_id);
+    }
+
+    function resetRequestForm() {
+        setTaskClass('PICKUP_DELIVERY');
+        setDescription('');
+        setPickupAddress('');
+        setPickupContact('');
+        setPickupPhone('');
+        setDeliveryAddress('');
+        setDeliveryContact('');
+        setDeliveryPhone('');
+        setTaskAddress('');
+        setTaskContact('');
+        setTaskPhone('');
+        setExpiresAt(getDefaultExpiry());
+    }
+
+    async function handleCreateRequest(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        setError('');
+        setRequestSuccess('');
+        setRequestLoading(true);
+
+        try {
+            const payload: CustomerRequestPayload = {
+                task_class: taskClass,
+                description: description.trim(),
+                expires_at: new Date(expiresAt).toISOString(),
+                ...(taskClass === 'PICKUP_DELIVERY'
+                    ? {
+                        pickup_location_snapshot: {
+                            address: pickupAddress.trim(),
+                            contact_name: pickupContact.trim() || null,
+                            phone: pickupPhone.trim() || null,
+                        },
+                        delivery_location_snapshot: {
+                            address: deliveryAddress.trim(),
+                            contact_name: deliveryContact.trim() || null,
+                            phone: deliveryPhone.trim() || null,
+                        },
+                    }
+                    : {
+                        task_location_snapshot: {
+                            address: taskAddress.trim(),
+                            contact_name: taskContact.trim() || null,
+                            phone: taskPhone.trim() || null,
+                        },
+                    }),
+            };
+
+            await customerApi.createRequest(payload);
+
+            setRequestSuccess('Permintaan tugasan berjaya dihantar.');
+            setOwnRequestPage(1);
+            resetRequestForm();
+        } catch (err) {
+            if (axios.isAxiosError(err)) {
+                const responseErrors = err.response?.data?.errors;
+                const firstValidationError = responseErrors
+                    ? Object.values(responseErrors).flat()[0]
+                    : null;
+
+                setError(
+                    typeof firstValidationError === 'string'
+                        ? firstValidationError
+                        : err.response?.data?.message ??
+                            'Tidak berjaya menghantar permintaan.',
+                );
+            } else {
+                setError('Ralat berlaku. Sila cuba semula.');
+            }
+        } finally {
+            setRequestLoading(false);
+        }
+    }
+
+    function renderTaskList() {
+        if (tasksLoading) {
+            return <p>Memuatkan tugasan...</p>;
+        }
+
+        if (tasks.length === 0) {
+            return (
+                <section className="customer-empty">
+                    <h3>Belum ada tugasan</h3>
+                    <p>Tugasan yang anda buat akan dipaparkan di sini.</p>
+                </section>
+            );
+        }
+
+        return (
+            <>
+                <div className="customer-task-list">
+                    {tasks.map((item) => (
+                        <button
+                            className="customer-task-card"
+                            type="button"
+                            key={item.task.task_id}
+                            onClick={() => openTask(item)}
+                        >
+                            <span className="customer-task-card-top">
+                                {taskClassLabel(item.request.task_class)}
+                            </span>
+                            <strong>{item.request.description}</strong>
+                            <span>Status: {item.task.generic_status}</span>
+                            <span>{formatDate(item.task.created_at)}</span>
+                        </button>
+                    ))}
+                </div>
+
+                <div className="customer-pagination">
+                    <button
+                        type="button"
+                        disabled={taskPage <= 1 || tasksLoading}
+                        onClick={() => setTaskPage((current) => current - 1)}
+                    >
+                        Sebelum
+                    </button>
+
+                    <span>
+                        {taskPage} / {taskLastPage}
+                    </span>
+
+                    <button
+                        type="button"
+                        disabled={taskPage >= taskLastPage || tasksLoading}
+                        onClick={() => setTaskPage((current) => current + 1)}
+                    >
+                        Seterusnya
+                    </button>
+                </div>
+            </>
+        );
+    }
+
+    function renderTaskDetail(item: CustomerTaskItem) {
+        const { task, request } = item;
+
+        return (
+            <section className="customer-panel">
+                <button
+                    className="customer-back-button"
+                    type="button"
+                    onClick={closeTaskDetail}
+                >
+                    ← Kembali ke senarai
+                </button>
+
+                <h2>Butiran Tugasan</h2>
+                <p className="customer-task-class">
+                    {taskClassLabel(request.task_class)}
+                </p>
+
+                <h3>{request.description}</h3>
+
+                <dl className="customer-detail-list">
+                    <div>
+                        <dt>ID Tugasan</dt>
+                        <dd>{task.task_id}</dd>
+                    </div>
+                    <div>
+                        <dt>Status</dt>
+                        <dd>{task.generic_status}</dd>
+                    </div>
+                    <div>
+                        <dt>Status Permintaan</dt>
+                        <dd>{request.status}</dd>
+                    </div>
+                    <div>
+                        <dt>Dicipta</dt>
+                        <dd>{formatDate(task.created_at)}</dd>
+                    </div>
+                    <div>
+                        <dt>Runner ditugaskan</dt>
+                        <dd>{formatDate(task.assigned_at)}</dd>
+                    </div>
+                    <div>
+                        <dt>Mula</dt>
+                        <dd>{formatDate(task.started_at)}</dd>
+                    </div>
+                    <div>
+                        <dt>Selesai</dt>
+                        <dd>{formatDate(task.completed_at)}</dd>
+                    </div>
+                    <div>
+                        <dt>Tarikh luput permintaan</dt>
+                        <dd>{formatDate(request.expires_at)}</dd>
+                    </div>
+                </dl>
+
+                {request.task_class === 'PICKUP_DELIVERY' && (
+                    <div className="customer-location-grid">
+                        <div>
+                            <h4>Lokasi Pickup</h4>
+                            <pre>
+                                {JSON.stringify(
+                                    request.pickup_location_snapshot ?? {},
+                                    null,
+                                    2,
+                                )}
+                            </pre>
+                        </div>
+                        <div>
+                            <h4>Lokasi Delivery</h4>
+                            <pre>
+                                {JSON.stringify(
+                                    request.delivery_location_snapshot ?? {},
+                                    null,
+                                    2,
+                                )}
+                            </pre>
+                        </div>
+                    </div>
+                )}
+
+                {request.task_class === 'NON_DELIVERY' && (
+                    <div>
+                        <h4>Lokasi Tugasan</h4>
+                        <pre>
+                            {JSON.stringify(
+                                request.task_location_snapshot ?? {},
+                                null,
+                                2,
+                            )}
+                        </pre>
+                    </div>
+                )}
+            </section>
+        );
+    }
+
+    function renderDashboard() {
+        return (
+            <>
+                <section className="customer-welcome">
+                    <p>Dashboard Pelanggan</p>
+                    <h2>Hai, {account?.name}</h2>
+                    <span>Selamat datang ke Super Runner.</span>
+                </section>
+
+                <div className="customer-summary-grid">
+                    <article className="customer-summary-card">
+                        <span>Jumlah Tugasan</span>
+                        <strong>{taskTotal}</strong>
+                    </article>
+                    <article className="customer-summary-card">
+                        <span>Status Akaun</span>
+                        <strong>{account?.status}</strong>
+                    </article>
+                </div>
+
+                <section className="customer-panel">
+                    <div className="customer-section-heading">
+                        <h2>Tugasan Terkini</h2>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                closeTaskDetail();
+                                setPage('tasks');
+                            }}
+                        >
+                            Lihat semua
+                        </button>
+                    </div>
+
+                    {renderTaskList()}
+                </section>
+            </>
+        );
+    }
+
+    function renderProfile() {
+        if (!account) return null;
+
+        return (
+            <section className="customer-panel">
+                <h2>Profil Saya</h2>
+
+                <div className="customer-profile-avatar">
+                    {account.name.charAt(0).toUpperCase()}
+                </div>
+
+                <dl className="customer-detail-list">
+                    <div>
+                        <dt>Nama</dt>
+                        <dd>{account.name}</dd>
+                    </div>
+                    <div>
+                        <dt>Nombor Telefon</dt>
+                        <dd>{account.phone || 'Belum ditetapkan'}</dd>
+                    </div>
+                    <div>
+                        <dt>E-mel</dt>
+                        <dd>{account.email || 'Belum ditetapkan'}</dd>
+                    </div>
+                    <div>
+                        <dt>Peranan</dt>
+                        <dd>{account.role}</dd>
+                    </div>
+                    <div>
+                        <dt>Status Akaun</dt>
+                        <dd>{account.status}</dd>
+                    </div>
+                </dl>
+            </section>
+        );
+    }
+
+    function renderLocationFields(
+        title: string,
+        address: string,
+        setAddress: (value: string) => void,
+        contact: string,
+        setContact: (value: string) => void,
+        phone: string,
+        setPhone: (value: string) => void,
+    ) {
+        return (
+            <fieldset className="customer-request-location">
+                <legend>{title}</legend>
+
+                <div>
+                    <label>Alamat</label>
+                    <textarea
+                        required
+                        value={address}
+                        onChange={(event) => setAddress(event.target.value)}
+                    />
+                </div>
+
+                <div>
+                    <label>Nama untuk dihubungi (pilihan)</label>
+                    <input
+                        value={contact}
+                        onChange={(event) => setContact(event.target.value)}
+                    />
+                </div>
+
+                <div>
+                    <label>Nombor telefon (pilihan)</label>
+                    <input
+                        value={phone}
+                        onChange={(event) => setPhone(event.target.value)}
+                    />
+                </div>
+            </fieldset>
+        );
+    }
+
+    function renderRequestForm() {
+        return (
+            <section className="customer-panel">
+                <h2>Open Request</h2>
+                <p>
+                    Nyatakan tugasan yang anda perlukan. Runner yang diluluskan
+                    boleh melihat permintaan dan menghantar sebut harga.
+                </p>
+
+                {requestSuccess && (
+                    <p className="customer-request-success" role="status">
+                        {requestSuccess}
+                    </p>
+                )}
+
+                <form onSubmit={handleCreateRequest}>
+                    <div>
+                        <label>Jenis Tugasan</label>
+                        <select
+                            value={taskClass}
+                            onChange={(event) =>
+                                setTaskClass(event.target.value as TaskClass)
+                            }
+                        >
+                            <option value="PICKUP_DELIVERY">Pickup & Delivery</option>
+                            <option value="NON_DELIVERY">Non-Delivery</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label>Penerangan Tugasan</label>
+                        <textarea
+                            required
+                            value={description}
+                            onChange={(event) => setDescription(event.target.value)}
+                        />
+                    </div>
+
+                    {taskClass === 'PICKUP_DELIVERY' ? (
+                        <>
+                            {renderLocationFields(
+                                'Lokasi Pickup',
+                                pickupAddress,
+                                setPickupAddress,
+                                pickupContact,
+                                setPickupContact,
+                                pickupPhone,
+                                setPickupPhone,
+                            )}
+
+                            {renderLocationFields(
+                                'Lokasi Delivery',
+                                deliveryAddress,
+                                setDeliveryAddress,
+                                deliveryContact,
+                                setDeliveryContact,
+                                deliveryPhone,
+                                setDeliveryPhone,
+                            )}
+                        </>
+                    ) : (
+                        renderLocationFields(
+                            'Lokasi Tugasan',
+                            taskAddress,
+                            setTaskAddress,
+                            taskContact,
+                            setTaskContact,
+                            taskPhone,
+                            setTaskPhone,
+                        )
+                    )}
+
+                    <div>
+                        <label>Permintaan tamat pada</label>
+                        <input
+                            type="datetime-local"
+                            required
+                            value={expiresAt}
+                            onChange={(event) => setExpiresAt(event.target.value)}
+                        />
+                        <small>
+                            Permintaan akan tamat secara automatik apabila tempoh ini
+                            dicapai.
+                        </small>
+                    </div>
+
+                    <button type="submit" disabled={requestLoading}>
+                        {requestLoading ? 'Menghantar...' : 'Hantar Open Request'}
+                    </button>
+                </form>
+
+                <section className="customer-own-requests">
+                    <h3>Permintaan Saya</h3>
+
+                    {ownRequestsLoading ? (
+                        <p>Memuatkan permintaan...</p>
+                    ) : ownRequestsError ? (
+                        <p role="alert">{ownRequestsError}</p>
+                    ) : ownRequests.length === 0 ? (
+                        <p>Belum ada permintaan.</p>
+                    ) : (
+                        <>
+                            <div className="customer-task-list">
+                                {ownRequests.map((request) => (
+                                    <article
+                                        className="customer-task-card"
+                                        key={request.request_id}
+                                    >
+                                        <span className="customer-task-card-top">
+                                            {taskClassLabel(request.task_class)}
+                                        </span>
+                                        <strong>{request.description}</strong>
+                                        <span>Status: {request.status}</span>
+                                        <span>
+                                            Tamat: {formatDate(request.expires_at)}
+                                        </span>
+                                    </article>
+                                ))}
+                            </div>
+
+                            <div className="customer-pagination">
+                                <button
+                                    type="button"
+                                    disabled={ownRequestPage <= 1 || ownRequestsLoading}
+                                    onClick={() =>
+                                        setOwnRequestPage((current) => current - 1)
+                                    }
+                                >
+                                    Sebelum
+                                </button>
+
+                                <span>
+                                    {ownRequestPage} / {ownRequestLastPage}
+                                    {' · '}
+                                    {ownRequestTotal} permintaan
+                                </span>
+
+                                <button
+                                    type="button"
+                                    disabled={
+                                        ownRequestPage >= ownRequestLastPage ||
+                                        ownRequestsLoading
+                                    }
+                                    onClick={() =>
+                                        setOwnRequestPage((current) => current + 1)
+                                    }
+                                >
+                                    Seterusnya
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </section>
+            </section>
+        );
+    }
+
+    if (checkingSession) {
+        return (
+            <main className="customer-loading">
+                <h1>Super Runner</h1>
+                <p>Memeriksa sesi akaun...</p>
+            </main>
+        );
+    }
+
+    if (!account) {
+        return (
+            <main className="customer-login">
+                <h1>Super Runner</h1>
+                <h2>Log Masuk Pelanggan</h2>
+
+                <form onSubmit={handleLogin}>
+                    <div>
+                        <label>Nombor Telefon atau E-mel</label>
+                        <input
+                            type="text"
+                            autoComplete="username"
+                            required
+                            value={identifier}
+                            onChange={(event) => setIdentifier(event.target.value)}
+                        />
+                    </div>
+
+                    <div>
+                        <label>Kata Laluan</label>
+                        <input
+                            type="password"
+                            autoComplete="current-password"
+                            required
+                            value={password}
+                            onChange={(event) => setPassword(event.target.value)}
+                        />
+                    </div>
+
+                    {error && <p role="alert">{error}</p>}
+
+                    <button type="submit" disabled={loading}>
+                        {loading ? 'Sedang log masuk...' : 'Log Masuk'}
+                    </button>
+                </form>
+            </main>
+        );
+    }
+
+    return (
+        <div className="customer-layout">
+            <header className="customer-header">
+                <a className="customer-brand" href="/">
+                    Super Runner
+                </a>
+
+                <div className="customer-header-account">
+                    <span>{account.name}</span>
+                    <button
+                        type="button"
+                        onClick={handleLogout}
+                        disabled={loading}
+                    >
+                        Log Keluar
+                    </button>
+                </div>
+            </header>
+
+            <div className="customer-body">
+                <nav className="customer-sidebar">
+                    <button
+                        type="button"
+                        className={page === 'dashboard' ? 'active' : ''}
+                        onClick={() => {
+                            closeTaskDetail();
+                            setPage('dashboard');
+                        }}
+                    >
+                        Dashboard
+                    </button>
+
+                    <button
+                        type="button"
+                        className={page === 'tasks' ? 'active' : ''}
+                        onClick={() => {
+                            closeTaskDetail();
+                            setPage('tasks');
+                        }}
+                    >
+                        Tugasan Saya
+                    </button>
+
+                    <button
+                        type="button"
+                        className={page === 'request' ? 'active' : ''}
+                        onClick={() => {
+                            closeTaskDetail();
+                            setPage('request');
+                        }}
+                    >
+                        Open Request
+                    </button>
+
+                    <button
+                        type="button"
+                        className={page === 'profile' ? 'active' : ''}
+                        onClick={() => {
+                            closeTaskDetail();
+                            setPage('profile');
+                        }}
+                    >
+                        Profil Saya
+                    </button>
+                </nav>
+
+                <main className="customer-content">
+                    {error && <p role="alert">{error}</p>}
+
+                    {taskDetailLoading ? (
+                        <section className="customer-panel">
+                            <p>Memuatkan butiran tugasan...</p>
+                        </section>
+                    ) : selectedTaskId && taskDetailError ? (
+                        <section className="customer-panel">
+                            <button
+                                className="customer-back-button"
+                                type="button"
+                                onClick={closeTaskDetail}
+                            >
+                                ← Kembali ke senarai
+                            </button>
+                            <p role="alert">{taskDetailError}</p>
+                        </section>
+                    ) : selectedTask ? (
+                        renderTaskDetail(selectedTask)
+                    ) : page === 'dashboard' ? (
+                        renderDashboard()
+                    ) : page === 'tasks' ? (
+                        <section className="customer-panel">
+                            <h2>Tugasan Saya</h2>
+                            {renderTaskList()}
+                        </section>
+                    ) : page === 'request' ? (
+                        renderRequestForm()
+                    ) : (
+                        renderProfile()
+                    )}
+                </main>
+            </div>
+        </div>
+    );
+}
+
+const rootElement = document.getElementById('customer-app');
+
+if (rootElement) {
+    createRoot(rootElement).render(
+        <StrictMode>
+            <CustomerApp />
+        </StrictMode>,
+    );
+}
