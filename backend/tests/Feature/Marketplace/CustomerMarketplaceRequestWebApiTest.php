@@ -44,6 +44,20 @@ class CustomerMarketplaceRequestWebApiTest extends TestCase
         ]);
     }
 
+    private function createNonDeliveryRequest(): void
+    {
+        $this->postJson('/web/customer/requests', [
+            'task_class' => 'NON_DELIVERY',
+            'description' => 'Bantu beli barang di kedai.',
+            'task_location_snapshot' => [
+                'address' => 'Kedai yang ditetapkan',
+                'contact_name' => 'Pemilik kedai',
+                'phone' => '0123456789',
+            ],
+            'expires_at' => now()->addHours(3)->toDateTimeString(),
+        ])->assertCreated();
+    }
+
     public function test_customer_can_create_pickup_delivery_request(): void
     {
         $customer = $this->createAccount();
@@ -198,5 +212,41 @@ class CustomerMarketplaceRequestWebApiTest extends TestCase
         ])->assertUnauthorized();
 
         $this->assertDatabaseCount('marketplace_requests', 0);
+    }
+
+    public function test_customer_can_only_view_own_marketplace_requests(): void
+    {
+        $firstCustomer = $this->createAccount();
+        $this->authenticateCustomer($firstCustomer);
+        $this->createNonDeliveryRequest();
+
+        $secondCustomer = $this->createAccount();
+        $this->authenticateCustomer($secondCustomer);
+        $this->createNonDeliveryRequest();
+
+        $this->authenticateCustomer($firstCustomer);
+
+        $response = $this->getJson('/web/customer/requests');
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.pagination.current_page', 1)
+            ->assertJsonPath('data.pagination.per_page', 25)
+            ->assertJsonPath('data.pagination.total', 1)
+            ->assertJsonPath('data.pagination.last_page', 1)
+            ->assertJsonCount(1, 'data.requests')
+            ->assertJsonPath(
+                'data.requests.0.description',
+                'Bantu beli barang di kedai.'
+            )
+            ->assertJsonMissingPath('data.requests.0.customer_account_id');
+
+        $this->assertDatabaseCount('marketplace_requests', 2);
+    }
+
+    public function test_customer_request_listing_requires_web_session(): void
+    {
+        $this->getJson('/web/customer/requests')
+            ->assertUnauthorized();
     }
 }
