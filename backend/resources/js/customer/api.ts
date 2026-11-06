@@ -50,6 +50,32 @@ export interface CustomerTaskPagination {
     last_page: number;
 }
 
+export interface CustomerRequestPayload {
+    source_type?: 'marketplace' | 'runner_profile_link';
+    target_runner_slug?: string | null;
+    task_class: 'PICKUP_DELIVERY' | 'NON_DELIVERY';
+    description: string;
+    pickup_location_snapshot?: Record<string, unknown>;
+    delivery_location_snapshot?: Record<string, unknown>;
+    task_location_snapshot?: Record<string, unknown>;
+    expires_at: string;
+}
+
+export interface CustomerMarketplaceRequest {
+    request_id: string;
+    customer_account_id: number | string;
+    target_runner_account_id: number | string | null;
+    source_type: string;
+    task_class: 'PICKUP_DELIVERY' | 'NON_DELIVERY';
+    description: string;
+    pickup_location_snapshot: Record<string, unknown> | null;
+    delivery_location_snapshot: Record<string, unknown> | null;
+    task_location_snapshot: Record<string, unknown> | null;
+    status: string;
+    expires_at: string | null;
+    created_at: string;
+}
+
 interface ApiResponse<T> {
     success: boolean;
     message?: string;
@@ -74,6 +100,10 @@ interface CustomerTasksData {
 interface CustomerTaskData {
     task: CustomerTask;
     request: CustomerTaskRequest;
+}
+
+interface CustomerMarketplaceRequestData {
+    request: CustomerMarketplaceRequest;
 }
 
 const api = axios.create({
@@ -125,5 +155,18 @@ export const customerApi = {
         );
 
         return response.data.data;
+    },
+
+    async createRequest(
+        payload: CustomerRequestPayload,
+    ): Promise<CustomerMarketplaceRequest> {
+        const response = await api.post<
+            ApiResponse<CustomerMarketplaceRequestData>
+        >(
+            '/web/customer/requests',
+            payload,
+        );
+
+        return response.data.data.request;
     },
 };
