@@ -51,7 +51,11 @@ function CustomerApp() {
     const [taskPage, setTaskPage] = useState(1);
     const [taskLastPage, setTaskLastPage] = useState(1);
     const [tasksLoading, setTasksLoading] = useState(false);
+
     const [selectedTask, setSelectedTask] = useState<CustomerTaskItem | null>(null);
+    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+    const [taskDetailLoading, setTaskDetailLoading] = useState(false);
+    const [taskDetailError, setTaskDetailError] = useState('');
 
     const [taskClass, setTaskClass] = useState<TaskClass>('PICKUP_DELIVERY');
     const [description, setDescription] = useState('');
@@ -115,6 +119,47 @@ function CustomerApp() {
         };
     }, [account, taskPage]);
 
+    useEffect(() => {
+        if (!selectedTaskId) return;
+
+        let mounted = true;
+
+        setSelectedTask(null);
+        setTaskDetailError('');
+        setTaskDetailLoading(true);
+
+        customerApi.getTask(selectedTaskId)
+            .then((result) => {
+                if (!mounted) return;
+
+                setSelectedTask({
+                    task: result.task,
+                    request: result.request,
+                });
+            })
+            .catch(() => {
+                if (mounted) {
+                    setTaskDetailError(
+                        'Tidak berjaya memuatkan butiran tugasan. Sila cuba semula.',
+                    );
+                }
+            })
+            .finally(() => {
+                if (mounted) setTaskDetailLoading(false);
+            });
+
+        return () => {
+            mounted = false;
+        };
+    }, [selectedTaskId]);
+
+    function closeTaskDetail() {
+        setSelectedTaskId(null);
+        setSelectedTask(null);
+        setTaskDetailError('');
+        setTaskDetailLoading(false);
+    }
+
     async function handleLogin(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         setError('');
@@ -157,7 +202,7 @@ function CustomerApp() {
             setIdentifier('');
             setPassword('');
             setTasks([]);
-            setSelectedTask(null);
+            closeTaskDetail();
         } catch {
             setError('Tidak berjaya logout. Sila cuba semula.');
         } finally {
@@ -166,7 +211,9 @@ function CustomerApp() {
     }
 
     function openTask(item: CustomerTaskItem) {
-        setSelectedTask(item);
+        setSelectedTask(null);
+        setTaskDetailError('');
+        setSelectedTaskId(item.task.task_id);
     }
 
     function resetRequestForm() {
@@ -310,7 +357,7 @@ function CustomerApp() {
                 <button
                     className="customer-back-button"
                     type="button"
-                    onClick={() => setSelectedTask(null)}
+                    onClick={closeTaskDetail}
                 >
                     ← Kembali ke senarai
                 </button>
@@ -424,7 +471,7 @@ function CustomerApp() {
                         <button
                             type="button"
                             onClick={() => {
-                                setSelectedTask(null);
+                                closeTaskDetail();
                                 setPage('tasks');
                             }}
                         >
@@ -708,7 +755,7 @@ function CustomerApp() {
                     href="#dashboard"
                     onClick={(event) => {
                         event.preventDefault();
-                        setSelectedTask(null);
+                        closeTaskDetail();
                         setPage('dashboard');
                     }}
                 >
@@ -733,7 +780,7 @@ function CustomerApp() {
                         type="button"
                         className={page === 'dashboard' ? 'active' : ''}
                         onClick={() => {
-                            setSelectedTask(null);
+                            closeTaskDetail();
                             setPage('dashboard');
                         }}
                     >
@@ -744,7 +791,7 @@ function CustomerApp() {
                         type="button"
                         className={page === 'request' ? 'active' : ''}
                         onClick={() => {
-                            setSelectedTask(null);
+                            closeTaskDetail();
                             setError('');
                             setRequestSuccess('');
                             setPage('request');
@@ -757,7 +804,7 @@ function CustomerApp() {
                         type="button"
                         className={page === 'tasks' ? 'active' : ''}
                         onClick={() => {
-                            setSelectedTask(null);
+                            closeTaskDetail();
                             setPage('tasks');
                         }}
                     >
@@ -768,7 +815,7 @@ function CustomerApp() {
                         type="button"
                         className={page === 'profile' ? 'active' : ''}
                         onClick={() => {
-                            setSelectedTask(null);
+                            closeTaskDetail();
                             setPage('profile');
                         }}
                     >
@@ -781,20 +828,35 @@ function CustomerApp() {
                         <p role="alert">{error}</p>
                     )}
 
-                    {selectedTask
-                        ? renderTaskDetail(selectedTask)
-                        : page === 'dashboard'
-                            ? renderDashboard()
-                            : page === 'tasks'
-                                ? (
-                                    <section className="customer-panel">
-                                        <h2>Tugasan Saya</h2>
-                                        {renderTaskList()}
-                                    </section>
-                                )
-                                : page === 'request'
-                                    ? renderRequestForm()
-                                    : renderProfile()}
+                    {selectedTaskId && taskDetailLoading ? (
+                        <section className="customer-panel">
+                            <p>Memuatkan butiran tugasan...</p>
+                        </section>
+                    ) : selectedTaskId && taskDetailError ? (
+                        <section className="customer-panel">
+                            <button
+                                className="customer-back-button"
+                                type="button"
+                                onClick={closeTaskDetail}
+                            >
+                                ← Kembali ke senarai
+                            </button>
+                            <p role="alert">{taskDetailError}</p>
+                        </section>
+                    ) : selectedTask ? (
+                        renderTaskDetail(selectedTask)
+                    ) : page === 'dashboard' ? (
+                        renderDashboard()
+                    ) : page === 'tasks' ? (
+                        <section className="customer-panel">
+                            <h2>Tugasan Saya</h2>
+                            {renderTaskList()}
+                        </section>
+                    ) : page === 'request' ? (
+                        renderRequestForm()
+                    ) : (
+                        renderProfile()
+                    )}
                 </main>
             </div>
         </div>
