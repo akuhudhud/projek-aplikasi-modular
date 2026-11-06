@@ -9,7 +9,7 @@ import {
     type CustomerRequestPayload,
     type CustomerOwnMarketplaceRequest,
 } from './api';
-import '../css/customer.css';
+import '../styles/customer.css';
 
 type Page = 'dashboard' | 'tasks' | 'profile' | 'request';
 type TaskClass = 'PICKUP_DELIVERY' | 'NON_DELIVERY';
