@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Web\AuthController;
+use App\Http\Controllers\Web\CustomerMarketplaceRequestController;
 use App\Http\Controllers\Web\CustomerTaskController;
 use Illuminate\Support\Facades\Route;
 
@@ -29,6 +30,9 @@ Route::prefix('web/customer')
 
         Route::get('/tasks/{taskId}', [CustomerTaskController::class, 'show'])
             ->name('tasks.show');
+
+        Route::post('/requests', [CustomerMarketplaceRequestController::class, 'store'])
+            ->name('requests.store');
     });
 
 Route::view('/customer', 'customer')
