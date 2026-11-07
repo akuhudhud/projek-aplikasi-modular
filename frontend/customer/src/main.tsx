@@ -1231,3 +1231,404 @@ function CustomerApp() {
                                     onChange={(event) => setPassword(event.target.value)}
                                     required
                                     disabled={loading}
+                                />
+                            </div>
+
+                            {error && <p role="alert">{error}</p>}
+
+                            <button type="submit" disabled={loading}>
+                                {loading ? 'Sedang log masuk...' : 'Log Masuk'}
+                            </button>
+                        </form>
+
+                        <p>
+                            Belum ada akaun?{' '}
+                            <button
+                                type="button"
+                                disabled={loading}
+                                onClick={() => {
+                                    resetRegistration();
+                                    setAuthMode('register');
+                                }}
+                            >
+                                Daftar Akaun
+                            </button>
+                        </p>
+                    </>
+                ) : (
+                    <>
+                        <h2>Pendaftaran Pelanggan</h2>
+                        <p>Daftar akaun menggunakan nombor telefon atau e-mel.</p>
+
+                        <div
+                            className="customer-registration-steps"
+                            aria-label="Langkah pendaftaran"
+                        >
+                            <span className={registrationStep >= 1 ? 'active' : ''}>
+                                1. Hubungan
+                            </span>
+                            <span className={registrationStep >= 2 ? 'active' : ''}>
+                                2. OTP
+                            </span>
+                            <span className={registrationStep >= 3 ? 'active' : ''}>
+                                3. Akaun
+                            </span>
+                        </div>
+
+                        {registrationStep === 1 && (
+                            <form onSubmit={handleRequestRegistrationOtp}>
+                                <div>
+                                    <label htmlFor="registration-channel">
+                                        Daftar menggunakan
+                                    </label>
+                                    <select
+                                        id="registration-channel"
+                                        value={registrationChannel}
+                                        onChange={(event) => {
+                                            setRegistrationChannel(
+                                                event.target.value as 'phone' | 'email',
+                                            );
+                                            setRegistrationContact('');
+                                        }}
+                                        disabled={loading}
+                                    >
+                                        <option value="phone">Nombor Telefon</option>
+                                        <option value="email">E-mel</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="registration-contact">
+                                        {registrationChannel === 'phone'
+                                            ? 'Nombor Telefon'
+                                            : 'Alamat E-mel'}
+                                    </label>
+                                    <input
+                                        id="registration-contact"
+                                        type={
+                                            registrationChannel === 'phone'
+                                                ? 'tel'
+                                                : 'email'
+                                        }
+                                        autoComplete={
+                                            registrationChannel === 'phone'
+                                                ? 'tel'
+                                                : 'email'
+                                        }
+                                        value={registrationContact}
+                                        onChange={(event) =>
+                                            setRegistrationContact(event.target.value)
+                                        }
+                                        required
+                                        maxLength={
+                                            registrationChannel === 'phone' ? 30 : 254
+                                        }
+                                        disabled={loading}
+                                    />
+                                </div>
+
+                                {error && <p role="alert">{error}</p>}
+
+                                <button type="submit" disabled={loading}>
+                                    {loading ? 'Menghantar OTP...' : 'Hantar Kod OTP'}
+                                </button>
+                            </form>
+                        )}
+
+                        {registrationStep === 2 && (
+                            <form onSubmit={handleVerifyRegistrationOtp}>
+                                <p>
+                                    Masukkan kod OTP 6 digit yang dihantar ke{' '}
+                                    <strong>{registrationContact}</strong>.
+                                </p>
+
+                                <div>
+                                    <label htmlFor="registration-otp">Kod OTP</label>
+                                    <input
+                                        id="registration-otp"
+                                        type="text"
+                                        inputMode="numeric"
+                                        autoComplete="one-time-code"
+                                        value={registrationOtp}
+                                        onChange={(event) =>
+                                            setRegistrationOtp(
+                                                event.target.value
+                                                    .replace(/\D/g, '')
+                                                    .slice(0, 6),
+                                            )
+                                        }
+                                        required
+                                        minLength={6}
+                                        maxLength={6}
+                                        pattern="[0-9]{6}"
+                                        disabled={loading}
+                                    />
+                                </div>
+
+                                {error && <p role="alert">{error}</p>}
+
+                                <button
+                                    type="submit"
+                                    disabled={loading || registrationOtp.length !== 6}
+                                >
+                                    {loading ? 'Mengesahkan...' : 'Sahkan OTP'}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    disabled={loading}
+                                    onClick={() => {
+                                        setRegistrationStep(1);
+                                        setRegistrationVerificationId('');
+                                        setRegistrationOtp('');
+                                        setError('');
+                                    }}
+                                >
+                                    Tukar Nombor / E-mel
+                                </button>
+                            </form>
+                        )}
+
+                        {registrationStep === 3 && (
+                            <form onSubmit={handleCompleteRegistration}>
+                                <p>
+                                    OTP berjaya disahkan untuk{' '}
+                                    <strong>{registrationContact}</strong>.
+                                </p>
+
+                                <div>
+                                    <label htmlFor="registration-name">Nama</label>
+                                    <input
+                                        id="registration-name"
+                                        type="text"
+                                        autoComplete="name"
+                                        value={registrationName}
+                                        onChange={(event) =>
+                                            setRegistrationName(event.target.value)
+                                        }
+                                        required
+                                        maxLength={150}
+                                        disabled={loading}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label htmlFor="registration-password">
+                                        Kata Laluan
+                                    </label>
+                                    <input
+                                        id="registration-password"
+                                        type="password"
+                                        autoComplete="new-password"
+                                        value={registrationPassword}
+                                        onChange={(event) =>
+                                            setRegistrationPassword(event.target.value)
+                                        }
+                                        required
+                                        minLength={8}
+                                        maxLength={12}
+                                        disabled={loading}
+                                    />
+                                    <small>
+                                        8–12 aksara, mesti ada huruf besar, huruf kecil dan nombor.
+                                    </small>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="registration-password-confirmation">
+                                        Sahkan Kata Laluan
+                                    </label>
+                                    <input
+                                        id="registration-password-confirmation"
+                                        type="password"
+                                        autoComplete="new-password"
+                                        value={registrationPasswordConfirmation}
+                                        onChange={(event) =>
+                                            setRegistrationPasswordConfirmation(
+                                                event.target.value,
+                                            )
+                                        }
+                                        required
+                                        minLength={8}
+                                        maxLength={12}
+                                        disabled={loading}
+                                    />
+                                </div>
+
+                                {error && <p role="alert">{error}</p>}
+
+                                <button type="submit" disabled={loading}>
+                                    {loading ? 'Mencipta akaun...' : 'Cipta Akaun'}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    disabled={loading}
+                                    onClick={() => {
+                                        setRegistrationStep(2);
+                                        setRegistrationVerificationToken('');
+                                        setError('');
+                                    }}
+                                >
+                                    Kembali
+                                </button>
+                            </form>
+                        )}
+
+                        <p>
+                            Sudah ada akaun?{' '}
+                            <button
+                                type="button"
+                                disabled={loading}
+                                onClick={() => {
+                                    resetRegistration();
+                                    setAuthMode('login');
+                                }}
+                            >
+                                Log Masuk
+                            </button>
+                        </p>
+                    </>
+                )}
+            </main>
+        );
+    }
+
+    return (
+        <div className="customer-layout">
+            <header className="customer-header">
+                <a
+                    className="customer-brand"
+                    href="#dashboard"
+                    onClick={(event) => {
+                        event.preventDefault();
+                        closeTaskDetail();
+                        setPage('dashboard');
+                    }}
+                >
+                    Super Runner
+                </a>
+
+                <div className="customer-header-account">
+                    <span>{account.name}</span>
+                    <button
+                        type="button"
+                        onClick={handleLogout}
+                        disabled={loading}
+                    >
+                        {loading ? '...' : 'Logout'}
+                    </button>
+                </div>
+            </header>
+
+            <div className="customer-body">
+                <nav className="customer-sidebar" aria-label="Menu utama">
+                    <button
+                        type="button"
+                        className={page === 'dashboard' ? 'active' : ''}
+                        onClick={() => {
+                            closeTaskDetail();
+                            setPage('dashboard');
+                        }}
+                    >
+                        Dashboard
+                    </button>
+
+                    <button
+                        type="button"
+                        className={page === 'request' ? 'active' : ''}
+                        onClick={() => {
+                            closeTaskDetail();
+                            setError('');
+                            setRequestSuccess('');
+                            setPage('request');
+                        }}
+                    >
+                        Open Request
+                    </button>
+
+                    <button
+                        type="button"
+                        className={page === 'tasks' ? 'active' : ''}
+                        onClick={() => {
+                            closeTaskDetail();
+                            setPage('tasks');
+                        }}
+                    >
+                        Tugasan Saya
+                    </button>
+
+                    <button
+                        type="button"
+                        className={page === 'profile' ? 'active' : ''}
+                        onClick={() => {
+                            closeTaskDetail();
+                            setPage('profile');
+                        }}
+                    >
+                        Profil
+                    </button>
+                </nav>
+
+                <main className="customer-content">
+                    {error && page !== 'request' && (
+                        <p role="alert">{error}</p>
+                    )}
+
+                    {selectedTaskId && taskDetailLoading ? (
+                        <section className="customer-panel">
+                            <p>Memuatkan butiran tugasan...</p>
+                        </section>
+                    ) : selectedTaskId && taskDetailError ? (
+                        <section className="customer-panel">
+                            <button
+                                className="customer-back-button"
+                                type="button"
+                                onClick={closeTaskDetail}
+                            >
+                                ← Kembali ke senarai
+                            </button>
+                            <p role="alert">{taskDetailError}</p>
+                        </section>
+                    ) : selectedTask ? (
+                        renderTaskDetail(selectedTask)
+                    ) : page === 'dashboard' ? (
+                        renderDashboard()
+                    ) : page === 'tasks' ? (
+                        <section className="customer-panel">
+                            <h2>Tugasan Saya</h2>
+                            {renderTaskList()}
+                        </section>
+                    ) : page === 'request' ? (
+                        renderRequestForm()
+                    ) : (
+                        renderProfile()
+                    )}
+                </main>
+            </div>
+        </div>
+    );
+}
+
+const rootElement = document.getElementById('customer-app');
+
+if (rootElement) {
+    createRoot(rootElement).render(
+        <StrictMode>
+            <CustomerApp />
+        </StrictMode>,
+    );
+}
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker
+            .register('/sw.js')
+            .catch((error) => {
+                console.error(
+                    'Customer Service Worker registration failed:',
+                    error,
+                );
+            });
+    });
+}
