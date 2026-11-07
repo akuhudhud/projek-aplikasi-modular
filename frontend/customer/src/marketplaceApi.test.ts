@@ -26,8 +26,8 @@ describe('customerApi.createRequest', () => {
         description: 'Bantu beli barang di kedai.',
         task_location_snapshot: {
             address: 'Kedai Tuaran',
-            latitude: 6.176,
-            longitude: 116.234,
+            contact_name: 'Ali',
+            phone: '0123456789',
         },
         expires_at: '2026-11-08T12:00:00.000Z',
     };
@@ -107,6 +107,8 @@ describe('customerApi.getRequests', () => {
                 delivery_location_snapshot: null,
                 task_location_snapshot: {
                     address: 'Kedai Tuaran',
+                    contact_name: 'Ali',
+                    phone: '0123456789',
                 },
                 status: 'OPEN',
                 expires_at: '2026-11-08T12:00:00.000Z',
@@ -118,8 +120,8 @@ describe('customerApi.getRequests', () => {
         ],
         pagination: {
             current_page: 2,
-            per_page: 15,
-            total: 16,
+            per_page: 25,
+            total: 26,
             last_page: 2,
         },
     };
@@ -158,7 +160,8 @@ describe('customerApi.getRequests', () => {
         expect(result).toEqual(responseData);
         expect(result.requests).toHaveLength(1);
         expect(result.pagination.current_page).toBe(2);
-        expect(result.pagination.total).toBe(16);
+        expect(result.pagination.per_page).toBe(25);
+        expect(result.pagination.total).toBe(26);
     });
 
     it('uses page one by default', async () => {
@@ -222,6 +225,8 @@ describe('customerApi.getTasks', () => {
                     delivery_location_snapshot: null,
                     task_location_snapshot: {
                         address: 'Kedai Tuaran',
+                        contact_name: 'Ali',
+                        phone: '0123456789',
                     },
                     status: 'AWARDED',
                     expires_at: '2026-11-08T12:00:00.000Z',
@@ -232,7 +237,7 @@ describe('customerApi.getTasks', () => {
         ],
         pagination: {
             current_page: 1,
-            per_page: 15,
+            per_page: 25,
             total: 1,
             last_page: 1,
         },
@@ -273,6 +278,7 @@ describe('customerApi.getTasks', () => {
         expect(result.tasks).toHaveLength(1);
         expect(result.tasks[0].task.task_id).toBe('task-001');
         expect(result.tasks[0].request.request_id).toBe('request-001');
+        expect(result.pagination.per_page).toBe(25);
     });
 
     it('uses page one by default', async () => {
@@ -334,6 +340,8 @@ describe('customerApi.getTask', () => {
             delivery_location_snapshot: null,
             task_location_snapshot: {
                 address: 'Kedai Tuaran',
+                contact_name: 'Ali',
+                phone: '0123456789',
             },
             status: 'AWARDED',
             expires_at: '2026-11-08T12:00:00.000Z',
