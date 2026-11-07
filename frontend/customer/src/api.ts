@@ -182,6 +182,15 @@ export const customerApi = {
         return response.data.data.account;
     },
 
+    async updateProfile(payload: { name: string }): Promise<CustomerAccount> {
+        const response = await api.patch<ApiResponse<AccountData>>(
+            '/web/auth/profile',
+            payload,
+        );
+
+        return response.data.data.account;
+    },
+
     async logout(): Promise<void> {
         await api.post('/web/auth/logout');
     },
