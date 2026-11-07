@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 
 export interface CustomerAccount {
@@ -124,6 +125,15 @@ interface CustomerMarketplaceRequestData {
 interface CustomerOwnMarketplaceRequestsData {
     requests: CustomerOwnMarketplaceRequest[];
     pagination: CustomerTaskPagination;
+}
+
+interface CustomerCancelRequestData {
+    request: {
+        request_id: string;
+        status: string;
+        cancelled_at: string | null;
+        updated_at: string;
+    };
 }
 
 export interface RegistrationOtpRequestPayload {
@@ -277,5 +287,17 @@ export const customerApi = {
         );
 
         return response.data.data;
+    },
+
+    async cancelRequest(
+        requestId: string,
+    ): Promise<CustomerCancelRequestData['request']> {
+        const response = await api.post<
+            ApiResponse<CustomerCancelRequestData>
+        >(
+            `/web/customer/requests/${encodeURIComponent(requestId)}/cancel`,
+        );
+
+        return response.data.data.request;
     },
 };
