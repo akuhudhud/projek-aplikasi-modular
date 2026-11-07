@@ -249,4 +249,84 @@ class CustomerMarketplaceRequestWebApiTest extends TestCase
         $this->getJson('/web/customer/requests')
             ->assertUnauthorized();
     }
+
+    public function test_customer_can_cancel_own_open_request(): void
+    {
+        $customer = $this->createAccount();
+        $this->authenticateCustomer($customer);
+
+        $this->createNonDeliveryRequest();
+
+        $marketplaceRequest = MarketplaceRequest::query()
+            ->firstOrFail();
+
+        $response = $this->postJson(
+            '/web/customer/requests/'.$marketplaceRequest->request_id.'/cancel'
+        );
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath(
+                'data.request.request_id',
+                $marketplaceRequest->request_id
+            )
+            ->assertJsonPath(
+                'data.request.status',
+                MarketplaceRequest::STATUS_CANCELLED
+            );
+
+        $this->assertDatabaseHas('marketplace_requests', [
+            'request_id' => $marketplaceRequest->request_id,
+            'customer_account_id' => $customer->id,
+            'status' => MarketplaceRequest::STATUS_CANCELLED,
+        ]);
+
+        $this->assertNotNull(
+            $marketplaceRequest->fresh()->cancelled_at
+        );
+
+        $this->assertDatabaseCount('core_tasks', 0);
+    }
+
+    public function test_customer_cannot_cancel_another_customers_request(): void
+    {
+        $owner = $this->createAccount();
+        $this->authenticateCustomer($owner);
+
+        $this->createNonDeliveryRequest();
+
+        $marketplaceRequest = MarketplaceRequest::query()
+            ->firstOrFail();
+
+        $anotherCustomer = $this->createAccount();
+        $this->authenticateCustomer($anotherCustomer);
+
+        $response = $this->postJson(
+            '/web/customer/requests/'.$marketplaceRequest->request_id.'/cancel'
+        );
+
+        $response->assertUnprocessable()
+            ->assertJsonPath('success', false)
+            ->assertJsonPath(
+                'message',
+                'Only the request owner may cancel this request.'
+            );
+
+        $this->assertDatabaseHas('marketplace_requests', [
+            'request_id' => $marketplaceRequest->request_id,
+            'customer_account_id' => $owner->id,
+            'status' => MarketplaceRequest::STATUS_OPEN,
+        ]);
+
+        $this->assertNull(
+            $marketplaceRequest->fresh()->cancelled_at
+        );
+    }
+
+    public function test_customer_cancellation_endpoint_requires_web_session(): void
+    {
+        $this->postJson(
+            '/web/customer/requests/'.(string) Str::uuid().'/cancel'
+        )->assertUnauthorized();
+    }
 }
