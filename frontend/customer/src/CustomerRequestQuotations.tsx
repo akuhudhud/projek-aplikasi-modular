@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import axios from 'axios';
 import {
@@ -6,6 +5,7 @@ import {
     type CustomerMarketplaceQuotation,
     type CustomerMarketplaceRequestDetail,
 } from './api';
+import './CustomerRequestQuotations.css';
 
 interface CustomerRequestQuotationsProps {
     requestId: string;
@@ -166,7 +166,7 @@ export default function CustomerRequestQuotations({
                     <h4>Sebut Harga Runner</h4>
 
                     {detail.quotations.length === 0 ? (
-                        <p>
+                        <p className="customer-quotation-empty">
                             Belum ada Runner menghantar sebut harga.
                         </p>
                     ) : (
@@ -180,37 +180,46 @@ export default function CustomerRequestQuotations({
                                     className="customer-quotation-card"
                                     key={quotation.quotation_id}
                                 >
-                                    <strong>
-                                        {formatAmount(
-                                            quotation.amount,
-                                            quotation.currency,
-                                        )}
-                                    </strong>
+                                    <div className="customer-quotation-card-header">
+                                        <strong>
+                                            {formatAmount(
+                                                quotation.amount,
+                                                quotation.currency,
+                                            )}
+                                        </strong>
 
-                                    <span>
+                                        <span
+                                            className={`customer-quotation-status status-${quotation.status.toLowerCase()}`}
+                                        >
+                                            {quotation.status}
+                                        </span>
+                                    </div>
+
+                                    <span className="customer-quotation-runner">
                                         ID Runner: {quotation.runner_account_id}
                                     </span>
 
-                                    <span>
-                                        Status: {quotation.status}
-                                    </span>
-
                                     {quotation.message && (
-                                        <p>{quotation.message}</p>
+                                        <p className="customer-quotation-message">
+                                            {quotation.message}
+                                        </p>
                                     )}
 
-                                    <small>
-                                        Dihantar: {formatDate(quotation.created_at)}
-                                    </small>
-
-                                    {quotation.expires_at && (
+                                    <div className="customer-quotation-dates">
                                         <small>
-                                            Tamat: {formatDate(quotation.expires_at)}
+                                            Dihantar: {formatDate(quotation.created_at)}
                                         </small>
-                                    )}
+
+                                        {quotation.expires_at && (
+                                            <small>
+                                                Tamat: {formatDate(quotation.expires_at)}
+                                            </small>
+                                        )}
+                                    </div>
 
                                     {canAward && (
                                         <button
+                                            className="customer-quotation-award-button"
                                             type="button"
                                             disabled={awardingQuotationId !== null}
                                             onClick={() => {
@@ -224,7 +233,10 @@ export default function CustomerRequestQuotations({
                                     )}
 
                                     {quotation.status === 'ACCEPTED' && (
-                                        <p role="status">
+                                        <p
+                                            className="customer-quotation-accepted"
+                                            role="status"
+                                        >
                                             Sebut harga ini telah dipilih.
                                         </p>
                                     )}
