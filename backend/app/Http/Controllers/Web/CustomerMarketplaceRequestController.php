@@ -29,7 +29,6 @@ class CustomerMarketplaceRequestController extends Controller
             ], 401);
         }
 
-        // Ensure expired requests are updated before listing.
         $this->marketplaceService->expireDueItems();
 
         $requests = MarketplaceRequest::query()
@@ -101,18 +100,67 @@ class CustomerMarketplaceRequestController extends Controller
                 'string',
                 'max:10000',
             ],
+
             'pickup_location_snapshot' => [
                 'required_if:task_class,PICKUP_DELIVERY',
                 'array',
             ],
+            'pickup_location_snapshot.address' => [
+                'required_if:task_class,PICKUP_DELIVERY',
+                'string',
+                'max:2000',
+            ],
+            'pickup_location_snapshot.contact_name' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
+            'pickup_location_snapshot.phone' => [
+                'nullable',
+                'string',
+                'max:30',
+            ],
+
             'delivery_location_snapshot' => [
                 'required_if:task_class,PICKUP_DELIVERY',
                 'array',
             ],
+            'delivery_location_snapshot.address' => [
+                'required_if:task_class,PICKUP_DELIVERY',
+                'string',
+                'max:2000',
+            ],
+            'delivery_location_snapshot.contact_name' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
+            'delivery_location_snapshot.phone' => [
+                'nullable',
+                'string',
+                'max:30',
+            ],
+
             'task_location_snapshot' => [
                 'required_if:task_class,NON_DELIVERY',
                 'array',
             ],
+            'task_location_snapshot.address' => [
+                'required_if:task_class,NON_DELIVERY',
+                'string',
+                'max:2000',
+            ],
+            'task_location_snapshot.contact_name' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
+            'task_location_snapshot.phone' => [
+                'nullable',
+                'string',
+                'max:30',
+            ],
+
             'expires_at' => [
                 'required',
                 'date',
