@@ -62,8 +62,19 @@ Route::prefix('web/customer')
         Route::post('/requests', [CustomerMarketplaceRequestController::class, 'store'])
             ->name('requests.store');
 
+        Route::get(
+            '/requests/{requestId}',
+            [CustomerMarketplaceRequestController::class, 'show']
+        )->name('requests.show');
+
+        Route::post(
+            '/requests/{requestId}/award',
+            [CustomerMarketplaceRequestController::class, 'awardQuotation']
+        )->name('requests.award');
+
         Route::post(
             '/requests/{requestId}/cancel',
             [CustomerMarketplaceRequestController::class, 'cancel']
         )->name('requests.cancel');
     });
+</php>
