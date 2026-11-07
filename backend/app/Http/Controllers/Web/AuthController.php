@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\AuthenticateWebSession;
+use App\Http\Requests\Account\UpdateProfileRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\Account;
 use App\Services\Auth\AuthenticationService;
@@ -36,7 +37,6 @@ class AuthController extends Controller
 
         /** @var Account $account */
         $account = $result['account'];
-
         $sessionData = $result['session'];
 
         $request->session()->regenerate();
@@ -50,15 +50,7 @@ class AuthController extends Controller
             'success' => true,
             'message' => 'Login successful.',
             'data' => [
-                'account' => [
-                    'id' => $account->id,
-                    'name' => $account->name,
-                    'phone' => $account->phone,
-                    'email' => $account->email,
-                    'profile_picture' => $account->profile_picture,
-                    'role' => $account->role,
-                    'status' => $account->status,
-                ],
+                'account' => $this->accountPayload($account),
             ],
         ], 200);
     }
@@ -71,15 +63,24 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'account' => [
-                    'id' => $account->id,
-                    'name' => $account->name,
-                    'phone' => $account->phone,
-                    'email' => $account->email,
-                    'profile_picture' => $account->profile_picture,
-                    'role' => $account->role,
-                    'status' => $account->status,
-                ],
+                'account' => $this->accountPayload($account),
+            ],
+        ], 200);
+    }
+
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
+    {
+        /** @var Account $account */
+        $account = $request->attributes->get('account');
+
+        $account->fill($request->only(['name']));
+        $account->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Profile updated successfully.',
+            'data' => [
+                'account' => $this->accountPayload($account->fresh()),
             ],
         ], 200);
     }
@@ -104,5 +105,18 @@ class AuthController extends Controller
             'success' => true,
             'message' => 'Logout successful.',
         ], 200);
+    }
+
+    private function accountPayload(Account $account): array
+    {
+        return [
+            'id' => $account->id,
+            'name' => $account->name,
+            'phone' => $account->phone,
+            'email' => $account->email,
+            'profile_picture' => $account->profile_picture,
+            'role' => $account->role,
+            'status' => $account->status,
+        ];
     }
 }
