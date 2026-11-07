@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import {
     customerApi,
@@ -19,10 +19,16 @@ interface CustomerRequestQuotationsProps {
 function formatDate(value: string | null): string {
     if (!value) return '—';
 
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return '—';
+    }
+
     return new Intl.DateTimeFormat('ms-MY', {
         dateStyle: 'medium',
         timeStyle: 'short',
-    }).format(new Date(value));
+    }).format(date);
 }
 
 function formatAmount(
@@ -35,10 +41,29 @@ function formatAmount(
         return `${amount} ${currency}`;
     }
 
-    return new Intl.NumberFormat('ms-MY', {
-        style: 'currency',
-        currency,
-    }).format(numericAmount);
+    try {
+        return new Intl.NumberFormat('ms-MY', {
+            style: 'currency',
+            currency,
+        }).format(numericAmount);
+    } catch {
+        return `${numericAmount.toFixed(2)} ${currency}`;
+    }
+}
+
+function getApiErrorMessage(
+    error: unknown,
+    fallback: string,
+): string {
+    if (axios.isAxiosError(error)) {
+        const message = error.response?.data?.message;
+
+        if (typeof message === 'string' && message.trim() !== '') {
+            return message;
+        }
+    }
+
+    return fallback;
 }
 
 export default function CustomerRequestQuotations({
@@ -46,124 +71,230 @@ export default function CustomerRequestQuotations({
     requestStatus,
     onAwarded,
 }: CustomerRequestQuotationsProps) {
+    const requestIdRef = useRef(requestId);
+
     const [expanded, setExpanded] = useState(false);
     const [loading, setLoading] = useState(false);
     const [detail, setDetail] =
         useState<CustomerMarketplaceRequestDetail | null>(null);
+    const [loadedRequestId, setLoadedRequestId] =
+        useState<string | null>(null);
     const [error, setError] = useState('');
+    const [notice, setNotice] = useState('');
     const [awardingQuotationId, setAwardingQuotationId] =
         useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState('');
 
+    requestIdRef.current = requestId;
+
+    useEffect(() => {
+        setExpanded(false);
+        setLoading(false);
+        setDetail(null);
+        setLoadedRequestId(null);
+        setError('');
+        setNotice('');
+        setAwardingQuotationId(null);
+        setSuccessMessage('');
+    }, [requestId]);
+
     async function loadQuotations() {
+        const targetRequestId = requestId;
+
         setLoading(true);
         setError('');
+        setNotice('');
 
         try {
-            const result = await customerApi.getRequest(requestId);
+            const result = await customerApi.getRequest(targetRequestId);
+
+            if (requestIdRef.current !== targetRequestId) {
+                return;
+            }
+
             setDetail(result);
+            setLoadedRequestId(targetRequestId);
             setExpanded(true);
         } catch (requestError) {
-            if (axios.isAxiosError(requestError)) {
-                setError(
-                    requestError.response?.data?.message ??
-                    'Tidak berjaya memuatkan sebut harga.',
-                );
-            } else {
-                setError('Tidak berjaya memuatkan sebut harga.');
+            if (requestIdRef.current !== targetRequestId) {
+                return;
             }
+
+            setError(
+                getApiErrorMessage(
+                    requestError,
+                    'Tidak berjaya memuatkan sebut harga.',
+                ),
+            );
         } finally {
-            setLoading(false);
+            if (requestIdRef.current === targetRequestId) {
+                setLoading(false);
+            }
         }
     }
 
     async function handleAwardQuotation(
         quotation: CustomerMarketplaceQuotation,
     ) {
-        const currentStatus = detail?.request.status ?? requestStatus;
+        const targetRequestId = requestId;
+        const currentDetail =
+            loadedRequestId === targetRequestId ? detail : null;
+
+        const currentStatus =
+            currentDetail?.request.status ?? requestStatus;
 
         if (currentStatus !== 'OPEN') {
-            setError('Open Request ini tidak lagi boleh menerima pilihan Runner.');
+            setError(
+                'Open Request ini tidak lagi boleh menerima pilihan Runner.',
+            );
+            return;
+        }
+
+        if (
+            !currentDetail ||
+            currentDetail.request.request_id !== targetRequestId
+        ) {
+            setError(
+                'Sila muat semula senarai sebut harga sebelum memilih Runner.',
+            );
+            return;
+        }
+
+        const currentQuotation = currentDetail.quotations.find(
+            (item) => item.quotation_id === quotation.quotation_id,
+        );
+
+        if (
+            !currentQuotation ||
+            currentQuotation.status !== 'SUBMITTED'
+        ) {
+            setError(
+                'Sebut harga ini tidak lagi tersedia untuk dipilih.',
+            );
+            return;
+        }
+
+        if (awardingQuotationId !== null) {
             return;
         }
 
         const confirmed = window.confirm(
-            `Pilih Runner ${quotation.runner_account_id} dengan harga ` +
-            `${formatAmount(quotation.amount, quotation.currency)}? ` +
-            'Selepas disahkan, sistem akan mencipta Core Task.',
+            `Pilih Runner ${currentQuotation.runner_account_id} dengan harga ` +
+            `${formatAmount(
+                currentQuotation.amount,
+                currentQuotation.currency,
+            )}? Selepas disahkan, sistem akan mencipta Core Task.`,
         );
 
-        if (!confirmed) return;
-
-        setAwardingQuotationId(quotation.quotation_id);
-        setError('');
-        setSuccessMessage('');
-
-        try {
-            const result = await customerApi.awardQuotation(
-                requestId,
-                quotation.quotation_id,
-            );
-
-            setSuccessMessage(
-                `Runner berjaya dipilih. ID Core Task: ${result.task.task_id}`,
-            );
-
-            setDetail((current) => {
-                if (!current) return current;
-
-                return {
-                    ...current,
-                    request: {
-                        ...current.request,
-                        status: 'AWARDED',
-                        winning_quotation_id: quotation.quotation_id,
-                    },
-                    quotations: current.quotations.map((item) => ({
-                        ...item,
-                        status:
-                            item.quotation_id === quotation.quotation_id
-                                ? 'ACCEPTED'
-                                : item.status === 'SUBMITTED'
-                                    ? 'NOT_SELECTED'
-                                    : item.status,
-                    })),
-                };
-            });
-
-            onAwarded(requestId, result);
-        } catch (requestError) {
-            if (axios.isAxiosError(requestError)) {
-                setError(
-                    requestError.response?.data?.message ??
-                    'Tidak berjaya memilih Runner. Sila cuba semula.',
-                );
-            } else {
-                setError('Tidak berjaya memilih Runner. Sila cuba semula.');
-            }
-
-            setAwardingQuotationId(null);
+        if (!confirmed) {
             return;
         }
 
+        setAwardingQuotationId(currentQuotation.quotation_id);
+        setError('');
+        setNotice('');
+        setSuccessMessage('');
+
+        let awardResult:
+            Awaited<ReturnType<typeof customerApi.awardQuotation>>;
+
         try {
-            const refreshed = await customerApi.getRequest(requestId);
-            setDetail(refreshed);
-        } catch {
-            setError(
-                'Runner berjaya dipilih, tetapi senarai sebut harga gagal dikemas kini. ' +
-                'Tutup dan buka semula senarai untuk mendapatkan status terkini.',
+            awardResult = await customerApi.awardQuotation(
+                targetRequestId,
+                currentQuotation.quotation_id,
             );
+        } catch (requestError) {
+            if (requestIdRef.current === targetRequestId) {
+                setError(
+                    getApiErrorMessage(
+                        requestError,
+                        'Tidak berjaya memilih Runner. Sila cuba semula.',
+                    ),
+                );
+
+                setAwardingQuotationId(null);
+            }
+
+            return;
+        }
+
+        if (requestIdRef.current !== targetRequestId) {
+            return;
+        }
+
+        setSuccessMessage(
+            `Runner berjaya dipilih. ID Core Task: ${awardResult.task.task_id}`,
+        );
+
+        setDetail((current) => {
+            if (
+                !current ||
+                current.request.request_id !== targetRequestId
+            ) {
+                return current;
+            }
+
+            return {
+                ...current,
+                request: {
+                    ...current.request,
+                    status: 'AWARDED',
+                    winning_quotation_id: currentQuotation.quotation_id,
+                },
+                quotations: current.quotations.map((item) => ({
+                    ...item,
+                    status:
+                        item.quotation_id === currentQuotation.quotation_id
+                            ? 'ACCEPTED'
+                            : item.status === 'SUBMITTED'
+                                ? 'NOT_SELECTED'
+                                : item.status,
+                })),
+            };
+        });
+
+        try {
+            onAwarded(targetRequestId, awardResult);
+        } catch {
+            setNotice(
+                'Core Task telah berjaya dicipta, tetapi paparan halaman utama gagal dikemas kini.',
+            );
+        }
+
+        try {
+            const refreshed = await customerApi.getRequest(
+                targetRequestId,
+            );
+
+            if (requestIdRef.current !== targetRequestId) {
+                return;
+            }
+
+            setDetail(refreshed);
+            setLoadedRequestId(targetRequestId);
+        } catch {
+            if (requestIdRef.current === targetRequestId) {
+                setNotice(
+                    'Runner berjaya dipilih dan Core Task telah dicipta. ' +
+                    'Status senarai belum dapat dikemas kini. ' +
+                    'Tutup dan buka semula senarai untuk mendapatkan status terkini.',
+                );
+            }
         } finally {
-            setAwardingQuotationId(null);
+            if (requestIdRef.current === targetRequestId) {
+                setAwardingQuotationId(null);
+            }
         }
     }
+
+    const visibleDetail =
+        loadedRequestId === requestId ? detail : null;
 
     return (
         <section className="customer-quotation-section">
             <button
                 type="button"
-                disabled={loading}
+                disabled={loading || awardingQuotationId !== null}
                 onClick={() => {
                     if (expanded) {
                         setExpanded(false);
@@ -186,6 +317,12 @@ export default function CustomerRequestQuotations({
                 </p>
             )}
 
+            {notice && (
+                <p role="status">
+                    {notice}
+                </p>
+            )}
+
             {successMessage && (
                 <p
                     className="customer-request-success"
@@ -195,18 +332,18 @@ export default function CustomerRequestQuotations({
                 </p>
             )}
 
-            {expanded && detail && (
+            {expanded && visibleDetail && (
                 <div className="customer-quotation-list">
                     <h4>Sebut Harga Runner</h4>
 
-                    {detail.quotations.length === 0 ? (
+                    {visibleDetail.quotations.length === 0 ? (
                         <p className="customer-quotation-empty">
                             Belum ada Runner menghantar sebut harga.
                         </p>
                     ) : (
-                        detail.quotations.map((quotation) => {
+                        visibleDetail.quotations.map((quotation) => {
                             const canAward =
-                                detail.request.status === 'OPEN' &&
+                                visibleDetail.request.status === 'OPEN' &&
                                 quotation.status === 'SUBMITTED';
 
                             return (
@@ -223,7 +360,10 @@ export default function CustomerRequestQuotations({
                                         </strong>
 
                                         <span
-                                            className={`customer-quotation-status status-${quotation.status.toLowerCase()}`}
+                                            className={
+                                                `customer-quotation-status ` +
+                                                `status-${quotation.status.toLowerCase()}`
+                                            }
                                         >
                                             {quotation.status}
                                         </span>
