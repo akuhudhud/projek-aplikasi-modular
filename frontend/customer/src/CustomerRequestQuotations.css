@@ -1,0 +1,176 @@
+.customer-quotation-section {
+    display: grid;
+    gap: 14px;
+    width: 100%;
+    margin-top: 14px;
+}
+
+.customer-quotation-section > button {
+    width: fit-content;
+    min-height: 40px;
+    padding: 9px 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 9px;
+    background: #fffbeb;
+    color: #92400e;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.customer-quotation-section > button:hover:not(:disabled) {
+    border-color: #eab308;
+    background: #fef3c7;
+    color: #78350f;
+}
+
+.customer-quotation-list {
+    display: grid;
+    gap: 12px;
+    width: 100%;
+    padding-top: 8px;
+}
+
+.customer-quotation-list > h4 {
+    margin: 0;
+    color: #262626;
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.customer-quotation-empty {
+    margin: 0;
+    padding: 18px;
+    border: 1px dashed #d4d4d8;
+    border-radius: 10px;
+    background: #fafafa;
+    color: #737373;
+    font-size: 13px;
+    line-height: 1.6;
+    text-align: center;
+}
+
+.customer-quotation-card {
+    display: grid;
+    min-width: 0;
+    gap: 12px;
+    padding: 17px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+.customer-quotation-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.customer-quotation-card-header > strong {
+    color: #171717;
+    font-size: 21px;
+    font-weight: 850;
+    letter-spacing: -0.5px;
+}
+
+.customer-quotation-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 25px;
+    padding: 4px 9px;
+    border-radius: 20px;
+    background: #f4f4f5;
+    color: #525252;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+}
+
+.customer-quotation-status.status-submitted {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.customer-quotation-status.status-accepted {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.customer-quotation-status.status-rejected,
+.customer-quotation-status.status-expired,
+.customer-quotation-status.status-withdrawn {
+    background: #f4f4f5;
+    color: #71717a;
+}
+
+.customer-quotation-runner {
+    color: #525252;
+    font-size: 13px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.customer-quotation-message {
+    margin: 0;
+    padding: 12px;
+    border-left: 3px solid #eab308;
+    border-radius: 0 8px 8px 0;
+    background: #fffbeb;
+    color: #525252;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.customer-quotation-dates {
+    display: grid;
+    gap: 5px;
+}
+
+.customer-quotation-dates small {
+    color: #737373;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+#customer-app .customer-quotation-card .customer-quotation-award-button {
+    width: 100%;
+    min-height: 44px;
+    margin-top: 2px;
+    background: #facc15;
+    color: #171717;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+#customer-app .customer-quotation-card .customer-quotation-award-button:hover:not(:disabled) {
+    background: #eab308;
+    color: #171717;
+}
+
+.customer-quotation-accepted {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    background: #f0fdf4;
+    color: #166534;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+@media (max-width: 480px) {
+    .customer-quotation-card {
+        padding: 14px;
+    }
+
+    .customer-quotation-card-header > strong {
+        font-size: 19px;
+    }
+
+    .customer-quotation-section > button {
+        width: 100%;
+    }
+}
