@@ -1,0 +1,24 @@
+.customer-location-card {
+    min-width: 0;
+}
+
+.customer-location-card .customer-detail-list {
+    margin: 8px 0 0;
+}
+
+.customer-location-card .customer-detail-list > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    padding: 10px 0;
+}
+
+.customer-location-card .customer-detail-list dt {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.35px;
+}
+
+.customer-location-card .customer-detail-list dd {
+    font-size: 13px;
+    line-height: 1.55;
+}
