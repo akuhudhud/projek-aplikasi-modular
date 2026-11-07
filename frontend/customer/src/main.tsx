@@ -70,6 +70,7 @@ function CustomerApp() {
     const [taskPage, setTaskPage] = useState(1);
     const [taskLastPage, setTaskLastPage] = useState(1);
     const [tasksLoading, setTasksLoading] = useState(false);
+    const [taskRefreshKey, setTaskRefreshKey] = useState(0);
 
     const [selectedTask, setSelectedTask] = useState<CustomerTaskItem | null>(null);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -153,7 +154,7 @@ function CustomerApp() {
         return () => {
             mounted = false;
         };
-    }, [account, taskPage]);
+    }, [account, taskPage, taskRefreshKey]);
 
     useEffect(() => {
         if (!selectedTaskId) return;
@@ -399,7 +400,7 @@ function CustomerApp() {
             setPassword('');
             setRegistrationVerificationToken('');
             setPage('dashboard');
-                    } catch (err) {
+        } catch (err) {
             if (axios.isAxiosError(err)) {
                 const responseErrors = err.response?.data?.errors;
                 const firstValidationError = responseErrors
@@ -623,6 +624,8 @@ function CustomerApp() {
             ),
         );
 
+        setTaskRefreshKey((current) => current + 1);
+
         setOwnRequestActionError('');
         setOwnRequestActionMessage(
             `Runner berjaya dipilih. Core Task: ${result.task.task_id}`,
@@ -822,7 +825,7 @@ function CustomerApp() {
                 </section>
             </>
         );
-            }
+    }
 
     function renderProfile() {
         if (!account) return null;
