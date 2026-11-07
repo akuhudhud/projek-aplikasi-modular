@@ -38,6 +38,9 @@ Route::prefix('web/auth')
             Route::get('/me', [AuthController::class, 'me'])
                 ->name('me');
 
+            Route::patch('/profile', [AuthController::class, 'updateProfile'])
+                ->name('profile.update');
+
             Route::post('/logout', [AuthController::class, 'logout'])
                 ->name('logout');
         });
