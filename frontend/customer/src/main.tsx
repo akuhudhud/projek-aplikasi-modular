@@ -41,6 +41,11 @@ function getDefaultExpiry(): string {
 
 function CustomerApp() {
     const [account, setAccount] = useState<CustomerAccount | null>(null);
+    const [profileName, setProfileName] = useState('');
+    const [profileSaving, setProfileSaving] = useState(false);
+    const [profileMessage, setProfileMessage] = useState('');
+    const [profileError, setProfileError] = useState('');
+
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -110,6 +115,12 @@ function CustomerApp() {
             mounted = false;
         };
     }, []);
+
+    useEffect(() => {
+        if (account) {
+            setProfileName(account.name);
+        }
+    }, [account]);
 
     useEffect(() => {
         if (!account) return;
@@ -404,6 +415,47 @@ function CustomerApp() {
         }
     }
 
+    async function handleUpdateProfile(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+
+        if (!account || profileSaving) return;
+
+        const name = profileName.trim();
+
+        if (!name) {
+            setProfileError('Nama tidak boleh kosong.');
+            setProfileMessage('');
+            return;
+        }
+
+        setProfileSaving(true);
+        setProfileError('');
+        setProfileMessage('');
+
+        try {
+            const updatedAccount = await customerApi.updateProfile({ name });
+
+            setAccount(updatedAccount);
+            setProfileName(updatedAccount.name);
+            setProfileMessage('Profil berjaya dikemaskini.');
+        } catch (requestError) {
+            if (axios.isAxiosError(requestError)) {
+                const validationMessage =
+                    requestError.response?.data?.errors?.name?.[0];
+
+                setProfileError(
+                    validationMessage ??
+                    requestError.response?.data?.message ??
+                    'Tidak berjaya mengemaskini profil.',
+                );
+            } else {
+                setProfileError('Tidak berjaya mengemaskini profil.');
+            }
+        } finally {
+            setProfileSaving(false);
+        }
+    }
+
     async function handleLogout() {
         setError('');
         setLoading(true);
@@ -479,7 +531,7 @@ function CustomerApp() {
 
             await customerApi.createRequest(payload);
 
-            setRequestSuccess('Permintaan tugasan berjaya dihantar.');
+                    setRequestSuccess('Permintaan tugasan berjaya dihantar.');
             setOwnRequestPage(1);
             resetRequestForm();
         } catch (err) {
@@ -709,28 +761,51 @@ function CustomerApp() {
                     {account.name.charAt(0).toUpperCase()}
                 </div>
 
-                <dl className="customer-detail-list">
+                <form onSubmit={handleUpdateProfile}>
                     <div>
-                        <dt>Nama</dt>
-                        <dd>{account.name}</dd>
+                        <label htmlFor="profile-name">Nama</label>
+                        <input
+                            id="profile-name"
+                            type="text"
+                            autoComplete="name"
+                            value={profileName}
+                            onChange={(event) => {
+                                setProfileName(event.target.value);
+                                setProfileError('');
+                                setProfileMessage('');
+                            }}
+                            required
+                            maxLength={255}
+                            disabled={profileSaving}
+                        />
                     </div>
-                    <div>
-                        <dt>Nombor Telefon</dt>
-                        <dd>{account.phone || 'Belum ditetapkan'}</dd>
-                    </div>
-                    <div>
-                        <dt>E-mel</dt>
-                        <dd>{account.email || 'Belum ditetapkan'}</dd>
-                    </div>
-                    <div>
-                        <dt>Peranan</dt>
-                        <dd>{account.role}</dd>
-                    </div>
-                    <div>
-                        <dt>Status Akaun</dt>
-                        <dd>{account.status}</dd>
-                    </div>
-                </dl>
+
+                    <dl className="customer-detail-list">
+                        <div>
+                            <dt>Nombor Telefon</dt>
+                            <dd>{account.phone || 'Belum ditetapkan'}</dd>
+                        </div>
+                        <div>
+                            <dt>E-mel</dt>
+                            <dd>{account.email || 'Belum ditetapkan'}</dd>
+                        </div>
+                        <div>
+                            <dt>Peranan</dt>
+                            <dd>{account.role}</dd>
+                        </div>
+                        <div>
+                            <dt>Status Akaun</dt>
+                            <dd>{account.status}</dd>
+                        </div>
+                    </dl>
+
+                    {profileError && <p role="alert">{profileError}</p>}
+                    {profileMessage && <p role="status">{profileMessage}</p>}
+
+                    <button type="submit" disabled={profileSaving}>
+                        {profileSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
+                    </button>
+                </form>
             </section>
         );
     }
@@ -866,8 +941,7 @@ function CustomerApp() {
             </section>
         );
     }
-
-    function renderRequestForm() {
+        function renderRequestForm() {
         return (
             <>
                 <section className="customer-panel">
