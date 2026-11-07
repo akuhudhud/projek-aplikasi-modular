@@ -1,10 +1,10 @@
-
 const CACHE_PREFIX = 'super-runner-customer-';
-const CACHE_NAME = `${CACHE_PREFIX}v2`;
+const CACHE_NAME = `${CACHE_PREFIX}v3`;
 
 const APP_SHELL = [
     '/',
     '/manifest.webmanifest',
+    '/manifest.json',
 ];
 
 function isApiPath(pathname) {
@@ -15,9 +15,54 @@ function isApiPath(pathname) {
     );
 }
 
+async function precacheAppShell(cache) {
+    await cache.addAll(APP_SHELL);
+
+    const response = await fetch('/manifest.json', {
+        cache: 'no-store',
+    });
+
+    if (!response.ok) {
+        throw new Error('Unable to load the Vite build manifest.');
+    }
+
+    const manifest = await response.json();
+    const assets = new Set();
+
+    Object.values(manifest).forEach((entry) => {
+        if (!entry || typeof entry !== 'object') {
+            return;
+        }
+
+        if (typeof entry.file === 'string') {
+            assets.add(`/${entry.file.replace(/^\/+/, '')}`);
+        }
+
+        if (Array.isArray(entry.css)) {
+            entry.css.forEach((file) => {
+                if (typeof file === 'string') {
+                    assets.add(`/${file.replace(/^\/+/, '')}`);
+                }
+            });
+        }
+
+        if (Array.isArray(entry.assets)) {
+            entry.assets.forEach((file) => {
+                if (typeof file === 'string') {
+                    assets.add(`/${file.replace(/^\/+/, '')}`);
+                }
+            });
+        }
+    });
+
+    if (assets.size > 0) {
+        await cache.addAll([...assets]);
+    }
+}
+
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)),
+        caches.open(CACHE_NAME).then(precacheAppShell),
     );
 
     self.skipWaiting();
