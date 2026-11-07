@@ -7,6 +7,7 @@ use App\Models\Account;
 use App\Models\MarketplaceRequest;
 use App\Services\MarketplaceService;
 use DomainException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -141,6 +142,48 @@ class CustomerMarketplaceRequestController extends Controller
                     ]),
                 ],
             ], 201);
+        } catch (DomainException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function cancel(
+        Request $request,
+        string $requestId
+    ): JsonResponse {
+        $account = $request->attributes->get('account');
+
+        if (!$account instanceof Account) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
+        try {
+            $marketplaceRequest = $this->marketplaceService
+                ->cancelRequest($account, $requestId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Marketplace request cancelled.',
+                'data' => [
+                    'request' => $marketplaceRequest->only([
+                        'request_id',
+                        'status',
+                        'cancelled_at',
+                        'updated_at',
+                    ]),
+                ],
+            ], 200);
+        } catch (ModelNotFoundException) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Marketplace request not found.',
+            ], 404);
         } catch (DomainException $exception) {
             return response()->json([
                 'success' => false,
