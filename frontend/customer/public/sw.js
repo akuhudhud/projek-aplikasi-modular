@@ -1,3 +1,4 @@
+
 const CACHE_PREFIX = 'super-runner-customer-';
 const CACHE_NAME = `${CACHE_PREFIX}v1`;
 
@@ -54,34 +55,29 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    if (request.mode === 'navigate') {
-        event.respondWith(
-            fetch(request).catch(async () => {
-                const cached = await caches.match('/');
-                return cached || Response.error();
-            }),
-        );
-
-        return;
-    }
-
     event.respondWith(
-        caches.match(request).then((cached) => {
+        caches.open(CACHE_NAME).then(async (cache) => {
+            if (request.mode === 'navigate') {
+                try {
+                    return await fetch(request);
+                } catch {
+                    return (await cache.match('/')) || Response.error();
+                }
+            }
+
+            const cached = await cache.match(request);
+
             if (cached) {
                 return cached;
             }
 
-            return fetch(request).then((response) => {
-                if (response.ok && response.type === 'basic') {
-                    const responseClone = response.clone();
+            const response = await fetch(request);
 
-                    caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(request, responseClone);
-                    });
-                }
+            if (response.ok && response.type === 'basic') {
+                await cache.put(request, response.clone());
+            }
 
-                return response;
-            });
+            return response;
         }),
     );
 });
