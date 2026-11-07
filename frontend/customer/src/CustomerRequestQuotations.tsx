@@ -80,7 +80,9 @@ export default function CustomerRequestQuotations({
     async function handleAwardQuotation(
         quotation: CustomerMarketplaceQuotation,
     ) {
-        if (requestStatus !== 'OPEN') {
+        const currentStatus = detail?.request.status ?? requestStatus;
+
+        if (currentStatus !== 'OPEN') {
             setError('Open Request ini tidak lagi boleh menerima pilihan Runner.');
             return;
         }
@@ -107,10 +109,29 @@ export default function CustomerRequestQuotations({
                 `Runner berjaya dipilih. ID Core Task: ${result.task.task_id}`,
             );
 
-            onAwarded(requestId, result);
+            setDetail((current) => {
+                if (!current) return current;
 
-            const refreshed = await customerApi.getRequest(requestId);
-            setDetail(refreshed);
+                return {
+                    ...current,
+                    request: {
+                        ...current.request,
+                        status: 'AWARDED',
+                        winning_quotation_id: quotation.quotation_id,
+                    },
+                    quotations: current.quotations.map((item) => ({
+                        ...item,
+                        status:
+                            item.quotation_id === quotation.quotation_id
+                                ? 'ACCEPTED'
+                                : item.status === 'SUBMITTED'
+                                    ? 'NOT_SELECTED'
+                                    : item.status,
+                    })),
+                };
+            });
+
+            onAwarded(requestId, result);
         } catch (requestError) {
             if (axios.isAxiosError(requestError)) {
                 setError(
@@ -120,6 +141,19 @@ export default function CustomerRequestQuotations({
             } else {
                 setError('Tidak berjaya memilih Runner. Sila cuba semula.');
             }
+
+            setAwardingQuotationId(null);
+            return;
+        }
+
+        try {
+            const refreshed = await customerApi.getRequest(requestId);
+            setDetail(refreshed);
+        } catch {
+            setError(
+                'Runner berjaya dipilih, tetapi senarai sebut harga gagal dikemas kini. ' +
+                'Tutup dan buka semula senarai untuk mendapatkan status terkini.',
+            );
         } finally {
             setAwardingQuotationId(null);
         }
