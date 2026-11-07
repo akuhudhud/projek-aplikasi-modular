@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
 use App\Services\MarketplaceService;
 use DomainException;
@@ -150,6 +151,140 @@ class CustomerMarketplaceRequestController extends Controller
         }
     }
 
+    public function show(
+        Request $request,
+        string $requestId
+    ): JsonResponse {
+        $account = $request->attributes->get('account');
+
+        if (!$account instanceof Account) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
+        $this->marketplaceService->expireDueItems();
+
+        $marketplaceRequest = MarketplaceRequest::query()
+            ->where('request_id', $requestId)
+            ->where('customer_account_id', $account->id)
+            ->first();
+
+        if (!$marketplaceRequest) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Marketplace request not found.',
+            ], 404);
+        }
+
+        $quotations = $marketplaceRequest->quotations()
+            ->orderBy('created_at')
+            ->get([
+                'quotation_id',
+                'request_id',
+                'runner_account_id',
+                'amount',
+                'currency',
+                'message',
+                'status',
+                'expires_at',
+                'accepted_at',
+                'withdrawn_at',
+                'created_at',
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'request' => $marketplaceRequest->only([
+                    'request_id',
+                    'task_class',
+                    'description',
+                    'pickup_location_snapshot',
+                    'delivery_location_snapshot',
+                    'task_location_snapshot',
+                    'status',
+                    'expires_at',
+                    'awarded_at',
+                    'cancelled_at',
+                    'winning_quotation_id',
+                    'created_at',
+                    'updated_at',
+                ]),
+                'quotations' => $quotations,
+            ],
+        ], 200);
+    }
+
+    public function awardQuotation(
+        Request $request,
+        string $requestId
+    ): JsonResponse {
+        $account = $request->attributes->get('account');
+
+        if (!$account instanceof Account) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
+        $validated = $request->validate([
+            'quotation_id' => [
+                'required',
+                'uuid',
+            ],
+        ]);
+
+        try {
+            $task = $this->marketplaceService->awardQuotation(
+                $account,
+                $requestId,
+                $validated['quotation_id']
+            );
+
+            $marketplaceRequest = MarketplaceRequest::query()
+                ->whereKey($requestId)
+                ->firstOrFail();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Quotation awarded successfully.',
+                'data' => [
+                    'request' => $marketplaceRequest->only([
+                        'request_id',
+                        'status',
+                        'winning_quotation_id',
+                        'awarded_at',
+                        'updated_at',
+                    ]),
+                    'task' => $task->only([
+                        'task_id',
+                        'module_key',
+                        'task_type',
+                        'source_type',
+                        'source_id',
+                        'assigned_account_id',
+                        'generic_status',
+                        'assigned_at',
+                        'created_at',
+                    ]),
+                ],
+            ], 200);
+        } catch (ModelNotFoundException) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Marketplace request or quotation not found.',
+            ], 404);
+        } catch (DomainException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+    }
+
     public function cancel(
         Request $request,
         string $requestId
@@ -192,3 +327,4 @@ class CustomerMarketplaceRequestController extends Controller
         }
     }
 }
+</php>
