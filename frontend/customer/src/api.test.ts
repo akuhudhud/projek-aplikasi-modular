@@ -1,15 +1,16 @@
-
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CustomerAccount } from './api';
 
-const { patchMock } = vi.hoisted(() => ({
+const { patchMock, postMock } = vi.hoisted(() => ({
     patchMock: vi.fn(),
+    postMock: vi.fn(),
 }));
 
 vi.mock('axios', () => ({
     default: {
         create: vi.fn(() => ({
             patch: patchMock,
+            post: postMock,
         })),
     },
 }));
@@ -81,6 +82,89 @@ describe('customerApi.updateProfile', () => {
             customerApi.updateProfile({
                 name: 'Nazim Updated',
             }),
+        ).rejects.toBe(apiError);
+    });
+});
+
+describe('customerApi.cancelRequest', () => {
+    beforeEach(() => {
+        postMock.mockReset();
+    });
+
+    it('sends cancellation to the correct endpoint', async () => {
+        postMock.mockResolvedValue({
+            data: {
+                success: true,
+                data: {
+                    request: {
+                        request_id: 'request-123',
+                        status: 'CANCELLED',
+                        cancelled_at: '2026-11-07T10:00:00.000000Z',
+                        updated_at: '2026-11-07T10:00:00.000000Z',
+                    },
+                },
+            },
+        });
+
+        await customerApi.cancelRequest('request-123');
+
+        expect(postMock).toHaveBeenCalledTimes(1);
+        expect(postMock).toHaveBeenCalledWith(
+            '/web/customer/requests/request-123/cancel',
+        );
+    });
+
+    it('returns the cancelled request data', async () => {
+        const cancelledRequest = {
+            request_id: 'request-123',
+            status: 'CANCELLED',
+            cancelled_at: '2026-11-07T10:00:00.000000Z',
+            updated_at: '2026-11-07T10:00:00.000000Z',
+        };
+
+        postMock.mockResolvedValue({
+            data: {
+                success: true,
+                data: {
+                    request: cancelledRequest,
+                },
+            },
+        });
+
+        const result = await customerApi.cancelRequest('request-123');
+
+        expect(result).toEqual(cancelledRequest);
+    });
+
+    it('encodes the request ID in the endpoint', async () => {
+        postMock.mockResolvedValue({
+            data: {
+                success: true,
+                data: {
+                    request: {
+                        request_id: 'request/123',
+                        status: 'CANCELLED',
+                        cancelled_at: null,
+                        updated_at: '2026-11-07T10:00:00.000000Z',
+                    },
+                },
+            },
+        });
+
+        await customerApi.cancelRequest('request/123');
+
+        expect(postMock).toHaveBeenCalledWith(
+            '/web/customer/requests/request%2F123/cancel',
+        );
+    });
+
+    it('propagates API errors to the caller', async () => {
+        const apiError = new Error('Cancellation failed.');
+
+        postMock.mockRejectedValue(apiError);
+
+        await expect(
+            customerApi.cancelRequest('request-123'),
         ).rejects.toBe(apiError);
     });
 });
