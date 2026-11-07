@@ -11,6 +11,10 @@ import {
     type RegistrationOtpRequestPayload,
 } from './api';
 import CustomerRequestQuotations from './CustomerRequestQuotations';
+import {
+    LocationSnapshotPanel,
+    isRequestExpiryValid,
+} from './customerPresentation';
 import '../styles/customer.css';
 
 type Page = 'dashboard' | 'tasks' | 'profile' | 'request';
@@ -424,7 +428,8 @@ function CustomerApp() {
             setLoading(false);
         }
     }
-        async function handleUpdateProfile(event: FormEvent<HTMLFormElement>) {
+
+    async function handleUpdateProfile(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         if (!account || profileSaving) return;
@@ -464,8 +469,7 @@ function CustomerApp() {
             setProfileSaving(false);
         }
     }
-
-    async function handleLogout() {
+        async function handleLogout() {
         setError('');
         setLoading(true);
 
@@ -509,6 +513,14 @@ function CustomerApp() {
         event.preventDefault();
         setError('');
         setRequestSuccess('');
+
+        if (!isRequestExpiryValid(expiresAt)) {
+            setError(
+                'Tarikh tamat mesti selepas masa sekarang dan tidak melebihi 24 jam.',
+            );
+            return;
+        }
+
         setRequestLoading(true);
 
         try {
@@ -752,39 +764,24 @@ function CustomerApp() {
 
                 {request.task_class === 'PICKUP_DELIVERY' && (
                     <div className="customer-location-grid">
-                        <div>
-                            <h4>Lokasi Pickup</h4>
-                            <pre>
-                                {JSON.stringify(
-                                    request.pickup_location_snapshot ?? {},
-                                    null,
-                                    2,
-                                )}
-                            </pre>
-                        </div>
-                        <div>
-                            <h4>Lokasi Delivery</h4>
-                            <pre>
-                                {JSON.stringify(
-                                    request.delivery_location_snapshot ?? {},
-                                    null,
-                                    2,
-                                )}
-                            </pre>
-                        </div>
+                        <LocationSnapshotPanel
+                            title="Lokasi Pickup"
+                            snapshot={request.pickup_location_snapshot}
+                        />
+
+                        <LocationSnapshotPanel
+                            title="Lokasi Delivery"
+                            snapshot={request.delivery_location_snapshot}
+                        />
                     </div>
                 )}
 
                 {request.task_class === 'NON_DELIVERY' && (
-                    <div>
-                        <h4>Lokasi Tugasan</h4>
-                        <pre>
-                            {JSON.stringify(
-                                request.task_location_snapshot ?? {},
-                                null,
-                                2,
-                            )}
-                        </pre>
+                    <div className="customer-location-grid">
+                        <LocationSnapshotPanel
+                            title="Lokasi Tugasan"
+                            snapshot={request.task_location_snapshot}
+                        />
                     </div>
                 )}
             </section>
@@ -1169,6 +1166,11 @@ function CustomerApp() {
                                 onChange={(event) => setExpiresAt(event.target.value)}
                                 min={new Date(
                                     Date.now() + 60000 -
+                                    new Date().getTimezoneOffset() * 60000,
+                                ).toISOString().slice(0, 16)}
+                                max={new Date(
+                                    Date.now() + 24 * 60 * 60 * 1000 -
+                                    10 * 60 * 1000 -
                                     new Date().getTimezoneOffset() * 60000,
                                 ).toISOString().slice(0, 16)}
                                 required
