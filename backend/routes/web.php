@@ -61,4 +61,9 @@ Route::prefix('web/customer')
 
         Route::post('/requests', [CustomerMarketplaceRequestController::class, 'store'])
             ->name('requests.store');
+
+        Route::post(
+            '/requests/{requestId}/cancel',
+            [CustomerMarketplaceRequestController::class, 'cancel']
+        )->name('requests.cancel');
     });
