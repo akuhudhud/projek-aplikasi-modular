@@ -48,6 +48,13 @@ function getDefaultExpiry(): string {
 }
 
 function CustomerApp() {
+    const runnerSlugParameter = new URLSearchParams(
+        window.location.search,
+    ).get('runner');
+    const runnerSlug = runnerSlugParameter?.trim() ?? '';
+    const hasInvalidRunnerSlug = runnerSlugParameter !== null &&
+        !/^[A-Za-z0-9_-]{3,50}$/.test(runnerSlug);
+
     const [account, setAccount] = useState<CustomerAccount | null>(null);
     const [profileName, setProfileName] = useState('');
     const [profileSaving, setProfileSaving] = useState(false);
@@ -428,7 +435,8 @@ function CustomerApp() {
             setLoading(false);
         }
     }
-        async function handleUpdateProfile(event: FormEvent<HTMLFormElement>) {
+
+    async function handleUpdateProfile(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         if (!account || profileSaving) return;
@@ -468,7 +476,8 @@ function CustomerApp() {
             setProfileSaving(false);
         }
     }
-        async function handleLogout() {
+
+    async function handleLogout() {
         setError('');
         setLoading(true);
 
@@ -513,6 +522,13 @@ function CustomerApp() {
         setError('');
         setRequestSuccess('');
 
+        if (hasInvalidRunnerSlug) {
+            setError(
+                'Pautan profil Runner tidak sah. Sila buka semula pautan yang diberikan oleh Runner.',
+            );
+            return;
+        }
+
         if (!isRequestExpiryValid(expiresAt)) {
             setError(
                 'Tarikh tamat mesti selepas masa sekarang dan tidak melebihi 24 jam.',
@@ -524,6 +540,10 @@ function CustomerApp() {
 
         try {
             const payload: CustomerRequestPayload = {
+                source_type: runnerSlug
+                    ? 'runner_profile_link'
+                    : 'marketplace',
+                ...(runnerSlug ? { target_runner_slug: runnerSlug } : {}),
                 task_class: taskClass,
                 description: description.trim(),
                 expires_at: new Date(expiresAt).toISOString(),
@@ -575,8 +595,7 @@ function CustomerApp() {
             setRequestLoading(false);
         }
     }
-
-    async function handleCancelRequest(requestId: string) {
+async function handleCancelRequest(requestId: string) {
         const confirmed = window.confirm(
             'Adakah anda pasti mahu membatalkan Open Request ini?',
         );
@@ -826,7 +845,8 @@ function CustomerApp() {
             </>
         );
     }
-        function renderProfile() {
+
+    function renderProfile() {
         if (!account) return null;
 
         return (
@@ -1085,8 +1105,7 @@ function CustomerApp() {
             </section>
         );
     }
-
-    function renderRequestForm() {
+function renderRequestForm() {
         return (
             <>
                 <section className="customer-panel">
