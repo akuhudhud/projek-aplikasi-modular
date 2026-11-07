@@ -42,5 +42,8 @@ jobs:
       - name: TypeScript type check
         run: npm run typecheck
 
+      - name: Run frontend tests
+        run: npm test
+
       - name: Build Customer application
         run: npm run build
