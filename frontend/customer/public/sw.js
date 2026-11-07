@@ -1,11 +1,19 @@
 
 const CACHE_PREFIX = 'super-runner-customer-';
-const CACHE_NAME = `${CACHE_PREFIX}v1`;
+const CACHE_NAME = `${CACHE_PREFIX}v2`;
 
 const APP_SHELL = [
     '/',
     '/manifest.webmanifest',
 ];
+
+function isApiPath(pathname) {
+    return ['/web', '/sanctum', '/api'].some(
+        (prefix) =>
+            pathname === prefix ||
+            pathname.startsWith(`${prefix}/`),
+    );
+}
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -42,15 +50,9 @@ self.addEventListener('fetch', (event) => {
 
     const url = new URL(request.url);
 
-    if (url.origin !== self.location.origin) {
-        return;
-    }
-
-    // Never cache authenticated or API responses.
     if (
-        url.pathname.startsWith('/web/') ||
-        url.pathname.startsWith('/sanctum/') ||
-        url.pathname.startsWith('/api/')
+        url.origin !== self.location.origin ||
+        isApiPath(url.pathname)
     ) {
         return;
     }
