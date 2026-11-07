@@ -92,6 +92,48 @@ export interface CustomerOwnMarketplaceRequest {
     updated_at: string;
 }
 
+export interface CustomerMarketplaceQuotation {
+    quotation_id: string;
+    request_id: string;
+    runner_account_id: number | string;
+    amount: string | number;
+    currency: string;
+    message: string | null;
+    status: string;
+    expires_at: string | null;
+    accepted_at: string | null;
+    withdrawn_at: string | null;
+    created_at: string;
+}
+
+export interface CustomerMarketplaceRequestDetail {
+    request: CustomerOwnMarketplaceRequest & {
+        winning_quotation_id?: string | null;
+    };
+    quotations: CustomerMarketplaceQuotation[];
+}
+
+export interface CustomerAwardQuotationResult {
+    request: {
+        request_id: string;
+        status: string;
+        winning_quotation_id: string;
+        awarded_at: string | null;
+        updated_at: string;
+    };
+    task: {
+        task_id: string;
+        module_key: string;
+        task_type: string;
+        source_type: string;
+        source_id: string;
+        assigned_account_id: number | string;
+        generic_status: string;
+        assigned_at: string | null;
+        created_at: string;
+    };
+}
+
 interface ApiResponse<T> {
     success: boolean;
     message?: string;
@@ -125,6 +167,16 @@ interface CustomerMarketplaceRequestData {
 interface CustomerOwnMarketplaceRequestsData {
     requests: CustomerOwnMarketplaceRequest[];
     pagination: CustomerTaskPagination;
+}
+
+interface CustomerMarketplaceRequestDetailData {
+    request: CustomerMarketplaceRequestDetail['request'];
+    quotations: CustomerMarketplaceQuotation[];
+}
+
+interface CustomerAwardQuotationData {
+    request: CustomerAwardQuotationResult['request'];
+    task: CustomerAwardQuotationResult['task'];
 }
 
 interface CustomerCancelRequestData {
@@ -283,6 +335,34 @@ export const customerApi = {
             '/web/customer/requests',
             {
                 params: { page },
+            },
+        );
+
+        return response.data.data;
+    },
+
+    async getRequest(
+        requestId: string,
+    ): Promise<CustomerMarketplaceRequestDetail> {
+        const response = await api.get<
+            ApiResponse<CustomerMarketplaceRequestDetailData>
+        >(
+            `/web/customer/requests/${encodeURIComponent(requestId)}`,
+        );
+
+        return response.data.data;
+    },
+
+    async awardQuotation(
+        requestId: string,
+        quotationId: string,
+    ): Promise<CustomerAwardQuotationResult> {
+        const response = await api.post<
+            ApiResponse<CustomerAwardQuotationData>
+        >(
+            `/web/customer/requests/${encodeURIComponent(requestId)}/award`,
+            {
+                quotation_id: quotationId,
             },
         );
 
