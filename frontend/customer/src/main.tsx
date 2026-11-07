@@ -32,7 +32,10 @@ function taskClassLabel(taskClass: string): string {
 }
 
 function getDefaultExpiry(): string {
-    const date = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const safetyBuffer = 10 * 60 * 1000;
+    const date = new Date(
+        Date.now() + 24 * 60 * 60 * 1000 - safetyBuffer,
+    );
     const offset = date.getTimezoneOffset() * 60000;
 
     return new Date(date.getTime() - offset)
@@ -418,6 +421,7 @@ function CustomerApp() {
                 setError('Ralat berlaku. Sila cuba semula.');
             }
         } finally {
+
             setLoading(false);
         }
     }
@@ -1258,6 +1262,381 @@ function CustomerApp() {
                             >
                                 Daftar Akaun
                             </button>
+
+    function renderTaskDetail(item: CustomerTaskItem) {
+        const { task, request } = item;
+
+        return (
+            <section className="customer-panel">
+                <button
+                    className="customer-back-button"
+                    type="button"
+                    onClick={closeTaskDetail}
+                >
+                    ← Kembali ke senarai
+                </button>
+
+                <h2>Butiran Tugasan</h2>
+                <p className="customer-task-class">
+                    {taskClassLabel(request.task_class)}
+                </p>
+
+                <h3>{request.description}</h3>
+
+                <dl className="customer-detail-list">
+                    <div>
+                        <dt>ID Tugasan</dt>
+                        <dd>{task.task_id}</dd>
+                    </div>
+                    <div>
+                        <dt>Status</dt>
+                        <dd>{task.generic_status}</dd>
+                    </div>
+                    <div>
+                        <dt>Status Permintaan</dt>
+                        <dd>{request.status}</dd>
+                    </div>
+                    <div>
+                        <dt>Dicipta</dt>
+                        <dd>{formatDate(task.created_at)}</dd>
+                    </div>
+                    <div>
+                        <dt>Runner ditugaskan</dt>
+                        <dd>{formatDate(task.assigned_at)}</dd>
+                    </div>
+                    <div>
+                        <dt>Mula</dt>
+                        <dd>{formatDate(task.started_at)}</dd>
+                    </div>
+                    <div>
+                        <dt>Selesai</dt>
+                        <dd>{formatDate(task.completed_at)}</dd>
+                    </div>
+                    <div>
+                        <dt>Tarikh luput permintaan</dt>
+                        <dd>{formatDate(request.expires_at)}</dd>
+                    </div>
+                </dl>
+
+                {request.task_class === 'PICKUP_DELIVERY' && (
+                    <div className="customer-location-grid">
+                        <div>
+                            <h4>Lokasi Pickup</h4>
+                            <pre>
+                                {JSON.stringify(
+                                    request.pickup_location_snapshot ?? {},
+                                    null,
+                                    2,
+                                )}
+                            </pre>
+                        </div>
+                        <div>
+                            <h4>Lokasi Delivery</h4>
+                            <pre>
+                                {JSON.stringify(
+                                    request.delivery_location_snapshot ?? {},
+                                    null,
+                                    2,
+                                )}
+                            </pre>
+                        </div>
+                    </div>
+                )}
+
+                {request.task_class === 'NON_DELIVERY' && (
+                    <div>
+                        <h4>Lokasi Tugasan</h4>
+                        <pre>
+                            {JSON.stringify(
+                                request.task_location_snapshot ?? {},
+                                null,
+                                2,
+                            )}
+                        </pre>
+                    </div>
+                )}
+            </section>
+        );
+    }
+
+    function renderDashboard() {
+        return (
+            <>
+                <section className="customer-welcome">
+                    <p>Dashboard Pelanggan</p>
+                    <h2>Hai, {account?.name}</h2>
+                    <span>Selamat datang ke Super Runner.</span>
+                </section>
+
+                <div className="customer-summary-grid">
+                    <article className="customer-summary-card">
+                        <span>Jumlah Tugasan</span>
+                        <strong>{taskTotal}</strong>
+                    </article>
+                    <article className="customer-summary-card">
+                        <span>Status Akaun</span>
+                        <strong>{account?.status}</strong>
+                    </article>
+                </div>
+
+                <section className="customer-panel">
+                    <div className="customer-section-heading">
+                        <h2>Tugasan Terkini</h2>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                closeTaskDetail();
+                                setPage('tasks');
+                            }}
+                        >
+                            Lihat semua
+                        </button>
+                    </div>
+
+                    {renderTaskList()}
+                </section>
+            </>
+        );
+    }
+
+    function renderProfile() {
+        if (!account) return null;
+
+        return (
+            <section className="customer-panel">
+                <h2>Profil Saya</h2>
+
+                <div className="customer-profile-avatar">
+                    {account.name.charAt(0).toUpperCase()}
+                </div>
+
+                <form onSubmit={handleUpdateProfile}>
+                    <div>
+                        <label htmlFor="profile-name">Nama</label>
+                        <input
+                            id="profile-name"
+                            type="text"
+                            autoComplete="name"
+                            value={profileName}
+                            onChange={(event) => {
+                                setProfileName(event.target.value);
+                                setProfileError('');
+                                setProfileMessage('');
+                            }}
+                            required
+                            maxLength={255}
+                            disabled={profileSaving}
+                        />
+                    </div>
+
+                    <dl className="customer-detail-list">
+                        <div>
+                            <dt>Nombor Telefon</dt>
+                            <dd>{account.phone || 'Belum ditetapkan'}</dd>
+                        </div>
+                        <div>
+                            <dt>E-mel</dt>
+                            <dd>{account.email || 'Belum ditetapkan'}</dd>
+                        </div>
+                        <div>
+                            <dt>Peranan</dt>
+                            <dd>{account.role}</dd>
+                        </div>
+                        <div>
+                            <dt>Status Akaun</dt>
+                            <dd>{account.status}</dd>
+                        </div>
+                    </dl>
+
+                    {profileError && <p role="alert">{profileError}</p>}
+                    {profileMessage && <p role="status">{profileMessage}</p>}
+
+                    <button type="submit" disabled={profileSaving}>
+                        {profileSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
+                    </button>
+                </form>
+            </section>
+        );
+    }
+
+    function renderLocationFields(
+        title: string,
+        address: string,
+        setAddress: (value: string) => void,
+        contact: string,
+        setContact: (value: string) => void,
+        phone: string,
+        setPhone: (value: string) => void,
+    ) {
+        return (
+            <fieldset className="customer-request-location">
+                <legend>{title}</legend>
+
+                <div>
+                    <label>Alamat / Lokasi</label>
+                    <textarea
+                        value={address}
+                        onChange={(event) => setAddress(event.target.value)}
+                        required
+                        rows={3}
+                        maxLength={2000}
+                        disabled={requestLoading}
+                    />
+                </div>
+
+                <div>
+                    <label>Nama Orang Dihubungi (Pilihan)</label>
+                    <input
+                        type="text"
+                        value={contact}
+                        onChange={(event) => setContact(event.target.value)}
+                        maxLength={150}
+                        disabled={requestLoading}
+                    />
+                </div>
+
+                <div>
+                    <label>Nombor Telefon (Pilihan)</label>
+                    <input
+                        type="tel"
+                        value={phone}
+                        onChange={(event) => setPhone(event.target.value)}
+                        maxLength={30}
+                        disabled={requestLoading}
+                    />
+                </div>
+            </fieldset>
+        );
+    }
+
+    function renderOwnRequests() {
+        return (
+            <section className="customer-panel">
+                <div className="customer-section-heading">
+                    <div>
+                        <h2>Open Request Saya</h2>
+                        <p>Jumlah permintaan: {ownRequestTotal}</p>
+                    </div>
+                </div>
+
+                {ownRequestActionMessage && (
+                    <p
+                        className="customer-request-success"
+                        role="status"
+                    >
+                        {ownRequestActionMessage}
+                    </p>
+                )}
+
+                {ownRequestActionError && (
+                    <p role="alert">
+                        {ownRequestActionError}
+                    </p>
+                )}
+
+                {ownRequestsLoading ? (
+                    <p>Memuatkan senarai permintaan...</p>
+                ) : ownRequestsError ? (
+                    <p role="alert">{ownRequestsError}</p>
+                ) : ownRequests.length === 0 ? (
+                    <section className="customer-empty">
+                        <h3>Belum ada Open Request</h3>
+                        <p>
+                            Permintaan yang anda cipta akan dipaparkan di sini.
+                        </p>
+                    </section>
+                ) : (
+                    <>
+                        <div className="customer-task-list">
+                            {ownRequests.map((request) => (
+                                <article
+                                    className="customer-task-card"
+                                    key={request.request_id}
+                                >
+                                    <span className="customer-task-card-top">
+                                        {taskClassLabel(request.task_class)}
+                                    </span>
+
+                                    <strong>{request.description}</strong>
+
+                                    <span>Status: {request.status}</span>
+
+                                    <span>
+                                        Tarikh luput: {formatDate(request.expires_at)}
+                                    </span>
+
+                                    <span>
+                                        Dicipta: {formatDate(request.created_at)}
+                                    </span>
+
+                                    {request.cancelled_at && (
+                                        <span>
+                                            Dibatalkan: {formatDate(request.cancelled_at)}
+                                        </span>
+                                    )}
+
+                                    {request.status === 'OPEN' && (
+                                        <button
+                                            type="button"
+                                            disabled={cancellingRequestId !== null}
+                                            onClick={() =>
+                                                handleCancelRequest(request.request_id)
+                                            }
+                                        >
+                                            {cancellingRequestId === request.request_id
+                                                ? 'Membatalkan...'
+                                                : 'Batalkan Permintaan'}
+                                        </button>
+                                    )}
+
+                                    {(request.status === 'OPEN' ||
+                                        request.status === 'AWARDED') && (
+                                        <CustomerRequestQuotations
+                                            requestId={request.request_id}
+                                            requestStatus={request.status}
+                                            onAwarded={handleQuotationAwarded}
+                                        />
+                                    )}
+                                </article>
+                            ))}
+                        </div>
+
+                        <div className="customer-pagination">
+                            <button
+                                type="button"
+                                disabled={
+                                    ownRequestPage <= 1 || ownRequestsLoading
+                                }
+                                onClick={() =>
+                                    setOwnRequestPage((current) => current - 1)
+                                }
+                            >
+                                Sebelum
+                            </button>
+
+                            <span>
+                                {ownRequestPage} / {ownRequestLastPage}
+                            </span>
+
+                            <button
+                                type="button"
+                                disabled={
+                                    ownRequestPage >= ownRequestLastPage ||
+                                    ownRequestsLoading
+                                }
+                                onClick={() =>
+                                    setOwnRequestPage((current) => current + 1)
+                                }
+                            >
+                                Seterusnya
+                            </button>
+                        </div>
+                    </>
+                )}
+            </section>
+        );
+    }
+
                         </p>
                     </>
                 ) : (
