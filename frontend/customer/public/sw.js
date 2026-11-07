@@ -1,4 +1,5 @@
-const CACHE_NAME = 'super-runner-customer-v1';
+const CACHE_PREFIX = 'super-runner-customer-';
+const CACHE_NAME = `${CACHE_PREFIX}v1`;
 
 const APP_SHELL = [
     '/',
@@ -18,7 +19,11 @@ self.addEventListener('activate', (event) => {
         caches.keys().then((cacheNames) =>
             Promise.all(
                 cacheNames
-                    .filter((cacheName) => cacheName !== CACHE_NAME)
+                    .filter(
+                        (cacheName) =>
+                            cacheName.startsWith(CACHE_PREFIX) &&
+                            cacheName !== CACHE_NAME,
+                    )
                     .map((cacheName) => caches.delete(cacheName)),
             ),
         ),
@@ -40,6 +45,7 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Never cache authenticated or API responses.
     if (
         url.pathname.startsWith('/web/') ||
         url.pathname.startsWith('/sanctum/') ||
