@@ -97,6 +97,10 @@ function CustomerApp() {
     const [ownRequestsLoading, setOwnRequestsLoading] = useState(false);
     const [ownRequestsError, setOwnRequestsError] = useState('');
 
+    const [cancellingRequestId, setCancellingRequestId] = useState<string | null>(null);
+    const [ownRequestActionMessage, setOwnRequestActionMessage] = useState('');
+    const [ownRequestActionError, setOwnRequestActionError] = useState('');
+
     useEffect(() => {
         let mounted = true;
 
@@ -531,7 +535,7 @@ function CustomerApp() {
 
             await customerApi.createRequest(payload);
 
-                    setRequestSuccess('Permintaan tugasan berjaya dihantar.');
+            setRequestSuccess('Permintaan tugasan berjaya dihantar.');
             setOwnRequestPage(1);
             resetRequestForm();
         } catch (err) {
@@ -552,6 +556,52 @@ function CustomerApp() {
             }
         } finally {
             setRequestLoading(false);
+        }
+    }
+
+    async function handleCancelRequest(requestId: string) {
+        const confirmed = window.confirm(
+            'Adakah anda pasti mahu membatalkan Open Request ini?',
+        );
+
+        if (!confirmed) return;
+
+        setCancellingRequestId(requestId);
+        setOwnRequestActionMessage('');
+        setOwnRequestActionError('');
+
+        try {
+            const result = await customerApi.cancelRequest(requestId);
+
+            setOwnRequests((current) =>
+                current.map((request) =>
+                    request.request_id === requestId
+                        ? {
+                            ...request,
+                            status: result.status,
+                            cancelled_at: result.cancelled_at,
+                            updated_at: result.updated_at,
+                        }
+                        : request,
+                ),
+            );
+
+            setOwnRequestActionMessage(
+                'Open Request berjaya dibatalkan.',
+            );
+        } catch (err) {
+            if (axios.isAxiosError(err)) {
+                setOwnRequestActionError(
+                    err.response?.data?.message ??
+                        'Tidak berjaya membatalkan Open Request.',
+                );
+            } else {
+                setOwnRequestActionError(
+                    'Ralat berlaku. Sila cuba semula.',
+                );
+            }
+        } finally {
+            setCancellingRequestId(null);
         }
     }
 
@@ -870,6 +920,21 @@ function CustomerApp() {
                     </div>
                 </div>
 
+                {ownRequestActionMessage && (
+                    <p
+                        className="customer-request-success"
+                        role="status"
+                    >
+                        {ownRequestActionMessage}
+                    </p>
+                )}
+
+                {ownRequestActionError && (
+                    <p role="alert">
+                        {ownRequestActionError}
+                    </p>
+                )}
+
                 {ownRequestsLoading ? (
                     <p>Memuatkan senarai permintaan...</p>
                 ) : ownRequestsError ? (
@@ -877,7 +942,9 @@ function CustomerApp() {
                 ) : ownRequests.length === 0 ? (
                     <section className="customer-empty">
                         <h3>Belum ada Open Request</h3>
-                        <p>Permintaan yang anda cipta akan dipaparkan di sini.</p>
+                        <p>
+                            Permintaan yang anda cipta akan dipaparkan di sini.
+                        </p>
                     </section>
                 ) : (
                     <>
@@ -902,6 +969,26 @@ function CustomerApp() {
                                     <span>
                                         Dicipta: {formatDate(request.created_at)}
                                     </span>
+
+                                    {request.cancelled_at && (
+                                        <span>
+                                            Dibatalkan: {formatDate(request.cancelled_at)}
+                                        </span>
+                                    )}
+
+                                    {request.status === 'OPEN' && (
+                                        <button
+                                            type="button"
+                                            disabled={cancellingRequestId !== null}
+                                            onClick={() =>
+                                                handleCancelRequest(request.request_id)
+                                            }
+                                        >
+                                            {cancellingRequestId === request.request_id
+                                                ? 'Membatalkan...'
+                                                : 'Batalkan Permintaan'}
+                                        </button>
+                                    )}
                                 </article>
                             ))}
                         </div>
@@ -912,9 +999,9 @@ function CustomerApp() {
                                 disabled={
                                     ownRequestPage <= 1 || ownRequestsLoading
                                 }
-                                onClick={() => setOwnRequestPage(
-                                    (current) => current - 1,
-                                )}
+                                onClick={() =>
+                                    setOwnRequestPage((current) => current - 1)
+                                }
                             >
                                 Sebelum
                             </button>
@@ -929,9 +1016,9 @@ function CustomerApp() {
                                     ownRequestPage >= ownRequestLastPage ||
                                     ownRequestsLoading
                                 }
-                                onClick={() => setOwnRequestPage(
-                                    (current) => current + 1,
-                                )}
+                                onClick={() =>
+                                    setOwnRequestPage((current) => current + 1)
+                                }
                             >
                                 Seterusnya
                             </button>
@@ -941,7 +1028,8 @@ function CustomerApp() {
             </section>
         );
     }
-        function renderRequestForm() {
+
+    function renderRequestForm() {
         return (
             <>
                 <section className="customer-panel">
