@@ -2,6 +2,7 @@
  // @vitest-environment jsdom
 
 import {
+    afterEach,
     beforeEach,
     describe,
     expect,
@@ -10,6 +11,7 @@ import {
 } from 'vitest';
 
 import {
+    cleanup,
     fireEvent,
     render,
     screen,
@@ -104,11 +106,12 @@ describe('CustomerRequestQuotations', () => {
         );
     });
 
-    function renderComponent(
-        props: Partial<React.ComponentProps<
-            typeof CustomerRequestQuotations
-        >> = {},
-    ) {
+    afterEach(() => {
+        cleanup();
+        vi.unstubAllGlobals();
+    });
+
+    function renderComponent() {
         const onAwarded = vi.fn();
 
         render(
@@ -116,11 +119,20 @@ describe('CustomerRequestQuotations', () => {
                 requestId={requestId}
                 requestStatus="OPEN"
                 onAwarded={onAwarded}
-                {...props}
             />,
         );
 
         return { onAwarded };
+    }
+
+    async function openQuotations() {
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Lihat Sebut Harga',
+            }),
+        );
+
+        await screen.findByText('Sebut Harga Runner');
     }
 
     it('loads and displays submitted quotations', async () => {
@@ -128,15 +140,7 @@ describe('CustomerRequestQuotations', () => {
 
         renderComponent();
 
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'Lihat Sebut Harga',
-            }),
-        );
-
-        expect(
-            await screen.findByText('Sebut Harga Runner'),
-        ).toBeTruthy();
+        await openQuotations();
 
         expect(
             screen.getByText('ID Runner: 501'),
@@ -157,14 +161,10 @@ describe('CustomerRequestQuotations', () => {
 
         renderComponent();
 
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'Lihat Sebut Harga',
-            }),
-        );
+        await openQuotations();
 
         expect(
-            await screen.findByText(
+            screen.getByText(
                 'Belum ada Runner menghantar sebut harga.',
             ),
         ).toBeTruthy();
@@ -172,17 +172,12 @@ describe('CustomerRequestQuotations', () => {
 
     it('does not award when customer cancels confirmation', async () => {
         vi.stubGlobal('confirm', vi.fn(() => false));
+
         getRequestMock.mockResolvedValue(requestDetail);
 
         renderComponent();
 
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'Lihat Sebut Harga',
-            }),
-        );
-
-        await screen.findByText('ID Runner: 501');
+        await openQuotations();
 
         fireEvent.click(
             screen.getByRole('button', {
@@ -215,13 +210,7 @@ describe('CustomerRequestQuotations', () => {
 
         const { onAwarded } = renderComponent();
 
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'Lihat Sebut Harga',
-            }),
-        );
-
-        await screen.findByText('ID Runner: 501');
+        await openQuotations();
 
         fireEvent.click(
             screen.getByRole('button', {
@@ -265,13 +254,7 @@ describe('CustomerRequestQuotations', () => {
 
         renderComponent();
 
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'Lihat Sebut Harga',
-            }),
-        );
-
-        await screen.findByText('ID Runner: 501');
+        await openQuotations();
 
         expect(
             screen.queryByRole('button', {
@@ -311,13 +294,7 @@ describe('CustomerRequestQuotations', () => {
 
         renderComponent();
 
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'Lihat Sebut Harga',
-            }),
-        );
-
-        await screen.findByText('ID Runner: 501');
+        await openQuotations();
 
         fireEvent.click(
             screen.getByRole('button', {
@@ -325,16 +302,14 @@ describe('CustomerRequestQuotations', () => {
             }),
         );
 
-        expect(
-            await screen.findByRole('alert'),
-        ).toBeTruthy();
-
-        expect(
-            screen.getByRole('alert').textContent,
-        ).toContain('Tidak berjaya memilih Runner.');
+        await waitFor(() => {
+            expect(
+                screen.getByRole('alert').textContent,
+            ).toContain('Tidak berjaya memilih Runner.');
+        });
     });
 
-    it('keeps the award success when refreshing detail fails', async () => {
+    it('keeps award success when refreshing detail fails', async () => {
         getRequestMock
             .mockResolvedValueOnce(requestDetail)
             .mockRejectedValueOnce(new Error('Refresh failed'));
@@ -343,13 +318,7 @@ describe('CustomerRequestQuotations', () => {
 
         const { onAwarded } = renderComponent();
 
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'Lihat Sebut Harga',
-            }),
-        );
-
-        await screen.findByText('ID Runner: 501');
+        await openQuotations();
 
         fireEvent.click(
             screen.getByRole('button', {
@@ -366,7 +335,9 @@ describe('CustomerRequestQuotations', () => {
         expect(onAwarded).toHaveBeenCalledTimes(1);
 
         expect(
-            await screen.findByRole('status'),
+            await screen.findByText(
+                /Status senarai belum dapat dikemas kini/,
+            ),
         ).toBeTruthy();
     });
 });
