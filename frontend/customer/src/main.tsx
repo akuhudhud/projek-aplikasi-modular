@@ -98,6 +98,7 @@ function CustomerApp() {
     const [ownRequestTotal, setOwnRequestTotal] = useState(0);
     const [ownRequestsLoading, setOwnRequestsLoading] = useState(false);
     const [ownRequestsError, setOwnRequestsError] = useState('');
+    const [ownRequestRefreshKey, setOwnRequestRefreshKey] = useState(0);
 
     const [cancellingRequestId, setCancellingRequestId] = useState<string | null>(null);
     const [ownRequestActionMessage, setOwnRequestActionMessage] = useState('');
@@ -219,7 +220,7 @@ function CustomerApp() {
         return () => {
             mounted = false;
         };
-    }, [account, page, ownRequestPage]);
+    }, [account, page, ownRequestPage, ownRequestRefreshKey]);
 
     function closeTaskDetail() {
         setSelectedTaskId(null);
@@ -539,6 +540,7 @@ function CustomerApp() {
 
             setRequestSuccess('Permintaan tugasan berjaya dihantar.');
             setOwnRequestPage(1);
+            setOwnRequestRefreshKey((current) => current + 1);
             resetRequestForm();
         } catch (err) {
             if (axios.isAxiosError(err)) {
