@@ -77,4 +77,3 @@ Route::prefix('web/customer')
             [CustomerMarketplaceRequestController::class, 'cancel']
         )->name('requests.cancel');
     });
-</php>
