@@ -6,6 +6,5 @@ parameters:
 
     paths:
         - app
-        - ../modules/PickAndDrop
 
     tmpDir: storage/framework/cache/phpstan
