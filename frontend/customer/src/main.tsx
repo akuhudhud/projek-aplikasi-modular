@@ -11,6 +11,7 @@ import {
     type RegistrationOtpRequestPayload,
 } from './api';
 import CustomerRequestQuotations from './CustomerRequestQuotations';
+import RunnerPublicProfile from './RunnerPublicProfile';
 import {
     LocationSnapshotPanel,
     isRequestExpiryValid,
@@ -51,9 +52,9 @@ function CustomerApp() {
     const runnerSlugParameter = new URLSearchParams(
         window.location.search,
     ).get('runner');
-    const runnerSlug = runnerSlugParameter?.trim() ?? '';
+    const runnerSlug = runnerSlugParameter?.trim().toLowerCase() ?? '';
     const hasInvalidRunnerSlug = runnerSlugParameter !== null &&
-        !/^[A-Za-z0-9_-]{3,50}$/.test(runnerSlug);
+        !/^[A-Za-z0-9_-]{3,50}$/.test(runnerSlugParameter);
 
     const [account, setAccount] = useState<CustomerAccount | null>(null);
     const [profileName, setProfileName] = useState('');
@@ -142,6 +143,12 @@ function CustomerApp() {
             setProfileName(account.name);
         }
     }, [account]);
+
+    useEffect(() => {
+        if (account && runnerSlug) {
+            setPage('request');
+        }
+    }, [account, runnerSlug]);
 
     useEffect(() => {
         if (!account) return;
@@ -260,7 +267,7 @@ function CustomerApp() {
 
             setAccount(currentAccount);
             setPassword('');
-            setPage('dashboard');
+            setPage(runnerSlug ? 'request' : 'dashboard');
         } catch (err) {
             if (axios.isAxiosError(err)) {
                 setError(
@@ -370,8 +377,7 @@ function CustomerApp() {
             setLoading(false);
         }
     }
-
-    async function handleCompleteRegistration(
+        async function handleCompleteRegistration(
         event: FormEvent<HTMLFormElement>,
     ) {
         event.preventDefault();
@@ -414,7 +420,7 @@ function CustomerApp() {
             setAccount(currentAccount);
             setPassword('');
             setRegistrationVerificationToken('');
-            setPage('dashboard');
+            setPage(runnerSlug ? 'request' : 'dashboard');
         } catch (err) {
             if (axios.isAxiosError(err)) {
                 const responseErrors = err.response?.data?.errors;
@@ -595,7 +601,8 @@ function CustomerApp() {
             setRequestLoading(false);
         }
     }
-async function handleCancelRequest(requestId: string) {
+
+    async function handleCancelRequest(requestId: string) {
         const confirmed = window.confirm(
             'Adakah anda pasti mahu membatalkan Open Request ini?',
         );
@@ -845,8 +852,7 @@ async function handleCancelRequest(requestId: string) {
             </>
         );
     }
-
-    function renderProfile() {
+        function renderProfile() {
         if (!account) return null;
 
         return (
@@ -1105,7 +1111,7 @@ async function handleCancelRequest(requestId: string) {
             </section>
         );
     }
-function renderRequestForm() {
+        function renderRequestForm() {
         return (
             <>
                 <section className="customer-panel">
@@ -1398,7 +1404,7 @@ function renderRequestForm() {
                                         inputMode="numeric"
                                         autoComplete="one-time-code"
                                         value={registrationOtp}
-                                        onChange={(event) =>
+                                                                                onChange={(event) =>
                                             setRegistrationOtp(
                                                 event.target.value
                                                     .replace(/\D/g, '')
@@ -1660,10 +1666,18 @@ function renderRequestForm() {
 
 const rootElement = document.getElementById('customer-app');
 
+const publicRunnerMatch = window.location.pathname.match(
+    /^\/me\/([A-Za-z0-9_-]{3,50})\/?$/,
+);
+
 if (rootElement) {
     createRoot(rootElement).render(
         <StrictMode>
-            <CustomerApp />
+            {publicRunnerMatch ? (
+                <RunnerPublicProfile slug={publicRunnerMatch[1]} />
+            ) : (
+                <CustomerApp />
+            )}
         </StrictMode>,
     );
 }
