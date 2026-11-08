@@ -1,4 +1,3 @@
-
 // @vitest-environment jsdom
 
 import {
@@ -87,6 +86,9 @@ function mockSuccessfulLogin() {
 
     getTasksMock.mockResolvedValue({
         tasks: [],
+        summary: {
+            active_total: 0,
+        },
         pagination: {
             current_page: 1,
             per_page: 10,
@@ -568,6 +570,9 @@ describe(
 
                 getTasksMock.mockResolvedValue({
                     tasks: [{ task, request }],
+                    summary: {
+                        active_total: 1,
+                    },
                     pagination: {
                         current_page: 1,
                         per_page: 10,
@@ -611,6 +616,72 @@ describe(
 
                 expect(
                     screen.getByText('ASSIGNED'),
+                ).toBeTruthy();
+            },
+        );
+
+        it(
+            'shows dashboard task and Open Request summaries',
+            async () => {
+                getTasksMock.mockResolvedValue({
+                    tasks: [],
+                    summary: {
+                        active_total: 2,
+                    },
+                    pagination: {
+                        current_page: 1,
+                        per_page: 10,
+                        total: 5,
+                        last_page: 1,
+                    },
+                });
+
+                getRequestsMock.mockResolvedValue({
+                    requests: [makeOpenRequest()],
+                    pagination: {
+                        current_page: 1,
+                        per_page: 10,
+                        total: 3,
+                        last_page: 1,
+                    },
+                });
+
+                await loginThroughCustomerDashboard();
+
+                expect(
+                    getRequestsMock,
+                ).toHaveBeenCalledWith(1);
+
+                const summaryGrid = document.querySelector(
+                    '.customer-summary-grid',
+                );
+
+                expect(summaryGrid).not.toBeNull();
+
+                const taskSummary = within(
+                    summaryGrid as HTMLElement,
+                ).getByText('Jumlah Tugasan').closest('article');
+
+                const activeTaskSummary = within(
+                    summaryGrid as HTMLElement,
+                ).getByText('Tugasan Aktif').closest('article');
+
+                const requestSummary = within(
+                    summaryGrid as HTMLElement,
+                ).getByText('Open Request').closest('article');
+
+                expect(taskSummary?.textContent).toContain('5');
+                expect(activeTaskSummary?.textContent).toContain('2');
+                expect(requestSummary?.textContent).toContain('3');
+
+                expect(
+                    screen.getByRole('heading', {
+                        name: 'Open Request Terkini',
+                    }),
+                ).toBeTruthy();
+
+                expect(
+                    screen.getByText('Bantu membeli barang.'),
                 ).toBeTruthy();
             },
         );
