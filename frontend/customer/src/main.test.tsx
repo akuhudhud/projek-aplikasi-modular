@@ -1,5 +1,4 @@
-
- // @vitest-environment jsdom
+// @vitest-environment jsdom
 
 import {
     afterEach,
@@ -25,12 +24,14 @@ const {
     getTasksMock,
     getRequestsMock,
     createRequestMock,
+    cancelRequestMock,
 } = vi.hoisted(() => ({
     meMock: vi.fn(),
     loginMock: vi.fn(),
     getTasksMock: vi.fn(),
     getRequestsMock: vi.fn(),
     createRequestMock: vi.fn(),
+    cancelRequestMock: vi.fn(),
 }));
 
 vi.mock('axios', () => ({
@@ -52,7 +53,7 @@ vi.mock('./api', () => ({
         requestRegistrationOtp: vi.fn(),
         verifyRegistrationOtp: vi.fn(),
         completeRegistration: vi.fn(),
-        cancelRequest: vi.fn(),
+        cancelRequest: cancelRequestMock,
         getRequest: vi.fn(),
         awardQuotation: vi.fn(),
     },
@@ -118,7 +119,6 @@ function mockSuccessfulLogin() {
 async function loginThroughRunnerProfile() {
     render(<CustomerApp />);
 
-    // Tunggu pemeriksaan sesi selesai dan borang login muncul.
     await screen.findByRole('heading', {
         name: 'Log Masuk Pelanggan',
     });
@@ -168,6 +168,29 @@ function submitRequestForm() {
     fireEvent.submit(form);
 }
 
+function makeOpenRequest() {
+    const now = new Date().toISOString();
+
+    return {
+        request_id: 'request-to-cancel',
+        task_class: 'NON_DELIVERY' as const,
+        description: 'Bantu membeli barang.',
+        pickup_location_snapshot: null,
+        delivery_location_snapshot: null,
+        task_location_snapshot: {
+            address: 'Pekan Tuaran',
+        },
+        status: 'OPEN',
+        expires_at: new Date(
+            Date.now() + 60 * 60 * 1000,
+        ).toISOString(),
+        awarded_at: null,
+        cancelled_at: null,
+        created_at: now,
+        updated_at: now,
+    };
+}
+
 describe(
     'Customer Open Request through Runner profile link',
     () => {
@@ -185,6 +208,7 @@ describe(
 
         afterEach(() => {
             cleanup();
+            vi.restoreAllMocks();
 
             window.history.replaceState(
                 {},
@@ -350,6 +374,119 @@ describe(
                 expect(payload).not.toHaveProperty(
                     'delivery_location_snapshot',
                 );
+            },
+        );
+
+        it(
+            'cancels an OPEN request and updates its displayed status',
+            async () => {
+                getRequestsMock.mockResolvedValue({
+                    requests: [makeOpenRequest()],
+                    pagination: {
+                        current_page: 1,
+                        per_page: 10,
+                        total: 1,
+                        last_page: 1,
+                    },
+                });
+
+                cancelRequestMock.mockResolvedValue({
+                    request_id: 'request-to-cancel',
+                    status: 'CANCELLED',
+                    cancelled_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                });
+
+                const confirmMock = vi
+                    .spyOn(window, 'confirm')
+                    .mockReturnValue(true);
+
+                await loginThroughRunnerProfile();
+
+                expect(
+                    await screen.findByText(
+                        'Bantu membeli barang.',
+                    ),
+                ).toBeTruthy();
+
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Batalkan Permintaan',
+                    }),
+                );
+
+                expect(confirmMock).toHaveBeenCalledWith(
+                    'Adakah anda pasti mahu membatalkan Open Request ini?',
+                );
+
+                await waitFor(() => {
+                    expect(
+                        cancelRequestMock,
+                    ).toHaveBeenCalledTimes(1);
+                });
+
+                expect(
+                    cancelRequestMock,
+                ).toHaveBeenCalledWith(
+                    'request-to-cancel',
+                );
+
+                const successMessage =
+                    await screen.findByRole('status');
+
+                expect(successMessage.textContent).toContain(
+                    'Open Request berjaya dibatalkan.',
+                );
+
+                expect(
+                    screen.getByText('Status: CANCELLED'),
+                ).toBeTruthy();
+
+                expect(
+                    screen.queryByRole('button', {
+                        name: 'Batalkan Permintaan',
+                    }),
+                ).toBeNull();
+            },
+        );
+
+        it(
+            'does not cancel an OPEN request when customer declines confirmation',
+            async () => {
+                getRequestsMock.mockResolvedValue({
+                    requests: [makeOpenRequest()],
+                    pagination: {
+                        current_page: 1,
+                        per_page: 10,
+                        total: 1,
+                        last_page: 1,
+                    },
+                });
+
+                const confirmMock = vi
+                    .spyOn(window, 'confirm')
+                    .mockReturnValue(false);
+
+                await loginThroughRunnerProfile();
+
+                expect(
+                    await screen.findByText(
+                        'Bantu membeli barang.',
+                    ),
+                ).toBeTruthy();
+
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Batalkan Permintaan',
+                    }),
+                );
+
+                expect(confirmMock).toHaveBeenCalledTimes(1);
+                expect(cancelRequestMock).not.toHaveBeenCalled();
+
+                expect(
+                    screen.getByText('Status: OPEN'),
+                ).toBeTruthy();
             },
         );
 
