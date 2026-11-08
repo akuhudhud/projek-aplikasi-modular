@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Http\Controllers\Api;
@@ -30,11 +31,10 @@ class RunnerTaskRatingController extends Controller
         }
 
         $validated = $request->validate([
-            'rating' => ['required', 'integer', 'min:0', 'max:5'],
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
             'review' => ['sometimes', 'nullable', 'string', 'max:5000'],
         ]);
 
-        // PATCH is strictly for editing an existing rating.
         $requireExisting = $request->isMethod('PATCH');
 
         try {
@@ -88,7 +88,6 @@ class RunnerTaskRatingController extends Controller
                         );
                     }
 
-                    // Prevent a runner from rating their own task.
                     if (
                         $marketplaceRequest->customer_account_id
                         === $task->assigned_account_id
@@ -116,7 +115,6 @@ class RunnerTaskRatingController extends Controller
 
                         $existing->rating = (int) $validated['rating'];
 
-                        // Omitted review preserves the existing review.
                         if (array_key_exists('review', $validated)) {
                             $existing->review = $validated['review'] === null
                                 ? null
@@ -128,7 +126,6 @@ class RunnerTaskRatingController extends Controller
                         return [$existing->refresh(), false];
                     }
 
-                    // PATCH must never create a new rating.
                     if ($requireExisting) {
                         throw (new ModelNotFoundException())
                             ->setModel(
@@ -169,7 +166,6 @@ class RunnerTaskRatingController extends Controller
         } catch (DomainException $exception) {
             return $this->error($exception->getMessage(), 422);
         } catch (QueryException) {
-            // Handles concurrent requests conflicting with the unique task_id.
             $existing = RunnerTaskRating::query()
                 ->where('task_id', $taskId)
                 ->first();
