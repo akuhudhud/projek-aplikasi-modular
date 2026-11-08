@@ -71,7 +71,9 @@ const account = {
 };
 
 function mockSuccessfulLogin() {
-    meMock.mockRejectedValue(new Error('No active session'));
+    meMock.mockRejectedValue(
+        new Error('No active session'),
+    );
 
     loginMock.mockResolvedValue(account);
 
@@ -116,17 +118,26 @@ function mockSuccessfulLogin() {
 async function loginThroughRunnerProfile() {
     render(<CustomerApp />);
 
+    // Tunggu pemeriksaan sesi selesai dan borang login muncul.
+    await screen.findByRole('heading', {
+        name: 'Log Masuk Pelanggan',
+    });
+
     fireEvent.change(
         screen.getByLabelText('Nombor Telefon atau E-mel'),
         {
-            target: { value: '0123456789' },
+            target: {
+                value: '0123456789',
+            },
         },
     );
 
     fireEvent.change(
         screen.getByLabelText('Kata Laluan'),
         {
-            target: { value: 'TestPassword123' },
+            target: {
+                value: 'TestPassword123',
+            },
         },
     );
 
@@ -149,188 +160,231 @@ function submitRequestForm() {
     const form = button.closest('form');
 
     if (!form) {
-        throw new Error('Open Request form not found.');
+        throw new Error(
+            'Open Request form not found.',
+        );
     }
 
     fireEvent.submit(form);
 }
 
-describe('Customer Open Request through Runner profile link', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
+describe(
+    'Customer Open Request through Runner profile link',
+    () => {
+        beforeEach(() => {
+            vi.clearAllMocks();
 
-        window.history.replaceState(
-            {},
-            '',
-            '/?runner=Test-Runner',
-        );
+            window.history.replaceState(
+                {},
+                '',
+                '/?runner=Test-Runner',
+            );
 
-        mockSuccessfulLogin();
-    });
-
-    afterEach(() => {
-        cleanup();
-
-        window.history.replaceState(
-            {},
-            '',
-            '/',
-        );
-    });
-
-    it('sends PICKUP_DELIVERY request to the selected runner', async () => {
-        await loginThroughRunnerProfile();
-
-        expect(
-            screen.getByText(
-                'Nyatakan tugasan yang anda perlukan. Permintaan ini akan dihantar khusus kepada Runner daripada profil yang anda pilih.',
-            ),
-        ).toBeTruthy();
-
-        fireEvent.change(
-            screen.getByLabelText('Penerangan Tugasan'),
-            {
-                target: {
-                    value: 'Hantar parcel kepada pelanggan.',
-                },
-            },
-        );
-
-        const pickup = screen.getByRole('group', {
-            name: 'Lokasi Pickup',
+            mockSuccessfulLogin();
         });
 
-        fireEvent.change(
-            within(pickup).getByRole('textbox'),
-            {
-                target: {
-                    value: 'Pusat Pos Tuaran',
-                },
-            },
-        );
+        afterEach(() => {
+            cleanup();
 
-        const delivery = screen.getByRole('group', {
-            name: 'Lokasi Delivery',
+            window.history.replaceState(
+                {},
+                '',
+                '/',
+            );
         });
 
-        fireEvent.change(
-            within(delivery).getByRole('textbox'),
-            {
-                target: {
-                    value: 'Kampung Tambalang',
-                },
+        it(
+            'sends PICKUP_DELIVERY request to the selected runner',
+            async () => {
+                await loginThroughRunnerProfile();
+
+                expect(
+                    screen.getByText(
+                        'Nyatakan tugasan yang anda perlukan. Permintaan ini akan dihantar khusus kepada Runner daripada profil yang anda pilih.',
+                    ),
+                ).toBeTruthy();
+
+                fireEvent.change(
+                    screen.getByLabelText(
+                        'Penerangan Tugasan',
+                    ),
+                    {
+                        target: {
+                            value: 'Hantar parcel kepada pelanggan.',
+                        },
+                    },
+                );
+
+                const pickup = screen.getByRole(
+                    'group',
+                    {
+                        name: 'Lokasi Pickup',
+                    },
+                );
+
+                fireEvent.change(
+                    within(pickup).getByRole('textbox'),
+                    {
+                        target: {
+                            value: 'Pusat Pos Tuaran',
+                        },
+                    },
+                );
+
+                const delivery = screen.getByRole(
+                    'group',
+                    {
+                        name: 'Lokasi Delivery',
+                    },
+                );
+
+                fireEvent.change(
+                    within(delivery).getByRole('textbox'),
+                    {
+                        target: {
+                            value: 'Kampung Tambalang',
+                        },
+                    },
+                );
+
+                submitRequestForm();
+
+                await waitFor(() => {
+                    expect(
+                        createRequestMock,
+                    ).toHaveBeenCalledTimes(1);
+                });
+
+                expect(
+                    createRequestMock,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        source_type: 'runner_profile_link',
+                        target_runner_slug: 'test-runner',
+                        task_class: 'PICKUP_DELIVERY',
+                        description: 'Hantar parcel kepada pelanggan.',
+                        pickup_location_snapshot:
+                            expect.objectContaining({
+                                address: 'Pusat Pos Tuaran',
+                            }),
+                        delivery_location_snapshot:
+                            expect.objectContaining({
+                                address: 'Kampung Tambalang',
+                            }),
+                    }),
+                );
             },
         );
 
-        submitRequestForm();
+        it(
+            'sends NON_DELIVERY request with task location snapshot',
+            async () => {
+                await loginThroughRunnerProfile();
 
-        await waitFor(() => {
-            expect(createRequestMock).toHaveBeenCalledTimes(1);
-        });
+                fireEvent.change(
+                    screen.getByLabelText('Jenis Tugasan'),
+                    {
+                        target: {
+                            value: 'NON_DELIVERY',
+                        },
+                    },
+                );
 
-        expect(createRequestMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                source_type: 'runner_profile_link',
-                target_runner_slug: 'test-runner',
-                task_class: 'PICKUP_DELIVERY',
-                description: 'Hantar parcel kepada pelanggan.',
-                pickup_location_snapshot: expect.objectContaining({
-                    address: 'Pusat Pos Tuaran',
-                }),
-                delivery_location_snapshot: expect.objectContaining({
-                    address: 'Kampung Tambalang',
-                }),
-            }),
-        );
-    });
+                fireEvent.change(
+                    screen.getByLabelText(
+                        'Penerangan Tugasan',
+                    ),
+                    {
+                        target: {
+                            value: 'Bantu membeli barang.',
+                        },
+                    },
+                );
 
-    it('sends NON_DELIVERY request with task location snapshot', async () => {
-        await loginThroughRunnerProfile();
+                const taskLocation = screen.getByRole(
+                    'group',
+                    {
+                        name: 'Lokasi Tugasan',
+                    },
+                );
 
-        fireEvent.change(
-            screen.getByLabelText('Jenis Tugasan'),
-            {
-                target: {
-                    value: 'NON_DELIVERY',
-                },
+                fireEvent.change(
+                    within(taskLocation).getByRole('textbox'),
+                    {
+                        target: {
+                            value: 'Pekan Tuaran',
+                        },
+                    },
+                );
+
+                submitRequestForm();
+
+                await waitFor(() => {
+                    expect(
+                        createRequestMock,
+                    ).toHaveBeenCalledTimes(1);
+                });
+
+                expect(
+                    createRequestMock,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        source_type: 'runner_profile_link',
+                        target_runner_slug: 'test-runner',
+                        task_class: 'NON_DELIVERY',
+                        description: 'Bantu membeli barang.',
+                        task_location_snapshot:
+                            expect.objectContaining({
+                                address: 'Pekan Tuaran',
+                            }),
+                    }),
+                );
+
+                const payload =
+                    createRequestMock.mock.calls[0][0];
+
+                expect(payload).not.toHaveProperty(
+                    'pickup_location_snapshot',
+                );
+
+                expect(payload).not.toHaveProperty(
+                    'delivery_location_snapshot',
+                );
             },
         );
 
-        fireEvent.change(
-            screen.getByLabelText('Penerangan Tugasan'),
-            {
-                target: {
-                    value: 'Bantu membeli barang.',
-                },
+        it(
+            'rejects an invalid runner slug before API submission',
+            async () => {
+                window.history.replaceState(
+                    {},
+                    '',
+                    '/?runner=!!invalid!!',
+                );
+
+                await loginThroughRunnerProfile();
+
+                fireEvent.change(
+                    screen.getByLabelText(
+                        'Penerangan Tugasan',
+                    ),
+                    {
+                        target: {
+                            value: 'Invalid profile test.',
+                        },
+                    },
+                );
+
+                submitRequestForm();
+
+                expect(
+                    await screen.findByRole('alert'),
+                ).toBeTruthy();
+
+                expect(
+                    createRequestMock,
+                ).not.toHaveBeenCalled();
             },
         );
-
-        const taskLocation = screen.getByRole('group', {
-            name: 'Lokasi Tugasan',
-        });
-
-        fireEvent.change(
-            within(taskLocation).getByRole('textbox'),
-            {
-                target: {
-                    value: 'Pekan Tuaran',
-                },
-            },
-        );
-
-        submitRequestForm();
-
-        await waitFor(() => {
-            expect(createRequestMock).toHaveBeenCalledTimes(1);
-        });
-
-        expect(createRequestMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                source_type: 'runner_profile_link',
-                target_runner_slug: 'test-runner',
-                task_class: 'NON_DELIVERY',
-                description: 'Bantu membeli barang.',
-                task_location_snapshot: expect.objectContaining({
-                    address: 'Pekan Tuaran',
-                }),
-            }),
-        );
-
-        const payload = createRequestMock.mock.calls[0][0];
-
-        expect(payload).not.toHaveProperty(
-            'pickup_location_snapshot',
-        );
-
-        expect(payload).not.toHaveProperty(
-            'delivery_location_snapshot',
-        );
-    });
-
-    it('rejects an invalid runner slug before API submission', async () => {
-        window.history.replaceState(
-            {},
-            '',
-            '/?runner=!!invalid!!',
-        );
-
-        await loginThroughRunnerProfile();
-
-        fireEvent.change(
-            screen.getByLabelText('Penerangan Tugasan'),
-            {
-                target: {
-                    value: 'Invalid profile test.',
-                },
-            },
-        );
-
-        submitRequestForm();
-
-        expect(
-            await screen.findByRole('alert'),
-        ).toBeTruthy();
-
-        expect(createRequestMock).not.toHaveBeenCalled();
-    });
-});
+    },
+);
