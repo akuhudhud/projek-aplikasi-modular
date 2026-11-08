@@ -51,6 +51,10 @@ export interface CustomerTaskPagination {
     last_page: number;
 }
 
+export interface CustomerTaskSummary {
+    active_total: number;
+}
+
 export interface CustomerRequestPayload {
     source_type?: 'marketplace' | 'runner_profile_link';
     target_runner_slug?: string | null;
@@ -152,6 +156,7 @@ interface AccountData {
 
 interface CustomerTasksData {
     tasks: CustomerTaskItem[];
+    summary: CustomerTaskSummary;
     pagination: CustomerTaskPagination;
 }
 
