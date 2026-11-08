@@ -82,6 +82,7 @@ export function CustomerApp() {
     const [page, setPage] = useState<Page>('dashboard');
     const [tasks, setTasks] = useState<CustomerTaskItem[]>([]);
     const [taskTotal, setTaskTotal] = useState(0);
+    const [activeTaskTotal, setActiveTaskTotal] = useState(0);
     const [taskPage, setTaskPage] = useState(1);
     const [taskLastPage, setTaskLastPage] = useState(1);
     const [tasksLoading, setTasksLoading] = useState(false);
@@ -162,6 +163,7 @@ export function CustomerApp() {
 
                 setTasks(result.tasks);
                 setTaskTotal(result.pagination.total);
+                setActiveTaskTotal(result.summary.active_total);
                 setTaskLastPage(result.pagination.last_page);
             })
             .catch(() => {
@@ -213,13 +215,14 @@ export function CustomerApp() {
     }, [selectedTaskId]);
 
     useEffect(() => {
-        if (!account || page !== 'request') return;
+        if (!account || (page !== 'request' && page !== 'dashboard')) return;
 
+        const requestPage = page === 'dashboard' ? 1 : ownRequestPage;
         let mounted = true;
         setOwnRequestsLoading(true);
         setOwnRequestsError('');
 
-        customerApi.getRequests(ownRequestPage)
+        customerApi.getRequests(requestPage)
             .then((result) => {
                 if (!mounted) return;
 
@@ -377,19 +380,7 @@ export function CustomerApp() {
             setLoading(false);
         }
     }
-        async function handleCompleteRegistration(
-        event: FormEvent<HTMLFormElement>,
-    ) {
-        event.preventDefault();
-        setError('');
-
-        if (!registrationVerificationToken) {
-            setError('Pengesahan OTP diperlukan. Sila ulang proses pendaftaran.');
-            setRegistrationStep(1);
-            return;
-        }
-
-        if (
+            if (
             registrationPassword.length < 8 ||
             registrationPassword.length > 12 ||
             !/[A-Z]/.test(registrationPassword) ||
@@ -812,7 +803,6 @@ export function CustomerApp() {
             </section>
         );
     }
-
     function renderDashboard() {
         return (
             <>
@@ -827,6 +817,17 @@ export function CustomerApp() {
                         <span>Jumlah Tugasan</span>
                         <strong>{taskTotal}</strong>
                     </article>
+
+                    <article className="customer-summary-card">
+                        <span>Tugasan Aktif</span>
+                        <strong>{activeTaskTotal}</strong>
+                    </article>
+
+                    <article className="customer-summary-card">
+                        <span>Open Request</span>
+                        <strong>{ownRequestTotal}</strong>
+                    </article>
+
                     <article className="customer-summary-card">
                         <span>Status Akaun</span>
                         <strong>{account?.status}</strong>
@@ -849,10 +850,58 @@ export function CustomerApp() {
 
                     {renderTaskList()}
                 </section>
+
+                <section className="customer-panel">
+                    <div className="customer-section-heading">
+                        <h2>Open Request Terkini</h2>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                closeTaskDetail();
+                                setPage('request');
+                            }}
+                        >
+                            Lihat semua
+                        </button>
+                    </div>
+
+                    {ownRequestsLoading ? (
+                        <p>Memuatkan Open Request...</p>
+                    ) : ownRequestsError ? (
+                        <p role="alert">{ownRequestsError}</p>
+                    ) : ownRequests.length === 0 ? (
+                        <p>Belum ada Open Request.</p>
+                    ) : (
+                        <div className="customer-task-list">
+                            {ownRequests.slice(0, 3).map((request) => (
+                                <article
+                                    className="customer-task-card"
+                                    key={request.request_id}
+                                >
+                                    <div>
+                                        <strong>
+                                            {taskClassLabel(request.task_class)}
+                                        </strong>
+                                        <span>{request.status}</span>
+                                    </div>
+
+                                    <p>
+                                        {request.description || 'Tiada penerangan.'}
+                                    </p>
+
+                                    <small>
+                                        Tamat: {formatDate(request.expires_at)}
+                                    </small>
+                                </article>
+                            ))}
+                        </div>
+                    )}
+                </section>
             </>
         );
     }
-        function renderProfile() {
+
+    function renderProfile() {
         if (!account) return null;
 
         return (
@@ -898,7 +947,7 @@ export function CustomerApp() {
                         <div>
                             <dt>Status Akaun</dt>
                             <dd>{account.status}</dd>
-                                                    </div>
+                        </div>
                     </dl>
 
                     {profileError && <p role="alert">{profileError}</p>}
@@ -912,7 +961,7 @@ export function CustomerApp() {
         );
     }
 
-        function renderLocationFields(
+    function renderLocationFields(
         title: string,
         address: string,
         setAddress: (value: string) => void,
@@ -1117,7 +1166,8 @@ export function CustomerApp() {
             </section>
         );
     }
-        function renderRequestForm() {
+
+    function renderRequestForm() {
         return (
             <>
                 <section className="customer-panel">
@@ -1205,7 +1255,7 @@ export function CustomerApp() {
                                 setTaskContact,
                                 taskPhone,
                                 setTaskPhone,
-                                                            )
+                            )
                         )}
 
                         <div>
@@ -1248,7 +1298,6 @@ export function CustomerApp() {
             </>
         );
     }
-
     if (checkingSession) {
         return (
             <main className="customer-loading">
