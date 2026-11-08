@@ -912,7 +912,7 @@ export function CustomerApp() {
         );
     }
 
-    function renderLocationFields(
+        function renderLocationFields(
         title: string,
         address: string,
         setAddress: (value: string) => void,
@@ -926,37 +926,43 @@ export function CustomerApp() {
                 <legend>{title}</legend>
 
                 <div>
-                    <label>Alamat / Lokasi</label>
-                    <textarea
-                        value={address}
-                        onChange={(event) => setAddress(event.target.value)}
-                        required
-                        rows={3}
-                        maxLength={2000}
-                        disabled={requestLoading}
-                    />
+                    <label>
+                        Alamat / Lokasi
+                        <textarea
+                            value={address}
+                            onChange={(event) => setAddress(event.target.value)}
+                            required
+                            rows={3}
+                            maxLength={2000}
+                            disabled={requestLoading}
+                        />
+                    </label>
                 </div>
 
                 <div>
-                    <label>Nama Orang Dihubungi (Pilihan)</label>
-                    <input
-                        type="text"
-                        value={contact}
-                        onChange={(event) => setContact(event.target.value)}
-                        maxLength={150}
-                        disabled={requestLoading}
-                    />
+                    <label>
+                        Nama Orang Dihubungi (Pilihan)
+                        <input
+                            type="text"
+                            value={contact}
+                            onChange={(event) => setContact(event.target.value)}
+                            maxLength={150}
+                            disabled={requestLoading}
+                        />
+                    </label>
                 </div>
 
                 <div>
-                    <label>Nombor Telefon (Pilihan)</label>
-                    <input
-                        type="tel"
-                        value={phone}
-                        onChange={(event) => setPhone(event.target.value)}
-                        maxLength={30}
-                        disabled={requestLoading}
-                    />
+                    <label>
+                        Nombor Telefon (Pilihan)
+                        <input
+                            type="tel"
+                            value={phone}
+                            onChange={(event) => setPhone(event.target.value)}
+                            maxLength={30}
+                            disabled={requestLoading}
+                        />
+                    </label>
                 </div>
             </fieldset>
         );
