@@ -19,7 +19,8 @@ return new class extends Migration
             $table->uuid('customer_account_id');
             $table->uuid('runner_account_id');
 
-            // Julat sah 0–5 dikuatkuasakan oleh API dan database.
+            // Julat rating sah ialah 1–5 bintang.
+            // Julat ini turut dikuatkuasakan oleh database CHECK.
             $table->unsignedTinyInteger('rating');
 
             // Rating wajib, teks ulasan pilihan.
