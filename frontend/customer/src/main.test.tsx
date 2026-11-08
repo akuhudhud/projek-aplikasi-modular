@@ -223,7 +223,7 @@ describe(
                 );
 
                 fireEvent.change(
-                    within(pickup).getByRole('textbox'),
+                    within(pickup).getByLabelText('Alamat / Lokasi'),
                     {
                         target: {
                             value: 'Pusat Pos Tuaran',
@@ -309,7 +309,7 @@ describe(
                 );
 
                 fireEvent.change(
-                    within(taskLocation).getByRole('textbox'),
+                    within(taskLocation).getByLabelText('Alamat / Lokasi'),
                     {
                         target: {
                             value: 'Pekan Tuaran',
