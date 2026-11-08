@@ -298,7 +298,7 @@ function CustomerApp() {
     async function handleRequestRegistrationOtp(
         event: FormEvent<HTMLFormElement>,
     ) {
-        event.preventDefault();
+                event.preventDefault();
         setError('');
         setLoading(true);
 
@@ -598,7 +598,7 @@ function CustomerApp() {
                 setError('Ralat berlaku. Sila cuba semula.');
             }
         } finally {
-            setRequestLoading(false);
+                        setRequestLoading(false);
         }
     }
 
@@ -898,7 +898,7 @@ function CustomerApp() {
                         <div>
                             <dt>Status Akaun</dt>
                             <dd>{account.status}</dd>
-                        </div>
+                                                    </div>
                     </dl>
 
                     {profileError && <p role="alert">{profileError}</p>}
@@ -1117,8 +1117,9 @@ function CustomerApp() {
                 <section className="customer-panel">
                     <h2>Cipta Open Request</h2>
                     <p>
-                        Nyatakan tugasan yang anda perlukan. Runner boleh melihat
-                        permintaan ini dan menghantar sebut harga.
+                        {runnerSlug && !hasInvalidRunnerSlug
+                            ? 'Nyatakan tugasan yang anda perlukan. Permintaan ini akan dihantar khusus kepada Runner daripada profil yang anda pilih.'
+                            : 'Nyatakan tugasan yang anda perlukan. Runner yang layak boleh melihat permintaan ini dan menghantar sebut harga.'}
                     </p>
 
                     {requestSuccess && (
@@ -1198,7 +1199,7 @@ function CustomerApp() {
                                 setTaskContact,
                                 taskPhone,
                                 setTaskPhone,
-                            )
+                                                            )
                         )}
 
                         <div>
@@ -1498,7 +1499,7 @@ function CustomerApp() {
                                         autoComplete="new-password"
                                         value={registrationPasswordConfirmation}
                                         onChange={(event) =>
-                                            setRegistrationPasswordConfirmation(
+                                                                                        setRegistrationPasswordConfirmation(
                                                 event.target.value,
                                             )
                                         }
