@@ -380,7 +380,20 @@ export function CustomerApp() {
             setLoading(false);
         }
     }
-            if (
+
+    async function handleCompleteRegistration(
+        event: FormEvent<HTMLFormElement>,
+    ) {
+        event.preventDefault();
+        setError('');
+
+        if (!registrationVerificationToken) {
+            setError('Pengesahan OTP diperlukan. Sila ulang proses pendaftaran.');
+            setRegistrationStep(1);
+            return;
+        }
+
+        if (
             registrationPassword.length < 8 ||
             registrationPassword.length > 12 ||
             !/[A-Z]/.test(registrationPassword) ||
@@ -432,8 +445,7 @@ export function CustomerApp() {
             setLoading(false);
         }
     }
-
-    async function handleUpdateProfile(event: FormEvent<HTMLFormElement>) {
+        async function handleUpdateProfile(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         if (!account || profileSaving) return;
@@ -803,7 +815,7 @@ export function CustomerApp() {
             </section>
         );
     }
-    function renderDashboard() {
+        function renderDashboard() {
         return (
             <>
                 <section className="customer-welcome">
@@ -1298,7 +1310,7 @@ export function CustomerApp() {
             </>
         );
     }
-    if (checkingSession) {
+        if (checkingSession) {
         return (
             <main className="customer-loading">
                 <p>Memeriksa sesi...</p>
@@ -1460,7 +1472,7 @@ export function CustomerApp() {
                                         inputMode="numeric"
                                         autoComplete="one-time-code"
                                         value={registrationOtp}
-                                                                                onChange={(event) =>
+                                        onChange={(event) =>
                                             setRegistrationOtp(
                                                 event.target.value
                                                     .replace(/\D/g, '')
@@ -1554,7 +1566,7 @@ export function CustomerApp() {
                                         autoComplete="new-password"
                                         value={registrationPasswordConfirmation}
                                         onChange={(event) =>
-                                                                                        setRegistrationPasswordConfirmation(
+                                            setRegistrationPasswordConfirmation(
                                                 event.target.value,
                                             )
                                         }
