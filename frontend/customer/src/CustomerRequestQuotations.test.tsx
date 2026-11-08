@@ -1,4 +1,3 @@
-
 // @vitest-environment jsdom
 
 import {
@@ -701,8 +700,8 @@ describe(
                 expect(screen.getByText('5')).toBeTruthy();
 
                 expect(
-                    screen.getByText('Open Request'),
-                ).toBeTruthy();
+                    screen.getAllByText('Open Request'),
+                ).toHaveLength(2);
                 expect(screen.getByText('7')).toBeTruthy();
 
                 expect(
