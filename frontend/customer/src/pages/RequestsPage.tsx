@@ -1,4 +1,9 @@
-import type { CustomerOwnMarketplaceRequest } from '../api';
+
+import type {
+    CustomerOwnMarketplaceRequest,
+    CustomerAwardQuotationResult,
+} from '../api';
+
 import CustomerRequestQuotations from '../CustomerRequestQuotations';
 import { LocationSnapshotPanel } from '../customerPresentation';
 
@@ -16,11 +21,7 @@ type RequestsPageProps = {
     onPageChange: (page: number) => void;
     onQuotationAwarded: (
         requestId: string,
-        result: Awaited<
-            ReturnType<
-                typeof import('../api').customerApi.awardQuotation
-            >
-        >,
+        result: CustomerAwardQuotationResult,
     ) => void;
 };
 
@@ -84,7 +85,7 @@ export default function RequestsPage({
                     <section className="customer-empty">
                         <h3>Belum ada Open Request</h3>
                         <p>
-                            Permintaan yang anda cipta akan dipaparkan di sini.
+                            Permintaan yang kau cipta akan dipaparkan di sini.
                         </p>
                     </section>
                 ) : (
@@ -101,9 +102,7 @@ export default function RequestsPage({
 
                                     <strong>{request.description}</strong>
 
-                                    <span>
-                                        Status: {request.status}
-                                    </span>
+                                    <span>Status: {request.status}</span>
 
                                     <span>
                                         Tarikh luput:{' '}
@@ -115,8 +114,7 @@ export default function RequestsPage({
                                         {formatDate(request.created_at)}
                                     </span>
 
-                                    {request.task_class ===
-                                        'PICKUP_DELIVERY' && (
+                                    {request.task_class === 'PICKUP_DELIVERY' && (
                                         <div className="customer-location-grid">
                                             <LocationSnapshotPanel
                                                 title="Lokasi Pickup"
@@ -134,8 +132,7 @@ export default function RequestsPage({
                                         </div>
                                     )}
 
-                                    {request.task_class ===
-                                        'NON_DELIVERY' && (
+                                    {request.task_class === 'NON_DELIVERY' && (
                                         <div className="customer-location-grid">
                                             <LocationSnapshotPanel
                                                 title="Lokasi Tugasan"
