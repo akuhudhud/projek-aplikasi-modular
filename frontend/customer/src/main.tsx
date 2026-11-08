@@ -48,7 +48,7 @@ function getDefaultExpiry(): string {
         .slice(0, 16);
 }
 
-function CustomerApp() {
+export function CustomerApp() {
     const runnerSlugParameter = new URLSearchParams(
         window.location.search,
     ).get('runner');
