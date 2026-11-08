@@ -35,10 +35,8 @@ class RunnerTaskRatingApiTest extends TestCase
         return $account->fresh();
     }
 
-    private function authenticate(
-        Account $account,
-        string $token
-    ): void {
+    private function authenticate(Account $account, string $token): void
+    {
         Session::create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
@@ -61,12 +59,8 @@ class RunnerTaskRatingApiTest extends TestCase
             'target_runner_account_id' => $runner->id,
             'source_type' => MarketplaceRequest::SOURCE_MARKETPLACE,
             'task_class' => MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY,
-            'pickup_location_snapshot' => [
-                'address' => 'Pickup location',
-            ],
-            'delivery_location_snapshot' => [
-                'address' => 'Delivery location',
-            ],
+            'pickup_location_snapshot' => ['address' => 'Pickup location'],
+            'delivery_location_snapshot' => ['address' => 'Delivery location'],
             'description' => 'Rating API test request.',
             'status' => MarketplaceRequest::STATUS_AWARDED,
             'awarded_at' => now(),
@@ -84,65 +78,43 @@ class RunnerTaskRatingApiTest extends TestCase
             'generic_status' => $status,
             'assigned_at' => now(),
             'started_at' => now(),
-            'completed_at' => $status === CoreTask::STATUS_COMPLETED
-                ? now()
-                : null,
+            'completed_at' => $status === CoreTask::STATUS_COMPLETED ? now() : null,
         ]);
     }
 
     public function test_customer_can_submit_and_edit_one_rating_for_completed_task(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
-
-        $task = $this->createCompletedMarketplaceTask(
-            $customer,
-            $runner
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($customer, $runner);
 
         $token = 'rating-customer-token';
         $this->authenticate($customer, $token);
 
         $first = $this->withToken($token)
-            ->postJson(
-                '/api/core/tasks/'.$task->task_id.'/rating',
-                [
-                    'rating' => 4,
-                    'review' => 'Penghantaran baik.',
-                    'customer_account_id' => (string) Str::uuid(),
-                    'runner_account_id' => (string) Str::uuid(),
-                ]
-            )
+            ->postJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 4,
+                'review' => 'Penghantaran baik.',
+                'customer_account_id' => (string) Str::uuid(),
+                'runner_account_id' => (string) Str::uuid(),
+            ])
             ->assertCreated()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.rating.rating', 4)
-            ->assertJsonPath(
-                'data.rating.review',
-                'Penghantaran baik.'
-            )
-            ->assertJsonMissingPath(
-                'data.rating.customer_account_id'
-            )
-            ->assertJsonMissingPath(
-                'data.rating.runner_account_id'
-            );
+            ->assertJsonPath('data.rating.review', 'Penghantaran baik.')
+            ->assertJsonMissingPath('data.rating.customer_account_id')
+            ->assertJsonMissingPath('data.rating.runner_account_id');
 
         $ratingId = $first->json('data.rating.rating_id');
 
         $this->withToken($token)
-            ->patchJson(
-                '/api/core/tasks/'.$task->task_id.'/rating',
-                ['rating' => 5]
-            )
+            ->patchJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 5,
+            ])
             ->assertOk()
             ->assertJsonPath('data.rating.rating_id', $ratingId)
             ->assertJsonPath('data.rating.rating', 5)
-            ->assertJsonPath(
-                'data.rating.review',
-                'Penghantaran baik.'
-            );
+            ->assertJsonPath('data.rating.review', 'Penghantaran baik.');
 
         $this->assertDatabaseCount('runner_task_ratings', 1);
 
@@ -156,33 +128,26 @@ class RunnerTaskRatingApiTest extends TestCase
         ]);
     }
 
-    public function test_zero_is_a_valid_rating(): void
+    public function test_rating_one_is_a_valid_minimum_rating(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($customer, $runner);
 
-        $task = $this->createCompletedMarketplaceTask(
-            $customer,
-            $runner
-        );
-
-        $token = 'zero-rating-token';
+        $token = 'minimum-rating-token';
         $this->authenticate($customer, $token);
 
         $this->withToken($token)
-            ->postJson(
-                '/api/core/tasks/'.$task->task_id.'/rating',
-                ['rating' => 0]
-            )
+            ->postJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 1,
+            ])
             ->assertCreated()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.rating.rating', 0);
+            ->assertJsonPath('data.rating.rating', 1);
 
         $this->assertDatabaseHas('runner_task_ratings', [
             'task_id' => $task->task_id,
-            'rating' => 0,
+            'rating' => 1,
         ]);
 
         $this->assertDatabaseCount('runner_task_ratings', 1);
@@ -191,33 +156,24 @@ class RunnerTaskRatingApiTest extends TestCase
     public function test_patch_without_existing_rating_does_not_create_rating(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
-
-        $task = $this->createCompletedMarketplaceTask(
-            $customer,
-            $runner
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($customer, $runner);
 
         $token = 'patch-without-rating-token';
         $this->authenticate($customer, $token);
 
         $this->withToken($token)
-            ->patchJson(
-                '/api/core/tasks/'.$task->task_id.'/rating',
-                [
-                    'rating' => 4,
-                    'review' => 'Tidak sepatutnya dicipta.',
-                ]
-            )
+            ->patchJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 4,
+                'review' => 'Tidak sepatutnya dicipta.',
+            ])
             ->assertNotFound()
             ->assertJsonPath('success', false);
 
         $this->assertDatabaseCount('runner_task_ratings', 0);
     }
 
-    public function test_database_rejects_rating_below_zero(): void
+    public function test_database_rejects_rating_below_one(): void
     {
         try {
             DB::table('runner_task_ratings')->insert([
@@ -225,12 +181,12 @@ class RunnerTaskRatingApiTest extends TestCase
                 'task_id' => (string) Str::uuid(),
                 'customer_account_id' => (string) Str::uuid(),
                 'runner_account_id' => (string) Str::uuid(),
-                'rating' => -1,
+                'rating' => 0,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
 
-            $this->fail('Database accepted a rating below zero.');
+            $this->fail('Database accepted a rating below one.');
         } catch (QueryException) {
             $this->assertDatabaseCount('runner_task_ratings', 0);
         }
@@ -259,59 +215,39 @@ class RunnerTaskRatingApiTest extends TestCase
     {
         $customer = $this->makeAccount();
         $otherCustomer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
-
-        $task = $this->createCompletedMarketplaceTask(
-            $customer,
-            $runner
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($customer, $runner);
 
         $ownerToken = 'rating-owner-token';
         $this->authenticate($customer, $ownerToken);
 
         $originalResponse = $this->withToken($ownerToken)
-            ->postJson(
-                '/api/core/tasks/'.$task->task_id.'/rating',
-                [
-                    'rating' => 4,
-                    'review' => 'Ulasan asal pelanggan.',
-                ]
-            )
+            ->postJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 4,
+                'review' => 'Ulasan asal pelanggan.',
+            ])
             ->assertCreated()
             ->assertJsonPath('data.rating.rating', 4)
-            ->assertJsonPath(
-                'data.rating.review',
-                'Ulasan asal pelanggan.'
-            );
+            ->assertJsonPath('data.rating.review', 'Ulasan asal pelanggan.');
 
-        $ratingId = $originalResponse->json(
-            'data.rating.rating_id'
-        );
+        $ratingId = $originalResponse->json('data.rating.rating_id');
 
         $otherToken = 'other-customer-token';
         $this->authenticate($otherCustomer, $otherToken);
 
         $this->withToken($otherToken)
-            ->postJson(
-                '/api/core/tasks/'.$task->task_id.'/rating',
-                [
-                    'rating' => 1,
-                    'review' => 'Cubaan rating tanpa kebenaran.',
-                ]
-            )
+            ->postJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 1,
+                'review' => 'Cubaan rating tanpa kebenaran.',
+            ])
             ->assertForbidden()
             ->assertJsonPath('success', false);
 
         $this->withToken($otherToken)
-            ->patchJson(
-                '/api/core/tasks/'.$task->task_id.'/rating',
-                [
-                    'rating' => 1,
-                    'review' => 'Cubaan mengubah rating tanpa kebenaran.',
-                ]
-            )
+            ->patchJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 1,
+                'review' => 'Cubaan mengubah rating tanpa kebenaran.',
+            ])
             ->assertForbidden()
             ->assertJsonPath('success', false);
 
@@ -329,26 +265,17 @@ class RunnerTaskRatingApiTest extends TestCase
 
     public function test_runner_cannot_rate_their_own_task(): void
     {
-        $account = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
-
-        $task = $this->createCompletedMarketplaceTask(
-            $account,
-            $account
-        );
+        $account = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($account, $account);
 
         $token = 'self-rating-token';
         $this->authenticate($account, $token);
 
         $this->withToken($token)
-            ->postJson(
-                '/api/core/tasks/'.$task->task_id.'/rating',
-                [
-                    'rating' => 5,
-                    'review' => 'Rating sendiri tidak dibenarkan.',
-                ]
-            )
+            ->postJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 5,
+                'review' => 'Rating sendiri tidak dibenarkan.',
+            ])
             ->assertForbidden()
             ->assertJsonPath('success', false);
 
@@ -358,34 +285,23 @@ class RunnerTaskRatingApiTest extends TestCase
     public function test_rating_cannot_be_deleted(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
-
-        $task = $this->createCompletedMarketplaceTask(
-            $customer,
-            $runner
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($customer, $runner);
 
         $token = 'rating-delete-test-token';
         $this->authenticate($customer, $token);
 
         $response = $this->withToken($token)
-            ->postJson(
-                '/api/core/tasks/'.$task->task_id.'/rating',
-                [
-                    'rating' => 5,
-                    'review' => 'Ujian rating kekal.',
-                ]
-            )
+            ->postJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 5,
+                'review' => 'Ujian rating kekal.',
+            ])
             ->assertCreated();
 
         $ratingId = $response->json('data.rating.rating_id');
 
         $this->withToken($token)
-            ->deleteJson(
-                '/api/core/tasks/'.$task->task_id.'/rating'
-            )
+            ->deleteJson('/api/core/tasks/'.$task->task_id.'/rating')
             ->assertStatus(405);
 
         $this->assertDatabaseCount('runner_task_ratings', 1);
@@ -401,9 +317,7 @@ class RunnerTaskRatingApiTest extends TestCase
     public function test_task_must_be_completed_before_rating(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $token = 'ineligible-task-customer-token';
         $this->authenticate($customer, $token);
@@ -421,10 +335,9 @@ class RunnerTaskRatingApiTest extends TestCase
             );
 
             $this->withToken($token)
-                ->postJson(
-                    '/api/core/tasks/'.$task->task_id.'/rating',
-                    ['rating' => 5]
-                )
+                ->postJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                    'rating' => 5,
+                ])
                 ->assertUnprocessable()
                 ->assertJsonPath('success', false);
         }
@@ -432,27 +345,20 @@ class RunnerTaskRatingApiTest extends TestCase
         $this->assertDatabaseCount('runner_task_ratings', 0);
     }
 
-    public function test_rating_must_be_an_integer_between_zero_and_five(): void
+    public function test_rating_must_be_an_integer_between_one_and_five(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
-
-        $task = $this->createCompletedMarketplaceTask(
-            $customer,
-            $runner
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($customer, $runner);
 
         $token = 'invalid-rating-token';
         $this->authenticate($customer, $token);
 
-        foreach ([-1, 6, '4.5', 'invalid'] as $value) {
+        foreach ([0, -1, 6, '4.5', 'invalid'] as $value) {
             $this->withToken($token)
-                ->postJson(
-                    '/api/core/tasks/'.$task->task_id.'/rating',
-                    ['rating' => $value]
-                )
+                ->postJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                    'rating' => $value,
+                ])
                 ->assertUnprocessable();
         }
 
@@ -470,14 +376,14 @@ class RunnerTaskRatingApiTest extends TestCase
     public function test_rating_cannot_be_submitted_for_an_unknown_task(): void
     {
         $customer = $this->makeAccount();
+
         $token = 'unknown-task-token';
         $this->authenticate($customer, $token);
 
         $this->withToken($token)
-            ->postJson(
-                '/api/core/tasks/'.Str::uuid().'/rating',
-                ['rating' => 5]
-            )
+            ->postJson('/api/core/tasks/'.Str::uuid().'/rating', [
+                'rating' => 5,
+            ])
             ->assertNotFound();
 
         $this->assertDatabaseCount('runner_task_ratings', 0);
