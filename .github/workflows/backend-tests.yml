@@ -1,4 +1,3 @@
-
 name: Backend Tests
 
 on:
@@ -85,7 +84,7 @@ jobs:
       - name: Run MySQL concurrency regression test
         run: vendor/bin/phpunit --configuration phpunit.mysql.xml
 
-      - name: Verify runner ratings migration rollback
+      - name: Verify runner ratings migration rollback order
         shell: bash
         run: |
           set -euo pipefail
@@ -97,36 +96,90 @@ jobs:
             exit 1
           fi
 
-          migration="database/migrations/2026_10_29_000001_create_runner_task_ratings_table.php"
+          create_migration="database/migrations/2026_10_29_000001_create_runner_task_ratings_table.php"
+          constraint_migration="database/migrations/2026_10_30_000001_add_rating_range_check_to_runner_task_ratings_table.php"
 
-          if [[ ! -f "$migration" ]]; then
-            echo "::error::Ratings migration file not found: $migration"
+          if [[ ! -f "$create_migration" ]]; then
+            echo "::error::Ratings table migration not found: $create_migration"
+            exit 1
+          fi
+
+          if [[ ! -f "$constraint_migration" ]]; then
+            echo "::error::Ratings constraint migration not found: $constraint_migration"
             exit 1
           fi
 
           echo "Preparing isolated CI database..."
           php artisan migrate:fresh --force
 
-          echo "Checking that runner_task_ratings exists before rollback..."
+          echo "Checking ratings table and CHECK constraint before rollback..."
+
           php -r '
           require "vendor/autoload.php";
           $app = require "bootstrap/app.php";
           $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
           if (! Illuminate\Support\Facades\Schema::hasTable("runner_task_ratings")) {
-              fwrite(STDERR, "FAIL: runner_task_ratings does not exist before rollback.\n");
+              fwrite(STDERR, "FAIL: runner_task_ratings does not exist.\n");
               exit(1);
           }
 
-          echo "PASS: runner_task_ratings exists before rollback.\n";
+          $constraintCount = Illuminate\Support\Facades\DB::table("information_schema.TABLE_CONSTRAINTS")
+              ->where("CONSTRAINT_SCHEMA", Illuminate\Support\Facades\DB::getDatabaseName())
+              ->where("TABLE_NAME", "runner_task_ratings")
+              ->where("CONSTRAINT_NAME", "runner_task_ratings_rating_range_check")
+              ->where("CONSTRAINT_TYPE", "CHECK")
+              ->count();
+
+          if ($constraintCount !== 1) {
+              fwrite(STDERR, "FAIL: rating CHECK constraint is missing before rollback.\n");
+              exit(1);
+          }
+
+          echo "PASS: ratings table and CHECK constraint exist.\n";
           '
 
-          echo "Rolling back the runner ratings migration..."
+          echo "Step 1: Rolling back the dependent CHECK constraint migration..."
+
           php artisan migrate:rollback \
-            --path="$migration" \
+            --path="$constraint_migration" \
             --force
 
-          echo "Checking that runner_task_ratings was removed..."
+          echo "Verifying CHECK constraint was removed while table remains..."
+
+          php -r '
+          require "vendor/autoload.php";
+          $app = require "bootstrap/app.php";
+          $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
+          if (! Illuminate\Support\Facades\Schema::hasTable("runner_task_ratings")) {
+              fwrite(STDERR, "FAIL: ratings table was removed too early.\n");
+              exit(1);
+          }
+
+          $constraintCount = Illuminate\Support\Facades\DB::table("information_schema.TABLE_CONSTRAINTS")
+              ->where("CONSTRAINT_SCHEMA", Illuminate\Support\Facades\DB::getDatabaseName())
+              ->where("TABLE_NAME", "runner_task_ratings")
+              ->where("CONSTRAINT_NAME", "runner_task_ratings_rating_range_check")
+              ->where("CONSTRAINT_TYPE", "CHECK")
+              ->count();
+
+          if ($constraintCount !== 0) {
+              fwrite(STDERR, "FAIL: rating CHECK constraint still exists.\n");
+              exit(1);
+          }
+
+          echo "PASS: CHECK constraint removed; ratings table remains.\n";
+          '
+
+          echo "Step 2: Rolling back the original ratings table migration..."
+
+          php artisan migrate:rollback \
+            --path="$create_migration" \
+            --force
+
+          echo "Verifying ratings table was removed..."
+
           php -r '
           require "vendor/autoload.php";
           $app = require "bootstrap/app.php";
@@ -137,7 +190,7 @@ jobs:
               exit(1);
           }
 
-          echo "PASS: runner_task_ratings was removed by rollback.\n";
+          echo "PASS: runner_task_ratings was removed.\n";
           '
 
-          echo "PASS: runner ratings migration rollback verification completed."
+          echo "PASS: runner ratings migrations rolled back in dependency order."
