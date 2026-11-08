@@ -159,6 +159,42 @@ async function loginThroughRunnerProfile() {
     });
 }
 
+async function loginThroughCustomerDashboard() {
+    window.history.replaceState({}, '', '/');
+
+    render(<CustomerApp />);
+
+    await screen.findByRole('heading', {
+        name: 'Log Masuk Pelanggan',
+    });
+
+    fireEvent.change(
+        screen.getByLabelText('Nombor Telefon atau E-mel'),
+        {
+            target: {
+                value: '0123456789',
+            },
+        },
+    );
+
+    fireEvent.change(
+        screen.getByLabelText('Kata Laluan'),
+        {
+            target: {
+                value: 'TestPassword123',
+            },
+        },
+    );
+
+    fireEvent.click(
+        screen.getByRole('button', {
+            name: 'Log Masuk',
+        }),
+    );
+
+    await screen.findByText('Dashboard Pelanggan');
+}
+
 function submitRequestForm() {
     const button = screen.getByRole('button', {
         name: 'Hantar Open Request',
@@ -587,7 +623,7 @@ describe(
                     name: 'Updated Customer',
                 });
 
-                await loginThroughRunnerProfile();
+                await loginThroughCustomerDashboard();
 
                 fireEvent.click(
                     screen.getByRole('button', {
