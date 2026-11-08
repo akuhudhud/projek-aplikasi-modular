@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Http\Controllers\Web;
@@ -31,11 +32,20 @@ class CustomerTaskController extends Controller
             ->select('request_id')
             ->where('customer_account_id', $account->id);
 
-        $tasks = CoreTask::query()
+        $taskQuery = CoreTask::query()
             ->where('module_key', self::MODULE_KEY)
             ->where('task_type', self::TASK_TYPE)
             ->where('source_type', self::SOURCE_TYPE)
-            ->whereIn('source_id', $ownedRequestIds)
+            ->whereIn('source_id', $ownedRequestIds);
+
+        $activeTaskTotal = (clone $taskQuery)
+            ->whereIn('generic_status', [
+                CoreTask::STATUS_ASSIGNED,
+                CoreTask::STATUS_IN_PROGRESS,
+            ])
+            ->count();
+
+        $tasks = $taskQuery
             ->orderByDesc('created_at')
             ->orderBy('task_id')
             ->paginate(25, [
@@ -114,6 +124,9 @@ class CustomerTaskController extends Controller
             'success' => true,
             'data' => [
                 'tasks' => $items,
+                'summary' => [
+                    'active_total' => $activeTaskTotal,
+                ],
                 'pagination' => [
                     'current_page' => $tasks->currentPage(),
                     'per_page' => $tasks->perPage(),
