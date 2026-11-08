@@ -1,0 +1,14 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Kekalkan fail dan direktori sebenar
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Jangan ganggu endpoint backend
+    RewriteRule ^(api|web|sanctum)(/|$) - [L]
+
+    # Semua laluan frontend kembali ke React
+    RewriteRule ^ index.html [L]
+</IfModule>
