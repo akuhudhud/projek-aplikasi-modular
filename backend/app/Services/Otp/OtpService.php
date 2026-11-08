@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Services\Otp;
@@ -50,6 +51,20 @@ class OtpService
         } catch (Throwable $exception) {
             throw new OtpDeliveryException($exception);
         }
+    }
+
+    /**
+     * Reload the verification record while holding a database row lock.
+     *
+     * This must be called inside a database transaction.
+     */
+    private function lockVerificationForUpdate(
+        RegistrationVerification $verification
+    ): RegistrationVerification {
+        return RegistrationVerification::query()
+            ->whereKey($verification->getKey())
+            ->lockForUpdate()
+            ->firstOrFail();
     }
 
     public function request(
@@ -196,7 +211,9 @@ class OtpService
             $verification,
             $otp
         ) {
-            $verification->refreshForUpdate();
+            $verification = $this->lockVerificationForUpdate(
+                $verification
+            );
 
             if ($verification->verified_at !== null) {
                 return false;
@@ -228,7 +245,9 @@ class OtpService
         RegistrationVerification $verification
     ): string {
         return DB::transaction(function () use ($verification) {
-            $verification->refreshForUpdate();
+            $verification = $this->lockVerificationForUpdate(
+                $verification
+            );
 
             if (
                 $verification->verified_at === null
