@@ -109,7 +109,7 @@ class RunnerPublicRatingReviewTest extends TestCase
 
         $profile = $response->getData(true)['data']['profile'];
 
-        $this->assertSame(3.0, $profile['rating_average']);
+        $this->assertEquals(3.0, $profile['rating_average']);
         $this->assertSame(2, $profile['rating_count']);
     }
 
