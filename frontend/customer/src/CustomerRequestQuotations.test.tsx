@@ -1,5 +1,5 @@
 
- // @vitest-environment jsdom
+// @vitest-environment jsdom
 
 import {
     afterEach,
@@ -16,18 +16,29 @@ import {
     render,
     screen,
     waitFor,
+    within,
 } from '@testing-library/react';
 
-const { getRequestMock, awardQuotationMock } = vi.hoisted(() => ({
-    getRequestMock: vi.fn(),
-    awardQuotationMock: vi.fn(),
-}));
-
-vi.mock('./api', () => ({
-    customerApi: {
-        getRequest: getRequestMock,
-        awardQuotation: awardQuotationMock,
-    },
+const {
+    meMock,
+    loginMock,
+    getTasksMock,
+    getRequestsMock,
+    createRequestMock,
+    cancelRequestMock,
+    getTaskMock,
+    updateProfileMock,
+    logoutMock,
+} = vi.hoisted(() => ({
+    meMock: vi.fn(),
+    loginMock: vi.fn(),
+    getTasksMock: vi.fn(),
+    getRequestsMock: vi.fn(),
+    createRequestMock: vi.fn(),
+    cancelRequestMock: vi.fn(),
+    getTaskMock: vi.fn(),
+    updateProfileMock: vi.fn(),
+    logoutMock: vi.fn(),
 }));
 
 vi.mock('axios', () => ({
@@ -36,308 +47,786 @@ vi.mock('axios', () => ({
     },
 }));
 
-import CustomerRequestQuotations from './CustomerRequestQuotations';
+vi.mock('./api', () => ({
+    customerApi: {
+        me: meMock,
+        login: loginMock,
+        getTasks: getTasksMock,
+        getRequests: getRequestsMock,
+        createRequest: createRequestMock,
+        getTask: getTaskMock,
+        updateProfile: updateProfileMock,
+        logout: logoutMock,
+        requestRegistrationOtp: vi.fn(),
+        verifyRegistrationOtp: vi.fn(),
+        completeRegistration: vi.fn(),
+        cancelRequest: cancelRequestMock,
+        getRequest: vi.fn(),
+        awardQuotation: vi.fn(),
+    },
+}));
 
-const requestId = 'request-001';
+import { CustomerApp } from './main';
 
-const quotation = {
-    quotation_id: 'quotation-001',
-    request_id: requestId,
-    runner_account_id: 501,
-    amount: '25.00',
-    currency: 'MYR',
-    message: 'Saya boleh buat tugasan ini.',
-    status: 'SUBMITTED',
-    expires_at: '2026-11-08T12:00:00.000Z',
-    accepted_at: null,
-    withdrawn_at: null,
-    created_at: '2026-11-07T10:00:00.000Z',
+const account = {
+    id: 'customer-test-id',
+    name: 'Customer Test',
+    phone: '0123456789',
+    email: 'customer@example.com',
+    profile_picture: null,
+    role: 'USER',
+    status: 'ACTIVE',
 };
 
-const requestDetail = {
-    request: {
-        request_id: requestId,
-        task_class: 'NON_DELIVERY',
-        description: 'Bantu beli barang.',
+function mockSuccessfulLogin() {
+    meMock.mockRejectedValue(
+        new Error('No active session'),
+    );
+
+    loginMock.mockResolvedValue(account);
+
+    getTasksMock.mockResolvedValue({
+        tasks: [],
+        summary: {
+            active_total: 0,
+        },
+        pagination: {
+            current_page: 1,
+            per_page: 10,
+            total: 0,
+            last_page: 1,
+        },
+    });
+
+    getRequestsMock.mockResolvedValue({
+        requests: [],
+        pagination: {
+            current_page: 1,
+            per_page: 10,
+            total: 0,
+            last_page: 1,
+        },
+    });
+
+    createRequestMock.mockResolvedValue({
+        request_id: 'request-test-id',
+        customer_account_id: account.id,
+        target_runner_account_id: 'runner-test-id',
+        source_type: 'runner_profile_link',
+        task_class: 'PICKUP_DELIVERY',
+        description: 'Test request',
+        pickup_location_snapshot: null,
+        delivery_location_snapshot: null,
+        task_location_snapshot: null,
+        status: 'OPEN',
+        expires_at: new Date(
+            Date.now() + 60 * 60 * 1000,
+        ).toISOString(),
+        created_at: new Date().toISOString(),
+    });
+}
+
+async function loginThroughRunnerProfile() {
+    render(<CustomerApp />);
+
+    await screen.findByRole('heading', {
+        name: 'Log Masuk Pelanggan',
+    });
+
+    fireEvent.change(
+        screen.getByLabelText('Nombor Telefon atau E-mel'),
+        {
+            target: {
+                value: '0123456789',
+            },
+        },
+    );
+
+    fireEvent.change(
+        screen.getByLabelText('Kata Laluan'),
+        {
+            target: {
+                value: 'TestPassword123',
+            },
+        },
+    );
+
+    fireEvent.click(
+        screen.getByRole('button', {
+            name: 'Log Masuk',
+        }),
+    );
+
+    await screen.findByRole('heading', {
+        name: 'Cipta Open Request',
+    });
+}
+
+async function loginThroughCustomerDashboard() {
+    window.history.replaceState({}, '', '/');
+
+    render(<CustomerApp />);
+
+    await screen.findByRole('heading', {
+        name: 'Log Masuk Pelanggan',
+    });
+
+    fireEvent.change(
+        screen.getByLabelText('Nombor Telefon atau E-mel'),
+        {
+            target: {
+                value: '0123456789',
+            },
+        },
+    );
+
+    fireEvent.change(
+        screen.getByLabelText('Kata Laluan'),
+        {
+            target: {
+                value: 'TestPassword123',
+            },
+        },
+    );
+
+    fireEvent.click(
+        screen.getByRole('button', {
+            name: 'Log Masuk',
+        }),
+    );
+
+    await screen.findByText('Dashboard Pelanggan');
+}
+
+function submitRequestForm() {
+    const button = screen.getByRole('button', {
+        name: 'Hantar Open Request',
+    });
+
+    const form = button.closest('form');
+
+    if (!form) {
+        throw new Error(
+            'Open Request form not found.',
+        );
+    }
+
+    fireEvent.submit(form);
+}
+
+function makeOpenRequest() {
+    const now = new Date().toISOString();
+
+    return {
+        request_id: 'request-to-cancel',
+        task_class: 'NON_DELIVERY' as const,
+        description: 'Bantu membeli barang.',
         pickup_location_snapshot: null,
         delivery_location_snapshot: null,
         task_location_snapshot: {
-            address: 'Kedai Tuaran',
+            address: 'Pekan Tuaran',
         },
         status: 'OPEN',
-        expires_at: '2026-11-08T12:00:00.000Z',
+        expires_at: new Date(
+            Date.now() + 60 * 60 * 1000,
+        ).toISOString(),
         awarded_at: null,
         cancelled_at: null,
-        created_at: '2026-11-07T09:00:00.000Z',
-        updated_at: '2026-11-07T09:00:00.000Z',
-    },
-    quotations: [quotation],
-};
+        created_at: now,
+        updated_at: now,
+    };
+}
 
-const awardResult = {
-    request: {
-        request_id: requestId,
-        status: 'AWARDED',
-        winning_quotation_id: quotation.quotation_id,
-        awarded_at: '2026-11-07T11:00:00.000Z',
-        updated_at: '2026-11-07T11:00:00.000Z',
-    },
-    task: {
-        task_id: 'task-001',
-        module_key: 'Marketplace',
-        task_type: 'MARKETPLACE_SERVICE_REQUEST',
-        source_type: 'marketplace_request',
-        source_id: requestId,
-        assigned_account_id: 501,
-        generic_status: 'ASSIGNED',
-        assigned_at: '2026-11-07T11:00:00.000Z',
-        created_at: '2026-11-07T11:00:00.000Z',
-    },
-};
+describe(
+    'Customer Open Request through Runner profile link',
+    () => {
+        beforeEach(() => {
+            vi.clearAllMocks();
 
-describe('CustomerRequestQuotations', () => {
-    beforeEach(() => {
-        getRequestMock.mockReset();
-        awardQuotationMock.mockReset();
+            window.history.replaceState(
+                {},
+                '',
+                '/?runner=Test-Runner',
+            );
 
-        vi.stubGlobal(
-            'confirm',
-            vi.fn(() => true),
-        );
-    });
-
-    afterEach(() => {
-        cleanup();
-        vi.unstubAllGlobals();
-    });
-
-    function renderComponent() {
-        const onAwarded = vi.fn();
-
-        render(
-            <CustomerRequestQuotations
-                requestId={requestId}
-                requestStatus="OPEN"
-                onAwarded={onAwarded}
-            />,
-        );
-
-        return { onAwarded };
-    }
-
-    async function openQuotations() {
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'Lihat Sebut Harga',
-            }),
-        );
-
-        await screen.findByText('Sebut Harga Runner');
-    }
-
-    it('loads and displays submitted quotations', async () => {
-        getRequestMock.mockResolvedValue(requestDetail);
-
-        renderComponent();
-
-        await openQuotations();
-
-        expect(
-            screen.getByText('ID Runner: 501'),
-        ).toBeTruthy();
-
-        expect(
-            screen.getByText('Saya boleh buat tugasan ini.'),
-        ).toBeTruthy();
-
-        expect(getRequestMock).toHaveBeenCalledWith(requestId);
-    });
-
-    it('displays an empty message when no quotations exist', async () => {
-        getRequestMock.mockResolvedValue({
-            ...requestDetail,
-            quotations: [],
+            mockSuccessfulLogin();
         });
 
-        renderComponent();
+        afterEach(() => {
+            cleanup();
+            vi.restoreAllMocks();
 
-        await openQuotations();
-
-        expect(
-            screen.getByText(
-                'Belum ada Runner menghantar sebut harga.',
-            ),
-        ).toBeTruthy();
-    });
-
-    it('does not award when customer cancels confirmation', async () => {
-        vi.stubGlobal('confirm', vi.fn(() => false));
-
-        getRequestMock.mockResolvedValue(requestDetail);
-
-        renderComponent();
-
-        await openQuotations();
-
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'Pilih Runner Ini',
-            }),
-        );
-
-        expect(awardQuotationMock).not.toHaveBeenCalled();
-    });
-
-    it('awards a quotation and refreshes the request detail', async () => {
-        getRequestMock
-            .mockResolvedValueOnce(requestDetail)
-            .mockResolvedValueOnce({
-                ...requestDetail,
-                request: {
-                    ...requestDetail.request,
-                    status: 'AWARDED',
-                    winning_quotation_id: quotation.quotation_id,
-                },
-                quotations: [
-                    {
-                        ...quotation,
-                        status: 'ACCEPTED',
-                    },
-                ],
-            });
-
-        awardQuotationMock.mockResolvedValue(awardResult);
-
-        const { onAwarded } = renderComponent();
-
-        await openQuotations();
-
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'Pilih Runner Ini',
-            }),
-        );
-
-        await waitFor(() => {
-            expect(awardQuotationMock).toHaveBeenCalledWith(
-                requestId,
-                quotation.quotation_id,
+            window.history.replaceState(
+                {},
+                '',
+                '/',
             );
         });
 
-        expect(onAwarded).toHaveBeenCalledWith(
-            requestId,
-            awardResult,
+        it(
+            'sends PICKUP_DELIVERY request to the selected runner',
+            async () => {
+                await loginThroughRunnerProfile();
+
+                expect(
+                    screen.getByText(
+                        'Nyatakan tugasan yang anda perlukan. Permintaan ini akan dihantar khusus kepada Runner daripada profil yang anda pilih.',
+                    ),
+                ).toBeTruthy();
+
+                fireEvent.change(
+                    screen.getByLabelText(
+                        'Penerangan Tugasan',
+                    ),
+                    {
+                        target: {
+                            value: 'Hantar parcel kepada pelanggan.',
+                        },
+                    },
+                );
+
+                const pickup = screen.getByRole(
+                    'group',
+                    {
+                        name: 'Lokasi Pickup',
+                    },
+                );
+
+                fireEvent.change(
+                    within(pickup).getByLabelText('Alamat / Lokasi'),
+                    {
+                        target: {
+                            value: 'Pusat Pos Tuaran',
+                        },
+                    },
+                );
+
+                const delivery = screen.getByRole(
+                    'group',
+                    {
+                        name: 'Lokasi Delivery',
+                    },
+                );
+
+                fireEvent.change(
+                    within(delivery).getByLabelText('Alamat / Lokasi'),
+                    {
+                        target: {
+                            value: 'Kampung Tambalang',
+                        },
+                    },
+                );
+
+                submitRequestForm();
+
+                await waitFor(() => {
+                    expect(
+                        createRequestMock,
+                    ).toHaveBeenCalledTimes(1);
+                });
+
+                expect(
+                    createRequestMock,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        source_type: 'runner_profile_link',
+                        target_runner_slug: 'test-runner',
+                        task_class: 'PICKUP_DELIVERY',
+                        description: 'Hantar parcel kepada pelanggan.',
+                        pickup_location_snapshot:
+                            expect.objectContaining({
+                                address: 'Pusat Pos Tuaran',
+                            }),
+                        delivery_location_snapshot:
+                            expect.objectContaining({
+                                address: 'Kampung Tambalang',
+                            }),
+                    }),
+                );
+            },
         );
 
-        expect(
-            await screen.findByText(
-                'Runner berjaya dipilih. ID Core Task: task-001',
-            ),
-        ).toBeTruthy();
+        it(
+            'sends NON_DELIVERY request with task location snapshot',
+            async () => {
+                await loginThroughRunnerProfile();
 
-        await waitFor(() => {
-            expect(getRequestMock).toHaveBeenCalledTimes(2);
-        });
-    });
+                fireEvent.change(
+                    screen.getByLabelText('Jenis Tugasan'),
+                    {
+                        target: {
+                            value: 'NON_DELIVERY',
+                        },
+                    },
+                );
 
-    it('does not show the award button for a non-submitted quotation', async () => {
-        getRequestMock.mockResolvedValue({
-            ...requestDetail,
-            quotations: [
-                {
-                    ...quotation,
-                    status: 'EXPIRED',
-                },
-            ],
-        });
+                fireEvent.change(
+                    screen.getByLabelText(
+                        'Penerangan Tugasan',
+                    ),
+                    {
+                        target: {
+                            value: 'Bantu membeli barang.',
+                        },
+                    },
+                );
 
-        renderComponent();
+                const taskLocation = screen.getByRole(
+                    'group',
+                    {
+                        name: 'Lokasi Tugasan',
+                    },
+                );
 
-        await openQuotations();
+                fireEvent.change(
+                    within(taskLocation).getByLabelText('Alamat / Lokasi'),
+                    {
+                        target: {
+                            value: 'Pekan Tuaran',
+                        },
+                    },
+                );
 
-        expect(
-            screen.queryByRole('button', {
-                name: 'Pilih Runner Ini',
-            }),
-        ).toBeNull();
-    });
+                submitRequestForm();
 
-    it('shows an error when loading quotations fails', async () => {
-        getRequestMock.mockRejectedValue(
-            new Error('Network error'),
+                await waitFor(() => {
+                    expect(
+                        createRequestMock,
+                    ).toHaveBeenCalledTimes(1);
+                });
+
+                expect(
+                    createRequestMock,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        source_type: 'runner_profile_link',
+                        target_runner_slug: 'test-runner',
+                        task_class: 'NON_DELIVERY',
+                        description: 'Bantu membeli barang.',
+                        task_location_snapshot:
+                            expect.objectContaining({
+                                address: 'Pekan Tuaran',
+                            }),
+                    }),
+                );
+
+                const payload =
+                    createRequestMock.mock.calls[0][0];
+
+                expect(payload).not.toHaveProperty(
+                    'pickup_location_snapshot',
+                );
+
+                expect(payload).not.toHaveProperty(
+                    'delivery_location_snapshot',
+                );
+            },
         );
 
-        renderComponent();
+        it(
+            'cancels an OPEN request and updates its displayed status',
+            async () => {
+                getRequestsMock.mockResolvedValue({
+                    requests: [makeOpenRequest()],
+                    pagination: {
+                        current_page: 1,
+                        per_page: 10,
+                        total: 1,
+                        last_page: 1,
+                    },
+                });
 
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'Lihat Sebut Harga',
-            }),
+                cancelRequestMock.mockResolvedValue({
+                    request_id: 'request-to-cancel',
+                    status: 'CANCELLED',
+                    cancelled_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                });
+
+                const confirmMock = vi
+                    .spyOn(window, 'confirm')
+                    .mockReturnValue(true);
+
+                await loginThroughRunnerProfile();
+
+                expect(
+                    await screen.findByText(
+                        'Bantu membeli barang.',
+                    ),
+                ).toBeTruthy();
+
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Batalkan Permintaan',
+                    }),
+                );
+
+                expect(confirmMock).toHaveBeenCalledWith(
+                    'Adakah anda pasti mahu membatalkan Open Request ini?',
+                );
+
+                await waitFor(() => {
+                    expect(
+                        cancelRequestMock,
+                    ).toHaveBeenCalledTimes(1);
+                });
+
+                expect(
+                    cancelRequestMock,
+                ).toHaveBeenCalledWith(
+                    'request-to-cancel',
+                );
+
+                const successMessage =
+                    await screen.findByRole('status');
+
+                expect(successMessage.textContent).toContain(
+                    'Open Request berjaya dibatalkan.',
+                );
+
+                expect(
+                    screen.getByText('Status: CANCELLED'),
+                ).toBeTruthy();
+
+                expect(
+                    screen.queryByRole('button', {
+                        name: 'Batalkan Permintaan',
+                    }),
+                ).toBeNull();
+            },
         );
 
-        expect(
-            await screen.findByRole('alert'),
-        ).toBeTruthy();
+        it(
+            'does not cancel an OPEN request when customer declines confirmation',
+            async () => {
+                getRequestsMock.mockResolvedValue({
+                    requests: [makeOpenRequest()],
+                    pagination: {
+                        current_page: 1,
+                        per_page: 10,
+                        total: 1,
+                        last_page: 1,
+                    },
+                });
 
-        expect(
-            screen.getByRole('alert').textContent,
-        ).toContain('Tidak berjaya memuatkan sebut harga.');
-    });
+                const confirmMock = vi
+                    .spyOn(window, 'confirm')
+                    .mockReturnValue(false);
 
-    it('shows an error when awarding fails', async () => {
-        getRequestMock.mockResolvedValue(requestDetail);
+                await loginThroughRunnerProfile();
 
-        awardQuotationMock.mockRejectedValue(
-            new Error('Award failed'),
+                expect(
+                    await screen.findByText(
+                        'Bantu membeli barang.',
+                    ),
+                ).toBeTruthy();
+
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Batalkan Permintaan',
+                    }),
+                );
+
+                expect(confirmMock).toHaveBeenCalledTimes(1);
+                expect(cancelRequestMock).not.toHaveBeenCalled();
+
+                expect(
+                    screen.getByText('Status: OPEN'),
+                ).toBeTruthy();
+            },
         );
 
-        renderComponent();
+        it(
+            'loads Customer-owned tasks and opens task details',
+            async () => {
+                const now = new Date().toISOString();
+                const task = {
+                    task_id: 'customer-task-1',
+                    module_key: 'Marketplace',
+                    task_type: 'MARKETPLACE_SERVICE_REQUEST',
+                    source_type: 'marketplace_request',
+                    source_id: 'customer-request-1',
+                    generic_status: 'ASSIGNED',
+                    assigned_at: now,
+                    started_at: null,
+                    completed_at: null,
+                    cancelled_at: null,
+                    created_at: now,
+                    updated_at: now,
+                };
+                const request = {
+                    request_id: 'customer-request-1',
+                    task_class: 'NON_DELIVERY' as const,
+                    description: 'Bantu urus tugasan pelanggan.',
+                    pickup_location_snapshot: null,
+                    delivery_location_snapshot: null,
+                    task_location_snapshot: {
+                        address: 'Pekan Tuaran',
+                    },
+                    status: 'AWARDED',
+                    expires_at: null,
+                    awarded_at: now,
+                    cancelled_at: null,
+                };
 
-        await openQuotations();
+                getTasksMock.mockResolvedValue({
+                    tasks: [{ task, request }],
+                    summary: {
+                        active_total: 1,
+                    },
+                    pagination: {
+                        current_page: 1,
+                        per_page: 10,
+                        total: 1,
+                        last_page: 1,
+                    },
+                });
 
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'Pilih Runner Ini',
-            }),
+                getTaskMock.mockResolvedValue({
+                    task,
+                    request,
+                });
+
+                await loginThroughRunnerProfile();
+
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Tugasan Saya',
+                    }),
+                );
+
+                const taskCard = await screen.findByText(
+                    'Bantu urus tugasan pelanggan.',
+                );
+
+                fireEvent.click(taskCard.closest('button')!);
+
+                expect(
+                    await screen.findByRole('heading', {
+                        name: 'Butiran Tugasan',
+                    }),
+                ).toBeTruthy();
+
+                expect(getTaskMock).toHaveBeenCalledWith(
+                    'customer-task-1',
+                );
+
+                expect(
+                    screen.getByText('Pekan Tuaran'),
+                ).toBeTruthy();
+
+                expect(
+                    screen.getByText('ASSIGNED'),
+                ).toBeTruthy();
+            },
         );
 
-        await waitFor(() => {
-            expect(
-                screen.getByRole('alert').textContent,
-            ).toContain('Tidak berjaya memilih Runner.');
-        });
-    });
+        it(
+            'shows task and Open Request summaries with recent requests on dashboard',
+            async () => {
+                const now = new Date().toISOString();
 
-    it('keeps award success when refreshing detail fails', async () => {
-        getRequestMock
-            .mockResolvedValueOnce(requestDetail)
-            .mockRejectedValueOnce(new Error('Refresh failed'));
+                getTasksMock.mockResolvedValue({
+                    tasks: [],
+                    summary: {
+                        active_total: 2,
+                    },
+                    pagination: {
+                        current_page: 1,
+                        per_page: 10,
+                        total: 5,
+                        last_page: 1,
+                    },
+                });
 
-        awardQuotationMock.mockResolvedValue(awardResult);
+                getRequestsMock.mockResolvedValue({
+                    requests: [
+                        {
+                            request_id: 'dashboard-request-1',
+                            task_class: 'NON_DELIVERY',
+                            description: 'Beli barang dapur.',
+                            pickup_location_snapshot: null,
+                            delivery_location_snapshot: null,
+                            task_location_snapshot: {
+                                address: 'Pekan Tuaran',
+                            },
+                            status: 'OPEN',
+                            expires_at: new Date(
+                                Date.now() + 60 * 60 * 1000,
+                            ).toISOString(),
+                            awarded_at: null,
+                            cancelled_at: null,
+                            created_at: now,
+                            updated_at: now,
+                        },
+                        {
+                            request_id: 'dashboard-request-2',
+                            task_class: 'PICKUP_DELIVERY',
+                            description: 'Hantar dokumen.',
+                            pickup_location_snapshot: {
+                                address: 'Pejabat Pos Tuaran',
+                            },
+                            delivery_location_snapshot: {
+                                address: 'Kampung Tambalang',
+                            },
+                            task_location_snapshot: null,
+                            status: 'QUOTATION_RECEIVED',
+                            expires_at: new Date(
+                                Date.now() + 60 * 60 * 1000,
+                            ).toISOString(),
+                            awarded_at: null,
+                            cancelled_at: null,
+                            created_at: now,
+                            updated_at: now,
+                        },
+                    ],
+                    pagination: {
+                        current_page: 1,
+                        per_page: 10,
+                        total: 7,
+                        last_page: 1,
+                    },
+                });
 
-        const { onAwarded } = renderComponent();
+                await loginThroughCustomerDashboard();
 
-        await openQuotations();
+                expect(
+                    await screen.findByText('Tugasan Aktif'),
+                ).toBeTruthy();
+                expect(screen.getByText('2')).toBeTruthy();
 
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'Pilih Runner Ini',
-            }),
+                expect(
+                    screen.getByText('Jumlah Tugasan'),
+                ).toBeTruthy();
+                expect(screen.getByText('5')).toBeTruthy();
+
+                expect(
+                    screen.getByText('Open Request'),
+                ).toBeTruthy();
+                expect(screen.getByText('7')).toBeTruthy();
+
+                expect(
+                    screen.getByText('Open Request Terkini'),
+                ).toBeTruthy();
+                expect(
+                    screen.getByText('Beli barang dapur.'),
+                ).toBeTruthy();
+                expect(
+                    screen.getByText('Hantar dokumen.'),
+                ).toBeTruthy();
+
+                expect(getTasksMock).toHaveBeenCalled();
+                expect(getRequestsMock).toHaveBeenCalledWith(1);
+            },
         );
 
-        expect(
-            await screen.findByText(
-                'Runner berjaya dipilih. ID Core Task: task-001',
-            ),
-        ).toBeTruthy();
+        it(
+            'updates the Customer profile name',
+            async () => {
+                updateProfileMock.mockResolvedValue({
+                    ...account,
+                    name: 'Updated Customer',
+                });
 
-        expect(onAwarded).toHaveBeenCalledTimes(1);
+                await loginThroughCustomerDashboard();
 
-        expect(
-            await screen.findByText(
-                /Status senarai belum dapat dikemas kini/,
-            ),
-        ).toBeTruthy();
-    });
-});
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Profil',
+                    }),
+                );
+
+                fireEvent.change(
+                    screen.getByLabelText('Nama'),
+                    {
+                        target: {
+                            value: 'Updated Customer',
+                        },
+                    },
+                );
+
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Simpan Perubahan',
+                    }),
+                );
+
+                await waitFor(() => {
+                    expect(
+                        updateProfileMock,
+                    ).toHaveBeenCalledWith({
+                        name: 'Updated Customer',
+                    });
+                });
+
+                const profileSuccess =
+                    await screen.findByRole('status');
+
+                expect(profileSuccess.textContent).toContain(
+                    'Profil berjaya dikemaskini.',
+                );
+
+                expect(
+                    screen.getByText('Updated Customer'),
+                ).toBeTruthy();
+            },
+        );
+
+        it(
+            'logs out the Customer and returns to the login screen',
+            async () => {
+                logoutMock.mockResolvedValue(undefined);
+
+                await loginThroughRunnerProfile();
+
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Logout',
+                    }),
+                );
+
+                expect(
+                    await screen.findByRole('heading', {
+                        name: 'Log Masuk Pelanggan',
+                    }),
+                ).toBeTruthy();
+
+                expect(logoutMock).toHaveBeenCalledTimes(1);
+            },
+        );
+
+        it(
+            'rejects an invalid runner slug before API submission',
+            async () => {
+                window.history.replaceState(
+                    {},
+                    '',
+                    '/?runner=!!invalid!!',
+                );
+
+                await loginThroughRunnerProfile();
+
+                fireEvent.change(
+                    screen.getByLabelText(
+                        'Penerangan Tugasan',
+                    ),
+                    {
+                        target: {
+                            value: 'Invalid profile test.',
+                        },
+                    },
+                );
+
+                submitRequestForm();
+
+                expect(
+                    await screen.findByRole('alert'),
+                ).toBeTruthy();
+
+                expect(
+                    createRequestMock,
+                ).not.toHaveBeenCalled();
+            },
+        );
+    },
+);
