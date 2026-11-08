@@ -1,3 +1,4 @@
+
 // @vitest-environment jsdom
 
 import {
@@ -25,6 +26,9 @@ const {
     getRequestsMock,
     createRequestMock,
     cancelRequestMock,
+    getTaskMock,
+    updateProfileMock,
+    logoutMock,
 } = vi.hoisted(() => ({
     meMock: vi.fn(),
     loginMock: vi.fn(),
@@ -32,6 +36,9 @@ const {
     getRequestsMock: vi.fn(),
     createRequestMock: vi.fn(),
     cancelRequestMock: vi.fn(),
+    getTaskMock: vi.fn(),
+    updateProfileMock: vi.fn(),
+    logoutMock: vi.fn(),
 }));
 
 vi.mock('axios', () => ({
@@ -47,9 +54,9 @@ vi.mock('./api', () => ({
         getTasks: getTasksMock,
         getRequests: getRequestsMock,
         createRequest: createRequestMock,
-        getTask: vi.fn(),
-        updateProfile: vi.fn(),
-        logout: vi.fn(),
+        getTask: getTaskMock,
+        updateProfile: updateProfileMock,
+        logout: logoutMock,
         requestRegistrationOtp: vi.fn(),
         verifyRegistrationOtp: vi.fn(),
         completeRegistration: vi.fn(),
@@ -487,6 +494,163 @@ describe(
                 expect(
                     screen.getByText('Status: OPEN'),
                 ).toBeTruthy();
+            },
+        );
+
+        it(
+            'loads Customer-owned tasks and opens task details',
+            async () => {
+                const now = new Date().toISOString();
+                const task = {
+                    task_id: 'customer-task-1',
+                    module_key: 'Marketplace',
+                    task_type: 'MARKETPLACE_SERVICE_REQUEST',
+                    source_type: 'marketplace_request',
+                    source_id: 'customer-request-1',
+                    generic_status: 'ASSIGNED',
+                    assigned_at: now,
+                    started_at: null,
+                    completed_at: null,
+                    cancelled_at: null,
+                    created_at: now,
+                    updated_at: now,
+                };
+                const request = {
+                    request_id: 'customer-request-1',
+                    task_class: 'NON_DELIVERY' as const,
+                    description: 'Bantu urus tugasan pelanggan.',
+                    pickup_location_snapshot: null,
+                    delivery_location_snapshot: null,
+                    task_location_snapshot: {
+                        address: 'Pekan Tuaran',
+                    },
+                    status: 'AWARDED',
+                    expires_at: null,
+                    awarded_at: now,
+                    cancelled_at: null,
+                };
+
+                getTasksMock.mockResolvedValue({
+                    tasks: [{ task, request }],
+                    pagination: {
+                        current_page: 1,
+                        per_page: 10,
+                        total: 1,
+                        last_page: 1,
+                    },
+                });
+
+                getTaskMock.mockResolvedValue({
+                    task,
+                    request,
+                });
+
+                await loginThroughRunnerProfile();
+
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Tugasan Saya',
+                    }),
+                );
+
+                const taskCard = await screen.findByText(
+                    'Bantu urus tugasan pelanggan.',
+                );
+
+                fireEvent.click(taskCard.closest('button')!);
+
+                expect(
+                    await screen.findByRole('heading', {
+                        name: 'Butiran Tugasan',
+                    }),
+                ).toBeTruthy();
+
+                expect(getTaskMock).toHaveBeenCalledWith(
+                    'customer-task-1',
+                );
+
+                expect(
+                    screen.getByText('Pekan Tuaran'),
+                ).toBeTruthy();
+
+                expect(
+                    screen.getByText('ASSIGNED'),
+                ).toBeTruthy();
+            },
+        );
+
+        it(
+            'updates the Customer profile name',
+            async () => {
+                updateProfileMock.mockResolvedValue({
+                    ...account,
+                    name: 'Updated Customer',
+                });
+
+                await loginThroughRunnerProfile();
+
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Profil',
+                    }),
+                );
+
+                fireEvent.change(
+                    screen.getByLabelText('Nama'),
+                    {
+                        target: {
+                            value: 'Updated Customer',
+                        },
+                    },
+                );
+
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Simpan Perubahan',
+                    }),
+                );
+
+                await waitFor(() => {
+                    expect(
+                        updateProfileMock,
+                    ).toHaveBeenCalledWith({
+                        name: 'Updated Customer',
+                    });
+                });
+
+                const profileSuccess =
+                    await screen.findByRole('status');
+
+                expect(profileSuccess.textContent).toContain(
+                    'Profil berjaya dikemaskini.',
+                );
+
+                expect(
+                    screen.getByText('Updated Customer'),
+                ).toBeTruthy();
+            },
+        );
+
+        it(
+            'logs out the Customer and returns to the login screen',
+            async () => {
+                logoutMock.mockResolvedValue(undefined);
+
+                await loginThroughRunnerProfile();
+
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Logout',
+                    }),
+                );
+
+                expect(
+                    await screen.findByRole('heading', {
+                        name: 'Log Masuk Pelanggan',
+                    }),
+                ).toBeTruthy();
+
+                expect(logoutMock).toHaveBeenCalledTimes(1);
             },
         );
 
