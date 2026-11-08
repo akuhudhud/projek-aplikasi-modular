@@ -13,7 +13,7 @@ return new class extends Migration
         DB::statement(
             'ALTER TABLE runner_task_ratings
              ADD CONSTRAINT '.self::CONSTRAINT_NAME.'
-             CHECK (rating BETWEEN 0 AND 5)'
+             CHECK (rating BETWEEN 1 AND 5)'
         );
     }
 
