@@ -1,3 +1,4 @@
+
 <?php
 
 namespace Tests\Feature\Marketplace;
@@ -55,7 +56,8 @@ class CustomerTaskWebApiTest extends TestCase
     private function createMarketplaceTask(
         Account $customer,
         string $taskClass,
-        ?Account $runner = null
+        ?Account $runner = null,
+        string $status = CoreTask::STATUS_ASSIGNED
     ): array {
         $requestId = (string) Str::uuid();
 
@@ -93,7 +95,7 @@ class CustomerTaskWebApiTest extends TestCase
             'source_id' => $requestId,
             'created_by_account_id' => $customer->id,
             'assigned_account_id' => $runner?->id,
-            'generic_status' => CoreTask::STATUS_ASSIGNED,
+            'generic_status' => $status,
             'assigned_at' => now(),
         ]);
 
@@ -138,6 +140,48 @@ class CustomerTaskWebApiTest extends TestCase
             ])
             ->assertJsonPath('data.pagination.total', 1)
             ->assertJsonPath('data.pagination.per_page', 25);
+    }
+
+    public function test_customer_active_task_summary_counts_only_assigned_and_in_progress_own_tasks(): void
+    {
+        $customer = $this->createAccount();
+        $otherCustomer = $this->createAccount();
+
+        $this->createMarketplaceTask(
+            $customer,
+            MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY,
+            null,
+            CoreTask::STATUS_ASSIGNED
+        );
+
+        $this->createMarketplaceTask(
+            $customer,
+            MarketplaceRequest::TASK_CLASS_NON_DELIVERY,
+            null,
+            CoreTask::STATUS_IN_PROGRESS
+        );
+
+        $this->createMarketplaceTask(
+            $customer,
+            MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY,
+            null,
+            CoreTask::STATUS_COMPLETED
+        );
+
+        $this->createMarketplaceTask(
+            $otherCustomer,
+            MarketplaceRequest::TASK_CLASS_NON_DELIVERY,
+            null,
+            CoreTask::STATUS_ASSIGNED
+        );
+
+        $this->authenticateCustomer($customer);
+
+        $this->getJson('/web/customer/tasks')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.summary.active_total', 2)
+            ->assertJsonPath('data.pagination.total', 3);
     }
 
     public function test_customer_can_view_own_task_details(): void
