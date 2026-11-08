@@ -95,11 +95,11 @@ class RunnerPublicRatingReviewTest extends TestCase
         $this->assertArrayNotHasKey('runner_account_id', $profile);
     }
 
-    public function test_public_profile_counts_zero_as_a_valid_rating(): void
+    public function test_public_profile_counts_one_as_the_minimum_valid_rating(): void
     {
         $runner = $this->createRunner();
 
-        $this->createRating($runner, 0);
+        $this->createRating($runner, 1);
         $this->createRating($runner, 5);
 
         $response = app(RunnerPublicProfileController::class)
@@ -109,7 +109,7 @@ class RunnerPublicRatingReviewTest extends TestCase
 
         $profile = $response->getData(true)['data']['profile'];
 
-        $this->assertSame(2.5, $profile['rating_average']);
+        $this->assertSame(3.0, $profile['rating_average']);
         $this->assertSame(2, $profile['rating_count']);
     }
 
