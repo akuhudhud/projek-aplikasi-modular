@@ -239,7 +239,7 @@ describe(
                 );
 
                 fireEvent.change(
-                    within(delivery).getByRole('textbox'),
+                    within(delivery).getByLabelText('Alamat / Lokasi'),
                     {
                         target: {
                             value: 'Kampung Tambalang',
