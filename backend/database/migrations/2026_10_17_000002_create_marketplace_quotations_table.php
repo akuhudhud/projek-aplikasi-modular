@@ -79,10 +79,6 @@ return new class extends Migration
          */
 
         Schema::table('marketplace_requests', function (Blueprint $table) {
-            $table->dropForeign(
-                'marketplace_requests_winning_quote_fk'
-            );
-
             $table->foreign(
                 ['request_id', 'winning_quotation_id'],
                 'marketplace_requests_winning_quote_fk'
