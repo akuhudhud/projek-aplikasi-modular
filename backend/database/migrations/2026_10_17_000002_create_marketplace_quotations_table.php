@@ -26,7 +26,6 @@ return new class extends Migration
             $table->timestamps();
 
             // A quotation must always belong to an existing request.
-            // Preserve quotation history; do not cascade-delete quotations.
             $table->foreign(
                 'request_id',
                 'marketplace_quotes_request_fk'
@@ -35,7 +34,7 @@ return new class extends Migration
                 ->on('marketplace_requests')
                 ->restrictOnDelete();
 
-            // Preserve runner attribution for every submitted quotation.
+            // Preserve runner attribution for every quotation.
             $table->foreign(
                 'runner_account_id',
                 'marketplace_quotes_runner_account_fk'
@@ -59,10 +58,30 @@ return new class extends Migration
                 'marketplace_quotes_status_expiry_index'
             );
         });
+
+        // Add this only after marketplace_quotations exists.
+        // This completes the relationship between a request
+        // and its selected winning quotation.
+        Schema::table('marketplace_requests', function (Blueprint $table) {
+            $table->foreign(
+                'winning_quotation_id',
+                'marketplace_requests_winning_quote_fk'
+            )
+                ->references('quotation_id')
+                ->on('marketplace_quotations')
+                ->restrictOnDelete();
+        });
     }
 
     public function down(): void
     {
+        // Remove the cross-table foreign key before dropping quotations.
+        Schema::table('marketplace_requests', function (Blueprint $table) {
+            $table->dropForeign(
+                'marketplace_requests_winning_quote_fk'
+            );
+        });
+
         Schema::dropIfExists('marketplace_quotations');
     }
 };
