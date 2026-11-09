@@ -175,12 +175,16 @@ class RunnerTaskRatingApiTest extends TestCase
 
     public function test_database_rejects_rating_below_one(): void
     {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($customer, $runner);
+
         try {
             DB::table('runner_task_ratings')->insert([
                 'rating_id' => (string) Str::uuid(),
-                'task_id' => (string) Str::uuid(),
-                'customer_account_id' => (string) Str::uuid(),
-                'runner_account_id' => (string) Str::uuid(),
+                'task_id' => $task->task_id,
+                'customer_account_id' => $customer->id,
+                'runner_account_id' => $runner->id,
                 'rating' => 0,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -194,12 +198,16 @@ class RunnerTaskRatingApiTest extends TestCase
 
     public function test_database_rejects_rating_above_five(): void
     {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($customer, $runner);
+
         try {
             DB::table('runner_task_ratings')->insert([
                 'rating_id' => (string) Str::uuid(),
-                'task_id' => (string) Str::uuid(),
-                'customer_account_id' => (string) Str::uuid(),
-                'runner_account_id' => (string) Str::uuid(),
+                'task_id' => $task->task_id,
+                'customer_account_id' => $customer->id,
+                'runner_account_id' => $runner->id,
                 'rating' => 6,
                 'created_at' => now(),
                 'updated_at' => now(),
