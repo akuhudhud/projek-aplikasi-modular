@@ -30,6 +30,26 @@ return new class extends Migration
 
             $table->timestamps();
 
+            // Preserve marketplace requests when an account is referenced.
+            // A customer account cannot be deleted while requests reference it.
+            $table->foreign(
+                'customer_account_id',
+                'marketplace_requests_customer_account_fk'
+            )
+                ->references('id')
+                ->on('accounts')
+                ->restrictOnDelete();
+
+            // Keep the request if its targeted runner account is deleted.
+            // The request becomes untargeted instead of being deleted.
+            $table->foreign(
+                'target_runner_account_id',
+                'marketplace_requests_target_runner_fk'
+            )
+                ->references('id')
+                ->on('accounts')
+                ->nullOnDelete();
+
             $table->index(
                 ['customer_account_id', 'status', 'created_at'],
                 'marketplace_requests_customer_status_index'
