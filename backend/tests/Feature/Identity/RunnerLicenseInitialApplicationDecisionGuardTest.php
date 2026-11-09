@@ -40,7 +40,6 @@ class RunnerLicenseInitialApplicationDecisionGuardTest extends TestCase
             'status' => IdentityVerification::STATUS_VERIFIED,
             'submitted_at' => now(),
             'reviewed_at' => now(),
-            'verified_at' => now(),
         ]);
 
         $path = 'runner-license-documents/'
