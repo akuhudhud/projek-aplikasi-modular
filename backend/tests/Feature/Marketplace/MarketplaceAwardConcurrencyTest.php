@@ -1,4 +1,3 @@
-
 <?php
 
 namespace Tests\Feature\Marketplace;
@@ -30,11 +29,14 @@ class MarketplaceAwardConcurrencyTest extends TestCase
         }
 
         $suffix = strtolower(str_replace('-', '', (string) Str::uuid()));
+
         $customer = $this->makeAccount('customer-'.$suffix);
+
         $runnerOne = $this->makeAccount(
             'runner-one-'.$suffix,
             Account::RUNNER_STATUS_APPROVED
         );
+
         $runnerTwo = $this->makeAccount(
             'runner-two-'.$suffix,
             Account::RUNNER_STATUS_APPROVED
@@ -218,6 +220,14 @@ class MarketplaceAwardConcurrencyTest extends TestCase
         } finally {
             $this->stopWorkers();
 
+            // Break the winning quotation foreign-key relationship first.
+            MarketplaceRequest::query()
+                ->whereKey($requestId)
+                ->update([
+                    'winning_quotation_id' => null,
+                ]);
+
+            // Core Task references customer and runner accounts.
             CoreTask::query()
                 ->where('module_key', 'Marketplace')
                 ->where('task_type', 'MARKETPLACE_SERVICE_REQUEST')
@@ -225,14 +235,17 @@ class MarketplaceAwardConcurrencyTest extends TestCase
                 ->where('source_id', $requestId)
                 ->delete();
 
+            // Quotations reference both request and runner accounts.
             MarketplaceQuotation::query()
                 ->where('request_id', $requestId)
                 ->delete();
 
+            // Request can now be deleted safely.
             MarketplaceRequest::query()
                 ->whereKey($requestId)
                 ->delete();
 
+            // Delete accounts only after dependent records are removed.
             Account::query()
                 ->whereIn('id', [
                     $customer->id,
