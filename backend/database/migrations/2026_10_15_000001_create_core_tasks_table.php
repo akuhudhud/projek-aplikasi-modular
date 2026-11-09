@@ -49,8 +49,10 @@ return new class extends Migration
                 ->on('accounts')
                 ->restrictOnDelete();
 
+            // A source can only create one task for the same
+            // module and task type.
             $table->unique(
-                ['module_key', 'task_type', 'source_id'],
+                ['module_key', 'task_type', 'source_type', 'source_id'],
                 'core_tasks_module_type_source_unique'
             );
 
