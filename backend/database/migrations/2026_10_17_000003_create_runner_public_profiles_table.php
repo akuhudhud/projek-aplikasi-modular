@@ -10,16 +10,32 @@ return new class extends Migration
     {
         Schema::create('runner_public_profiles', function (Blueprint $table) {
             $table->uuid('profile_id')->primary();
+
             $table->uuid('account_id')->unique();
+
             $table->string('public_slug', 50)->unique();
+
             $table->string('display_name', 80);
+
             $table->text('bio')->nullable();
+
             $table->string('service_area', 120)->nullable();
+
+            // Lokasi asas runner: kawasan pentadbiran sahaja.
+            $table->string('base_location', 120)->nullable();
+
+            // Kawasan liputan untuk paparan profil.
+            $table->string('coverage_area', 500)->nullable();
+
             $table->json('services')->nullable();
+
             $table->boolean('is_published')->default(false);
+
             $table->unsignedBigInteger('views_count')->default(0);
+
             $table->timestamps();
 
+            // Profil mesti dimiliki akaun yang sah.
             $table->foreign(
                 'account_id',
                 'runner_public_profiles_account_fk'
