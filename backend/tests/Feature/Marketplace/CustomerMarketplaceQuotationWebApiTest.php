@@ -251,6 +251,7 @@ class CustomerMarketplaceQuotationWebApiTest extends TestCase
         $this->assertDatabaseHas('core_tasks', [
             'module_key' => 'Marketplace',
             'task_type' => 'MARKETPLACE_SERVICE_REQUEST',
+            'source_type' => 'marketplace_request',
             'source_id' => $requestId,
             'assigned_account_id' => $runner->id,
         ]);
