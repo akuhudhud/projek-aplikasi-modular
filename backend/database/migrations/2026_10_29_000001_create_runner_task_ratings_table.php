@@ -28,6 +28,33 @@ return new class extends Migration
 
             $table->timestamps();
 
+            // Hubungan kepada Core Task.
+            $table->foreign(
+                'task_id',
+                'runner_task_ratings_task_fk'
+            )
+                ->references('task_id')
+                ->on('core_tasks')
+                ->restrictOnDelete();
+
+            // Hubungan kepada pelanggan.
+            $table->foreign(
+                'customer_account_id',
+                'runner_task_ratings_customer_fk'
+            )
+                ->references('id')
+                ->on('accounts')
+                ->restrictOnDelete();
+
+            // Hubungan kepada runner.
+            $table->foreign(
+                'runner_account_id',
+                'runner_task_ratings_runner_fk'
+            )
+                ->references('id')
+                ->on('accounts')
+                ->restrictOnDelete();
+
             $table->index(
                 ['runner_account_id', 'created_at'],
                 'runner_task_ratings_runner_created_index'
