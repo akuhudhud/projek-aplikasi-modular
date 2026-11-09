@@ -383,8 +383,7 @@ class CoreTaskLifecycleServiceTest extends TestCase
     public function test_unknown_account_is_rejected(): void
     {
         $task = $this->createTask(
-            CoreTask::STATUS_ASSIGNED,
-            (string) Str::uuid()
+            CoreTask::STATUS_ASSIGNED
         );
 
         $this->expectException(ModelNotFoundException::class);
