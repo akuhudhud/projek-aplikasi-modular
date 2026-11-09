@@ -182,11 +182,11 @@ class MarketplaceSchemaTest extends TestCase
             'set null'
         );
 
-        $this->assertForeignKey(
+        $this->assertCompositeForeignKey(
             $requestForeignKeys,
-            'winning_quotation_id',
+            ['request_id', 'winning_quotation_id'],
             'marketplace_quotations',
-            'quotation_id',
+            ['request_id', 'quotation_id'],
             'restrict'
         );
 
@@ -204,6 +204,25 @@ class MarketplaceSchemaTest extends TestCase
             'accounts',
             'id',
             'restrict'
+        );
+    }
+
+    public function test_marketplace_quotation_has_required_composite_unique_key(): void
+    {
+        $indexes = Schema::getIndexes('marketplace_quotations');
+
+        $matchingIndex = collect($indexes)->first(
+            fn (array $index): bool =>
+                ($index['columns'] ?? []) === [
+                    'request_id',
+                    'quotation_id',
+                ]
+                && ($index['unique'] ?? false) === true
+        );
+
+        $this->assertNotNull(
+            $matchingIndex,
+            'Composite unique key for request_id and quotation_id was not found.'
         );
     }
 
@@ -270,7 +289,7 @@ class MarketplaceSchemaTest extends TestCase
             taskClass: 'NON_DELIVERY',
             pickupLocation: null,
             deliveryLocation: null,
-            taskLocation: ['address' => 'Lokasi tugasan'],
+            taskLocation: ['address' => 'Lokasi tugasan']
         );
 
         $this->assertDatabaseHas('marketplace_requests', [
@@ -340,9 +359,6 @@ class MarketplaceSchemaTest extends TestCase
 
     /**
      * Insert a marketplace request directly into the database.
-     *
-     * This deliberately bypasses Eloquent and API validation so that
-     * the database CHECK constraint itself is tested.
      */
     private function insertMarketplaceRequest(
         string $taskClass,
@@ -383,7 +399,7 @@ class MarketplaceSchemaTest extends TestCase
     }
 
     /**
-     * Assert a foreign key definition returned by Laravel's schema builder.
+     * Assert a single-column foreign key.
      *
      * @param array<int, array<string, mixed>> $foreignKeys
      */
@@ -394,20 +410,43 @@ class MarketplaceSchemaTest extends TestCase
         string $foreignColumn,
         string $onDelete
     ): void {
+        $this->assertCompositeForeignKey(
+            $foreignKeys,
+            [$column],
+            $foreignTable,
+            [$foreignColumn],
+            $onDelete
+        );
+    }
+
+    /**
+     * Assert a single-column or composite foreign key.
+     *
+     * @param array<int, array<string, mixed>> $foreignKeys
+     * @param array<int, string> $columns
+     * @param array<int, string> $foreignColumns
+     */
+    private function assertCompositeForeignKey(
+        array $foreignKeys,
+        array $columns,
+        string $foreignTable,
+        array $foreignColumns,
+        string $onDelete
+    ): void {
         $matchingForeignKey = collect($foreignKeys)->first(
             fn (array $foreignKey): bool =>
-                ($foreignKey['columns'] ?? []) === [$column]
+                ($foreignKey['columns'] ?? []) === $columns
                 && ($foreignKey['foreign_table'] ?? null) === $foreignTable
-                && ($foreignKey['foreign_columns'] ?? []) === [$foreignColumn]
+                && ($foreignKey['foreign_columns'] ?? []) === $foreignColumns
         );
 
         $this->assertNotNull(
             $matchingForeignKey,
             sprintf(
-                'Foreign key for %s referencing %s.%s was not found.',
-                $column,
+                'Foreign key for (%s) referencing %s(%s) was not found.',
+                implode(', ', $columns),
                 $foreignTable,
-                $foreignColumn
+                implode(', ', $foreignColumns)
             )
         );
 
@@ -415,8 +454,8 @@ class MarketplaceSchemaTest extends TestCase
             $onDelete,
             strtolower((string) ($matchingForeignKey['on_delete'] ?? '')),
             sprintf(
-                'Unexpected ON DELETE rule for foreign key %s.',
-                $column
+                'Unexpected ON DELETE rule for foreign key (%s).',
+                implode(', ', $columns)
             )
         );
     }
