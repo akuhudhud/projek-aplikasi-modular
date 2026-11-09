@@ -4,8 +4,11 @@ namespace Tests\Feature\Marketplace;
 
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class MarketplaceSchemaTest extends TestCase
@@ -245,6 +248,138 @@ class MarketplaceSchemaTest extends TestCase
             'id',
             'restrict'
         );
+    }
+
+    public function test_database_accepts_valid_pickup_delivery_task_class(): void
+    {
+        $this->insertMarketplaceRequest(
+            taskClass: 'PICKUP_DELIVERY',
+            pickupLocation: ['address' => 'Lokasi pickup'],
+            deliveryLocation: ['address' => 'Lokasi delivery'],
+            taskLocation: null
+        );
+
+        $this->assertDatabaseHas('marketplace_requests', [
+            'task_class' => 'PICKUP_DELIVERY',
+        ]);
+    }
+
+    public function test_database_accepts_valid_non_delivery_task_class(): void
+    {
+        $this->insertMarketplaceRequest(
+            taskClass: 'NON_DELIVERY',
+            pickupLocation: null,
+            deliveryLocation: null,
+            taskLocation: ['address' => 'Lokasi tugasan'],
+        );
+
+        $this->assertDatabaseHas('marketplace_requests', [
+            'task_class' => 'NON_DELIVERY',
+        ]);
+    }
+
+    public function test_database_rejects_unsupported_task_class(): void
+    {
+        $this->expectException(QueryException::class);
+
+        $this->insertMarketplaceRequest(
+            taskClass: 'GENERAL_SERVICE',
+            pickupLocation: null,
+            deliveryLocation: null,
+            taskLocation: null
+        );
+    }
+
+    public function test_database_rejects_pickup_delivery_without_pickup_location(): void
+    {
+        $this->expectException(QueryException::class);
+
+        $this->insertMarketplaceRequest(
+            taskClass: 'PICKUP_DELIVERY',
+            pickupLocation: null,
+            deliveryLocation: ['address' => 'Lokasi delivery'],
+            taskLocation: null
+        );
+    }
+
+    public function test_database_rejects_pickup_delivery_without_delivery_location(): void
+    {
+        $this->expectException(QueryException::class);
+
+        $this->insertMarketplaceRequest(
+            taskClass: 'PICKUP_DELIVERY',
+            pickupLocation: ['address' => 'Lokasi pickup'],
+            deliveryLocation: null,
+            taskLocation: null
+        );
+    }
+
+    public function test_database_rejects_non_delivery_without_task_location(): void
+    {
+        $this->expectException(QueryException::class);
+
+        $this->insertMarketplaceRequest(
+            taskClass: 'NON_DELIVERY',
+            pickupLocation: null,
+            deliveryLocation: null,
+            taskLocation: null
+        );
+    }
+
+    public function test_database_rejects_conflicting_snapshots_for_non_delivery(): void
+    {
+        $this->expectException(QueryException::class);
+
+        $this->insertMarketplaceRequest(
+            taskClass: 'NON_DELIVERY',
+            pickupLocation: ['address' => 'Lokasi pickup'],
+            deliveryLocation: null,
+            taskLocation: ['address' => 'Lokasi tugasan']
+        );
+    }
+
+    /**
+     * Insert a marketplace request directly into the database.
+     *
+     * This deliberately bypasses Eloquent and API validation so that
+     * the database CHECK constraint itself is tested.
+     */
+    private function insertMarketplaceRequest(
+        string $taskClass,
+        ?array $pickupLocation,
+        ?array $deliveryLocation,
+        ?array $taskLocation
+    ): void {
+        $now = now();
+        $customerAccountId = (string) Str::uuid();
+
+        DB::table('accounts')->insert([
+            'id' => $customerAccountId,
+            'name' => 'Schema Test Customer',
+            'password' => bcrypt('test-password'),
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        DB::table('marketplace_requests')->insert([
+            'request_id' => (string) Str::uuid(),
+            'customer_account_id' => $customerAccountId,
+            'source_type' => 'marketplace',
+            'task_class' => $taskClass,
+            'description' => 'Database schema constraint test',
+            'pickup_location_snapshot' => $pickupLocation === null
+                ? null
+                : json_encode($pickupLocation, JSON_THROW_ON_ERROR),
+            'delivery_location_snapshot' => $deliveryLocation === null
+                ? null
+                : json_encode($deliveryLocation, JSON_THROW_ON_ERROR),
+            'task_location_snapshot' => $taskLocation === null
+                ? null
+                : json_encode($taskLocation, JSON_THROW_ON_ERROR),
+            'status' => 'OPEN',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
     }
 
     /**
