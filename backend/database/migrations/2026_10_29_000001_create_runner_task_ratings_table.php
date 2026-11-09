@@ -2,10 +2,14 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    private const CONSTRAINT_NAME =
+        'runner_task_ratings_rating_range_check';
+
     public function up(): void
     {
         Schema::create('runner_task_ratings', function (Blueprint $table) {
@@ -20,7 +24,6 @@ return new class extends Migration
             $table->uuid('runner_account_id');
 
             // Julat rating sah ialah 1–5 bintang.
-            // Julat ini turut dikuatkuasakan oleh database CHECK.
             $table->unsignedTinyInteger('rating');
 
             // Rating wajib, teks ulasan pilihan.
@@ -60,6 +63,13 @@ return new class extends Migration
                 'runner_task_ratings_runner_created_index'
             );
         });
+
+        // Hadkan rating kepada 1 hingga 5 pada peringkat database.
+        DB::statement(
+            'ALTER TABLE runner_task_ratings
+             ADD CONSTRAINT '.self::CONSTRAINT_NAME.'
+             CHECK (rating BETWEEN 1 AND 5)'
+        );
     }
 
     public function down(): void
