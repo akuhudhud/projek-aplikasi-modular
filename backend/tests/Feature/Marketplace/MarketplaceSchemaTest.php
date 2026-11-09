@@ -357,6 +357,66 @@ class MarketplaceSchemaTest extends TestCase
         );
     }
 
+    public function test_database_accepts_winning_quotation_from_same_request(): void
+    {
+        $requestId = $this->insertMarketplaceRequest(
+            taskClass: 'NON_DELIVERY',
+            pickupLocation: null,
+            deliveryLocation: null,
+            taskLocation: ['address' => 'Lokasi tugasan']
+        );
+
+        $runnerId = $this->insertAccount('Schema Test Runner');
+
+        $quotationId = $this->insertMarketplaceQuotation(
+            $requestId,
+            $runnerId
+        );
+
+        DB::table('marketplace_requests')
+            ->where('request_id', $requestId)
+            ->update([
+                'winning_quotation_id' => $quotationId,
+            ]);
+
+        $this->assertDatabaseHas('marketplace_requests', [
+            'request_id' => $requestId,
+            'winning_quotation_id' => $quotationId,
+        ]);
+    }
+
+    public function test_database_rejects_winning_quotation_from_another_request(): void
+    {
+        $requestA = $this->insertMarketplaceRequest(
+            taskClass: 'NON_DELIVERY',
+            pickupLocation: null,
+            deliveryLocation: null,
+            taskLocation: ['address' => 'Lokasi request A']
+        );
+
+        $requestB = $this->insertMarketplaceRequest(
+            taskClass: 'NON_DELIVERY',
+            pickupLocation: null,
+            deliveryLocation: null,
+            taskLocation: ['address' => 'Lokasi request B']
+        );
+
+        $runnerId = $this->insertAccount('Schema Test Runner');
+
+        $quotationFromRequestB = $this->insertMarketplaceQuotation(
+            $requestB,
+            $runnerId
+        );
+
+        $this->expectException(QueryException::class);
+
+        DB::table('marketplace_requests')
+            ->where('request_id', $requestA)
+            ->update([
+                'winning_quotation_id' => $quotationFromRequestB,
+            ]);
+    }
+
     /**
      * Insert a marketplace request directly into the database.
      */
@@ -365,20 +425,16 @@ class MarketplaceSchemaTest extends TestCase
         ?array $pickupLocation,
         ?array $deliveryLocation,
         ?array $taskLocation
-    ): void {
+    ): string {
         $now = now();
-        $customerAccountId = (string) Str::uuid();
+        $customerAccountId = $this->insertAccount(
+            'Schema Test Customer'
+        );
 
-        DB::table('accounts')->insert([
-            'id' => $customerAccountId,
-            'name' => 'Schema Test Customer',
-            'password' => bcrypt('test-password'),
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+        $requestId = (string) Str::uuid();
 
         DB::table('marketplace_requests')->insert([
-            'request_id' => (string) Str::uuid(),
+            'request_id' => $requestId,
             'customer_account_id' => $customerAccountId,
             'source_type' => 'marketplace',
             'task_class' => $taskClass,
@@ -396,6 +452,52 @@ class MarketplaceSchemaTest extends TestCase
             'created_at' => $now,
             'updated_at' => $now,
         ]);
+
+        return $requestId;
+    }
+
+    /**
+     * Insert a test account and return its UUID.
+     */
+    private function insertAccount(string $name): string
+    {
+        $accountId = (string) Str::uuid();
+        $now = now();
+
+        DB::table('accounts')->insert([
+            'id' => $accountId,
+            'name' => $name,
+            'password' => bcrypt('test-password'),
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        return $accountId;
+    }
+
+    /**
+     * Insert a quotation for a specific request.
+     */
+    private function insertMarketplaceQuotation(
+        string $requestId,
+        string $runnerAccountId
+    ): string {
+        $quotationId = (string) Str::uuid();
+        $now = now();
+
+        DB::table('marketplace_quotations')->insert([
+            'quotation_id' => $quotationId,
+            'request_id' => $requestId,
+            'runner_account_id' => $runnerAccountId,
+            'amount' => 25.00,
+            'currency' => 'MYR',
+            'message' => 'Database relationship test',
+            'status' => 'SUBMITTED',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        return $quotationId;
     }
 
     /**
