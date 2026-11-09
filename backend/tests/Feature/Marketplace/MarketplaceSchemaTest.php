@@ -152,4 +152,129 @@ class MarketplaceSchemaTest extends TestCase
             MarketplaceQuotation::STATUS_EXPIRED
         );
     }
+
+    public function test_marketplace_foreign_keys_preserve_record_relationships(): void
+    {
+        $requestForeignKeys = Schema::getForeignKeys(
+            'marketplace_requests'
+        );
+
+        $quotationForeignKeys = Schema::getForeignKeys(
+            'marketplace_quotations'
+        );
+
+        $this->assertForeignKey(
+            $requestForeignKeys,
+            'customer_account_id',
+            'accounts',
+            'id',
+            'restrict'
+        );
+
+        $this->assertForeignKey(
+            $requestForeignKeys,
+            'target_runner_account_id',
+            'accounts',
+            'id',
+            'set null'
+        );
+
+        $this->assertForeignKey(
+            $quotationForeignKeys,
+            'request_id',
+            'marketplace_requests',
+            'request_id',
+            'restrict'
+        );
+
+        $this->assertForeignKey(
+            $quotationForeignKeys,
+            'runner_account_id',
+            'accounts',
+            'id',
+            'restrict'
+        );
+    }
+
+    public function test_core_tasks_table_contains_required_fields(): void
+    {
+        $this->assertTrue(Schema::hasTable('core_tasks'));
+
+        $this->assertTrue(Schema::hasColumns('core_tasks', [
+            'task_id',
+            'module_key',
+            'task_type',
+            'source_type',
+            'source_id',
+            'created_by_account_id',
+            'assigned_account_id',
+            'generic_status',
+            'assigned_at',
+            'started_at',
+            'completed_at',
+            'cancelled_at',
+            'created_at',
+            'updated_at',
+        ]));
+    }
+
+    public function test_core_task_account_foreign_keys_preserve_attribution(): void
+    {
+        $foreignKeys = Schema::getForeignKeys('core_tasks');
+
+        $this->assertForeignKey(
+            $foreignKeys,
+            'created_by_account_id',
+            'accounts',
+            'id',
+            'restrict'
+        );
+
+        $this->assertForeignKey(
+            $foreignKeys,
+            'assigned_account_id',
+            'accounts',
+            'id',
+            'restrict'
+        );
+    }
+
+    /**
+     * Assert a foreign key definition returned by Laravel's schema builder.
+     *
+     * @param array<int, array<string, mixed>> $foreignKeys
+     */
+    private function assertForeignKey(
+        array $foreignKeys,
+        string $column,
+        string $foreignTable,
+        string $foreignColumn,
+        string $onDelete
+    ): void {
+        $matchingForeignKey = collect($foreignKeys)->first(
+            fn (array $foreignKey): bool =>
+                ($foreignKey['columns'] ?? []) === [$column]
+                && ($foreignKey['foreign_table'] ?? null) === $foreignTable
+                && ($foreignKey['foreign_columns'] ?? []) === [$foreignColumn]
+        );
+
+        $this->assertNotNull(
+            $matchingForeignKey,
+            sprintf(
+                'Foreign key for %s referencing %s.%s was not found.',
+                $column,
+                $foreignTable,
+                $foreignColumn
+            )
+        );
+
+        $this->assertSame(
+            $onDelete,
+            strtolower((string) ($matchingForeignKey['on_delete'] ?? '')),
+            sprintf(
+                'Unexpected ON DELETE rule for foreign key %s.',
+                $column
+            )
+        );
+    }
 }
