@@ -180,6 +180,14 @@ class MarketplaceSchemaTest extends TestCase
         );
 
         $this->assertForeignKey(
+            $requestForeignKeys,
+            'winning_quotation_id',
+            'marketplace_quotations',
+            'quotation_id',
+            'restrict'
+        );
+
+        $this->assertForeignKey(
             $quotationForeignKeys,
             'request_id',
             'marketplace_requests',
