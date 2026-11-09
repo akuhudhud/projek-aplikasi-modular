@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\CoreTask;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class CoreTaskListApiTest extends TestCase
@@ -30,10 +31,12 @@ class CoreTaskListApiTest extends TestCase
         ]);
     }
 
-    private function authenticate(Account $account, string $token): void
-    {
+    private function authenticate(
+        Account $account,
+        string $token
+    ): void {
         Session::create([
-            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'token_hash' => hash('sha256', $token),
             'created_at' => now(),
@@ -50,9 +53,9 @@ class CoreTaskListApiTest extends TestCase
     ): CoreTask {
         return CoreTask::create([
             'task_id' => $taskId,
-            'module_key' => 'PickAndDrop',
-            'task_type' => 'PICK_AND_DROP_REQUEST',
-            'source_type' => 'pick_and_drop_request',
+            'module_key' => 'TestModule',
+            'task_type' => 'TEST_TASK',
+            'source_type' => 'test_source',
             'source_id' => $sourceId,
             'created_by_account_id' => $createdByAccountId
                 ?? $assignedAccountId,
@@ -107,6 +110,7 @@ class CoreTaskListApiTest extends TestCase
         );
 
         $token = 'core-task-user-token';
+
         $this->authenticate($user, $token);
 
         $response = $this->withHeader(
@@ -178,6 +182,7 @@ class CoreTaskListApiTest extends TestCase
         );
 
         $token = 'core-task-admin-token';
+
         $this->authenticate($admin, $token);
 
         $response = $this->withHeader(
@@ -218,6 +223,7 @@ class CoreTaskListApiTest extends TestCase
         );
 
         $token = 'core-task-safe-fields-token';
+
         $this->authenticate($user, $token);
 
         $response = $this->withHeader(
@@ -260,7 +266,12 @@ class CoreTaskListApiTest extends TestCase
                 'data.tasks.0.created_by_account_id'
             );
 
-        $response->assertJsonMissingPath('data.tasks.0.password');
-        $response->assertJsonMissingPath('data.tasks.0.token_hash');
+        $response->assertJsonMissingPath(
+            'data.tasks.0.password'
+        );
+
+        $response->assertJsonMissingPath(
+            'data.tasks.0.token_hash'
+        );
     }
 }
