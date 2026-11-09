@@ -4,6 +4,7 @@ namespace Tests\Feature\Runner;
 
 use App\Http\Controllers\Api\RunnerPublicProfileController;
 use App\Models\Account;
+use App\Models\CoreTask;
 use App\Models\RunnerPublicProfile;
 use App\Models\RunnerTaskRating;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -56,11 +57,38 @@ class RunnerPublicRatingReviewTest extends TestCase
         ?string $review = null,
         ?string $customerId = null
     ): RunnerTaskRating {
+        // Setiap rating mesti mempunyai pelanggan sebenar.
+        $customer = $customerId !== null
+            ? Account::query()->findOrFail($customerId)
+            : Account::query()->create([
+                'id' => (string) Str::uuid(),
+                'name' => 'Rating Test Customer',
+                'phone' => null,
+                'email' => null,
+                'password' => 'Password1',
+                'role' => 'USER',
+                'status' => 'ACTIVE',
+            ]);
+
+        // Setiap rating mesti merujuk Core Task sebenar.
+        $task = CoreTask::query()->create([
+            'task_id' => (string) Str::uuid(),
+            'module_key' => 'Marketplace',
+            'task_type' => 'MARKETPLACE_SERVICE_REQUEST',
+            'source_type' => 'rating_review_test',
+            'source_id' => (string) Str::uuid(),
+            'created_by_account_id' => $customer->id,
+            'assigned_account_id' => $runner->id,
+            'generic_status' => CoreTask::STATUS_COMPLETED,
+            'assigned_at' => now(),
+            'started_at' => now(),
+            'completed_at' => now(),
+        ]);
+
         return RunnerTaskRating::query()->create([
             'rating_id' => (string) Str::uuid(),
-            'task_id' => (string) Str::uuid(),
-            'customer_account_id' => $customerId
-                ?? (string) Str::uuid(),
+            'task_id' => $task->task_id,
+            'customer_account_id' => $customer->id,
             'runner_account_id' => $runner->id,
             'rating' => $rating,
             'review' => $review,
