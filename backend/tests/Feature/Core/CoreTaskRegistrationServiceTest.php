@@ -1,721 +1,411 @@
 <?php
 
-namespace Tests\Feature\Core;
+namespace Tests\Feature\Marketplace;
 
-use App\Contracts\CoreTaskRegistry;
+use App\Models\Account;
 use App\Models\CoreTask;
-use App\Services\CoreTaskRegistryService;
+use App\Models\MarketplaceRequest;
+use App\Models\Session;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use InvalidArgumentException;
-use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
-class CoreTaskRegistrationServiceTest extends TestCase
+class RunnerTaskRatingApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    private CoreTaskRegistryService $registry;
+    private function makeAccount(
+        string $runnerStatus = Account::RUNNER_STATUS_NOT_RUNNER
+    ): Account {
+        $account = Account::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Rating Test Account',
+            'phone' => null,
+            'email' => null,
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'ACTIVE',
+        ]);
 
-    protected function setUp(): void
+        $account->runner_status = $runnerStatus;
+        $account->save();
+
+        return $account->fresh();
+    }
+
+    private function authenticate(Account $account, string $token): void
     {
-        parent::setUp();
-
-        $this->registry = new CoreTaskRegistryService();
-
-        config([
-            'core_task_types.TestModule' => [
-                'enabled' => true,
-                'task_types' => [
-                    'TEST_TASK',
-                    'TEST_TASK_ALPHA',
-                    'TEST_TASK_BETA',
-                ],
-            ],
+        Session::create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $account->id,
+            'token_hash' => hash('sha256', $token),
+            'created_at' => now(),
+            'ended_at' => null,
         ]);
     }
 
-    public function test_registry_contract_resolves_to_service(): void
-    {
-        $this->assertInstanceOf(
-            CoreTaskRegistryService::class,
-            $this->app->make(CoreTaskRegistry::class)
-        );
+    private function createCompletedMarketplaceTask(
+        Account $customer,
+        Account $runner,
+        string $status = CoreTask::STATUS_COMPLETED
+    ): CoreTask {
+        $requestId = (string) Str::uuid();
 
-        $this->assertInstanceOf(
-            CoreTaskRegistry::class,
-            $this->registry
-        );
-    }
-
-    public function test_core_tasks_table_contains_required_fields(): void
-    {
-        $this->assertTrue(Schema::hasTable('core_tasks'));
-
-        $this->assertTrue(Schema::hasColumns('core_tasks', [
-            'task_id',
-            'module_key',
-            'task_type',
-            'source_type',
-            'source_id',
-            'created_by_account_id',
-            'assigned_account_id',
-            'generic_status',
-            'assigned_at',
-            'started_at',
-            'completed_at',
-            'cancelled_at',
-            'created_at',
-            'updated_at',
-        ]));
-    }
-
-    public function test_new_registry_record_defaults_to_open_status(): void
-    {
-        $taskId = (string) Str::uuid();
-        $now = now();
-
-        DB::table('core_tasks')->insert([
-            'task_id' => $taskId,
-            'module_key' => 'test-module',
-            'task_type' => 'test-task',
-            'source_type' => 'test-source',
-            'source_id' => 'source-default-status',
-            'created_by_account_id' => null,
-            'assigned_account_id' => null,
-            'created_at' => $now,
-            'updated_at' => $now,
+        MarketplaceRequest::query()->create([
+            'request_id' => $requestId,
+            'customer_account_id' => $customer->id,
+            'target_runner_account_id' => $runner->id,
+            'source_type' => MarketplaceRequest::SOURCE_MARKETPLACE,
+            'task_class' => MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY,
+            'pickup_location_snapshot' => ['address' => 'Pickup location'],
+            'delivery_location_snapshot' => ['address' => 'Delivery location'],
+            'description' => 'Rating API test request.',
+            'status' => MarketplaceRequest::STATUS_AWARDED,
+            'awarded_at' => now(),
+            'expires_at' => now()->addHours(2),
         ]);
 
-        $this->assertDatabaseHas('core_tasks', [
-            'task_id' => $taskId,
-            'generic_status' => CoreTask::STATUS_OPEN,
-        ]);
-    }
-
-    public function test_database_rejects_duplicate_source_identity(): void
-    {
-        $now = now();
-
-        $identity = [
-            'module_key' => 'test-module',
-            'task_type' => 'test-task',
-            'source_type' => 'test-source',
-            'source_id' => 'source-duplicate-001',
-            'created_by_account_id' => null,
-            'assigned_account_id' => null,
-            'generic_status' => CoreTask::STATUS_OPEN,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ];
-
-        DB::table('core_tasks')->insert([
-            ...$identity,
+        return CoreTask::query()->create([
             'task_id' => (string) Str::uuid(),
-        ]);
-
-        $this->expectException(QueryException::class);
-
-        DB::table('core_tasks')->insert([
-            ...$identity,
-            'task_id' => (string) Str::uuid(),
+            'module_key' => 'Marketplace',
+            'task_type' => 'MARKETPLACE_SERVICE_REQUEST',
+            'source_type' => 'marketplace_request',
+            'source_id' => $requestId,
+            'created_by_account_id' => $customer->id,
+            'assigned_account_id' => $runner->id,
+            'generic_status' => $status,
+            'assigned_at' => now(),
+            'started_at' => now(),
+            'completed_at' => $status === CoreTask::STATUS_COMPLETED ? now() : null,
         ]);
     }
 
-    public function test_same_source_id_is_allowed_for_different_identity_dimensions(): void
+    public function test_customer_can_submit_and_edit_one_rating_for_completed_task(): void
     {
-        $now = now();
-        $sourceId = 'shared-source-001';
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($customer, $runner);
 
-        $records = [
-            [
-                'module_key' => 'module-alpha',
-                'task_type' => 'TASK_ALPHA',
-                'source_type' => 'test-source',
-            ],
-            [
-                'module_key' => 'module-beta',
-                'task_type' => 'TASK_ALPHA',
-                'source_type' => 'test-source',
-            ],
-            [
-                'module_key' => 'module-alpha',
-                'task_type' => 'TASK_BETA',
-                'source_type' => 'test-source',
-            ],
-            [
-                'module_key' => 'module-alpha',
-                'task_type' => 'TASK_ALPHA',
-                'source_type' => 'another-source',
-            ],
-        ];
+        $token = 'rating-customer-token';
+        $this->authenticate($customer, $token);
 
-        foreach ($records as $record) {
-            DB::table('core_tasks')->insert([
-                'task_id' => (string) Str::uuid(),
-                'module_key' => $record['module_key'],
-                'task_type' => $record['task_type'],
-                'source_type' => $record['source_type'],
-                'source_id' => $sourceId,
-                'created_by_account_id' => null,
-                'assigned_account_id' => null,
-                'generic_status' => CoreTask::STATUS_OPEN,
-                'created_at' => $now,
-                'updated_at' => $now,
+        $first = $this->withToken($token)
+            ->postJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 4,
+                'review' => 'Penghantaran baik.',
+                'customer_account_id' => (string) Str::uuid(),
+                'runner_account_id' => (string) Str::uuid(),
+            ])
+            ->assertCreated()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.rating.rating', 4)
+            ->assertJsonPath('data.rating.review', 'Penghantaran baik.')
+            ->assertJsonMissingPath('data.rating.customer_account_id')
+            ->assertJsonMissingPath('data.rating.runner_account_id');
+
+        $ratingId = $first->json('data.rating.rating_id');
+
+        $this->withToken($token)
+            ->patchJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 5,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.rating.rating_id', $ratingId)
+            ->assertJsonPath('data.rating.rating', 5)
+            ->assertJsonPath('data.rating.review', 'Penghantaran baik.');
+
+        $this->assertDatabaseCount('runner_task_ratings', 1);
+
+        $this->assertDatabaseHas('runner_task_ratings', [
+            'rating_id' => $ratingId,
+            'task_id' => $task->task_id,
+            'customer_account_id' => $customer->id,
+            'runner_account_id' => $runner->id,
+            'rating' => 5,
+            'review' => 'Penghantaran baik.',
+        ]);
+    }
+
+    public function test_rating_one_is_a_valid_minimum_rating(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($customer, $runner);
+
+        $token = 'minimum-rating-token';
+        $this->authenticate($customer, $token);
+
+        $this->withToken($token)
+            ->postJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 1,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.rating.rating', 1);
+
+        $this->assertDatabaseHas('runner_task_ratings', [
+            'task_id' => $task->task_id,
+            'rating' => 1,
+        ]);
+
+        $this->assertDatabaseCount('runner_task_ratings', 1);
+    }
+
+    public function test_patch_without_existing_rating_does_not_create_rating(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($customer, $runner);
+
+        $token = 'patch-without-rating-token';
+        $this->authenticate($customer, $token);
+
+        $this->withToken($token)
+            ->patchJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 4,
+                'review' => 'Tidak sepatutnya dicipta.',
+            ])
+            ->assertNotFound()
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseCount('runner_task_ratings', 0);
+    }
+
+    public function test_database_rejects_rating_below_one(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($customer, $runner);
+
+        try {
+            DB::table('runner_task_ratings')->insert([
+                'rating_id' => (string) Str::uuid(),
+                'task_id' => $task->task_id,
+                'customer_account_id' => $customer->id,
+                'runner_account_id' => $runner->id,
+                'rating' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
+
+            $this->fail('Database accepted a rating below one.');
+        } catch (QueryException $exception) {
+            $this->assertSame(
+                '3819',
+                (string) ($exception->errorInfo[1] ?? ''),
+                'Expected MySQL CHECK constraint violation, not another database error.'
+            );
+
+            $this->assertDatabaseCount('runner_task_ratings', 0);
         }
-
-        $this->assertDatabaseCount('core_tasks', 4);
     }
 
-    public function test_model_declares_uuid_primary_key_and_generic_statuses(): void
+    public function test_database_rejects_rating_above_five(): void
     {
-        $task = new CoreTask();
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($customer, $runner);
 
-        $this->assertSame('core_tasks', $task->getTable());
-        $this->assertSame('task_id', $task->getKeyName());
-        $this->assertSame('string', $task->getKeyType());
-        $this->assertFalse($task->getIncrementing());
+        try {
+            DB::table('runner_task_ratings')->insert([
+                'rating_id' => (string) Str::uuid(),
+                'task_id' => $task->task_id,
+                'customer_account_id' => $customer->id,
+                'runner_account_id' => $runner->id,
+                'rating' => 6,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
-        $this->assertSame('OPEN', CoreTask::STATUS_OPEN);
-        $this->assertSame('ASSIGNED', CoreTask::STATUS_ASSIGNED);
-        $this->assertSame('IN_PROGRESS', CoreTask::STATUS_IN_PROGRESS);
-        $this->assertSame('COMPLETED', CoreTask::STATUS_COMPLETED);
-        $this->assertSame('CANCELLED', CoreTask::STATUS_CANCELLED);
+            $this->fail('Database accepted a rating above five.');
+        } catch (QueryException $exception) {
+            $this->assertSame(
+                '3819',
+                (string) ($exception->errorInfo[1] ?? ''),
+                'Expected MySQL CHECK constraint violation, not another database error.'
+            );
+
+            $this->assertDatabaseCount('runner_task_ratings', 0);
+        }
     }
 
-    public function test_registered_module_task_type_can_create_core_task(): void
+    public function test_another_customer_cannot_rate_or_edit_the_task(): void
     {
-        $task = $this->registry->register(
-            'TestModule',
-            'TEST_TASK',
-            'test_source',
-            'source-001'
-        );
+        $customer = $this->makeAccount();
+        $otherCustomer = $this->makeAccount();
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($customer, $runner);
 
-        $this->assertInstanceOf(CoreTask::class, $task);
-        $this->assertNotEmpty($task->task_id);
-        $this->assertSame('TestModule', $task->module_key);
-        $this->assertSame('TEST_TASK', $task->task_type);
-        $this->assertSame('test_source', $task->source_type);
-        $this->assertSame('source-001', $task->source_id);
-        $this->assertSame(CoreTask::STATUS_OPEN, $task->generic_status);
+        $ownerToken = 'rating-owner-token';
+        $this->authenticate($customer, $ownerToken);
 
-        $this->assertDatabaseHas('core_tasks', [
+        $originalResponse = $this->withToken($ownerToken)
+            ->postJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 4,
+                'review' => 'Ulasan asal pelanggan.',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.rating.rating', 4)
+            ->assertJsonPath('data.rating.review', 'Ulasan asal pelanggan.');
+
+        $ratingId = $originalResponse->json('data.rating.rating_id');
+
+        $otherToken = 'other-customer-token';
+        $this->authenticate($otherCustomer, $otherToken);
+
+        $this->withToken($otherToken)
+            ->postJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 1,
+                'review' => 'Cubaan rating tanpa kebenaran.',
+            ])
+            ->assertForbidden()
+            ->assertJsonPath('success', false);
+
+        $this->withToken($otherToken)
+            ->patchJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 1,
+                'review' => 'Cubaan mengubah rating tanpa kebenaran.',
+            ])
+            ->assertForbidden()
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseCount('runner_task_ratings', 1);
+
+        $this->assertDatabaseHas('runner_task_ratings', [
+            'rating_id' => $ratingId,
             'task_id' => $task->task_id,
-            'module_key' => 'TestModule',
-            'task_type' => 'TEST_TASK',
-            'source_type' => 'test_source',
-            'source_id' => 'source-001',
+            'customer_account_id' => $customer->id,
+            'runner_account_id' => $runner->id,
+            'rating' => 4,
+            'review' => 'Ulasan asal pelanggan.',
         ]);
     }
 
-    public function test_unknown_module_is_rejected(): void
+    public function test_runner_cannot_rate_their_own_task(): void
     {
-        $this->expectException(InvalidArgumentException::class);
+        $account = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($account, $account);
 
-        $this->registry->register(
-            'UnknownModule',
-            'UNKNOWN_TASK',
-            'test_source',
-            'source-unknown-module'
-        );
+        $token = 'self-rating-token';
+        $this->authenticate($account, $token);
+
+        $this->withToken($token)
+            ->postJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 5,
+                'review' => 'Rating sendiri tidak dibenarkan.',
+            ])
+            ->assertForbidden()
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseCount('runner_task_ratings', 0);
     }
 
-    public function test_module_key_matching_is_case_sensitive(): void
+    public function test_rating_cannot_be_deleted(): void
     {
-        $this->expectException(InvalidArgumentException::class);
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($customer, $runner);
 
-        $this->registry->register(
-            'testmodule',
-            'TEST_TASK',
-            'test_source',
-            'source-wrong-module-case'
-        );
-    }
+        $token = 'rating-delete-test-token';
+        $this->authenticate($customer, $token);
 
-    public function test_unsupported_task_type_is_rejected(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
+        $response = $this->withToken($token)
+            ->postJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                'rating' => 5,
+                'review' => 'Ujian rating kekal.',
+            ])
+            ->assertCreated();
 
-        $this->registry->register(
-            'TestModule',
-            'UNDECLARED_TASK',
-            'test_source',
-            'source-unsupported-type'
-        );
-    }
+        $ratingId = $response->json('data.rating.rating_id');
 
-    public function test_task_type_matching_is_case_sensitive(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
+        $this->withToken($token)
+            ->deleteJson('/api/core/tasks/'.$task->task_id.'/rating')
+            ->assertStatus(405);
 
-        $this->registry->register(
-            'TestModule',
-            'test_task',
-            'test_source',
-            'source-wrong-task-case'
-        );
-    }
+        $this->assertDatabaseCount('runner_task_ratings', 1);
 
-    public static function emptyIdentityFieldsProvider(): array
-    {
-        return [
-            'empty module key' => [
-                '',
-                'TEST_TASK',
-                'test_source',
-                'source-empty-module',
-            ],
-            'empty task type' => [
-                'TestModule',
-                '',
-                'test_source',
-                'source-empty-type',
-            ],
-            'empty source type' => [
-                'TestModule',
-                'TEST_TASK',
-                '',
-                'source-empty-source-type',
-            ],
-            'empty source id' => [
-                'TestModule',
-                'TEST_TASK',
-                'test_source',
-                '',
-            ],
-        ];
-    }
-
-    #[DataProvider('emptyIdentityFieldsProvider')]
-    public function test_empty_identity_fields_are_rejected(
-        string $moduleKey,
-        string $taskType,
-        string $sourceType,
-        string $sourceId
-    ): void {
-        try {
-            $this->registry->register(
-                $moduleKey,
-                $taskType,
-                $sourceType,
-                $sourceId
-            );
-
-            $this->fail('Empty identity fields should be rejected.');
-        } catch (InvalidArgumentException) {
-            $this->assertDatabaseCount('core_tasks', 0);
-        }
-    }
-
-    public static function whitespaceIdentityFieldsProvider(): array
-    {
-        return [
-            'whitespace module key' => [
-                '   ',
-                'TEST_TASK',
-                'test_source',
-                'source-whitespace-module',
-            ],
-            'whitespace task type' => [
-                'TestModule',
-                " \t ",
-                'test_source',
-                'source-whitespace-type',
-            ],
-            'whitespace source type' => [
-                'TestModule',
-                'TEST_TASK',
-                " \t ",
-                'source-whitespace-source-type',
-            ],
-            'whitespace source id' => [
-                'TestModule',
-                'TEST_TASK',
-                'test_source',
-                " \t ",
-            ],
-        ];
-    }
-
-    #[DataProvider('whitespaceIdentityFieldsProvider')]
-    public function test_whitespace_only_identity_fields_are_rejected(
-        string $moduleKey,
-        string $taskType,
-        string $sourceType,
-        string $sourceId
-    ): void {
-        try {
-            $this->registry->register(
-                $moduleKey,
-                $taskType,
-                $sourceType,
-                $sourceId
-            );
-
-            $this->fail('Whitespace-only identity fields should be rejected.');
-        } catch (InvalidArgumentException) {
-            $this->assertDatabaseCount('core_tasks', 0);
-        }
-    }
-
-    public static function rejectedRegistrationProvider(): array
-    {
-        return [
-            'unknown module' => [
-                'UnknownModule',
-                'UNKNOWN_TASK',
-                'unknown_source',
-                'rejected-unknown-module',
-            ],
-            'unsupported task type' => [
-                'TestModule',
-                'UNDECLARED_TASK',
-                'test_source',
-                'rejected-unsupported-type',
-            ],
-            'incorrect module key case' => [
-                'testmodule',
-                'TEST_TASK',
-                'test_source',
-                'rejected-module-case',
-            ],
-            'incorrect task type case' => [
-                'TestModule',
-                'test_task',
-                'test_source',
-                'rejected-task-type-case',
-            ],
-        ];
-    }
-
-    #[DataProvider('rejectedRegistrationProvider')]
-    public function test_rejected_registration_does_not_persist_a_task(
-        string $moduleKey,
-        string $taskType,
-        string $sourceType,
-        string $sourceId
-    ): void {
-        try {
-            $this->registry->register(
-                $moduleKey,
-                $taskType,
-                $sourceType,
-                $sourceId
-            );
-
-            $this->fail('Unsupported registration should be rejected.');
-        } catch (InvalidArgumentException) {
-            $this->assertDatabaseCount('core_tasks', 0);
-        }
-    }
-
-    public function test_repeated_registration_returns_existing_task(): void
-    {
-        $first = $this->registry->register(
-            'TestModule',
-            'TEST_TASK',
-            'test_source',
-            'request-idempotent-001'
-        );
-
-        $second = $this->registry->register(
-            'TestModule',
-            'TEST_TASK',
-            'test_source',
-            'request-idempotent-001'
-        );
-
-        $this->assertSame($first->task_id, $second->task_id);
-        $this->assertSame('test_source', $second->source_type);
-        $this->assertDatabaseCount('core_tasks', 1);
-    }
-
-    public function test_different_source_types_with_same_source_id_create_separate_tasks(): void
-    {
-        $first = $this->registry->register(
-            'TestModule',
-            'TEST_TASK',
-            'marketplace_request',
-            'shared-source-identity-001'
-        );
-
-        $second = $this->registry->register(
-            'TestModule',
-            'TEST_TASK',
-            'another_source',
-            'shared-source-identity-001'
-        );
-
-        $this->assertNotSame($first->task_id, $second->task_id);
-
-        $this->assertSame('marketplace_request', $first->source_type);
-        $this->assertSame('another_source', $second->source_type);
-
-        $this->assertSame($first->source_id, $second->source_id);
-        $this->assertDatabaseCount('core_tasks', 2);
-    }
-
-    public function test_different_source_ids_create_separate_tasks(): void
-    {
-        $first = $this->registry->register(
-            'TestModule',
-            'TEST_TASK',
-            'test_source',
-            'request-101'
-        );
-
-        $second = $this->registry->register(
-            'TestModule',
-            'TEST_TASK',
-            'test_source',
-            'request-102'
-        );
-
-        $this->assertNotSame($first->task_id, $second->task_id);
-        $this->assertDatabaseCount('core_tasks', 2);
-    }
-
-    public function test_identity_fields_are_trimmed_before_registration(): void
-    {
-        $task = $this->registry->register(
-            ' TestModule ',
-            ' TEST_TASK ',
-            ' test_source ',
-            ' request-trim-001 '
-        );
-
-        $this->assertSame('TestModule', $task->module_key);
-        $this->assertSame('TEST_TASK', $task->task_type);
-        $this->assertSame('test_source', $task->source_type);
-        $this->assertSame('request-trim-001', $task->source_id);
-    }
-
-    public function test_created_by_account_id_is_stored_on_registration(): void
-    {
-        $accountId = '11111111-1111-4111-8111-111111111111';
-
-        $task = $this->registry->register(
-            'TestModule',
-            'TEST_TASK',
-            'test_source',
-            'request-creator-001',
-            $accountId
-        );
-
-        $this->assertSame($accountId, $task->created_by_account_id);
-
-        $this->assertDatabaseHas('core_tasks', [
+        $this->assertDatabaseHas('runner_task_ratings', [
+            'rating_id' => $ratingId,
             'task_id' => $task->task_id,
-            'created_by_account_id' => $accountId,
+            'rating' => 5,
+            'review' => 'Ujian rating kekal.',
         ]);
     }
 
-    public function test_repeated_registration_does_not_overwrite_original_creator(): void
+    public function test_task_must_be_completed_before_rating(): void
     {
-        $originalCreator = '11111111-1111-4111-8111-111111111111';
-        $secondCreator = '22222222-2222-4222-8222-222222222222';
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
-        $first = $this->registry->register(
-            'TestModule',
-            'TEST_TASK',
-            'test_source',
-            'request-creator-idempotent-001',
-            $originalCreator
-        );
+        $token = 'ineligible-task-customer-token';
+        $this->authenticate($customer, $token);
 
-        $second = $this->registry->register(
-            'TestModule',
-            'TEST_TASK',
-            'test_source',
-            'request-creator-idempotent-001',
-            $secondCreator
-        );
+        $ineligibleStatuses = [
+            CoreTask::STATUS_IN_PROGRESS,
+            CoreTask::STATUS_CANCELLED,
+        ];
 
-        $this->assertSame($first->task_id, $second->task_id);
-        $this->assertSame($originalCreator, $second->created_by_account_id);
-        $this->assertDatabaseCount('core_tasks', 1);
+        foreach ($ineligibleStatuses as $status) {
+            $task = $this->createCompletedMarketplaceTask(
+                $customer,
+                $runner,
+                $status
+            );
+
+            $this->withToken($token)
+                ->postJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                    'rating' => 5,
+                ])
+                ->assertUnprocessable()
+                ->assertJsonPath('success', false);
+        }
+
+        $this->assertDatabaseCount('runner_task_ratings', 0);
     }
 
-    public function test_repeated_registration_preserves_null_creator(): void
+    public function test_rating_must_be_an_integer_between_one_and_five(): void
     {
-        $first = $this->registry->register(
-            'TestModule',
-            'TEST_TASK',
-            'test_source',
-            'request-null-creator-001'
-        );
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $task = $this->createCompletedMarketplaceTask($customer, $runner);
 
-        $second = $this->registry->register(
-            'TestModule',
-            'TEST_TASK',
-            'test_source',
-            'request-null-creator-001',
-            '11111111-1111-4111-8111-111111111111'
-        );
+        $token = 'invalid-rating-token';
+        $this->authenticate($customer, $token);
 
-        $this->assertSame($first->task_id, $second->task_id);
-        $this->assertNull($second->created_by_account_id);
-        $this->assertSame(CoreTask::STATUS_OPEN, $second->generic_status);
+        foreach ([0, -1, 6, '4.5', 'invalid'] as $value) {
+            $this->withToken($token)
+                ->postJson('/api/core/tasks/'.$task->task_id.'/rating', [
+                    'rating' => $value,
+                ])
+                ->assertUnprocessable();
+        }
 
-        $this->assertDatabaseHas('core_tasks', [
-            'task_id' => $first->task_id,
-            'created_by_account_id' => null,
-            'generic_status' => CoreTask::STATUS_OPEN,
-        ]);
-
-        $this->assertDatabaseCount('core_tasks', 1);
+        $this->assertDatabaseCount('runner_task_ratings', 0);
     }
 
-    public function test_normalized_identity_returns_existing_task(): void
+    public function test_rating_endpoint_requires_authentication(): void
     {
-        $first = $this->registry->register(
-            'TestModule',
-            'TEST_TASK',
-            'test_source',
-            'request-normalization-001'
-        );
-
-        $second = $this->registry->register(
-            ' TestModule ',
-            ' TEST_TASK ',
-            ' test_source ',
-            ' request-normalization-001 '
-        );
-
-        $this->assertSame($first->task_id, $second->task_id);
-        $this->assertSame('TestModule', $second->module_key);
-        $this->assertSame('TEST_TASK', $second->task_type);
-        $this->assertSame('test_source', $second->source_type);
-        $this->assertSame('request-normalization-001', $second->source_id);
-        $this->assertSame(CoreTask::STATUS_OPEN, $second->generic_status);
-        $this->assertDatabaseCount('core_tasks', 1);
+        $this->postJson(
+            '/api/core/tasks/'.Str::uuid().'/rating',
+            ['rating' => 5]
+        )->assertUnauthorized();
     }
 
-    public function test_repeated_registration_preserves_existing_lifecycle_state(): void
+    public function test_rating_cannot_be_submitted_for_an_unknown_task(): void
     {
-        $first = $this->registry->register(
-            'TestModule',
-            'TEST_TASK',
-            'test_source',
-            'request-lifecycle-001',
-            '11111111-1111-4111-8111-111111111111'
-        );
+        $customer = $this->makeAccount();
 
-        $assignedAt = Carbon::parse('2026-10-15 10:30:00');
+        $token = 'unknown-task-token';
+        $this->authenticate($customer, $token);
 
-        $first->generic_status = CoreTask::STATUS_ASSIGNED;
-        $first->assigned_account_id = '22222222-2222-4222-8222-222222222222';
-        $first->assigned_at = $assignedAt;
-        $first->save();
+        $this->withToken($token)
+            ->postJson('/api/core/tasks/'.Str::uuid().'/rating', [
+                'rating' => 5,
+            ])
+            ->assertNotFound();
 
-        $second = $this->registry->register(
-            'TestModule',
-            'TEST_TASK',
-            'test_source',
-            'request-lifecycle-001',
-            '33333333-3333-4333-8333-333333333333'
-        );
-
-        $second->refresh();
-
-        $this->assertSame($first->task_id, $second->task_id);
-        $this->assertSame(CoreTask::STATUS_ASSIGNED, $second->generic_status);
-
-        $this->assertSame(
-            '22222222-2222-4222-8222-222222222222',
-            $second->assigned_account_id
-        );
-
-        $this->assertTrue($second->assigned_at->equalTo($assignedAt));
-        $this->assertSame('test_source', $second->source_type);
-
-        $this->assertSame(
-            '11111111-1111-4111-8111-111111111111',
-            $second->created_by_account_id
-        );
-
-        $this->assertDatabaseCount('core_tasks', 1);
-    }
-
-    public function test_source_ids_differing_only_by_case_are_distinct(): void
-    {
-        $upperCase = $this->registry->register(
-            'TestModule',
-            'TEST_TASK',
-            'test_source',
-            'request-Case-001'
-        );
-
-        $lowerCase = $this->registry->register(
-            'TestModule',
-            'TEST_TASK',
-            'test_source',
-            'request-case-001'
-        );
-
-        $this->assertNotSame($upperCase->task_id, $lowerCase->task_id);
-        $this->assertSame('request-Case-001', $upperCase->source_id);
-        $this->assertSame('request-case-001', $lowerCase->source_id);
-        $this->assertSame(CoreTask::STATUS_OPEN, $upperCase->generic_status);
-        $this->assertSame(CoreTask::STATUS_OPEN, $lowerCase->generic_status);
-        $this->assertDatabaseCount('core_tasks', 2);
-    }
-
-    public function test_new_task_has_empty_lifecycle_timestamps(): void
-    {
-        $task = CoreTask::create([
-            'task_id' => (string) Str::uuid(),
-            'module_key' => 'TestModule',
-            'task_type' => 'TEST_TASK',
-            'source_type' => 'test_source',
-            'source_id' => 'model-contract-001',
-        ]);
-
-        $task->refresh();
-
-        $this->assertSame(CoreTask::STATUS_OPEN, $task->generic_status);
-        $this->assertNull($task->assigned_account_id);
-        $this->assertNull($task->assigned_at);
-        $this->assertNull($task->started_at);
-        $this->assertNull($task->completed_at);
-        $this->assertNull($task->cancelled_at);
-    }
-
-    public function test_lifecycle_timestamps_are_cast_to_datetime(): void
-    {
-        $casts = (new CoreTask())->getCasts();
-
-        $this->assertSame('datetime', $casts['assigned_at']);
-        $this->assertSame('datetime', $casts['started_at']);
-        $this->assertSame('datetime', $casts['completed_at']);
-        $this->assertSame('datetime', $casts['cancelled_at']);
-    }
-
-    public function test_task_id_is_a_string_uuid_primary_key(): void
-    {
-        $taskId = (string) Str::uuid();
-
-        $task = CoreTask::create([
-            'task_id' => $taskId,
-            'module_key' => 'TestModule',
-            'task_type' => 'TEST_TASK',
-            'source_type' => 'test_source',
-            'source_id' => 'model-contract-002',
-        ]);
-
-        $this->assertSame($taskId, $task->task_id);
-        $this->assertSame('task_id', $task->getKeyName());
-        $this->assertFalse($task->getIncrementing());
-
-        $this->assertDatabaseHas('core_tasks', [
-            'task_id' => $taskId,
-            'generic_status' => CoreTask::STATUS_OPEN,
-        ]);
+        $this->assertDatabaseCount('runner_task_ratings', 0);
     }
 }
