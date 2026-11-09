@@ -46,6 +46,7 @@ class MarketplaceCoreTaskRegistrationTest extends TestCase
             'task_id' => $task->task_id,
             'module_key' => 'Marketplace',
             'task_type' => 'MARKETPLACE_SERVICE_REQUEST',
+            'source_type' => 'marketplace_request',
             'source_id' => 'request-marketplace-001',
         ]);
     }
