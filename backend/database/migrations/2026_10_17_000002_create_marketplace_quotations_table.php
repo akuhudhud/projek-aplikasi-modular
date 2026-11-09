@@ -43,6 +43,13 @@ return new class extends Migration
                 ->on('accounts')
                 ->restrictOnDelete();
 
+            // Required as the referenced composite key for the
+            // winning quotation relationship.
+            $table->unique(
+                ['request_id', 'quotation_id'],
+                'marketplace_quotes_request_quotation_unique'
+            );
+
             $table->index(
                 ['request_id', 'status', 'created_at'],
                 'marketplace_quotes_request_status_index'
@@ -59,15 +66,28 @@ return new class extends Migration
             );
         });
 
-        // Add this only after marketplace_quotations exists.
-        // This completes the relationship between a request
-        // and its selected winning quotation.
+        /*
+         * A request can only select a quotation belonging to itself.
+         *
+         * The composite foreign key enforces:
+         * marketplace_requests.request_id
+         * + marketplace_requests.winning_quotation_id
+         *
+         * must match:
+         * marketplace_quotations.request_id
+         * + marketplace_quotations.quotation_id
+         */
+
         Schema::table('marketplace_requests', function (Blueprint $table) {
+            $table->dropForeign(
+                'marketplace_requests_winning_quote_fk'
+            );
+
             $table->foreign(
-                'winning_quotation_id',
+                ['request_id', 'winning_quotation_id'],
                 'marketplace_requests_winning_quote_fk'
             )
-                ->references('quotation_id')
+                ->references(['request_id', 'quotation_id'])
                 ->on('marketplace_quotations')
                 ->restrictOnDelete();
         });
@@ -75,7 +95,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Remove the cross-table foreign key before dropping quotations.
+        // Remove the composite relationship before dropping quotations.
         Schema::table('marketplace_requests', function (Blueprint $table) {
             $table->dropForeign(
                 'marketplace_requests_winning_quote_fk'
