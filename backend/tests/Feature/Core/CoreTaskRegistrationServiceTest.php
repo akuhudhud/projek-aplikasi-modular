@@ -27,13 +27,13 @@ class CoreTaskRegistrationServiceTest extends TestCase
 
         $this->registry = new CoreTaskRegistryService();
 
-        // Test fixture only. This does not enable the module provider
-        // or change the production runtime configuration.
         config([
-            'core_task_types.PickAndDrop' => [
+            'core_task_types.TestModule' => [
                 'enabled' => true,
                 'task_types' => [
-                    'PICK_AND_DROP_REQUEST',
+                    'TEST_TASK',
+                    'TEST_TASK_ALPHA',
+                    'TEST_TASK_BETA',
                 ],
             ],
         ]);
@@ -132,9 +132,18 @@ class CoreTaskRegistrationServiceTest extends TestCase
         $sourceId = 'shared-source-001';
 
         $records = [
-            ['module_key' => 'module-alpha', 'task_type' => 'TASK_ALPHA'],
-            ['module_key' => 'module-beta', 'task_type' => 'TASK_ALPHA'],
-            ['module_key' => 'module-alpha', 'task_type' => 'TASK_BETA'],
+            [
+                'module_key' => 'module-alpha',
+                'task_type' => 'TASK_ALPHA',
+            ],
+            [
+                'module_key' => 'module-beta',
+                'task_type' => 'TASK_ALPHA',
+            ],
+            [
+                'module_key' => 'module-alpha',
+                'task_type' => 'TASK_BETA',
+            ],
         ];
 
         foreach ($records as $record) {
@@ -174,25 +183,25 @@ class CoreTaskRegistrationServiceTest extends TestCase
     public function test_registered_module_task_type_can_create_core_task(): void
     {
         $task = $this->registry->register(
-            'PickAndDrop',
-            'PICK_AND_DROP_REQUEST',
-            'pick_and_drop_request',
-            'request-001'
+            'TestModule',
+            'TEST_TASK',
+            'test_source',
+            'source-001'
         );
 
         $this->assertInstanceOf(CoreTask::class, $task);
         $this->assertNotEmpty($task->task_id);
-        $this->assertSame('PickAndDrop', $task->module_key);
-        $this->assertSame('PICK_AND_DROP_REQUEST', $task->task_type);
-        $this->assertSame('pick_and_drop_request', $task->source_type);
-        $this->assertSame('request-001', $task->source_id);
+        $this->assertSame('TestModule', $task->module_key);
+        $this->assertSame('TEST_TASK', $task->task_type);
+        $this->assertSame('test_source', $task->source_type);
+        $this->assertSame('source-001', $task->source_id);
         $this->assertSame(CoreTask::STATUS_OPEN, $task->generic_status);
 
         $this->assertDatabaseHas('core_tasks', [
             'task_id' => $task->task_id,
-            'module_key' => 'PickAndDrop',
-            'task_type' => 'PICK_AND_DROP_REQUEST',
-            'source_id' => 'request-001',
+            'module_key' => 'TestModule',
+            'task_type' => 'TEST_TASK',
+            'source_id' => 'source-001',
         ]);
     }
 
@@ -213,9 +222,9 @@ class CoreTaskRegistrationServiceTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         $this->registry->register(
-            'pickanddrop',
-            'PICK_AND_DROP_REQUEST',
-            'pick_and_drop_request',
+            'testmodule',
+            'TEST_TASK',
+            'test_source',
             'source-wrong-module-case'
         );
     }
@@ -225,9 +234,9 @@ class CoreTaskRegistrationServiceTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         $this->registry->register(
-            'PickAndDrop',
+            'TestModule',
             'UNDECLARED_TASK',
-            'pick_and_drop_request',
+            'test_source',
             'source-unsupported-type'
         );
     }
@@ -237,9 +246,9 @@ class CoreTaskRegistrationServiceTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         $this->registry->register(
-            'PickAndDrop',
-            'pick_and_drop_request',
-            'pick_and_drop_request',
+            'TestModule',
+            'test_task',
+            'test_source',
             'source-wrong-task-case'
         );
     }
@@ -249,26 +258,26 @@ class CoreTaskRegistrationServiceTest extends TestCase
         return [
             'empty module key' => [
                 '',
-                'PICK_AND_DROP_REQUEST',
-                'pick_and_drop_request',
+                'TEST_TASK',
+                'test_source',
                 'source-empty-module',
             ],
             'empty task type' => [
-                'PickAndDrop',
+                'TestModule',
                 '',
-                'pick_and_drop_request',
+                'test_source',
                 'source-empty-type',
             ],
             'empty source type' => [
-                'PickAndDrop',
-                'PICK_AND_DROP_REQUEST',
+                'TestModule',
+                'TEST_TASK',
                 '',
                 'source-empty-source-type',
             ],
             'empty source id' => [
-                'PickAndDrop',
-                'PICK_AND_DROP_REQUEST',
-                'pick_and_drop_request',
+                'TestModule',
+                'TEST_TASK',
+                'test_source',
                 '',
             ],
         ];
@@ -300,26 +309,26 @@ class CoreTaskRegistrationServiceTest extends TestCase
         return [
             'whitespace module key' => [
                 '   ',
-                'PICK_AND_DROP_REQUEST',
-                'pick_and_drop_request',
+                'TEST_TASK',
+                'test_source',
                 'source-whitespace-module',
             ],
             'whitespace task type' => [
-                'PickAndDrop',
+                'TestModule',
                 " \t ",
-                'pick_and_drop_request',
+                'test_source',
                 'source-whitespace-type',
             ],
             'whitespace source type' => [
-                'PickAndDrop',
-                'PICK_AND_DROP_REQUEST',
+                'TestModule',
+                'TEST_TASK',
                 " \t ",
                 'source-whitespace-source-type',
             ],
             'whitespace source id' => [
-                'PickAndDrop',
-                'PICK_AND_DROP_REQUEST',
-                'pick_and_drop_request',
+                'TestModule',
+                'TEST_TASK',
+                'test_source',
                 " \t ",
             ],
         ];
@@ -356,21 +365,21 @@ class CoreTaskRegistrationServiceTest extends TestCase
                 'rejected-unknown-module',
             ],
             'unsupported task type' => [
-                'PickAndDrop',
+                'TestModule',
                 'UNDECLARED_TASK',
-                'pick_and_drop_request',
+                'test_source',
                 'rejected-unsupported-type',
             ],
             'incorrect module key case' => [
-                'pickanddrop',
-                'PICK_AND_DROP_REQUEST',
-                'pick_and_drop_request',
+                'testmodule',
+                'TEST_TASK',
+                'test_source',
                 'rejected-module-case',
             ],
             'incorrect task type case' => [
-                'PickAndDrop',
-                'pick_and_drop_request',
-                'pick_and_drop_request',
+                'TestModule',
+                'test_task',
+                'test_source',
                 'rejected-task-type-case',
             ],
         ];
@@ -400,37 +409,37 @@ class CoreTaskRegistrationServiceTest extends TestCase
     public function test_repeated_registration_returns_existing_task(): void
     {
         $first = $this->registry->register(
-            'PickAndDrop',
-            'PICK_AND_DROP_REQUEST',
-            'pick_and_drop_request',
+            'TestModule',
+            'TEST_TASK',
+            'test_source',
             'request-idempotent-001'
         );
 
         $second = $this->registry->register(
-            'PickAndDrop',
-            'PICK_AND_DROP_REQUEST',
+            'TestModule',
+            'TEST_TASK',
             'different_source_label',
             'request-idempotent-001'
         );
 
         $this->assertSame($first->task_id, $second->task_id);
-        $this->assertSame('pick_and_drop_request', $second->source_type);
+        $this->assertSame('test_source', $second->source_type);
         $this->assertDatabaseCount('core_tasks', 1);
     }
 
     public function test_different_source_ids_create_separate_tasks(): void
     {
         $first = $this->registry->register(
-            'PickAndDrop',
-            'PICK_AND_DROP_REQUEST',
-            'pick_and_drop_request',
+            'TestModule',
+            'TEST_TASK',
+            'test_source',
             'request-101'
         );
 
         $second = $this->registry->register(
-            'PickAndDrop',
-            'PICK_AND_DROP_REQUEST',
-            'pick_and_drop_request',
+            'TestModule',
+            'TEST_TASK',
+            'test_source',
             'request-102'
         );
 
@@ -441,15 +450,15 @@ class CoreTaskRegistrationServiceTest extends TestCase
     public function test_identity_fields_are_trimmed_before_registration(): void
     {
         $task = $this->registry->register(
-            ' PickAndDrop ',
-            ' PICK_AND_DROP_REQUEST ',
-            ' pick_and_drop_request ',
+            ' TestModule ',
+            ' TEST_TASK ',
+            ' test_source ',
             ' request-trim-001 '
         );
 
-        $this->assertSame('PickAndDrop', $task->module_key);
-        $this->assertSame('PICK_AND_DROP_REQUEST', $task->task_type);
-        $this->assertSame('pick_and_drop_request', $task->source_type);
+        $this->assertSame('TestModule', $task->module_key);
+        $this->assertSame('TEST_TASK', $task->task_type);
+        $this->assertSame('test_source', $task->source_type);
         $this->assertSame('request-trim-001', $task->source_id);
     }
 
@@ -458,9 +467,9 @@ class CoreTaskRegistrationServiceTest extends TestCase
         $accountId = '11111111-1111-4111-8111-111111111111';
 
         $task = $this->registry->register(
-            'PickAndDrop',
-            'PICK_AND_DROP_REQUEST',
-            'pick_and_drop_request',
+            'TestModule',
+            'TEST_TASK',
+            'test_source',
             'request-creator-001',
             $accountId
         );
@@ -479,17 +488,17 @@ class CoreTaskRegistrationServiceTest extends TestCase
         $secondCreator = '22222222-2222-4222-8222-222222222222';
 
         $first = $this->registry->register(
-            'PickAndDrop',
-            'PICK_AND_DROP_REQUEST',
-            'pick_and_drop_request',
+            'TestModule',
+            'TEST_TASK',
+            'test_source',
             'request-creator-idempotent-001',
             $originalCreator
         );
 
         $second = $this->registry->register(
-            'PickAndDrop',
-            'PICK_AND_DROP_REQUEST',
-            'pick_and_drop_request',
+            'TestModule',
+            'TEST_TASK',
+            'test_source',
             'request-creator-idempotent-001',
             $secondCreator
         );
@@ -502,16 +511,16 @@ class CoreTaskRegistrationServiceTest extends TestCase
     public function test_repeated_registration_preserves_null_creator(): void
     {
         $first = $this->registry->register(
-            'PickAndDrop',
-            'PICK_AND_DROP_REQUEST',
-            'pick_and_drop_request',
+            'TestModule',
+            'TEST_TASK',
+            'test_source',
             'request-null-creator-001'
         );
 
         $second = $this->registry->register(
-            'PickAndDrop',
-            'PICK_AND_DROP_REQUEST',
-            'pick_and_drop_request',
+            'TestModule',
+            'TEST_TASK',
+            'test_source',
             'request-null-creator-001',
             '11111111-1111-4111-8111-111111111111'
         );
@@ -532,23 +541,23 @@ class CoreTaskRegistrationServiceTest extends TestCase
     public function test_normalized_identity_returns_existing_task(): void
     {
         $first = $this->registry->register(
-            'PickAndDrop',
-            'PICK_AND_DROP_REQUEST',
-            'pick_and_drop_request',
+            'TestModule',
+            'TEST_TASK',
+            'test_source',
             'request-normalization-001'
         );
 
         $second = $this->registry->register(
-            ' PickAndDrop ',
-            ' PICK_AND_DROP_REQUEST ',
+            ' TestModule ',
+            ' TEST_TASK ',
             ' different_source_label ',
             ' request-normalization-001 '
         );
 
         $this->assertSame($first->task_id, $second->task_id);
-        $this->assertSame('PickAndDrop', $second->module_key);
-        $this->assertSame('PICK_AND_DROP_REQUEST', $second->task_type);
-        $this->assertSame('pick_and_drop_request', $second->source_type);
+        $this->assertSame('TestModule', $second->module_key);
+        $this->assertSame('TEST_TASK', $second->task_type);
+        $this->assertSame('test_source', $second->source_type);
         $this->assertSame('request-normalization-001', $second->source_id);
         $this->assertSame(CoreTask::STATUS_OPEN, $second->generic_status);
         $this->assertDatabaseCount('core_tasks', 1);
@@ -557,9 +566,9 @@ class CoreTaskRegistrationServiceTest extends TestCase
     public function test_repeated_registration_preserves_existing_lifecycle_state(): void
     {
         $first = $this->registry->register(
-            'PickAndDrop',
-            'PICK_AND_DROP_REQUEST',
-            'pick_and_drop_request',
+            'TestModule',
+            'TEST_TASK',
+            'test_source',
             'request-lifecycle-001',
             '11111111-1111-4111-8111-111111111111'
         );
@@ -572,8 +581,8 @@ class CoreTaskRegistrationServiceTest extends TestCase
         $first->save();
 
         $second = $this->registry->register(
-            'PickAndDrop',
-            'PICK_AND_DROP_REQUEST',
+            'TestModule',
+            'TEST_TASK',
             'different_source_label',
             'request-lifecycle-001',
             '33333333-3333-4333-8333-333333333333'
@@ -583,32 +592,36 @@ class CoreTaskRegistrationServiceTest extends TestCase
 
         $this->assertSame($first->task_id, $second->task_id);
         $this->assertSame(CoreTask::STATUS_ASSIGNED, $second->generic_status);
+
         $this->assertSame(
             '22222222-2222-4222-8222-222222222222',
             $second->assigned_account_id
         );
+
         $this->assertTrue($second->assigned_at->equalTo($assignedAt));
-        $this->assertSame('pick_and_drop_request', $second->source_type);
+        $this->assertSame('test_source', $second->source_type);
+
         $this->assertSame(
             '11111111-1111-4111-8111-111111111111',
             $second->created_by_account_id
         );
+
         $this->assertDatabaseCount('core_tasks', 1);
     }
 
     public function test_source_ids_differing_only_by_case_are_distinct(): void
     {
         $upperCase = $this->registry->register(
-            'PickAndDrop',
-            'PICK_AND_DROP_REQUEST',
-            'pick_and_drop_request',
+            'TestModule',
+            'TEST_TASK',
+            'test_source',
             'request-Case-001'
         );
 
         $lowerCase = $this->registry->register(
-            'PickAndDrop',
-            'PICK_AND_DROP_REQUEST',
-            'pick_and_drop_request',
+            'TestModule',
+            'TEST_TASK',
+            'test_source',
             'request-case-001'
         );
 
@@ -624,9 +637,9 @@ class CoreTaskRegistrationServiceTest extends TestCase
     {
         $task = CoreTask::create([
             'task_id' => (string) Str::uuid(),
-            'module_key' => 'PickAndDrop',
-            'task_type' => 'PICK_AND_DROP_REQUEST',
-            'source_type' => 'pick_and_drop_request',
+            'module_key' => 'TestModule',
+            'task_type' => 'TEST_TASK',
+            'source_type' => 'test_source',
             'source_id' => 'model-contract-001',
         ]);
 
@@ -656,9 +669,9 @@ class CoreTaskRegistrationServiceTest extends TestCase
 
         $task = CoreTask::create([
             'task_id' => $taskId,
-            'module_key' => 'PickAndDrop',
-            'task_type' => 'PICK_AND_DROP_REQUEST',
-            'source_type' => 'pick_and_drop_request',
+            'module_key' => 'TestModule',
+            'task_type' => 'TEST_TASK',
+            'source_type' => 'test_source',
             'source_id' => 'model-contract-002',
         ]);
 
