@@ -20,6 +20,14 @@ return new class extends Migration
             $table->unsignedBigInteger('views_count')->default(0);
             $table->timestamps();
 
+            $table->foreign(
+                'account_id',
+                'runner_public_profiles_account_fk'
+            )
+                ->references('id')
+                ->on('accounts')
+                ->restrictOnDelete();
+
             $table->index(
                 ['is_published', 'updated_at'],
                 'runner_public_profiles_published_index'
