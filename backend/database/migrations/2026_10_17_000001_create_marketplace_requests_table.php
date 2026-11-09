@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -30,8 +31,6 @@ return new class extends Migration
 
             $table->timestamps();
 
-            // Preserve marketplace requests when an account is referenced.
-            // A customer account cannot be deleted while requests reference it.
             $table->foreign(
                 'customer_account_id',
                 'marketplace_requests_customer_account_fk'
@@ -40,8 +39,6 @@ return new class extends Migration
                 ->on('accounts')
                 ->restrictOnDelete();
 
-            // Keep the request if its targeted runner account is deleted.
-            // The request becomes untargeted instead of being deleted.
             $table->foreign(
                 'target_runner_account_id',
                 'marketplace_requests_target_runner_fk'
@@ -70,6 +67,38 @@ return new class extends Migration
                 'marketplace_requests_winning_quote_index'
             );
         });
+
+        /*
+         * Enforce the locked Task Class contract at database level.
+         *
+         * PICKUP_DELIVERY:
+         * - pickup snapshot is required
+         * - delivery snapshot is required
+         * - task location snapshot must be NULL
+         *
+         * NON_DELIVERY:
+         * - task location snapshot is required
+         * - pickup and delivery snapshots must be NULL
+         */
+        DB::statement("
+            ALTER TABLE marketplace_requests
+            ADD CONSTRAINT marketplace_requests_task_class_check
+            CHECK (
+                (
+                    task_class = 'PICKUP_DELIVERY'
+                    AND pickup_location_snapshot IS NOT NULL
+                    AND delivery_location_snapshot IS NOT NULL
+                    AND task_location_snapshot IS NULL
+                )
+                OR
+                (
+                    task_class = 'NON_DELIVERY'
+                    AND task_location_snapshot IS NOT NULL
+                    AND pickup_location_snapshot IS NULL
+                    AND delivery_location_snapshot IS NULL
+                )
+            )
+        ");
     }
 
     public function down(): void
