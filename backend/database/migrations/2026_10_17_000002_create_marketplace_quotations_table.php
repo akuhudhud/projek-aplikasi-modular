@@ -25,6 +25,25 @@ return new class extends Migration
 
             $table->timestamps();
 
+            // A quotation must always belong to an existing request.
+            // Preserve quotation history; do not cascade-delete quotations.
+            $table->foreign(
+                'request_id',
+                'marketplace_quotes_request_fk'
+            )
+                ->references('request_id')
+                ->on('marketplace_requests')
+                ->restrictOnDelete();
+
+            // Preserve runner attribution for every submitted quotation.
+            $table->foreign(
+                'runner_account_id',
+                'marketplace_quotes_runner_account_fk'
+            )
+                ->references('id')
+                ->on('accounts')
+                ->restrictOnDelete();
+
             $table->index(
                 ['request_id', 'status', 'created_at'],
                 'marketplace_quotes_request_status_index'
