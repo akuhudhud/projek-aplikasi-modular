@@ -22,8 +22,6 @@ class RunnerPublicProfileAnalyticsTest extends TestCase
         $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
         $otherRunner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
-        $this->createSessionToken($runner);
-
         RunnerPublicProfile::query()->create([
             'profile_id' => (string) Str::uuid(),
             'account_id' => $runner->id,
@@ -48,10 +46,10 @@ class RunnerPublicProfileAnalyticsTest extends TestCase
             MarketplaceRequest::SOURCE_RUNNER_PROFILE_LINK
         );
 
-        $this->makeQuotation($profileRequest);
-        $this->makeQuotation($profileRequest);
-        $this->makeQuotation($marketplaceRequest);
-        $this->makeQuotation($otherRunnerProfileRequest);
+        $this->makeQuotation($profileRequest, $runner);
+        $this->makeQuotation($profileRequest, $runner);
+        $this->makeQuotation($marketplaceRequest, $runner);
+        $this->makeQuotation($otherRunnerProfileRequest, $otherRunner);
 
         $this->makeCompletedTask($runner, $profileRequest);
         $this->makeCompletedTask($runner, $marketplaceRequest);
@@ -123,9 +121,11 @@ class RunnerPublicProfileAnalyticsTest extends TestCase
         Account $runner,
         string $sourceType
     ): MarketplaceRequest {
+        $customer = $this->makeAccount();
+
         return MarketplaceRequest::query()->create([
             'request_id' => (string) Str::uuid(),
-            'customer_account_id' => (string) Str::uuid(),
+            'customer_account_id' => $customer->id,
             'target_runner_account_id' =>
                 $sourceType === MarketplaceRequest::SOURCE_RUNNER_PROFILE_LINK
                     ? $runner->id
@@ -145,12 +145,13 @@ class RunnerPublicProfileAnalyticsTest extends TestCase
     }
 
     private function makeQuotation(
-        MarketplaceRequest $request
+        MarketplaceRequest $request,
+        Account $runner
     ): MarketplaceQuotation {
         return MarketplaceQuotation::query()->create([
             'quotation_id' => (string) Str::uuid(),
             'request_id' => $request->request_id,
-            'runner_account_id' => (string) Str::uuid(),
+            'runner_account_id' => $runner->id,
             'amount' => '25.00',
             'currency' => 'MYR',
             'message' => 'Analytics test quotation',
