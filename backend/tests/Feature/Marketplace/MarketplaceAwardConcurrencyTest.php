@@ -1,3 +1,4 @@
+
 <?php
 
 namespace Tests\Feature\Marketplace;
@@ -186,6 +187,7 @@ class MarketplaceAwardConcurrencyTest extends TestCase
                 CoreTask::query()
                     ->where('module_key', 'Marketplace')
                     ->where('task_type', 'MARKETPLACE_SERVICE_REQUEST')
+                    ->where('source_type', 'marketplace_request')
                     ->where('source_id', $requestId)
                     ->count(),
                 'The request must have exactly one registered Core Task.'
@@ -212,12 +214,14 @@ class MarketplaceAwardConcurrencyTest extends TestCase
                     )
                     ->count()
             );
+
         } finally {
             $this->stopWorkers();
 
             CoreTask::query()
                 ->where('module_key', 'Marketplace')
                 ->where('task_type', 'MARKETPLACE_SERVICE_REQUEST')
+                ->where('source_type', 'marketplace_request')
                 ->where('source_id', $requestId)
                 ->delete();
 
