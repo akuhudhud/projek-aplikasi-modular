@@ -14,10 +14,13 @@ return new class extends Migration
             $table->string('module_key', 64);
             $table->string('task_type', 100);
 
-            // Polymorphic source reference:
-            // source_type + source_id cannot use a normal single-table FK.
+            // Polymorphic source reference.
+            // source_type + source_id tidak menggunakan FK biasa.
             $table->string('source_type', 64);
-            $table->string('source_id', 191);
+
+            // Case-sensitive source identity.
+            $table->string('source_id', 191)
+                ->collation('utf8mb4_bin');
 
             $table->uuid('created_by_account_id')->nullable();
             $table->uuid('assigned_account_id')->nullable();
@@ -49,8 +52,8 @@ return new class extends Migration
                 ->on('accounts')
                 ->restrictOnDelete();
 
-            // A source can only create one task for the same
-            // module and task type.
+            // Core Task identity:
+            // module_key + task_type + source_type + source_id.
             $table->unique(
                 ['module_key', 'task_type', 'source_type', 'source_id'],
                 'core_tasks_module_type_source_unique'
