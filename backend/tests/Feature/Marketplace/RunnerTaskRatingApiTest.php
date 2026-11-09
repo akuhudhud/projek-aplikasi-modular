@@ -191,7 +191,13 @@ class RunnerTaskRatingApiTest extends TestCase
             ]);
 
             $this->fail('Database accepted a rating below one.');
-        } catch (QueryException) {
+        } catch (QueryException $exception) {
+            $this->assertSame(
+                '3819',
+                (string) ($exception->errorInfo[1] ?? ''),
+                'Expected MySQL CHECK constraint violation, not another database error.'
+            );
+
             $this->assertDatabaseCount('runner_task_ratings', 0);
         }
     }
@@ -214,7 +220,13 @@ class RunnerTaskRatingApiTest extends TestCase
             ]);
 
             $this->fail('Database accepted a rating above five.');
-        } catch (QueryException) {
+        } catch (QueryException $exception) {
+            $this->assertSame(
+                '3819',
+                (string) ($exception->errorInfo[1] ?? ''),
+                'Expected MySQL CHECK constraint violation, not another database error.'
+            );
+
             $this->assertDatabaseCount('runner_task_ratings', 0);
         }
     }
