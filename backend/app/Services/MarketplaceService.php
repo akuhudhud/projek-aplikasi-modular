@@ -616,6 +616,7 @@ class MarketplaceService
                 $existingTask = CoreTask::query()
                     ->where('module_key', 'Marketplace')
                     ->where('task_type', 'MARKETPLACE_SERVICE_REQUEST')
+                    ->where('source_type', 'marketplace_request')
                     ->where('source_id', $request->request_id)
                     ->first();
 
