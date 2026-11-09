@@ -51,11 +51,11 @@ class CoreTaskRegistryService implements CoreTaskRegistry
                 [
                     'module_key' => $moduleKey,
                     'task_type' => $taskType,
+                    'source_type' => $sourceType,
                     'source_id' => $sourceId,
                 ],
                 [
                     'task_id' => (string) Str::uuid(),
-                    'source_type' => $sourceType,
                     'created_by_account_id' => $createdByAccountId,
                     'generic_status' => CoreTask::STATUS_OPEN,
                 ]
