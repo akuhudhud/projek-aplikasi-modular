@@ -135,14 +135,22 @@ class CoreTaskRegistrationServiceTest extends TestCase
             [
                 'module_key' => 'module-alpha',
                 'task_type' => 'TASK_ALPHA',
+                'source_type' => 'test-source',
             ],
             [
                 'module_key' => 'module-beta',
                 'task_type' => 'TASK_ALPHA',
+                'source_type' => 'test-source',
             ],
             [
                 'module_key' => 'module-alpha',
                 'task_type' => 'TASK_BETA',
+                'source_type' => 'test-source',
+            ],
+            [
+                'module_key' => 'module-alpha',
+                'task_type' => 'TASK_ALPHA',
+                'source_type' => 'another-source',
             ],
         ];
 
@@ -151,7 +159,7 @@ class CoreTaskRegistrationServiceTest extends TestCase
                 'task_id' => (string) Str::uuid(),
                 'module_key' => $record['module_key'],
                 'task_type' => $record['task_type'],
-                'source_type' => 'test-source',
+                'source_type' => $record['source_type'],
                 'source_id' => $sourceId,
                 'created_by_account_id' => null,
                 'assigned_account_id' => null,
@@ -161,7 +169,7 @@ class CoreTaskRegistrationServiceTest extends TestCase
             ]);
         }
 
-        $this->assertDatabaseCount('core_tasks', 3);
+        $this->assertDatabaseCount('core_tasks', 4);
     }
 
     public function test_model_declares_uuid_primary_key_and_generic_statuses(): void
@@ -201,6 +209,7 @@ class CoreTaskRegistrationServiceTest extends TestCase
             'task_id' => $task->task_id,
             'module_key' => 'TestModule',
             'task_type' => 'TEST_TASK',
+            'source_type' => 'test_source',
             'source_id' => 'source-001',
         ]);
     }
@@ -418,13 +427,38 @@ class CoreTaskRegistrationServiceTest extends TestCase
         $second = $this->registry->register(
             'TestModule',
             'TEST_TASK',
-            'different_source_label',
+            'test_source',
             'request-idempotent-001'
         );
 
         $this->assertSame($first->task_id, $second->task_id);
         $this->assertSame('test_source', $second->source_type);
         $this->assertDatabaseCount('core_tasks', 1);
+    }
+
+    public function test_different_source_types_with_same_source_id_create_separate_tasks(): void
+    {
+        $first = $this->registry->register(
+            'TestModule',
+            'TEST_TASK',
+            'marketplace_request',
+            'shared-source-identity-001'
+        );
+
+        $second = $this->registry->register(
+            'TestModule',
+            'TEST_TASK',
+            'another_source',
+            'shared-source-identity-001'
+        );
+
+        $this->assertNotSame($first->task_id, $second->task_id);
+
+        $this->assertSame('marketplace_request', $first->source_type);
+        $this->assertSame('another_source', $second->source_type);
+
+        $this->assertSame($first->source_id, $second->source_id);
+        $this->assertDatabaseCount('core_tasks', 2);
     }
 
     public function test_different_source_ids_create_separate_tasks(): void
@@ -550,7 +584,7 @@ class CoreTaskRegistrationServiceTest extends TestCase
         $second = $this->registry->register(
             ' TestModule ',
             ' TEST_TASK ',
-            ' different_source_label ',
+            ' test_source ',
             ' request-normalization-001 '
         );
 
@@ -583,7 +617,7 @@ class CoreTaskRegistrationServiceTest extends TestCase
         $second = $this->registry->register(
             'TestModule',
             'TEST_TASK',
-            'different_source_label',
+            'test_source',
             'request-lifecycle-001',
             '33333333-3333-4333-8333-333333333333'
         );
