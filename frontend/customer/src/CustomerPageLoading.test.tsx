@@ -1,5 +1,4 @@
-
- // @vitest-environment jsdom
+// @vitest-environment jsdom
 
 import {
     afterEach,
@@ -216,7 +215,7 @@ describe('Customer page-specific data loading', () => {
         );
 
         await screen.findByRole('heading', {
-            name: 'Profil Saya',
+            name: 'My Profile',
         });
 
         expect(getTasksMock).not.toHaveBeenCalled();
