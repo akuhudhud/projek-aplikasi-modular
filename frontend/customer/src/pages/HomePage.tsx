@@ -1,8 +1,11 @@
+
 import type {
     CustomerAccount,
     CustomerTaskItem,
     CustomerOwnMarketplaceRequest,
 } from '../api';
+
+import { formatCustomerDate } from '../customerPresentation';
 
 type HomePageProps = {
     account: CustomerAccount;
@@ -19,15 +22,6 @@ type HomePageProps = {
     onNavigateRequests: () => void;
     onNavigateCreate: () => void;
 };
-
-function formatDate(value: string | null): string {
-    if (!value) return '—';
-
-    return new Intl.DateTimeFormat('ms-MY', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    }).format(new Date(value));
-}
 
 function taskClassLabel(taskClass: string): string {
     return taskClass === 'PICKUP_DELIVERY'
@@ -148,7 +142,7 @@ export default function HomePage({
                                 </span>
 
                                 <span>
-                                    {formatDate(item.task.created_at)}
+                                    {formatCustomerDate(item.task.created_at)}
                                 </span>
                             </button>
                         ))}
@@ -207,7 +201,7 @@ export default function HomePage({
                                 </span>
 
                                 <span>
-                                    Tamat: {formatDate(request.expires_at)}
+                                    Tamat: {formatCustomerDate(request.expires_at)}
                                 </span>
                             </article>
                         ))}
