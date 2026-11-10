@@ -1,6 +1,9 @@
 
 import axios from 'axios';
 
+export const CUSTOMER_SESSION_EXPIRED_EVENT =
+    'customer-session-expired';
+
 export interface CustomerAccount {
     id: number | string;
     name: string;
@@ -221,6 +224,38 @@ export interface RegistrationCompletePayload {
     password_confirmation: string;
 }
 
+function isProtectedCustomerEndpoint(
+    url: string | undefined,
+): boolean {
+    if (!url) {
+        return false;
+    }
+
+    const path = url
+        .split('?')[0]
+        .replace(/^https?:\/\/[^/]+/i, '');
+
+    return (
+        path === '/web/auth/me' ||
+        path === '/web/auth/profile' ||
+        path === '/web/auth/logout' ||
+        path.startsWith('/web/customer/')
+    );
+}
+
+function isAccountUnavailableResponse(
+    status: number | undefined,
+    message: unknown,
+): boolean {
+    return (
+        status === 403 &&
+        (
+            message === 'Account is suspended.' ||
+            message === 'Account is not available.'
+        )
+    );
+}
+
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL ?? '/',
     withCredentials: true,
@@ -230,6 +265,39 @@ const api = axios.create({
         'X-Requested-With': 'XMLHttpRequest',
     },
 });
+
+api.interceptors.response.use(
+    (response) => response,
+    (error: unknown) => {
+        if (axios.isAxiosError(error)) {
+            const status = error.response?.status;
+            const message = error.response?.data?.message;
+            const protectedEndpoint =
+                isProtectedCustomerEndpoint(
+                    error.config?.url,
+                );
+
+            const sessionIsInvalid =
+                status === 401 ||
+                isAccountUnavailableResponse(
+                    status,
+                    message,
+                );
+
+            if (
+                protectedEndpoint &&
+                sessionIsInvalid &&
+                typeof window !== 'undefined'
+            ) {
+                window.dispatchEvent(
+                    new Event(CUSTOMER_SESSION_EXPIRED_EVENT),
+                );
+            }
+        }
+
+        return Promise.reject(error);
+    },
+);
 
 export const customerApi = {
     async login(payload: LoginPayload): Promise<CustomerAccount> {
