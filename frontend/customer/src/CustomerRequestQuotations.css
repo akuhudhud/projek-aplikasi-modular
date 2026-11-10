@@ -1,3 +1,4 @@
+
 .customer-quotation-section {
     display: grid;
     gap: 14px;
@@ -171,6 +172,39 @@
     }
 
     .customer-quotation-section > button {
+        width: 100%;
+    }
+}
+
+/*
+ * CSS ISOLATION
+ * Mengelakkan global customer.css mengambil alih
+ * gaya butang buka/tutup sebut harga.
+ */
+
+#customer-app .customer-quotation-section > button {
+    display: inline-flex;
+    width: fit-content;
+    min-height: 40px;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 9px;
+    background: #fffbeb;
+    color: #92400e;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+#customer-app .customer-quotation-section > button:hover:not(:disabled) {
+    border-color: #eab308;
+    background: #fef3c7;
+    color: #78350f;
+}
+
+@media (max-width: 480px) {
+    #customer-app .customer-quotation-section > button {
         width: 100%;
     }
 }
