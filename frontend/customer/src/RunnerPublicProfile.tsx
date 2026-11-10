@@ -1,194 +1,240 @@
 
-import { useState } from 'react';
+ // @vitest-environment jsdom
 
-import { useRunnerPublicProfile } from './features/runners/useRunnerPublicProfile';
-import './RunnerPublicProfile.css';
+import {
+    afterEach,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    vi,
+} from 'vitest';
 
-interface Props {
-    slug: string;
+import {
+    cleanup,
+    fireEvent,
+    render,
+    screen,
+} from '@testing-library/react';
+
+const { getMock, isAxiosErrorMock } = vi.hoisted(() => ({
+    getMock: vi.fn(),
+    isAxiosErrorMock: vi.fn(
+        (error: unknown) =>
+            Boolean(
+                error &&
+                typeof error === 'object' &&
+                'isAxiosError' in error &&
+                error.isAxiosError,
+            ),
+    ),
+}));
+
+vi.mock('axios', () => ({
+    default: {
+        get: getMock,
+        isAxiosError: isAxiosErrorMock,
+    },
+}));
+
+import RunnerPublicProfile from './RunnerPublicProfile';
+
+const profile = {
+    public_slug: 'test-runner',
+    display_name: 'Runner Tuaran',
+    bio: 'Servis penghantaran sekitar Tuaran.',
+    service_area: 'Tuaran',
+    base_location: 'Tuaran, Sabah',
+    coverage_area: 'Tuaran dan kawasan berhampiran',
+    services: [
+        'Penghantaran parcel',
+        'Penghantaran dokumen',
+    ],
+    rating_average: 4.8,
+    rating_count: 12,
+    views_count: 35,
+};
+
+function successfulProfileResponse() {
+    return {
+        data: {
+            success: true,
+            data: {
+                profile,
+            },
+        },
+    };
 }
 
-export default function RunnerPublicProfile({ slug }: Props) {
-    const {
-        profile,
-        loading,
-        notFound,
-        error,
-        reload,
-    } = useRunnerPublicProfile(slug);
+describe('RunnerPublicProfile', () => {
+    beforeEach(() => {
+        getMock.mockReset();
+        isAxiosErrorMock.mockClear();
+    });
 
-    const [shareError, setShareError] = useState('');
+    afterEach(() => {
+        cleanup();
+    });
 
-    function openRequestForm() {
-        window.location.href = `/?runner=${encodeURIComponent(slug.toLowerCase())}`;
-    }
+    it('loads the public profile using the normalized slug', async () => {
+        getMock.mockResolvedValue(successfulProfileResponse());
 
-    async function shareProfile() {
-        const url = `${window.location.origin}/me/${encodeURIComponent(slug.toLowerCase())}`;
-
-        setShareError('');
-
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: profile?.display_name ?? 'Profil Runner Super Runner',
-                    text: 'Lihat profil Runner ini.',
-                    url,
-                });
-            } catch (shareError) {
-                if (
-                    shareError instanceof Error &&
-                    shareError.name === 'AbortError'
-                ) {
-                    return;
-                }
-
-                setShareError('Tidak berjaya berkongsi pautan profil.');
-            }
-
-            return;
-        }
-
-        try {
-            await navigator.clipboard.writeText(url);
-            window.alert('Pautan profil berjaya disalin.');
-        } catch {
-            setShareError('Tidak berjaya menyalin pautan profil.');
-        }
-    }
-
-    if (loading) {
-        return (
-            <main className="runner-public-page">
-                <section className="runner-public-card" aria-live="polite">
-                    <p>Memuatkan profil Runner...</p>
-                </section>
-            </main>
+        render(
+            <RunnerPublicProfile slug="TEST-RUNNER" />,
         );
-    }
 
-    if (notFound) {
-        return (
-            <main className="runner-public-page">
-                <section className="runner-public-card runner-public-state">
-                    <h1>Profil tidak ditemui</h1>
-                    <p>
-                        Pautan ini mungkin tidak sah atau profil Runner
-                        belum diterbitkan.
-                    </p>
-                    <a href="/">Ke halaman utama</a>
-                </section>
-            </main>
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Runner Tuaran',
+            }),
+        ).toBeTruthy();
+
+        expect(getMock).toHaveBeenCalledWith(
+            '/api/runners/test-runner',
+            expect.objectContaining({
+                baseURL: '/',
+                withCredentials: true,
+            }),
         );
-    }
+    });
 
-    if (error && !profile) {
-        return (
-            <main className="runner-public-page">
-                <section className="runner-public-card runner-public-state">
-                    <h1>Ralat</h1>
-                    <p role="alert">{error}</p>
-                    <button type="button" onClick={reload}>
-                        Cuba Lagi
-                    </button>
-                </section>
-            </main>
+    it('displays public profile information', async () => {
+        getMock.mockResolvedValue(successfulProfileResponse());
+
+        render(
+            <RunnerPublicProfile slug="test-runner" />,
         );
-    }
 
-    if (!profile) return null;
+        await screen.findByRole('heading', {
+            name: 'Runner Tuaran',
+        });
 
-    return (
-        <main className="runner-public-page">
-            <article className="runner-public-card">
-                <header className="runner-public-header">
-                    <span className="runner-public-brand">SUPER RUNNER</span>
-                    <span className="runner-public-label">PROFIL RUNNER</span>
-                </header>
+        expect(
+            screen.getByText(
+                'Servis penghantaran sekitar Tuaran.',
+            ),
+        ).toBeTruthy();
 
-                <section className="runner-public-identity">
-                    <div className="runner-public-avatar" aria-hidden="true">
-                        {profile.display_name.trim().charAt(0).toUpperCase() || 'R'}
-                    </div>
+        expect(
+            screen.getByText('Penghantaran parcel'),
+        ).toBeTruthy();
 
-                    <div>
-                        <h1>{profile.display_name}</h1>
+        expect(
+            screen.getByText('Penghantaran dokumen'),
+        ).toBeTruthy();
 
-                        {profile.base_location && (
-                            <p className="runner-public-base">
-                                {profile.base_location}
-                            </p>
-                        )}
+        expect(
+            screen.getByText('Tuaran, Sabah'),
+        ).toBeTruthy();
 
-                        <div className="runner-public-rating">
-                            <span>
-                                {profile.rating_average === null
-                                    ? 'Belum dinilai'
-                                    : `★ ${profile.rating_average.toFixed(1)} / 5`}
-                            </span>
-                            <span>({profile.rating_count} penilaian)</span>
-                        </div>
-                    </div>
-                </section>
+        expect(
+            screen.getByText('★ 4.8 / 5'),
+        ).toBeTruthy();
 
-                {profile.bio && (
-                    <section className="runner-public-section">
-                        <h2>Tentang Runner</h2>
-                        <p>{profile.bio}</p>
-                    </section>
-                )}
+        expect(
+            screen.getByRole('button', {
+                name: 'Minta Servis Ini',
+            }),
+        ).toBeTruthy();
+    });
 
-                {profile.services.length > 0 && (
-                    <section className="runner-public-section">
-                        <h2>Servis</h2>
-                        <ul className="runner-public-services">
-                            {profile.services.map((service, index) => (
-                                <li key={`${service}-${index}`}>
-                                    {service}
-                                </li>
-                            ))}
-                        </ul>
-                    </section>
-                )}
+    it('displays an empty rating state when no ratings exist', async () => {
+        getMock.mockResolvedValue({
+            data: {
+                success: true,
+                data: {
+                    profile: {
+                        ...profile,
+                        rating_average: null,
+                        rating_count: 0,
+                    },
+                },
+            },
+        });
 
-                {(profile.service_area || profile.coverage_area) && (
-                    <section className="runner-public-section">
-                        <h2>Kawasan Servis</h2>
+        render(
+            <RunnerPublicProfile slug="test-runner" />,
+        );
 
-                        {profile.service_area && (
-                            <p>{profile.service_area}</p>
-                        )}
+        expect(
+            await screen.findByText('Belum dinilai'),
+        ).toBeTruthy();
 
-                        {profile.coverage_area && (
-                            <p>{profile.coverage_area}</p>
-                        )}
-                    </section>
-                )}
+        expect(
+            screen.getByText('(0 penilaian)'),
+        ).toBeTruthy();
+    });
 
-                <footer className="runner-public-footer">
-                    <button
-                        className="runner-public-primary"
-                        type="button"
-                        onClick={openRequestForm}
-                    >
-                        Minta Servis Ini
-                    </button>
+    it('displays not found when the public profile does not exist', async () => {
+        getMock.mockRejectedValue({
+            isAxiosError: true,
+            response: {
+                status: 404,
+            },
+        });
 
-                    <button
-                        className="runner-public-secondary"
-                        type="button"
-                        onClick={shareProfile}
-                    >
-                        Kongsi Profil
-                    </button>
+        render(
+            <RunnerPublicProfile slug="missing-runner" />,
+        );
 
-                    {shareError && (
-                        <p className="runner-public-error" role="alert">
-                            {shareError}
-                        </p>
-                    )}
-                </footer>
-            </article>
-        </main>
-    );
-}
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Profil tidak ditemui',
+            }),
+        ).toBeTruthy();
+    });
+
+    it('displays an error when the profile request fails', async () => {
+        getMock.mockRejectedValue(
+            new Error('Network error'),
+        );
+
+        render(
+            <RunnerPublicProfile slug="test-runner" />,
+        );
+
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Ralat',
+            }),
+        ).toBeTruthy();
+
+        expect(
+            screen.getByRole('alert'),
+        ).toBeTruthy();
+    });
+
+    it('retries loading the profile after clicking Cuba Lagi', async () => {
+        getMock
+            .mockRejectedValueOnce(
+                new Error('Network error'),
+            )
+            .mockResolvedValueOnce(
+                successfulProfileResponse(),
+            );
+
+        render(
+            <RunnerPublicProfile slug="test-runner" />,
+        );
+
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Ralat',
+            }),
+        ).toBeTruthy();
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Cuba Lagi',
+            }),
+        );
+
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Runner Tuaran',
+            }),
+        ).toBeTruthy();
+
+        expect(getMock).toHaveBeenCalledTimes(2);
+    });
+});
