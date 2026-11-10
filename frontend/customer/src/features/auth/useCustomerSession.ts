@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import {
+    CUSTOMER_SESSION_EXPIRED_EVENT,
     customerApi,
     type CustomerAccount,
 } from '../../api';
@@ -60,6 +61,30 @@ export function useCustomerSession(): CustomerSession {
 
         return () => {
             mounted = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        function handleSessionExpired() {
+            setAccount(null);
+            setLogoutError('');
+            setLogoutLoading(false);
+        }
+
+        window.addEventListener(
+            CUSTOMER_SESSION_EXPIRED_EVENT,
+            handleSessionExpired,
+        );
+
+        return () => {
+            window.removeEventListener(
+                CUSTOMER_SESSION_EXPIRED_EVENT,
+                handleSessionExpired,
+            );
         };
     }, []);
 
