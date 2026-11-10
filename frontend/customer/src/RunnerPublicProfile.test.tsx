@@ -12,6 +12,7 @@ import {
 
 import {
     cleanup,
+    fireEvent,
     render,
     screen,
 } from '@testing-library/react';
@@ -54,6 +55,17 @@ const profile = {
     views_count: 35,
 };
 
+function successfulProfileResponse() {
+    return {
+        data: {
+            success: true,
+            data: {
+                profile,
+            },
+        },
+    };
+}
+
 describe('RunnerPublicProfile', () => {
     beforeEach(() => {
         getMock.mockReset();
@@ -65,14 +77,7 @@ describe('RunnerPublicProfile', () => {
     });
 
     it('loads the public profile using the normalized slug', async () => {
-        getMock.mockResolvedValue({
-            data: {
-                success: true,
-                data: {
-                    profile,
-                },
-            },
-        });
+        getMock.mockResolvedValue(successfulProfileResponse());
 
         render(
             <RunnerPublicProfile slug="TEST-RUNNER" />,
@@ -94,14 +99,7 @@ describe('RunnerPublicProfile', () => {
     });
 
     it('displays public profile information', async () => {
-        getMock.mockResolvedValue({
-            data: {
-                success: true,
-                data: {
-                    profile,
-                },
-            },
-        });
+        getMock.mockResolvedValue(successfulProfileResponse());
 
         render(
             <RunnerPublicProfile slug="test-runner" />,
@@ -204,5 +202,39 @@ describe('RunnerPublicProfile', () => {
         expect(
             screen.getByRole('alert'),
         ).toBeTruthy();
+    });
+
+    it('retries loading the profile after clicking Cuba Lagi', async () => {
+        getMock
+            .mockRejectedValueOnce(
+                new Error('Network error'),
+            )
+            .mockResolvedValueOnce(
+                successfulProfileResponse(),
+            );
+
+        render(
+            <RunnerPublicProfile slug="test-runner" />,
+        );
+
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Ralat',
+            }),
+        ).toBeTruthy();
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Cuba Lagi',
+            }),
+        );
+
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Runner Tuaran',
+            }),
+        ).toBeTruthy();
+
+        expect(getMock).toHaveBeenCalledTimes(2);
     });
 });
