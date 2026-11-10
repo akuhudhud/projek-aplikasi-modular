@@ -1,79 +1,23 @@
-import { useEffect, useState } from 'react';
-import axios from 'axios';
+
+import { useState } from 'react';
+
+import { useRunnerPublicProfile } from './features/runners/useRunnerPublicProfile';
 import './RunnerPublicProfile.css';
-
-interface RunnerPublicProfileData {
-    public_slug: string;
-    display_name: string;
-    bio: string | null;
-    service_area: string | null;
-    base_location: string | null;
-    coverage_area: string | null;
-    services: string[];
-    rating_average: number | null;
-    rating_count: number;
-    views_count: number;
-}
-
-interface PublicProfileResponse {
-    success: boolean;
-    data: {
-        profile: RunnerPublicProfileData;
-    };
-}
 
 interface Props {
     slug: string;
 }
 
 export default function RunnerPublicProfile({ slug }: Props) {
-    const [profile, setProfile] = useState<RunnerPublicProfileData | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [notFound, setNotFound] = useState(false);
-    const [error, setError] = useState('');
+    const {
+        profile,
+        loading,
+        notFound,
+        error,
+        reload,
+    } = useRunnerPublicProfile(slug);
 
-    useEffect(() => {
-        let active = true;
-
-        setLoading(true);
-        setNotFound(false);
-        setError('');
-
-        axios.get<PublicProfileResponse>(
-            `/api/runners/${encodeURIComponent(slug.toLowerCase())}`,
-            {
-                baseURL: import.meta.env.VITE_API_BASE_URL ?? '/',
-                withCredentials: true,
-                headers: {
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            },
-        )
-            .then((response) => {
-                if (active) setProfile(response.data.data.profile);
-            })
-            .catch((requestError: unknown) => {
-                if (!active) return;
-
-                if (
-                    axios.isAxiosError(requestError) &&
-                    requestError.response?.status === 404
-                ) {
-                    setNotFound(true);
-                    return;
-                }
-
-                setError('Tidak berjaya memuatkan profil Runner. Sila cuba lagi.');
-            })
-            .finally(() => {
-                if (active) setLoading(false);
-            });
-
-        return () => {
-            active = false;
-        };
-    }, [slug]);
+    const [shareError, setShareError] = useState('');
 
     function openRequestForm() {
         window.location.href = `/?runner=${encodeURIComponent(slug.toLowerCase())}`;
@@ -81,6 +25,8 @@ export default function RunnerPublicProfile({ slug }: Props) {
 
     async function shareProfile() {
         const url = `${window.location.origin}/me/${encodeURIComponent(slug.toLowerCase())}`;
+
+        setShareError('');
 
         if (navigator.share) {
             try {
@@ -93,9 +39,11 @@ export default function RunnerPublicProfile({ slug }: Props) {
                 if (
                     shareError instanceof Error &&
                     shareError.name === 'AbortError'
-                ) return;
+                ) {
+                    return;
+                }
 
-                setError('Tidak berjaya berkongsi pautan profil.');
+                setShareError('Tidak berjaya berkongsi pautan profil.');
             }
 
             return;
@@ -105,7 +53,7 @@ export default function RunnerPublicProfile({ slug }: Props) {
             await navigator.clipboard.writeText(url);
             window.alert('Pautan profil berjaya disalin.');
         } catch {
-            setError('Tidak berjaya menyalin pautan profil.');
+            setShareError('Tidak berjaya menyalin pautan profil.');
         }
     }
 
@@ -140,10 +88,7 @@ export default function RunnerPublicProfile({ slug }: Props) {
                 <section className="runner-public-card runner-public-state">
                     <h1>Ralat</h1>
                     <p role="alert">{error}</p>
-                    <button
-                        type="button"
-                        onClick={() => window.location.reload()}
-                    >
+                    <button type="button" onClick={reload}>
                         Cuba Lagi
                     </button>
                 </section>
@@ -237,9 +182,9 @@ export default function RunnerPublicProfile({ slug }: Props) {
                         Kongsi Profil
                     </button>
 
-                    {error && (
+                    {shareError && (
                         <p className="runner-public-error" role="alert">
-                            {error}
+                            {shareError}
                         </p>
                     )}
                 </footer>
