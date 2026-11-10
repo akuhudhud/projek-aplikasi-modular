@@ -286,7 +286,7 @@ class RunnerLicenseDocumentAccessSecurityTest extends TestCase
             )
             ->assertHeader(
                 'Cache-Control',
-                'private, no-store'
+                'no-store, private'
             )
             ->assertHeader(
                 'X-Content-Type-Options',
