@@ -1,10 +1,8 @@
+
 import { useCustomerSession } from '../features/auth/useCustomerSession';
 import CustomerAuthPage from '../features/auth/CustomerAuthPage';
 
 import CustomerWorkspace from './CustomerWorkspace';
-
-import '../../styles/customer.css';
-import '../../styles/app-shell.css';
 
 export default function CustomerApp() {
     const session = useCustomerSession();
