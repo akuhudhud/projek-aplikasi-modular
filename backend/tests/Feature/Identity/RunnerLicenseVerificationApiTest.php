@@ -399,7 +399,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
             ->assertHeader('Content-Type', 'application/pdf')
             ->assertHeader(
                 'Cache-Control',
-                'private, no-store'
+                'no-store, private'
             );
 
         // Verify successful document download is audited.
