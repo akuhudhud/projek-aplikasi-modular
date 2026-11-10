@@ -1,4 +1,7 @@
+
 import type { CustomerTaskItem } from '../api';
+
+import { formatCustomerDate } from '../customerPresentation';
 
 type TasksPageProps = {
     tasks: CustomerTaskItem[];
@@ -8,19 +11,6 @@ type TasksPageProps = {
     onOpenTask: (item: CustomerTaskItem) => void;
     onPageChange: (page: number) => void;
 };
-
-function formatDate(value: string | null | undefined): string {
-    if (!value) return '—';
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) return '—';
-
-    return new Intl.DateTimeFormat('ms-MY', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    }).format(date);
-}
 
 function taskClassLabel(taskClass: string): string {
     if (taskClass === 'PICKUP_DELIVERY') {
@@ -92,7 +82,7 @@ export default function TasksPage({
                                     </span>
 
                                     <span>
-                                        {formatDate(item.task.created_at)}
+                                        {formatCustomerDate(item.task.created_at)}
                                     </span>
                                 </button>
                             ))}
