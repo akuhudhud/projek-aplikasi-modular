@@ -17,7 +17,7 @@
     min-width: 0;
     min-height: 0;
     margin: 0;
-    padding: 28px;
+    padding: 28px 28px 40px;
     border: 0;
     border-radius: 0;
     background: transparent;
@@ -96,7 +96,9 @@
 
 @media (max-width: 760px) {
     #customer-app .sr-app-shell__content {
-        padding: 18px 15px 28px;
+        padding: 18px 15px calc(
+            95px + env(safe-area-inset-bottom)
+        );
     }
 
     #customer-app .sr-bottom-navigation__item {
