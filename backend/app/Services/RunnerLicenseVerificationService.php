@@ -27,8 +27,8 @@ class RunnerLicenseVerificationService
         string $licenseClass,
         string $expiresAt,
         UploadedFile $document,
-        ?string $licenseType = null,
-        ?callable $afterCreate = null
+        ?string $licenseType,
+        callable $afterCreate
     ): RunnerLicenseVerification {
         $licenseNumber = trim($licenseNumber);
         $licenseClass = strtoupper(trim($licenseClass));
@@ -139,6 +139,15 @@ class RunnerLicenseVerificationService
                     );
                 }
 
+                if (
+                    $lockedAccount->runner_status
+                    !== Account::RUNNER_STATUS_NOT_RUNNER
+                ) {
+                    throw new DomainException(
+                        'Permohonan lesen hanya boleh dihantar bersama permohonan awal Runner.'
+                    );
+                }
+
                 $identityVerified = IdentityVerification::query()
                     ->where('account_id', $lockedAccount->id)
                     ->where(
@@ -151,32 +160,6 @@ class RunnerLicenseVerificationService
                 if (!$identityVerified) {
                     throw new DomainException(
                         'Identity verification is required before applying to become a Runner.'
-                    );
-                }
-
-                if (
-                    $afterCreate === null
-                    && $lockedAccount->runner_status
-                        !== Account::RUNNER_STATUS_APPROVED
-                ) {
-                    throw new DomainException(
-                        'Lesen tambahan hanya boleh dihantar selepas permohonan Runner diluluskan.'
-                    );
-                }
-
-                if (
-                    $afterCreate !== null
-                    && !in_array(
-                        $lockedAccount->runner_status,
-                        [
-                            Account::RUNNER_STATUS_NOT_RUNNER,
-                            Account::RUNNER_STATUS_APPROVED,
-                        ],
-                        true
-                    )
-                ) {
-                    throw new DomainException(
-                        'A Runner application cannot be submitted from the current status.'
                     );
                 }
 
@@ -210,8 +193,6 @@ class RunnerLicenseVerificationService
 
                 $pendingApplication = RunnerLicenseVerification::query()
                     ->where('account_id', $lockedAccount->id)
-                    ->where('license_type', $typeEntry->code)
-                    ->where('license_class', $catalogEntry->code)
                     ->where(
                         'status',
                         RunnerLicenseVerification::STATUS_PENDING
@@ -221,22 +202,9 @@ class RunnerLicenseVerificationService
 
                 if ($pendingApplication) {
                     throw new DomainException(
-                        'Masih terdapat permohonan PENDING untuk jenis dan kelas lesen ini.'
+                        'Masih terdapat permohonan lesen PENDING.'
                     );
                 }
-
-                $previous = RunnerLicenseVerification::query()
-                    ->where('account_id', $lockedAccount->id)
-                    ->where('license_type', $typeEntry->code)
-                    ->where('license_class', $catalogEntry->code)
-                    ->where(
-                        'status',
-                        RunnerLicenseVerification::STATUS_VERIFIED
-                    )
-                    ->where('is_current', true)
-                    ->orderByDesc('submitted_at')
-                    ->lockForUpdate()
-                    ->first();
 
                 $storedPath = Storage::disk('local')->putFileAs(
                     'runner-license-documents',
@@ -260,8 +228,6 @@ class RunnerLicenseVerificationService
                         'license_number' => $licenseNumber,
                         'license_type' => $typeEntry->code,
                         'license_class' => $catalogEntry->code,
-                        'previous_license_verification_id' =>
-                            $previous?->id,
                         'expires_at' => $expiry->toDateString(),
                         'status' =>
                             RunnerLicenseVerification::STATUS_PENDING,
@@ -276,9 +242,7 @@ class RunnerLicenseVerificationService
                         'size_bytes' => $size,
                     ]);
 
-                if ($afterCreate !== null) {
-                    $afterCreate($verification, $lockedAccount);
-                }
+                $afterCreate($verification, $lockedAccount);
 
                 return $verification;
             });
