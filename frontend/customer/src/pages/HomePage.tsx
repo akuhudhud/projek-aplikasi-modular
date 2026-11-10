@@ -15,6 +15,7 @@ type HomePageProps = {
     tasks: CustomerTaskItem[];
     ownRequests: CustomerOwnMarketplaceRequest[];
     tasksLoading: boolean;
+    tasksError: string;
     ownRequestsLoading: boolean;
     ownRequestsError: string;
     onOpenTask: (item: CustomerTaskItem) => void;
@@ -37,6 +38,7 @@ export default function HomePage({
     tasks,
     ownRequests,
     tasksLoading,
+    tasksError,
     ownRequestsLoading,
     ownRequestsError,
     onOpenTask,
@@ -113,6 +115,8 @@ export default function HomePage({
 
                 {tasksLoading ? (
                     <p>Memuatkan tugasan...</p>
+                ) : tasksError ? (
+                    <p role="alert">{tasksError}</p>
                 ) : tasks.length === 0 ? (
                     <section className="customer-empty">
                         <h3>Belum ada tugasan</h3>
