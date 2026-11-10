@@ -25,7 +25,7 @@ return new class extends Migration
             $table->uuid('created_by_account_id')->nullable();
             $table->uuid('assigned_account_id')->nullable();
 
-            $table->string('generic_status', 32)->default('PENDING');
+            $table->string('generic_status', 32)->default('OPEN');
 
             $table->timestamp('assigned_at')->nullable();
             $table->timestamp('started_at')->nullable();
