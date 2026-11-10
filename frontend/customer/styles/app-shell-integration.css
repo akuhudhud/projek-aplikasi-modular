@@ -2,9 +2,6 @@
 /*
  * SUPER RUNNER CUSTOMER
  * App Shell Integration Overrides
- *
- * Mengasingkan gaya AppShell daripada gaya global
- * customer.css yang diwarisi daripada layout lama.
  */
 
 /* MAIN CONTENT */
@@ -92,6 +89,30 @@
     opacity: 0.65;
 }
 
+/* AUTH BRAND */
+
+#customer-app .sr-auth-brand {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 28px;
+}
+
+#customer-app .sr-auth-brand h1 {
+    margin: 0;
+    color: #171717;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -1px;
+}
+
+#customer-app .sr-auth-brand p {
+    margin: 0;
+    color: #737373;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+}
+
 /* PAGE HEADINGS */
 
 #customer-app .customer-welcome h2 {
@@ -108,10 +129,33 @@
     margin: 0;
 }
 
+/* SECTION HEADING DESCRIPTIONS */
+
+#customer-app .sr-app-shell__content
+.customer-section-heading > div > p:not(.customer-task-class) {
+    margin: 6px 0 0;
+    color: #737373;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
 /* CUSTOMER PANEL DIRECT PARAGRAPHS */
 
 #customer-app .sr-app-shell__content .customer-panel > p {
     margin: 0 0 16px;
+}
+
+/* PROFILE SUCCESS MESSAGE */
+
+#customer-app .sr-profile-page .customer-panel form [role="status"] {
+    margin: 0;
+    padding: 12px 14px;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    background: #f0fdf4;
+    color: #166534;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
 /* DASHBOARD QUICK ACTION */
@@ -272,6 +316,10 @@
 @media (max-width: 480px) {
     #customer-app .customer-welcome h2 {
         font-size: 25px;
+    }
+
+    #customer-app .sr-auth-brand h1 {
+        font-size: 26px;
     }
 
     #customer-app .sr-home-page__quick-action h2 {
