@@ -329,8 +329,10 @@ export default function CustomerWorkspace({
             )}
 
             {tasks.error &&
-                navigation.activePage !== 'dashboard' &&
-                navigation.activePage !== 'tasks' && (
+                (
+                    navigation.activePage === 'dashboard' ||
+                    navigation.activePage === 'tasks'
+                ) && (
                     <p role="alert">{tasks.error}</p>
                 )}
 
