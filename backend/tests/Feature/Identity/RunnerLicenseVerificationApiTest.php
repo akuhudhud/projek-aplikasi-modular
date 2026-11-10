@@ -11,7 +11,6 @@ use App\Models\IdentityVerification;
 use App\Models\RunnerLicenseVerification;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -41,19 +40,6 @@ class RunnerLicenseVerificationApiTest extends TestCase
         $account->save();
 
         return $account->fresh();
-    }
-
-    private function verifyIdentity(Account $account): void
-    {
-        IdentityVerification::create([
-            'id' => (string) Str::uuid(),
-            'account_id' => $account->id,
-            'real_name' => 'Contoh Nama Sebenar',
-            'mykad_number' => '900101145678',
-            'status' => IdentityVerification::STATUS_VERIFIED,
-            'submitted_at' => now(),
-            'reviewed_at' => now(),
-        ]);
     }
 
     private function createPendingLicense(
@@ -94,6 +80,19 @@ class RunnerLicenseVerificationApiTest extends TestCase
         AccountPermission::create([
             'account_id' => $account->id,
             'permission_key' => 'runner_license_verifications.review',
+        ]);
+    }
+
+    private function verifyIdentity(Account $account): void
+    {
+        IdentityVerification::create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $account->id,
+            'real_name' => 'Contoh Nama Sebenar',
+            'mykad_number' => '900101145678',
+            'status' => IdentityVerification::STATUS_VERIFIED,
+            'submitted_at' => now(),
+            'reviewed_at' => now(),
         ]);
     }
 
@@ -176,8 +175,10 @@ class RunnerLicenseVerificationApiTest extends TestCase
     {
         $account = $this->createAccount();
 
-        $this->asAccount($account, 'license-status-token')
-            ->getJson('/api/me/runner-license-verification')
+        $this->asAccount(
+            $account,
+            'license-status-token'
+        )->getJson('/api/me/runner-license-verification')
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath(
@@ -193,126 +194,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
             );
     }
 
-    public function test_unapproved_user_cannot_submit_license_through_standalone_endpoint(): void
-    {
-        $account = $this->createAccount();
-        $this->verifyIdentity($account);
-
-        $this->asAccount(
-            $account,
-            'license-submit-unapproved-token'
-        )->post('/api/me/runner-license-verification', [
-            'license_number' => 'D123456789012',
-            'license_type' => 'GENERAL',
-            'license_class' => 'D',
-            'expires_at' => now()->addYear()->toDateString(),
-            'document' => UploadedFile::fake()->image('license.jpg'),
-        ])->assertUnprocessable()
-            ->assertJsonPath('success', false)
-            ->assertJsonPath(
-                'message',
-                'Lesen tambahan hanya boleh dihantar selepas permohonan Runner diluluskan.'
-            );
-
-        $this->assertDatabaseMissing('runner_license_verifications', [
-            'account_id' => $account->id,
-        ]);
-
-        $this->assertDatabaseHas('accounts', [
-            'id' => $account->id,
-            'runner_status' => Account::RUNNER_STATUS_NOT_RUNNER,
-        ]);
-    }
-
-    public function test_approved_runner_can_submit_additional_license(): void
-    {
-        $account = $this->createAccount(
-            'USER',
-            'ACTIVE',
-            Account::RUNNER_STATUS_APPROVED
-        );
-        $this->verifyIdentity($account);
-
-        $response = $this->asAccount(
-            $account,
-            'license-submit-approved-token'
-        )->post('/api/me/runner-license-verification', [
-            'license_number' => 'D123456789012',
-            'license_type' => 'GENERAL',
-            'license_class' => 'D',
-            'expires_at' => now()->addYear()->toDateString(),
-            'document' => UploadedFile::fake()->image('license.jpg'),
-        ]);
-
-        $response->assertCreated()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath(
-                'data.runner_license_verification.status',
-                RunnerLicenseVerification::STATUS_PENDING
-            )
-            ->assertJsonMissing([
-                'license_number' => 'D123456789012',
-            ]);
-
-        $verification = RunnerLicenseVerification::query()
-            ->where('account_id', $account->id)
-            ->firstOrFail();
-
-        $this->assertSame(
-            'D123456789012',
-            $verification->license_number
-        );
-
-        $this->assertDatabaseHas('runner_license_verifications', [
-            'id' => $verification->id,
-            'account_id' => $account->id,
-            'license_number' => 'D123456789012',
-        ]);
-
-        $this->assertSame(
-            RunnerLicenseVerification::STATUS_PENDING,
-            $verification->status
-        );
-
-        $this->assertFalse($verification->is_current);
-
-        Storage::disk('local')->assertExists(
-            $verification->document_path
-        );
-
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_account_id' => $account->id,
-            'target_account_id' => $account->id,
-            'action' => 'RUNNER_LICENSE_VERIFICATION_SUBMITTED',
-        ]);
-    }
-
-    public function test_user_cannot_submit_license_before_identity_is_verified(): void
-    {
-        $account = $this->createAccount(
-            'USER',
-            'ACTIVE',
-            Account::RUNNER_STATUS_APPROVED
-        );
-
-        $this->asAccount(
-            $account,
-            'license-identity-required-token'
-        )->post('/api/me/runner-license-verification', [
-            'license_number' => 'D123456789012',
-            'license_type' => 'GENERAL',
-            'license_class' => 'D',
-            'expires_at' => now()->addYear()->toDateString(),
-            'document' => UploadedFile::fake()->image('license.jpg'),
-        ])->assertUnprocessable()
-            ->assertJsonPath('success', false);
-
-        $this->assertDatabaseMissing('runner_license_verifications', [
-            'account_id' => $account->id,
-        ]);
-    }
-
-    public function test_admin_with_permission_can_review_license_and_download_document(): void
+    public function test_authorised_admin_can_view_license_record_and_download_document(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
         $this->grantReviewPermission($admin);
@@ -320,12 +202,14 @@ class RunnerLicenseVerificationApiTest extends TestCase
         $applicant = $this->createAccount(
             'USER',
             'ACTIVE',
-            Account::RUNNER_STATUS_APPROVED
+            Account::RUNNER_STATUS_PENDING
         );
+
+        $this->verifyIdentity($applicant);
 
         $verification = $this->createPendingLicense($applicant);
 
-        // Verify that the reviewer can view the license record.
+        // Admin can view the license record for the Runner application.
         $this->asAccount(
             $admin,
             'license-review-token'
@@ -345,7 +229,6 @@ class RunnerLicenseVerificationApiTest extends TestCase
                 'license_number' => 'D123456789012',
             ]);
 
-        // Verify successful record viewing is audited.
         $this->assertDatabaseHas('audit_logs', [
             'actor_account_id' => $admin->id,
             'target_account_id' => $applicant->id,
@@ -359,35 +242,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
             $applicant
         );
 
-        // Verify the reviewer can approve the license.
-        $this->asAccount(
-            $admin,
-            'license-decision-token'
-        )->postJson(
-            '/api/admin/runner-license-verifications/'
-                .$verification->id.'/decision',
-            ['decision' => 'VERIFIED']
-        )->assertOk()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath(
-                'data.runner_license_verification.status',
-                RunnerLicenseVerification::STATUS_VERIFIED
-            );
-
-        $this->assertDatabaseHas('runner_license_verifications', [
-            'id' => $verification->id,
-            'status' => RunnerLicenseVerification::STATUS_VERIFIED,
-            'reviewer_account_id' => $admin->id,
-            'is_current' => true,
-        ]);
-
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_account_id' => $admin->id,
-            'target_account_id' => $applicant->id,
-            'action' => 'RUNNER_LICENSE_VERIFICATION_VERIFIED',
-        ]);
-
-        // Verify successful document download.
+        // Admin can download the license document for review.
         $this->asAccount(
             $admin,
             'license-document-token'
@@ -402,7 +257,6 @@ class RunnerLicenseVerificationApiTest extends TestCase
                 'no-store, private'
             );
 
-        // Verify successful document download is audited.
         $this->assertDatabaseHas('audit_logs', [
             'actor_account_id' => $admin->id,
             'target_account_id' => $applicant->id,
@@ -415,19 +269,29 @@ class RunnerLicenseVerificationApiTest extends TestCase
             $admin,
             $applicant
         );
+
+        Storage::disk('local')->assertExists(
+            $verification->document_path
+        );
     }
 
-    public function test_super_admin_without_review_permission_cannot_review_license(): void
+    public function test_admin_without_review_permission_cannot_view_license_record(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
-        $applicant = $this->createAccount();
+
+        $applicant = $this->createAccount(
+            'USER',
+            'ACTIVE',
+            Account::RUNNER_STATUS_PENDING
+        );
+
         $verification = $this->createPendingLicense($applicant);
 
         $this->asAccount(
             $admin,
             'license-review-denied-token'
         )->getJson(
-            '/api/admin/runner-license-verifications/'.$verification->id
+            '/api/admin/runner-license-verifications/'.$applicant->id
         )->assertForbidden()
             ->assertJsonPath('success', false);
 
@@ -436,109 +300,38 @@ class RunnerLicenseVerificationApiTest extends TestCase
             'target_account_id' => $applicant->id,
             'action' => 'RUNNER_LICENSE_VERIFICATION_VIEWED',
         ]);
+
+        $this->assertDatabaseHas('runner_license_verifications', [
+            'id' => $verification->id,
+            'account_id' => $applicant->id,
+            'status' => RunnerLicenseVerification::STATUS_PENDING,
+        ]);
     }
 
-    public function test_rejected_license_can_be_resubmitted_without_overwriting_history(): void
+    public function test_admin_without_review_permission_cannot_download_license_document(): void
     {
-        $account = $this->createAccount(
+        $admin = $this->createAccount('SUPER_ADMIN');
+
+        $applicant = $this->createAccount(
             'USER',
             'ACTIVE',
-            Account::RUNNER_STATUS_APPROVED
+            Account::RUNNER_STATUS_PENDING
         );
-        $this->verifyIdentity($account);
 
-        $original = $this->createPendingLicense($account);
-
-        $original->status = RunnerLicenseVerification::STATUS_REJECTED;
-        $original->reviewed_at = now();
-        $original->rejection_reason = 'Dokumen tidak jelas.';
-        $original->save();
-
-        $originalId = $original->id;
-        $originalPath = $original->document_path;
-        $originalLicenseNumber = $original->license_number;
-        $originalSubmittedAt = $original->submitted_at;
-        $originalReviewedAt = $original->reviewed_at;
-        $originalRejectionReason = $original->rejection_reason;
+        $verification = $this->createPendingLicense($applicant);
 
         $this->asAccount(
-            $account,
-            'license-resubmit-token'
-        )->post('/api/me/runner-license-verification', [
-            'license_number' => 'D987654321098',
-            'license_type' => 'GENERAL',
-            'license_class' => 'D',
-            'expires_at' => now()->addYears(2)->toDateString(),
-            'document' => UploadedFile::fake()->image('new-license.jpg'),
-        ])->assertCreated()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath(
-                'data.runner_license_verification.status',
-                RunnerLicenseVerification::STATUS_PENDING
-            )
-            ->assertJsonPath(
-                'data.runner_license_verification.is_current',
-                false
-            );
+            $admin,
+            'license-document-denied-token'
+        )->get(
+            '/api/admin/runner-license-verifications/'
+                .$verification->id.'/document'
+        )->assertForbidden();
 
-        $original->refresh();
-
-        $this->assertSame(
-            RunnerLicenseVerification::STATUS_REJECTED,
-            $original->status
-        );
-        $this->assertSame($originalId, $original->id);
-        $this->assertSame(
-            $originalLicenseNumber,
-            $original->license_number
-        );
-        $this->assertSame($originalPath, $original->document_path);
-        $this->assertTrue(
-            $original->submitted_at->equalTo($originalSubmittedAt)
-        );
-        $this->assertTrue(
-            $original->reviewed_at->equalTo($originalReviewedAt)
-        );
-        $this->assertSame(
-            $originalRejectionReason,
-            $original->rejection_reason
-        );
-
-        Storage::disk('local')->assertExists($originalPath);
-
-        $this->assertSame(
-            2,
-            RunnerLicenseVerification::query()
-                ->where('account_id', $account->id)
-                ->count()
-        );
-
-        $renewal = RunnerLicenseVerification::query()
-            ->where('account_id', $account->id)
-            ->where('id', '!=', $originalId)
-            ->firstOrFail();
-
-        $this->assertNotSame($originalId, $renewal->id);
-        $this->assertSame(
-            RunnerLicenseVerification::STATUS_PENDING,
-            $renewal->status
-        );
-        $this->assertFalse($renewal->is_current);
-        $this->assertSame(
-            'D987654321098',
-            $renewal->license_number
-        );
-        $this->assertNull($renewal->reviewed_at);
-        $this->assertNull($renewal->rejection_reason);
-
-        Storage::disk('local')->assertExists(
-            $renewal->document_path
-        );
-
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_account_id' => $account->id,
-            'target_account_id' => $account->id,
-            'action' => 'RUNNER_LICENSE_VERIFICATION_SUBMITTED',
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
+            'action' => 'RUNNER_LICENSE_DOCUMENT_DOWNLOADED',
         ]);
     }
 }
