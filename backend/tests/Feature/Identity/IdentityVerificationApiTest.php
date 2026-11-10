@@ -184,6 +184,12 @@ class IdentityVerificationApiTest extends TestCase
             )
             ->assertForbidden()
             ->assertJsonPath('success', false);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
+            'action' => 'IDENTITY_VERIFICATION_VIEWED',
+        ]);
     }
 
     public function test_super_admin_with_permission_sees_masked_mykad_and_no_storage_path(): void
@@ -222,6 +228,17 @@ class IdentityVerificationApiTest extends TestCase
             );
 
         $response->assertDontSee('900101145678');
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
+            'action' => 'IDENTITY_VERIFICATION_VIEWED',
+            'reason' => 'Identity verification record viewed by authorised reviewer.',
+        ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'reason' => '900101145678',
+        ]);
     }
 
     public function test_super_admin_with_permission_can_reject_and_audit_does_not_store_free_text_reason(): void
@@ -403,5 +420,12 @@ class IdentityVerificationApiTest extends TestCase
 
         $this->assertContains('private', $cacheControl);
         $this->assertContains('no-store', $cacheControl);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
+            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_DOWNLOADED',
+            'reason' => 'Identity verification document downloaded by authorised reviewer.',
+        ]);
     }
 }
