@@ -102,17 +102,9 @@ describe('Customer Service Worker', () => {
     it('registers install, activate and fetch event handlers', () => {
         const worker = createServiceWorkerHarness();
 
-        expect(
-            worker.listeners.has('install'),
-        ).toBe(true);
-
-        expect(
-            worker.listeners.has('activate'),
-        ).toBe(true);
-
-        expect(
-            worker.listeners.has('fetch'),
-        ).toBe(true);
+        expect(worker.listeners.has('install')).toBe(true);
+        expect(worker.listeners.has('activate')).toBe(true);
+        expect(worker.listeners.has('fetch')).toBe(true);
     });
 
     it('precaches the application shell and build assets during installation', async () => {
@@ -125,12 +117,8 @@ describe('Customer Service Worker', () => {
                         JSON.stringify({
                             'index.html': {
                                 file: 'assets/index.js',
-                                css: [
-                                    'assets/index.css',
-                                ],
-                                assets: [
-                                    'assets/logo.svg',
-                                ],
+                                css: ['assets/index.css'],
+                                assets: ['assets/logo.svg'],
                             },
                         }),
                         {
@@ -146,8 +134,7 @@ describe('Customer Service Worker', () => {
             },
         );
 
-        const installHandler =
-            worker.listeners.get('install');
+        const installHandler = worker.listeners.get('install');
 
         expect(installHandler).toBeDefined();
 
@@ -161,27 +148,25 @@ describe('Customer Service Worker', () => {
 
         expect(installation).toBeDefined();
 
+        if (!installation) {
+            throw new Error('Installation promise was not registered.');
+        }
+
         await installation;
 
-        expect(
-            worker.cache.addAll,
-        ).toHaveBeenNthCalledWith(1, [
+        expect(worker.cache.addAll).toHaveBeenNthCalledWith(1, [
             '/',
             '/manifest.webmanifest',
             '/manifest.json',
         ]);
 
-        expect(
-            worker.cache.addAll,
-        ).toHaveBeenNthCalledWith(2, [
+        expect(worker.cache.addAll).toHaveBeenNthCalledWith(2, [
             '/assets/index.js',
             '/assets/index.css',
             '/assets/logo.svg',
         ]);
 
-        expect(
-            worker.selfMock.skipWaiting,
-        ).toHaveBeenCalledTimes(1);
+        expect(worker.selfMock.skipWaiting).toHaveBeenCalledTimes(1);
     });
 
     it('fails installation when the build manifest cannot be loaded', async () => {
@@ -193,8 +178,7 @@ describe('Customer Service Worker', () => {
             }),
         );
 
-        const installHandler =
-            worker.listeners.get('install');
+        const installHandler = worker.listeners.get('install');
 
         let installation: Promise<unknown> | undefined;
 
@@ -204,9 +188,13 @@ describe('Customer Service Worker', () => {
             },
         });
 
-        await expect(
-            installation,
-        ).rejects.toThrow(
+        expect(installation).toBeDefined();
+
+        if (!installation) {
+            throw new Error('Installation promise was not registered.');
+        }
+
+        await expect(installation).rejects.toThrow(
             'Unable to load the Vite build manifest.',
         );
     });
@@ -214,8 +202,7 @@ describe('Customer Service Worker', () => {
     it('deletes old application caches but preserves unrelated caches', async () => {
         const worker = createServiceWorkerHarness();
 
-        const activateHandler =
-            worker.listeners.get('activate');
+        const activateHandler = worker.listeners.get('activate');
 
         let activation: Promise<unknown> | undefined;
 
@@ -227,40 +214,32 @@ describe('Customer Service Worker', () => {
 
         expect(activation).toBeDefined();
 
+        if (!activation) {
+            throw new Error('Activation promise was not registered.');
+        }
+
         await activation;
 
-        expect(
-            worker.cachesMock.delete,
-        ).toHaveBeenCalledTimes(1);
-
-        expect(
-            worker.cachesMock.delete,
-        ).toHaveBeenCalledWith(
+        expect(worker.cachesMock.delete).toHaveBeenCalledTimes(1);
+        expect(worker.cachesMock.delete).toHaveBeenCalledWith(
             'super-runner-customer-v2',
         );
 
-        expect(
-            worker.cachesMock.delete,
-        ).not.toHaveBeenCalledWith(
+        expect(worker.cachesMock.delete).not.toHaveBeenCalledWith(
             'super-runner-customer-v3',
         );
 
-        expect(
-            worker.cachesMock.delete,
-        ).not.toHaveBeenCalledWith(
+        expect(worker.cachesMock.delete).not.toHaveBeenCalledWith(
             'another-application-cache',
         );
 
-        expect(
-            worker.selfMock.clients.claim,
-        ).toHaveBeenCalledTimes(1);
+        expect(worker.selfMock.clients.claim).toHaveBeenCalledTimes(1);
     });
 
     it('does not intercept API, web or Sanctum requests', () => {
         const worker = createServiceWorkerHarness();
 
-        const fetchHandler =
-            worker.listeners.get('fetch');
+        const fetchHandler = worker.listeners.get('fetch');
 
         expect(fetchHandler).toBeDefined();
 
@@ -282,9 +261,7 @@ describe('Customer Service Worker', () => {
                 respondWith,
             });
 
-            expect(
-                respondWith,
-            ).not.toHaveBeenCalled();
+            expect(respondWith).not.toHaveBeenCalled();
         }
     });
 
@@ -302,9 +279,7 @@ describe('Customer Service Worker', () => {
             respondWith,
         });
 
-        expect(
-            respondWith,
-        ).not.toHaveBeenCalled();
+        expect(respondWith).not.toHaveBeenCalled();
     });
 
     it('does not intercept non-GET requests', () => {
@@ -321,9 +296,7 @@ describe('Customer Service Worker', () => {
             respondWith,
         });
 
-        expect(
-            respondWith,
-        ).not.toHaveBeenCalled();
+        expect(respondWith).not.toHaveBeenCalled();
     });
 
     it('uses cached application shell when navigation fails offline', async () => {
@@ -354,18 +327,16 @@ describe('Customer Service Worker', () => {
 
         expect(navigationResponse).toBeDefined();
 
+        if (!navigationResponse) {
+            throw new Error('Navigation response was not registered.');
+        }
+
         const response = await navigationResponse;
 
         expect(response.status).toBe(200);
+        expect(await response.text()).toBe('offline application shell');
 
-        expect(
-            await response.text(),
-        ).toBe('offline application shell');
-
-        expect(
-            worker.cache.match,
-        ).toHaveBeenCalledWith('/');
-
+        expect(worker.cache.match).toHaveBeenCalledWith('/');
     });
 
     it('uses cached assets before requesting the network', async () => {
@@ -392,16 +363,14 @@ describe('Customer Service Worker', () => {
 
         expect(assetResponse).toBeDefined();
 
+        if (!assetResponse) {
+            throw new Error('Asset response was not registered.');
+        }
+
         const response = await assetResponse;
 
-        expect(
-            await response.text(),
-        ).toBe('cached stylesheet');
-
-        expect(
-            worker.fetchMock,
-        ).not.toHaveBeenCalled();
-
+        expect(await response.text()).toBe('cached stylesheet');
+        expect(worker.fetchMock).not.toHaveBeenCalled();
     });
 
     it('caches successful same-origin GET assets', async () => {
@@ -426,20 +395,15 @@ describe('Customer Service Worker', () => {
 
         expect(assetResponse).toBeDefined();
 
+        if (!assetResponse) {
+            throw new Error('Asset response was not registered.');
+        }
+
         const response = await assetResponse;
 
         expect(response.status).toBe(200);
-
-        expect(
-            worker.fetchMock,
-        ).toHaveBeenCalledTimes(1);
-
-        expect(
-            worker.cache.put,
-        ).toHaveBeenCalledTimes(1);
-
-        expect(
-            worker.cache.put.mock.calls[0][0],
-        ).toBe(request);
+        expect(worker.fetchMock).toHaveBeenCalledTimes(1);
+        expect(worker.cache.put).toHaveBeenCalledTimes(1);
+        expect(worker.cache.put.mock.calls[0][0]).toBe(request);
     });
 });
