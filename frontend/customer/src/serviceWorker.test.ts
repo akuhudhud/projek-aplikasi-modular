@@ -378,6 +378,16 @@ describe('Customer Service Worker', () => {
 
         worker.cache.match.mockResolvedValue(undefined);
 
+        const networkResponse = new Response('network asset', {
+            status: 200,
+        });
+
+        Object.defineProperty(networkResponse, 'type', {
+            value: 'basic',
+        });
+
+        worker.fetchMock.mockResolvedValue(networkResponse);
+
         let assetResponse: Promise<Response> | undefined;
 
         const request: WorkerRequest = {
