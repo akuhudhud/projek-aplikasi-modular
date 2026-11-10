@@ -58,10 +58,6 @@ class RunnerController extends Controller
             return $this->identityVerificationRequired();
         }
 
-        /*
-         * Tolak akaun tidak aktif sebelum memproses dokumen lesen.
-         * Peraturan yang sama tetap dikuatkuasakan semula oleh service.
-         */
         if ($account->status !== 'ACTIVE') {
             return $this->errorResponse(
                 'Only active accounts can apply to become a Runner.',
@@ -77,14 +73,16 @@ class RunnerController extends Controller
         }
 
         /*
-         * Semak status permohonan sebelum validasi input supaya
-         * permohonan pendua menerima ralat perniagaan yang tepat.
-         * Service tetap bertanggungjawab terhadap kawalan transaksi.
+         * Permohonan pertama dan permohonan semula selepas ditolak sahaja.
          */
-        if (
-            $account->runner_status
-            !== Account::RUNNER_STATUS_NOT_RUNNER
-        ) {
+        if (!in_array(
+            $account->runner_status,
+            [
+                Account::RUNNER_STATUS_NOT_RUNNER,
+                Account::RUNNER_STATUS_REJECTED,
+            ],
+            true
+        )) {
             return $this->errorResponse(
                 'A Runner application cannot be submitted from the current status.',
                 422
