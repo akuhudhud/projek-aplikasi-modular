@@ -162,6 +162,30 @@
     line-height: 1.5;
 }
 
+/* QUOTATION STATUS MESSAGE */
+
+#customer-app .customer-quotation-section [role="status"] {
+    margin: 0;
+    padding: 12px 14px;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    background: #f0fdf4;
+    color: #166534;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+#customer-app .customer-quotation-section [role="alert"] {
+    margin: 0;
+    padding: 12px 14px;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    background: #fef2f2;
+    color: #b91c1c;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
 @media (max-width: 480px) {
     .customer-quotation-card {
         padding: 14px;
@@ -176,11 +200,7 @@
     }
 }
 
-/*
- * CSS ISOLATION
- * Mengelakkan global customer.css mengambil alih
- * gaya butang buka/tutup sebut harga.
- */
+/* CSS ISOLATION */
 
 #customer-app .customer-quotation-section > button {
     display: inline-flex;
