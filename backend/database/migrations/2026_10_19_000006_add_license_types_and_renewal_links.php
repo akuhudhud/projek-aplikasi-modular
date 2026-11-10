@@ -12,45 +12,21 @@ return new class extends Migration
             $table->string('license_type', 30)
                 ->after('license_number');
 
-            $table->uuid('previous_license_verification_id')
-                ->nullable()
-                ->after('license_type');
-
             $table->index(
                 ['account_id', 'license_type', 'license_class', 'status'],
                 'runner_license_type_class_status_index'
             );
-
-            $table->index(
-                'previous_license_verification_id',
-                'runner_license_previous_index'
-            );
-
-            $table->foreign(
-                'previous_license_verification_id',
-                'runner_license_prev_fk'
-            )
-                ->references('id')
-                ->on('runner_license_verifications')
-                ->restrictOnDelete();
         });
     }
 
     public function down(): void
     {
         Schema::table('runner_license_verifications', function (Blueprint $table) {
-            $table->dropForeign('runner_license_prev_fk');
-
-            $table->dropIndex('runner_license_previous_index');
-
             $table->dropIndex(
                 'runner_license_type_class_status_index'
             );
 
-            $table->dropColumn([
-                'previous_license_verification_id',
-                'license_type',
-            ]);
+            $table->dropColumn('license_type');
         });
     }
 };
