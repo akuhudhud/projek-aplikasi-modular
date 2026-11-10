@@ -5,7 +5,10 @@ import type {
 } from '../api';
 
 import CustomerRequestQuotations from '../CustomerRequestQuotations';
-import { LocationSnapshotPanel } from '../customerPresentation';
+import {
+    LocationSnapshotPanel,
+    formatCustomerDate,
+} from '../customerPresentation';
 
 type RequestsPageProps = {
     requests: CustomerOwnMarketplaceRequest[];
@@ -24,15 +27,6 @@ type RequestsPageProps = {
         result: CustomerAwardQuotationResult,
     ) => void;
 };
-
-function formatDate(value: string | null): string {
-    if (!value) return '—';
-
-    return new Intl.DateTimeFormat('ms-MY', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    }).format(new Date(value));
-}
 
 function taskClassLabel(taskClass: string): string {
     return taskClass === 'PICKUP_DELIVERY'
@@ -106,12 +100,12 @@ export default function RequestsPage({
 
                                     <span>
                                         Tarikh luput:{' '}
-                                        {formatDate(request.expires_at)}
+                                        {formatCustomerDate(request.expires_at)}
                                     </span>
 
                                     <span>
                                         Dicipta:{' '}
-                                        {formatDate(request.created_at)}
+                                        {formatCustomerDate(request.created_at)}
                                     </span>
 
                                     {request.task_class === 'PICKUP_DELIVERY' && (
@@ -146,7 +140,7 @@ export default function RequestsPage({
                                     {request.cancelled_at && (
                                         <span>
                                             Dibatalkan:{' '}
-                                            {formatDate(request.cancelled_at)}
+                                            {formatCustomerDate(request.cancelled_at)}
                                         </span>
                                     )}
 
