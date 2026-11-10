@@ -4,6 +4,7 @@ namespace Tests\Feature\Identity;
 
 use App\Models\Account;
 use App\Models\AccountPermission;
+use App\Models\AuditLog;
 use App\Models\DrivingLicenseCatalog;
 use App\Models\DrivingLicenseType;
 use App\Models\IdentityVerification;
@@ -18,6 +19,8 @@ use Tests\TestCase;
 class RunnerLicenseVerificationApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    private const TEST_DOCUMENT_CONTENT = '%PDF-test-content';
 
     private function createAccount(
         string $role = 'USER',
@@ -63,7 +66,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
 
         Storage::disk('local')->put(
             $path,
-            '%PDF-test-content'
+            self::TEST_DOCUMENT_CONTENT
         );
 
         return RunnerLicenseVerification::create([
@@ -82,7 +85,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
             'disk' => 'local',
             'document_path' => $path,
             'mime_type' => 'application/pdf',
-            'size_bytes' => strlen('%PDF-test-content'),
+            'size_bytes' => strlen(self::TEST_DOCUMENT_CONTENT),
         ]);
     }
 
@@ -112,6 +115,34 @@ class RunnerLicenseVerificationApiTest extends TestCase
         return $this->withHeader(
             'Authorization',
             'Bearer '.$token
+        );
+    }
+
+    private function assertAuditLogContainsNoSensitiveData(
+        string $action,
+        Account $actor,
+        Account $target
+    ): void {
+        $auditLog = AuditLog::query()
+            ->where('actor_account_id', $actor->id)
+            ->where('target_account_id', $target->id)
+            ->where('action', $action)
+            ->latest('created_at')
+            ->first();
+
+        $this->assertNotNull(
+            $auditLog,
+            'Expected audit log was not created.'
+        );
+
+        $this->assertStringNotContainsString(
+            'D123456789012',
+            $auditLog->reason
+        );
+
+        $this->assertStringNotContainsString(
+            self::TEST_DOCUMENT_CONTENT,
+            $auditLog->reason
         );
     }
 
@@ -291,8 +322,10 @@ class RunnerLicenseVerificationApiTest extends TestCase
             'ACTIVE',
             Account::RUNNER_STATUS_APPROVED
         );
+
         $verification = $this->createPendingLicense($applicant);
 
+        // Verify that the reviewer can view the license record.
         $this->asAccount(
             $admin,
             'license-review-token'
@@ -312,6 +345,21 @@ class RunnerLicenseVerificationApiTest extends TestCase
                 'license_number' => 'D123456789012',
             ]);
 
+        // Verify successful record viewing is audited.
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
+            'action' => 'RUNNER_LICENSE_VERIFICATION_VIEWED',
+            'reason' => 'Runner license verification record viewed by authorised reviewer.',
+        ]);
+
+        $this->assertAuditLogContainsNoSensitiveData(
+            'RUNNER_LICENSE_VERIFICATION_VIEWED',
+            $admin,
+            $applicant
+        );
+
+        // Verify the reviewer can approve the license.
         $this->asAccount(
             $admin,
             'license-decision-token'
@@ -339,6 +387,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
             'action' => 'RUNNER_LICENSE_VERIFICATION_VERIFIED',
         ]);
 
+        // Verify successful document download.
         $this->asAccount(
             $admin,
             'license-document-token'
@@ -347,7 +396,25 @@ class RunnerLicenseVerificationApiTest extends TestCase
                 .$verification->id.'/document'
         )->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
-            ->assertHeader('Content-Type', 'application/pdf');
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader(
+                'Cache-Control',
+                'private, no-store'
+            );
+
+        // Verify successful document download is audited.
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
+            'action' => 'RUNNER_LICENSE_DOCUMENT_DOWNLOADED',
+            'reason' => 'Runner license document downloaded by authorised reviewer.',
+        ]);
+
+        $this->assertAuditLogContainsNoSensitiveData(
+            'RUNNER_LICENSE_DOCUMENT_DOWNLOADED',
+            $admin,
+            $applicant
+        );
     }
 
     public function test_super_admin_without_review_permission_cannot_review_license(): void
@@ -363,6 +430,12 @@ class RunnerLicenseVerificationApiTest extends TestCase
             '/api/admin/runner-license-verifications/'.$verification->id
         )->assertForbidden()
             ->assertJsonPath('success', false);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
+            'action' => 'RUNNER_LICENSE_VERIFICATION_VIEWED',
+        ]);
     }
 
     public function test_rejected_license_can_be_resubmitted_without_overwriting_history(): void
