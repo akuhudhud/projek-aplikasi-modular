@@ -1,3 +1,4 @@
+
 export type CustomerPage =
     | 'dashboard'
     | 'requests'
@@ -22,7 +23,7 @@ export const CUSTOMER_NAVIGATION: CustomerNavigationItem[] = [
     },
     {
         id: 'requests',
-        label: 'Requests',
+        label: 'Open Request',
         icon: 'clipboard-list',
         description: 'Senarai Open Request pelanggan',
     },
