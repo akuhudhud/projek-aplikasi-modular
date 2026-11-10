@@ -1,3 +1,4 @@
+
 .runner-public-page {
     min-height: 100vh;
     display: flex;
@@ -195,6 +196,104 @@
     }
 
     .runner-public-identity h1 {
+        font-size: 21px;
+    }
+}
+
+/*
+ * CSS ISOLATION
+ * Mengelakkan global customer.css mengambil alih
+ * paparan profil awam Runner.
+ */
+
+#customer-app .runner-public-page {
+    width: 100%;
+    max-width: none;
+    padding: 32px 16px;
+    border: 0;
+    border-radius: 0;
+    background: #f3f5f8;
+    box-shadow: none;
+}
+
+#customer-app .runner-public-identity h1,
+#customer-app .runner-public-state h1 {
+    margin: 0 0 6px;
+    color: #172033;
+    font-size: 25px;
+    font-weight: 700;
+    letter-spacing: normal;
+    line-height: 1.2;
+}
+
+#customer-app .runner-public-state h1 {
+    margin-top: 0;
+}
+
+#customer-app .runner-public-section h2 {
+    margin: 0 0 10px;
+    color: #172033;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+#customer-app .runner-public-footer button,
+#customer-app .runner-public-state button {
+    display: inline-flex;
+    min-height: 46px;
+    align-items: center;
+    justify-content: center;
+    padding: 11px 16px;
+    border: 0;
+    border-radius: 10px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+#customer-app .runner-public-footer .runner-public-primary,
+#customer-app .runner-public-state button {
+    background: #1769d2;
+    color: #fff;
+}
+
+#customer-app .runner-public-footer .runner-public-secondary {
+    background: #edf2f7;
+    color: #243247;
+}
+
+#customer-app .runner-public-footer .runner-public-primary:hover:not(:disabled),
+#customer-app .runner-public-state button:hover:not(:disabled) {
+    background: #145bb5;
+    color: #fff;
+}
+
+#customer-app .runner-public-footer .runner-public-secondary:hover:not(:disabled) {
+    background: #dfe7ef;
+    color: #243247;
+}
+
+#customer-app .runner-public-card .runner-public-error {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #b42318;
+    font-size: 13px;
+}
+
+@media (max-width: 480px) {
+    #customer-app .runner-public-page {
+        padding: 16px 10px;
+    }
+
+    #customer-app .runner-public-card {
+        padding: 20px 16px;
+        border-radius: 14px;
+    }
+
+    #customer-app .runner-public-identity h1 {
         font-size: 21px;
     }
 }
