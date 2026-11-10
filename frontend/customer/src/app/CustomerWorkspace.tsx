@@ -1,6 +1,7 @@
 import {
     useCallback,
     useEffect,
+    useState,
 } from 'react';
 
 import type { FormEvent } from 'react';
@@ -37,6 +38,9 @@ export default function CustomerWorkspace({
     logoutError,
 }: CustomerWorkspaceProps) {
     const navigation = useCustomerNavigation();
+
+    const [profileSuccessMessage, setProfileSuccessMessage] =
+        useState('');
 
     const tasks = useCustomerTasks({
         enabled:
@@ -76,6 +80,10 @@ export default function CustomerWorkspace({
             tasks.closeTask();
             navigation.navigate(page);
 
+            if (page !== 'profile') {
+                setProfileSuccessMessage('');
+            }
+
             if (page !== 'requests') {
                 requests.clearActionMessages();
             }
@@ -99,11 +107,28 @@ export default function CustomerWorkspace({
         [tasks.openTask],
     );
 
-    function handleProfileSubmit(
+    const handleProfileNameChange = useCallback(
+        (value: string) => {
+            setProfileSuccessMessage('');
+            profile.setProfileName(value);
+        },
+        [profile.setProfileName],
+    );
+
+    async function handleProfileSubmit(
         event: FormEvent<HTMLFormElement>,
     ) {
         event.preventDefault();
-        void profile.updateProfile();
+
+        setProfileSuccessMessage('');
+
+        const updated = await profile.updateProfile();
+
+        if (updated) {
+            setProfileSuccessMessage(
+                'Profil berjaya dikemaskini.',
+            );
+        }
     }
 
     function renderTaskDetail() {
@@ -280,8 +305,11 @@ export default function CustomerWorkspace({
                         profileName={profile.profileName}
                         profileSaving={profile.saving}
                         profileError={profile.error}
-                        profileMessage={profile.message}
-                        onNameChange={profile.setProfileName}
+                        profileMessage={
+                            profileSuccessMessage ||
+                            profile.message
+                        }
+                        onNameChange={handleProfileNameChange}
                         onSubmit={handleProfileSubmit}
                     />
                 );
