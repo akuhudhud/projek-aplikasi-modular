@@ -1,3 +1,4 @@
+
 // @vitest-environment jsdom
 
 import {
@@ -57,7 +58,7 @@ describe('Customer AppShell integration', () => {
         () => {
             const onLogout = vi.fn();
 
-            render(
+            const { container } = render(
                 <AppShellHarness
                     onLogout={onLogout}
                 />,
@@ -92,6 +93,12 @@ describe('Customer AppShell integration', () => {
                     name: 'Workspace Content',
                 }),
             ).toBeTruthy();
+
+            const pageTitle = container.querySelector(
+                '.sr-top-app-bar__page',
+            );
+
+            expect(pageTitle).not.toBeNull();
 
             const destinations: Array<{
                 page: CustomerPage;
@@ -136,10 +143,8 @@ describe('Customer AppShell integration', () => {
                 fireEvent.click(button);
 
                 expect(
-                    screen.getByText(
-                        destination.pageTitle,
-                    ),
-                ).toBeTruthy();
+                    pageTitle?.textContent,
+                ).toBe(destination.pageTitle);
 
                 expect(
                     button.getAttribute('aria-current'),
