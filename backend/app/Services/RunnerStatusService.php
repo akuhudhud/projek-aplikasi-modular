@@ -50,10 +50,14 @@ class RunnerStatusService
             );
         }
 
-        if (
-            $applicant->runner_status
-            !== Account::RUNNER_STATUS_NOT_RUNNER
-        ) {
+        if (!in_array(
+            $applicant->runner_status,
+            [
+                Account::RUNNER_STATUS_NOT_RUNNER,
+                Account::RUNNER_STATUS_REJECTED,
+            ],
+            true
+        )) {
             throw new DomainException(
                 'A Runner application cannot be submitted from the current status.'
             );
@@ -86,10 +90,14 @@ class RunnerStatusService
                     );
                 }
 
-                if (
-                    $lockedAccount->runner_status
-                    !== Account::RUNNER_STATUS_NOT_RUNNER
-                ) {
+                if (!in_array(
+                    $lockedAccount->runner_status,
+                    [
+                        Account::RUNNER_STATUS_NOT_RUNNER,
+                        Account::RUNNER_STATUS_REJECTED,
+                    ],
+                    true
+                )) {
                     throw new DomainException(
                         'A Runner application cannot be submitted from the current status.'
                     );
@@ -99,7 +107,6 @@ class RunnerStatusService
                     Account::RUNNER_STATUS_PENDING;
                 $lockedAccount->save();
 
-                // Satu-satunya audit untuk penghantaran permohonan awal.
                 $this->auditLogService->record(
                     $lockedAccount,
                     $lockedAccount,
@@ -143,8 +150,6 @@ class RunnerStatusService
                 'updated_at',
             ]);
 
-        // Maklumat lesen dipaparkan bersama permohonan Runner.
-        // Nombor lesen penuh dan laluan fail tidak didedahkan.
         $applications->each(
             function (Account $application): void {
                 $license = RunnerLicenseVerification::query()
@@ -255,10 +260,6 @@ class RunnerStatusService
                     true
                 )
             ) {
-                /*
-                 * Account is locked before this identity query.
-                 * IdentityVerificationController uses the same lock order.
-                 */
                 if ($nextStatus === Account::RUNNER_STATUS_APPROVED) {
                     $identity = IdentityVerification::query()
                         ->where('account_id', $target->id)
@@ -302,7 +303,6 @@ class RunnerStatusService
                         );
                     }
 
-                    // Kelulusan Runner dan lesen berlaku dalam transaksi sama.
                     $license->status =
                         RunnerLicenseVerification::STATUS_VERIFIED;
                     $license->is_current = true;
@@ -311,7 +311,6 @@ class RunnerStatusService
                     $license->rejection_reason = null;
                     $license->save();
                 } else {
-                    // Penolakan Runner turut menolak lesen yang dilampirkan.
                     $license->status =
                         RunnerLicenseVerification::STATUS_REJECTED;
                     $license->is_current = false;
@@ -349,7 +348,6 @@ class RunnerStatusService
                     );
                 }
 
-                // Semak identiti sekali lagi ketika memulihkan Runner digantung.
                 $identity = IdentityVerification::query()
                     ->where('account_id', $target->id)
                     ->lockForUpdate()
@@ -369,8 +367,6 @@ class RunnerStatusService
             $target->runner_status = $nextStatus;
             $target->save();
 
-            // Satu audit keputusan permohonan; tiada audit keputusan lesen
-            // tambahan bagi flow permohonan awal.
             $this->auditLogService->record(
                 $currentActor,
                 $target,
@@ -412,7 +408,6 @@ class RunnerStatusService
     ): void {
         $this->assertAdministrator($actor);
 
-        // Root ialah pemilik dan tidak tertakluk pada sekatan pentadbir dalaman.
         if ($actor->role === 'ROOT_SUPER_ADMIN') {
             return;
         }
