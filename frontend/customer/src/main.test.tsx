@@ -48,6 +48,7 @@ vi.mock('axios', () => ({
 }));
 
 vi.mock('./api', () => ({
+    CUSTOMER_SESSION_EXPIRED_EVENT: 'customer-session-expired',
     customerApi: {
         me: meMock,
         login: loginMock,
