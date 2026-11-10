@@ -66,6 +66,9 @@ const account = {
     status: 'ACTIVE',
 };
 
+const taskLoadingError =
+    'Tidak berjaya memuatkan senarai tugasan.';
+
 function configureSuccessfulLogin() {
     meMock.mockRejectedValue(
         new Error('No active session'),
@@ -220,5 +223,45 @@ describe('Customer page-specific data loading', () => {
 
         expect(getTasksMock).not.toHaveBeenCalled();
         expect(getRequestsMock).not.toHaveBeenCalled();
+    });
+
+    it('shows task loading errors on the Dashboard', async () => {
+        getTasksMock.mockRejectedValue(
+            new Error('Tasks unavailable'),
+        );
+
+        await loginAt('/');
+
+        await screen.findByText('Dashboard Pelanggan');
+
+        expect(
+            await screen.findByRole('alert'),
+        ).toHaveTextContent(taskLoadingError);
+    });
+
+    it('shows task loading errors on My Tasks', async () => {
+        getTasksMock.mockRejectedValue(
+            new Error('Tasks unavailable'),
+        );
+
+        await loginAt('/?runner=Test-Runner');
+
+        await screen.findByRole('heading', {
+            name: 'Cipta Open Request',
+        });
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Tugasan Saya',
+            }),
+        );
+
+        await screen.findByRole('heading', {
+            name: 'My Tasks',
+        });
+
+        expect(
+            await screen.findByRole('alert'),
+        ).toHaveTextContent(taskLoadingError);
     });
 });
