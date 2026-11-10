@@ -92,6 +92,79 @@
     opacity: 0.65;
 }
 
+/* PAGE HEADINGS */
+
+#customer-app .customer-welcome h2 {
+    margin: 0 0 8px;
+    font-size: 27px;
+}
+
+#customer-app .customer-panel h2 {
+    margin-bottom: 22px;
+}
+
+#customer-app .customer-panel > .customer-section-heading h2,
+#customer-app .customer-section-heading h2 {
+    margin: 0;
+}
+
+/* SECTION HEADING BUTTONS */
+
+#customer-app .customer-section-heading button {
+    background: transparent;
+    color: #92400e;
+}
+
+#customer-app .customer-section-heading button:hover:not(:disabled) {
+    background: #fef3c7;
+    color: #78350f;
+}
+
+/* PAGINATION BUTTONS */
+
+#customer-app .customer-pagination button {
+    min-height: 36px;
+    padding: 8px 14px;
+    background: #f4f4f5;
+    color: #262626;
+}
+
+#customer-app .customer-pagination button:hover:not(:disabled) {
+    background: #e4e4e7;
+    color: #171717;
+}
+
+/* AUTH MODE SWITCH BUTTONS */
+
+#customer-app .customer-login > p button {
+    min-height: auto;
+    padding: 4px 6px;
+    background: transparent;
+    color: #92400e;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+#customer-app .customer-login > p button:hover:not(:disabled) {
+    background: #fef3c7;
+    color: #78350f;
+}
+
+/* AUTH FORM SECONDARY BUTTONS */
+
+#customer-app .customer-login form > button + button {
+    min-height: 48px;
+    margin-top: -12px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    color: #404040;
+}
+
+#customer-app .customer-login form > button + button:hover:not(:disabled) {
+    background: #f4f4f5;
+    color: #171717;
+}
+
 /* MOBILE */
 
 @media (max-width: 760px) {
@@ -105,6 +178,12 @@
         min-height: 54px;
         gap: 3px;
         padding: 5px 3px;
+    }
+}
+
+@media (max-width: 480px) {
+    #customer-app .customer-welcome h2 {
+        font-size: 25px;
     }
 }
 
