@@ -1,3 +1,4 @@
+
 import {
     useCallback,
     useEffect,
@@ -189,6 +190,7 @@ export default function CustomerWorkspace({
                         tasks={tasks.tasks}
                         ownRequests={requests.requests}
                         tasksLoading={tasks.loading}
+                        tasksError={tasks.error}
                         ownRequestsLoading={requests.loading}
                         ownRequestsError={requests.error}
                         onOpenTask={handleOpenTask}
@@ -291,6 +293,7 @@ export default function CustomerWorkspace({
                     <TasksPage
                         tasks={tasks.tasks}
                         tasksLoading={tasks.loading}
+                        tasksError={tasks.error}
                         taskPage={tasks.currentPage}
                         taskLastPage={tasks.lastPage}
                         onOpenTask={handleOpenTask}
@@ -327,14 +330,6 @@ export default function CustomerWorkspace({
             {logoutError && (
                 <p role="alert">{logoutError}</p>
             )}
-
-            {tasks.error &&
-                (
-                    navigation.activePage === 'dashboard' ||
-                    navigation.activePage === 'tasks'
-                ) && (
-                    <p role="alert">{tasks.error}</p>
-                )}
 
             {renderPage()}
         </AppShell>
