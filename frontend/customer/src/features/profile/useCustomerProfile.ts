@@ -1,3 +1,4 @@
+
 import {
     useCallback,
     useEffect,
@@ -74,13 +75,13 @@ export function useCustomerProfile({
         setMessage('');
 
         try {
-            const updatedAccount = await customerApi.updateProfile({
-                name,
-            });
+            const updatedAccount =
+                await customerApi.updateProfile({ name });
 
-            onAccountUpdated(updatedAccount);
             setProfileNameState(updatedAccount.name);
             setMessage('Profil berjaya dikemaskini.');
+
+            onAccountUpdated(updatedAccount);
 
             return true;
         } catch (requestError) {
