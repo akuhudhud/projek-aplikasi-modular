@@ -104,19 +104,39 @@ class IdentityVerificationController extends Controller
         ]);
     }
 
-    public function showForReview(string $accountId): JsonResponse
-    {
+    public function showForReview(
+        Request $request,
+        string $accountId,
+        AuditLogService $auditLogService
+    ): JsonResponse {
         $verification = IdentityVerification::query()
             ->with(['account', 'documents'])
             ->where('account_id', $accountId)
             ->first();
 
-        if ($verification === null) {
+        if (
+            $verification === null
+            || $verification->account === null
+        ) {
             return $this->errorResponse(
                 'Identity verification application not found.',
                 404
             );
         }
+
+        /** @var Account $actor */
+        $actor = $request->attributes->get('account');
+
+        $targetAccount = $verification->account;
+
+        // Record successful access to the identity verification record.
+        // Never include MyKad data or document contents in the audit log.
+        $auditLogService->record(
+            $actor,
+            $targetAccount,
+            'IDENTITY_VERIFICATION_VIEWED',
+            'Identity verification record viewed by authorised reviewer.'
+        );
 
         $mykadNumber = $verification->mykad_number;
 
@@ -125,7 +145,7 @@ class IdentityVerificationController extends Controller
             'data' => [
                 'identity_verification' => [
                     'account_id' => $verification->account_id,
-                    'display_name' => $verification->account->name,
+                    'display_name' => $targetAccount->name,
                     'real_name' => $verification->real_name,
                     'status' => $verification->status,
                     'mykad_number_masked' => str_repeat('*', 8)
@@ -299,17 +319,24 @@ class IdentityVerificationController extends Controller
     }
 
     public function downloadDocument(
+        Request $request,
         string $accountId,
-        string $documentId
+        string $documentId,
+        AuditLogService $auditLogService
     ): Response|JsonResponse {
         $document = IdentityVerificationDocument::query()
+            ->with('identityVerification.account')
             ->where('id', $documentId)
             ->whereHas('identityVerification', function ($query) use ($accountId): void {
                 $query->where('account_id', $accountId);
             })
             ->first();
 
-        if ($document === null) {
+        if (
+            $document === null
+            || $document->identityVerification === null
+            || $document->identityVerification->account === null
+        ) {
             return $this->errorResponse(
                 'Identity document not found.',
                 404
@@ -333,6 +360,20 @@ class IdentityVerificationController extends Controller
                 500
             );
         }
+
+        /** @var Account $actor */
+        $actor = $request->attributes->get('account');
+
+        $targetAccount = $document->identityVerification->account;
+
+        // Record only successful document retrieval.
+        // Do not record the document path, MyKad number, or file contents.
+        $auditLogService->record(
+            $actor,
+            $targetAccount,
+            'IDENTITY_VERIFICATION_DOCUMENT_DOWNLOADED',
+            'Identity verification document downloaded by authorised reviewer.'
+        );
 
         $extension = match ($document->mime_type) {
             'image/jpeg' => 'jpg',
