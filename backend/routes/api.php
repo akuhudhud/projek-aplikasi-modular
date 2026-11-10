@@ -141,11 +141,6 @@ Route::get('/me/runner-license-verification', [
     'showMyStatus',
 ])->middleware(AuthenticateSession::class);
 
-Route::post('/me/runner-license-verification', [
-    RunnerLicenseVerificationController::class,
-    'submit',
-])->middleware(AuthenticateSession::class);
-
 Route::get('/admin/runner-license-verifications', [
     RunnerLicenseVerificationController::class,
     'index',
