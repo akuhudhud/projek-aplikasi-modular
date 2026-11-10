@@ -1,3 +1,4 @@
+
 import type { CustomerPage } from '../app/navigation';
 import { CUSTOMER_PAGE_LABELS } from '../app/navigation';
 
@@ -45,6 +46,7 @@ export default function TopAppBar({
                 <button
                     type="button"
                     className="sr-top-app-bar__logout"
+                    aria-label="Logout"
                     onClick={onLogout}
                     disabled={loading}
                 >
