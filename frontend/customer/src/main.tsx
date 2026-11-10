@@ -1,3 +1,4 @@
+
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -6,6 +7,7 @@ import RunnerPublicProfile from './RunnerPublicProfile';
 
 import '../styles/customer.css';
 import '../styles/app-shell.css';
+import '../styles/app-shell-integration.css';
 
 export { default as CustomerApp } from './app/CustomerApp';
 
