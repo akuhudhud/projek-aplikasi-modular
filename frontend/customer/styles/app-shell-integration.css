@@ -108,6 +108,12 @@
     margin: 0;
 }
 
+/* CUSTOMER PANEL DIRECT PARAGRAPHS */
+
+#customer-app .sr-app-shell__content .customer-panel > p {
+    margin: 0 0 16px;
+}
+
 /* DASHBOARD QUICK ACTION */
 
 #customer-app .sr-home-page__quick-action {
