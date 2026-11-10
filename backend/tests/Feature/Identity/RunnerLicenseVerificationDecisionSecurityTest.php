@@ -139,6 +139,12 @@ class RunnerLicenseVerificationDecisionSecurityTest extends TestCase
             'id' => $verification->id,
             'status' => RunnerLicenseVerification::STATUS_PENDING,
         ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
+            'action' => 'RUNNER_LICENSE_VERIFICATION_VERIFIED',
+        ]);
     }
 
     public function test_admin_cannot_change_a_license_decision_after_review(): void
@@ -174,6 +180,49 @@ class RunnerLicenseVerificationDecisionSecurityTest extends TestCase
             'id' => $verification->id,
             'status' => RunnerLicenseVerification::STATUS_VERIFIED,
         ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
+            'action' => 'RUNNER_LICENSE_VERIFICATION_REJECTED',
+        ]);
+    }
+
+    public function test_admin_without_review_permission_cannot_change_license_decision(): void
+    {
+        $admin = $this->createAccount(
+            'Admin Tanpa Permission',
+            'SUPER_ADMIN'
+        );
+
+        $applicant = $this->createAccount('Pemohon Lesen');
+
+        $verification = $this->createLicense(
+            $applicant,
+            RunnerLicenseVerification::STATUS_PENDING,
+            now()->addYear()->toDateString()
+        );
+
+        $this->asAccount(
+            $admin,
+            'license-decision-denied-token'
+        )->postJson(
+            '/api/admin/runner-license-verifications/'
+                .$verification->id.'/decision',
+            ['decision' => 'VERIFIED']
+        )->assertForbidden()
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseHas('runner_license_verifications', [
+            'id' => $verification->id,
+            'status' => RunnerLicenseVerification::STATUS_PENDING,
+        ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
+            'action' => 'RUNNER_LICENSE_VERIFICATION_VERIFIED',
+        ]);
     }
 
     public function test_root_can_list_license_applications_without_assigned_permission(): void
@@ -184,6 +233,7 @@ class RunnerLicenseVerificationDecisionSecurityTest extends TestCase
         );
 
         $applicant = $this->createAccount('Pemohon Lesen');
+
         $this->createLicense(
             $applicant,
             RunnerLicenseVerification::STATUS_PENDING,
