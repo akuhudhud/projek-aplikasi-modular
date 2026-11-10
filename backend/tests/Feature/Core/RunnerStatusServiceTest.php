@@ -237,7 +237,7 @@ class RunnerStatusServiceTest extends TestCase
             $this->fail('A duplicate application must be rejected.');
         } catch (DomainException $exception) {
             $this->assertSame(
-                'A Runner application cannot be submitted from the current status.',
+                'Permohonan lesen hanya boleh dihantar bersama permohonan awal Runner atau permohonan semula selepas penolakan.',
                 $exception->getMessage()
             );
         }
