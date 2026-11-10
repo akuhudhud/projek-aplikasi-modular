@@ -3,6 +3,7 @@ import {
     useEffect,
 } from 'react';
 
+import type { FormEvent } from 'react';
 import type { CustomerAccount } from '../api';
 
 import AppShell from './AppShell';
@@ -99,7 +100,7 @@ export default function CustomerWorkspace({
     );
 
     function handleProfileSubmit(
-        event: React.FormEvent<HTMLFormElement>,
+        event: FormEvent<HTMLFormElement>,
     ) {
         event.preventDefault();
         void profile.updateProfile();
