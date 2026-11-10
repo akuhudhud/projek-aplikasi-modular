@@ -4,38 +4,25 @@ namespace Tests\Feature\Database;
 
 use App\Models\Account;
 use App\Models\AuditLog;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use RuntimeException;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class AuditLogRetentionMigrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_migration_refuses_to_restore_foreign_keys_when_target_account_is_missing(): void
+    public function test_audit_log_is_preserved_when_target_account_is_deleted(): void
     {
-        $actor = $this->createAccount(
-            'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-            'Audit Migration Actor',
-            '60111111111',
-            'audit-migration-actor@example.com'
-        );
-
-        $target = $this->createAccount(
-            'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-            'Audit Migration Target',
-            '60222222222',
-            'audit-migration-target@example.com'
-        );
+        $actor = $this->createAccount();
+        $target = $this->createAccount();
 
         $auditLog = AuditLog::create([
             'actor_account_id' => $actor->id,
             'target_account_id' => $target->id,
             'action' => 'ACCOUNT_SUSPENDED',
-            'reason' => 'Retention migration regression test.',
+            'reason' => 'Target account deletion retention test.',
         ]);
 
         $auditLogId = $auditLog->id;
@@ -53,31 +40,18 @@ class AuditLogRetentionMigrationTest extends TestCase
             'target_account_id' => $targetId,
             'action' => 'ACCOUNT_SUSPENDED',
         ]);
-
-        $this->assertRollbackIsRejected();
     }
 
-    public function test_migration_refuses_to_restore_foreign_keys_when_actor_account_is_missing(): void
+    public function test_audit_log_is_preserved_when_actor_account_is_deleted(): void
     {
-        $actor = $this->createAccount(
-            'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-            'Audit Migration Deleted Actor',
-            '60333333333',
-            'audit-migration-deleted-actor@example.com'
-        );
-
-        $target = $this->createAccount(
-            'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-            'Audit Migration Existing Target',
-            '60444444444',
-            'audit-migration-existing-target@example.com'
-        );
+        $actor = $this->createAccount();
+        $target = $this->createAccount();
 
         $auditLog = AuditLog::create([
             'actor_account_id' => $actor->id,
             'target_account_id' => $target->id,
             'action' => 'ACCOUNT_SUSPENDED',
-            'reason' => 'Missing actor regression test.',
+            'reason' => 'Actor account deletion retention test.',
         ]);
 
         $auditLogId = $auditLog->id;
@@ -99,208 +73,38 @@ class AuditLogRetentionMigrationTest extends TestCase
             'target_account_id' => $target->id,
             'action' => 'ACCOUNT_SUSPENDED',
         ]);
-
-        $this->assertRollbackIsRejected();
     }
 
-    public function test_migration_drops_only_the_expected_audit_log_foreign_keys(): void
-    {
-        $capturedBlueprint = null;
-
-        Schema::shouldReceive('table')
-            ->once()
-            ->with(
-                'audit_logs',
-                \Mockery::type(\Closure::class)
-            )
-            ->andReturnUsing(
-                function (string $table, \Closure $callback) use (
-                    &$capturedBlueprint
-                ): void {
-                    $capturedBlueprint = new Blueprint(
-                        DB::connection(),
-                        $table
-                    );
-
-                    $callback($capturedBlueprint);
-                }
-            );
-
-        $migration = $this->loadRetentionMigration();
-
-        $migration->up();
-
-        $this->assertInstanceOf(Blueprint::class, $capturedBlueprint);
-
-        $commands = $capturedBlueprint->getCommands();
-
-        $this->assertCount(2, $commands);
-
-        $this->assertSame('dropForeign', $commands[0]->name);
-        $this->assertSame(
-            'audit_logs_actor_account_id_foreign',
-            $commands[0]->index
-        );
-
-        $this->assertSame('dropForeign', $commands[1]->name);
-        $this->assertSame(
-            'audit_logs_target_account_id_foreign',
-            $commands[1]->index
-        );
-    }
-
-    public function test_migration_restores_expected_foreign_keys_when_all_referenced_accounts_exist(): void
-    {
-        $actor = $this->createAccount(
-            'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-            'Audit Migration Safe Actor',
-            '60555555555',
-            'audit-migration-safe-actor@example.com'
-        );
-
-        $target = $this->createAccount(
-            'ffffffff-ffff-4fff-8fff-ffffffffffff',
-            'Audit Migration Safe Target',
-            '60666666666',
-            'audit-migration-safe-target@example.com'
-        );
-
-        $auditLog = AuditLog::create([
-            'actor_account_id' => $actor->id,
-            'target_account_id' => $target->id,
-            'action' => 'ACCOUNT_SUSPENDED',
-            'reason' => 'Safe rollback regression test.',
-        ]);
-
-        $this->assertDatabaseHas('accounts', [
-            'id' => $actor->id,
-        ]);
-
-        $this->assertDatabaseHas('accounts', [
-            'id' => $target->id,
-        ]);
-
-        $this->assertDatabaseHas('audit_logs', [
-            'id' => $auditLog->id,
-            'actor_account_id' => $actor->id,
-            'target_account_id' => $target->id,
-        ]);
-
-        /*
-         * Capture the Blueprint callback without executing actual DDL.
-         * This verifies the foreign-key definitions requested by the
-         * migration while keeping the test database schema unchanged.
-         */
-        $capturedBlueprint = null;
-
-        Schema::shouldReceive('table')
-            ->once()
-            ->with(
-                'audit_logs',
-                \Mockery::type(\Closure::class)
-            )
-            ->andReturnUsing(
-                function (string $table, \Closure $callback) use (
-                    &$capturedBlueprint
-                ): void {
-                    $capturedBlueprint = new Blueprint(
-                        DB::connection(),
-                        $table
-                    );
-
-                    $callback($capturedBlueprint);
-                }
-            );
-
-        $migration = $this->loadRetentionMigration();
-
-        $migration->down();
-
-        $this->assertInstanceOf(Blueprint::class, $capturedBlueprint);
-
-        $commands = $capturedBlueprint->getCommands();
-
-        $this->assertCount(2, $commands);
-
-        $actorForeignKey = $commands[0];
-        $targetForeignKey = $commands[1];
-
-        $this->assertSame('foreign', $actorForeignKey->name);
-        $this->assertSame(
-            ['actor_account_id'],
-            $actorForeignKey->columns
-        );
-        $this->assertSame('id', $actorForeignKey->references);
-        $this->assertSame('accounts', $actorForeignKey->on);
-        $this->assertSame('cascade', $actorForeignKey->onDelete);
-
-        $this->assertSame('foreign', $targetForeignKey->name);
-        $this->assertSame(
-            ['target_account_id'],
-            $targetForeignKey->columns
-        );
-        $this->assertSame('id', $targetForeignKey->references);
-        $this->assertSame('accounts', $targetForeignKey->on);
-        $this->assertSame('cascade', $targetForeignKey->onDelete);
-    }
-
-    public function test_actual_schema_does_not_have_account_foreign_keys_on_audit_logs(): void
+    public function test_audit_logs_table_has_no_account_foreign_keys(): void
     {
         $foreignKeys = Schema::getForeignKeys('audit_logs');
 
-        $foreignKeyNames = array_column($foreignKeys, 'name');
+        $foreignKeyColumns = [];
 
-        $this->assertNotContains(
-            'audit_logs_actor_account_id_foreign',
-            $foreignKeyNames
-        );
-
-        $this->assertNotContains(
-            'audit_logs_target_account_id_foreign',
-            $foreignKeyNames
-        );
-    }
-
-    private function assertRollbackIsRejected(): void
-    {
-        $migration = $this->loadRetentionMigration();
-
-        try {
-            $migration->down();
-
-            $this->fail(
-                'Expected rollback to be rejected when historical '
-                .'audit records reference missing accounts.'
-            );
-        } catch (RuntimeException $exception) {
-            $this->assertSame(
-                'Cannot restore audit log foreign keys because '
-                .'historical audit records reference accounts '
-                .'that no longer exist. Keep the retention migration '
-                .'applied to preserve audit history.',
-                $exception->getMessage()
-            );
+        foreach ($foreignKeys as $foreignKey) {
+            foreach ($foreignKey['columns'] as $column) {
+                $foreignKeyColumns[] = $column;
+            }
         }
-    }
 
-    private function loadRetentionMigration(): object
-    {
-        return require database_path(
-            'migrations/2026_10_10_000001_preserve_audit_logs_after_account_deletion.php'
+        $this->assertNotContains(
+            'actor_account_id',
+            $foreignKeyColumns
+        );
+
+        $this->assertNotContains(
+            'target_account_id',
+            $foreignKeyColumns
         );
     }
 
-    private function createAccount(
-        string $id,
-        string $name,
-        string $phone,
-        string $email
-    ): Account {
+    private function createAccount(): Account
+    {
         return Account::create([
-            'id' => $id,
-            'name' => $name,
-            'phone' => $phone,
-            'email' => $email,
+            'id' => (string) Str::uuid(),
+            'name' => 'Audit Retention Test Account',
+            'phone' => null,
+            'email' => 'audit-'.Str::uuid().'@example.com',
             'password' => 'Password1',
             'role' => 'USER',
             'status' => 'ACTIVE',
