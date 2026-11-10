@@ -125,61 +125,54 @@ function LocationFields({
 export default function CreateRequestPage({
     taskClass,
     description,
-
     pickupAddress,
     pickupContact,
     pickupPhone,
-
     deliveryAddress,
     deliveryContact,
     deliveryPhone,
-
     taskAddress,
     taskContact,
     taskPhone,
-
     expiresAt,
-
     requestLoading,
     requestSuccess,
     error,
-
     runnerSlug,
     hasInvalidRunnerSlug,
-
     onTaskClassChange,
     onDescriptionChange,
-
     onPickupAddressChange,
     onPickupContactChange,
     onPickupPhoneChange,
-
     onDeliveryAddressChange,
     onDeliveryContactChange,
     onDeliveryPhoneChange,
-
     onTaskAddressChange,
     onTaskContactChange,
     onTaskPhoneChange,
-
     onExpiresAtChange,
     onSubmit,
 }: CreateRequestPageProps) {
     const minimumExpiry = new Date(
-        Date.now() + 60000 -
-        new Date().getTimezoneOffset() * 60000,
+        Date.now() +
+            60000 -
+            new Date().getTimezoneOffset() * 60000,
     )
         .toISOString()
         .slice(0, 16);
 
     const maximumExpiry = new Date(
         Date.now() +
-        24 * 60 * 60 * 1000 -
-        10 * 60 * 1000 -
-        new Date().getTimezoneOffset() * 60000,
+            24 * 60 * 60 * 1000 -
+            10 * 60 * 1000 -
+            new Date().getTimezoneOffset() * 60000,
     )
         .toISOString()
         .slice(0, 16);
+
+    const runnerDescription =
+        'Nyatakan tugasan yang anda perlukan. Permintaan ini akan dihantar khusus kepada Runner daripada profil yang anda pilih.';
 
     return (
         <div className="sr-create-request-page">
@@ -187,19 +180,14 @@ export default function CreateRequestPage({
                 <div className="customer-section-heading">
                     <div>
                         <h2>Cipta Open Request</h2>
+
                         <p>
-                            Nyatakan tugasan yang kau perlukan.
-                            Runner yang layak boleh menghantar sebut harga.
+                            {runnerSlug && !hasInvalidRunnerSlug
+                                ? runnerDescription
+                                : 'Nyatakan tugasan yang kau perlukan. Runner yang layak boleh menghantar sebut harga.'}
                         </p>
                     </div>
                 </div>
-
-                {runnerSlug && !hasInvalidRunnerSlug && (
-                    <p>
-                        Permintaan ini akan dihantar khusus kepada Runner
-                        daripada profil yang kau pilih.
-                    </p>
-                )}
 
                 {requestSuccess && (
                     <p
