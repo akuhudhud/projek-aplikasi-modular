@@ -168,6 +168,17 @@
     color: #171717;
 }
 
+/* TASK DETAIL DESCRIPTION */
+
+#customer-app .sr-task-detail-page .customer-panel > h3 {
+    margin: 18px 0;
+    color: #262626;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
 /* SECTION HEADING BUTTONS */
 
 #customer-app .customer-section-heading button {
@@ -259,6 +270,10 @@
 
     #customer-app .sr-home-page__quick-action h2 {
         font-size: 19px;
+    }
+
+    #customer-app .sr-task-detail-page .customer-panel > h3 {
+        font-size: 17px;
     }
 }
 
