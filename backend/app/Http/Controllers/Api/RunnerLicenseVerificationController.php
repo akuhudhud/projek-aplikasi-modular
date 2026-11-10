@@ -3,10 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Account;
 use App\Models\RunnerLicenseVerification;
 use App\Services\AuditLogService;
-use App\Services\RunnerLicenseVerificationService;
 use DomainException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -15,7 +13,6 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use InvalidArgumentException;
 
 class RunnerLicenseVerificationController extends Controller
 {
@@ -74,8 +71,6 @@ class RunnerLicenseVerificationController extends Controller
                         'display_name' => $verification->account?->name,
                         'license_type' => $verification->license_type,
                         'license_class' => $verification->license_class,
-                        'previous_license_verification_id' =>
-                            $verification->previous_license_verification_id,
                         'expires_at' => $verification->expires_at
                             ->toDateString(),
                         'status' => $verification->status,
@@ -96,7 +91,6 @@ class RunnerLicenseVerificationController extends Controller
 
     public function showMyStatus(Request $request): JsonResponse
     {
-        /** @var Account $account */
         $account = $request->attributes->get('account');
 
         $currentLicenses = RunnerLicenseVerification::query()
@@ -167,95 +161,6 @@ class RunnerLicenseVerificationController extends Controller
         ]);
     }
 
-    public function submit(
-        Request $request,
-        RunnerLicenseVerificationService $service,
-        AuditLogService $auditLogService
-    ): JsonResponse {
-        $validated = $request->validate([
-            'license_number' => ['required', 'string', 'max:100'],
-            'license_type' => [
-                'required',
-                'string',
-                'max:30',
-            ],
-            'license_class' => ['required', 'string', 'max:30'],
-            'expires_at' => ['required', 'date_format:Y-m-d'],
-            'document' => [
-                'required',
-                'file',
-                'mimes:jpg,jpeg,png,pdf',
-                'max:10240',
-            ],
-        ]);
-
-        /** @var Account $account */
-        $account = $request->attributes->get('account');
-
-        if (
-            $account->runner_status
-            !== Account::RUNNER_STATUS_APPROVED
-        ) {
-            return $this->errorResponse(
-                'Lesen tambahan hanya boleh dihantar selepas permohonan Runner diluluskan.',
-                422
-            );
-        }
-
-        try {
-            $verification = $service->submit(
-                $account,
-                $validated['license_number'],
-                $validated['license_class'],
-                $validated['expires_at'],
-                $validated['document'],
-                $validated['license_type'],
-                function (
-                    RunnerLicenseVerification $verification,
-                    Account $lockedAccount
-                ) use ($auditLogService): void {
-                    $auditLogService->record(
-                        $lockedAccount,
-                        $lockedAccount,
-                        'RUNNER_LICENSE_VERIFICATION_SUBMITTED',
-                        'Driving license verification submitted.'
-                    );
-                }
-            );
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Pengesahan lesen memandu berjaya dihantar.',
-                'data' => [
-                    'runner_license_verification' => [
-                        'id' => $verification->id,
-                        'status' => $verification->status,
-                        'is_current' => $verification->is_current,
-                        'license_type' => $verification->license_type,
-                        'license_class' => $verification->license_class,
-                        'previous_license_verification_id' =>
-                            $verification->previous_license_verification_id,
-                        'expires_at' => $verification->expires_at
-                            ->toDateString(),
-                        'submitted_at' => $verification->submitted_at,
-                    ],
-                ],
-            ], 201);
-        } catch (
-            DomainException | InvalidArgumentException $exception
-        ) {
-            return $this->errorResponse(
-                $exception->getMessage(),
-                422
-            );
-        } catch (ModelNotFoundException $exception) {
-            return $this->errorResponse(
-                'Akaun tidak ditemui.',
-                404
-            );
-        }
-    }
-
     public function showForReview(
         Request $request,
         string $accountId,
@@ -273,13 +178,9 @@ class RunnerLicenseVerificationController extends Controller
             );
         }
 
-        /** @var Account $actor */
         $actor = $request->attributes->get('account');
-
         $targetAccount = $verification->account;
 
-        // Record successful access to the license verification record.
-        // Never include the full license number or document contents.
         $auditLogService->record(
             $actor,
             $targetAccount,
@@ -302,8 +203,6 @@ class RunnerLicenseVerificationController extends Controller
                     ).substr($licenseNumber, -4),
                     'license_type' => $verification->license_type,
                     'license_class' => $verification->license_class,
-                    'previous_license_verification_id' =>
-                        $verification->previous_license_verification_id,
                     'expires_at' => $verification->expires_at
                         ->toDateString(),
                     'status' => $verification->status,
@@ -356,7 +255,6 @@ class RunnerLicenseVerificationController extends Controller
             );
         }
 
-        /** @var Account $actor */
         $actor = $request->attributes->get('account');
 
         try {
@@ -367,10 +265,6 @@ class RunnerLicenseVerificationController extends Controller
                 $rejectionReason,
                 $auditLogService
             ): RunnerLicenseVerification {
-                /*
-                 * Resolve the identifier first. It may be a verification
-                 * ID or an account ID. This initial read is not locked.
-                 */
                 $found = $this->findVerification($accountId, true);
 
                 if ($found === null) {
@@ -379,36 +273,20 @@ class RunnerLicenseVerificationController extends Controller
                     );
                 }
 
-                /*
-                 * Lock the account first. Submission and review operations
-                 * for this account must follow the same lock order.
-                 */
-                $targetAccount = Account::query()
+                $targetAccount = \App\Models\Account::query()
                     ->whereKey($found->account_id)
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                /*
-                 * Initial Runner applications use this PENDING license
-                 * record as part of the Runner decision transaction.
-                 * Prevent a separate license decision from changing it
-                 * and leaving the Runner application in an inconsistent
-                 * PENDING state.
-                 */
                 if (
                     $targetAccount->runner_status
-                    === Account::RUNNER_STATUS_PENDING
+                    === \App\Models\Account::RUNNER_STATUS_PENDING
                 ) {
                     throw new DomainException(
                         'Lesen bagi permohonan awal Runner mesti disemak melalui keputusan permohonan Runner.'
                     );
                 }
 
-                /*
-                 * Re-read and lock the exact verification after acquiring
-                 * the account lock, then validate its current ownership
-                 * and status again.
-                 */
                 $verification = RunnerLicenseVerification::query()
                     ->whereKey($found->id)
                     ->lockForUpdate()
@@ -447,28 +325,6 @@ class RunnerLicenseVerificationController extends Controller
                     $validated['decision']
                     === RunnerLicenseVerification::STATUS_VERIFIED
                 ) {
-                    RunnerLicenseVerification::query()
-                        ->where(
-                            'account_id',
-                            $verification->account_id
-                        )
-                        ->where(
-                            'license_type',
-                            $verification->license_type
-                        )
-                        ->where(
-                            'license_class',
-                            $verification->license_class
-                        )
-                        ->where('is_current', true)
-                        ->where(
-                            'status',
-                            RunnerLicenseVerification::STATUS_VERIFIED
-                        )
-                        ->where('id', '!=', $verification->id)
-                        ->lockForUpdate()
-                        ->update(['is_current' => false]);
-
                     $verification->is_current = true;
                 } else {
                     $verification->is_current = false;
@@ -514,8 +370,6 @@ class RunnerLicenseVerificationController extends Controller
                         'account_id' => $verification->account_id,
                         'license_type' => $verification->license_type,
                         'license_class' => $verification->license_class,
-                        'previous_license_verification_id' =>
-                            $verification->previous_license_verification_id,
                         'status' => $verification->status,
                         'is_current' => $verification->is_current,
                         'reviewed_at' => $verification->reviewed_at,
@@ -570,13 +424,9 @@ class RunnerLicenseVerificationController extends Controller
             );
         }
 
-        /** @var Account $actor */
         $actor = $request->attributes->get('account');
-
         $targetAccount = $verification->account;
 
-        // Record only after the document contents have been retrieved.
-        // Never record the storage path, license number, or file contents.
         $auditLogService->record(
             $actor,
             $targetAccount,
@@ -646,8 +496,6 @@ class RunnerLicenseVerificationController extends Controller
             'is_current' => $verification->is_current,
             'license_type' => $verification->license_type,
             'license_class' => $verification->license_class,
-            'previous_license_verification_id' =>
-                $verification->previous_license_verification_id,
             'expires_at' => $verification->expires_at->toDateString(),
             'submitted_at' => $verification->submitted_at,
             'reviewed_at' => $verification->reviewed_at,
@@ -667,7 +515,6 @@ class RunnerLicenseVerificationController extends Controller
             'is_current' => false,
             'license_type' => null,
             'license_class' => null,
-            'previous_license_verification_id' => null,
             'expires_at' => null,
             'submitted_at' => null,
             'reviewed_at' => null,
