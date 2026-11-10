@@ -21,21 +21,20 @@ interface PublicProfileResponse {
     };
 }
 
-const runnerPublicHttp = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL ?? '/',
-    withCredentials: true,
-    headers: {
-        Accept: 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-    },
-});
-
 export const runnerPublicApi = {
     async getProfile(
         slug: string,
     ): Promise<RunnerPublicProfileData> {
-        const response = await runnerPublicHttp.get<PublicProfileResponse>(
+        const response = await axios.get<PublicProfileResponse>(
             `/api/runners/${encodeURIComponent(slug.toLowerCase())}`,
+            {
+                baseURL: import.meta.env.VITE_API_BASE_URL ?? '/',
+                withCredentials: true,
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            },
         );
 
         return response.data.data.profile;
