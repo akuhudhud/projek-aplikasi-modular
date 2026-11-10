@@ -1,3 +1,4 @@
+
 import './customerPresentation.css';
 
 export interface LocationSnapshot {
@@ -40,6 +41,25 @@ export function getLocationSnapshotFields(
             value: readSnapshotValue(snapshot, 'phone'),
         },
     ];
+}
+
+export function formatCustomerDate(
+    value: string | null | undefined,
+): string {
+    if (!value) {
+        return '—';
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return '—';
+    }
+
+    return new Intl.DateTimeFormat('ms-MY', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(date);
 }
 
 export function isRequestExpiryValid(
