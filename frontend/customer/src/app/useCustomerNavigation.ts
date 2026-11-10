@@ -1,6 +1,6 @@
+
 import {
     useCallback,
-    useEffect,
     useState,
 } from 'react';
 
@@ -55,13 +55,11 @@ export function useCustomerNavigation(): CustomerNavigation {
     const [runner] = useState(readRunnerSlug);
 
     const [activePage, setActivePage] =
-        useState<CustomerPage>('dashboard');
-
-    useEffect(() => {
-        if (runner.slug || runner.invalid) {
-            setActivePage('create');
-        }
-    }, [runner.slug, runner.invalid]);
+        useState<CustomerPage>(() => {
+            return runner.slug || runner.invalid
+                ? 'create'
+                : 'dashboard';
+        });
 
     const navigate = useCallback((page: CustomerPage) => {
         setActivePage(page);
