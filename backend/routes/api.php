@@ -141,25 +141,9 @@ Route::get('/me/runner-license-verification', [
     'showMyStatus',
 ])->middleware(AuthenticateSession::class);
 
-Route::get('/admin/runner-license-verifications', [
-    RunnerLicenseVerificationController::class,
-    'index',
-])->middleware([
-    AuthenticateSession::class,
-    'admin.permission:runner_license_verifications.review',
-]);
-
 Route::get('/admin/runner-license-verifications/{accountId}', [
     RunnerLicenseVerificationController::class,
     'showForReview',
-])->middleware([
-    AuthenticateSession::class,
-    'admin.permission:runner_license_verifications.review',
-]);
-
-Route::post('/admin/runner-license-verifications/{accountId}/decision', [
-    RunnerLicenseVerificationController::class,
-    'decide',
 ])->middleware([
     AuthenticateSession::class,
     'admin.permission:runner_license_verifications.review',
