@@ -11,11 +11,11 @@ use DomainException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class RunnerLicenseVerificationController extends Controller
 {
@@ -256,16 +256,36 @@ class RunnerLicenseVerificationController extends Controller
         }
     }
 
-    public function showForReview(string $accountId): JsonResponse
-    {
+    public function showForReview(
+        Request $request,
+        string $accountId,
+        AuditLogService $auditLogService
+    ): JsonResponse {
         $verification = $this->findVerification($accountId);
 
-        if ($verification === null) {
+        if (
+            $verification === null
+            || $verification->account === null
+        ) {
             return $this->errorResponse(
                 'Permohonan pengesahan lesen tidak ditemui.',
                 404
             );
         }
+
+        /** @var Account $actor */
+        $actor = $request->attributes->get('account');
+
+        $targetAccount = $verification->account;
+
+        // Record successful access to the license verification record.
+        // Never include the full license number or document contents.
+        $auditLogService->record(
+            $actor,
+            $targetAccount,
+            'RUNNER_LICENSE_VERIFICATION_VIEWED',
+            'Runner license verification record viewed by authorised reviewer.'
+        );
 
         $licenseNumber = $verification->license_number;
 
@@ -275,7 +295,7 @@ class RunnerLicenseVerificationController extends Controller
                 'runner_license_verification' => [
                     'id' => $verification->id,
                     'account_id' => $verification->account_id,
-                    'display_name' => $verification->account?->name,
+                    'display_name' => $targetAccount->name,
                     'license_number_masked' => str_repeat(
                         '*',
                         max(0, strlen($licenseNumber) - 4)
@@ -516,11 +536,16 @@ class RunnerLicenseVerificationController extends Controller
     }
 
     public function downloadDocument(
-        string $accountId
-    ): StreamedResponse|JsonResponse {
+        Request $request,
+        string $accountId,
+        AuditLogService $auditLogService
+    ): Response|JsonResponse {
         $verification = $this->findVerification($accountId);
 
-        if ($verification === null) {
+        if (
+            $verification === null
+            || $verification->account === null
+        ) {
             return $this->errorResponse(
                 'Dokumen lesen tidak ditemui.',
                 404
@@ -536,6 +561,29 @@ class RunnerLicenseVerificationController extends Controller
             );
         }
 
+        $contents = $disk->get($verification->document_path);
+
+        if (!is_string($contents)) {
+            return $this->errorResponse(
+                'Dokumen lesen tidak dapat diperoleh.',
+                500
+            );
+        }
+
+        /** @var Account $actor */
+        $actor = $request->attributes->get('account');
+
+        $targetAccount = $verification->account;
+
+        // Record only after the document contents have been retrieved.
+        // Never record the storage path, license number, or file contents.
+        $auditLogService->record(
+            $actor,
+            $targetAccount,
+            'RUNNER_LICENSE_DOCUMENT_DOWNLOADED',
+            'Runner license document downloaded by authorised reviewer.'
+        );
+
         $extension = match ($verification->mime_type) {
             'image/jpeg' => 'jpg',
             'image/png' => 'png',
@@ -543,15 +591,16 @@ class RunnerLicenseVerificationController extends Controller
             default => 'bin',
         };
 
-        return $disk->download(
-            $verification->document_path,
-            'runner-license-'.Str::uuid().'.'.$extension,
-            [
-                'Content-Type' => $verification->mime_type,
-                'Cache-Control' => 'private, no-store',
-                'X-Content-Type-Options' => 'nosniff',
-            ]
-        );
+        $filename = 'runner-license-'.Str::uuid().'.'.$extension;
+
+        return response($contents, 200, [
+            'Content-Type' => $verification->mime_type,
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Content-Length' => (string) strlen($contents),
+            'Cache-Control' => 'private, no-store',
+            'Pragma' => 'no-cache',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     private function findVerification(
