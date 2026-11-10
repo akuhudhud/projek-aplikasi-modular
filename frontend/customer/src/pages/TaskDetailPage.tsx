@@ -1,3 +1,4 @@
+
 import type { CustomerTaskItem } from '../api';
 import { LocationSnapshotPanel } from '../customerPresentation';
 
@@ -56,8 +57,6 @@ export default function TaskDetailPage({
 
                         <h2>Butiran Tugasan</h2>
                     </div>
-
-                    <span>{task.generic_status}</span>
                 </div>
 
                 <h3>{request.description}</h3>
