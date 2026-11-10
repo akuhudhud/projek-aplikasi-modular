@@ -1,3 +1,4 @@
+
 // @vitest-environment jsdom
 
 import {
@@ -234,9 +235,9 @@ describe('Customer page-specific data loading', () => {
 
         await screen.findByText('Dashboard Pelanggan');
 
-        expect(
-            await screen.findByRole('alert'),
-        ).toHaveTextContent(taskLoadingError);
+        const alert = await screen.findByRole('alert');
+
+        expect(alert.textContent).toContain(taskLoadingError);
     });
 
     it('shows task loading errors on My Tasks', async () => {
@@ -260,8 +261,8 @@ describe('Customer page-specific data loading', () => {
             name: 'My Tasks',
         });
 
-        expect(
-            await screen.findByRole('alert'),
-        ).toHaveTextContent(taskLoadingError);
+        const alert = await screen.findByRole('alert');
+
+        expect(alert.textContent).toContain(taskLoadingError);
     });
 });
