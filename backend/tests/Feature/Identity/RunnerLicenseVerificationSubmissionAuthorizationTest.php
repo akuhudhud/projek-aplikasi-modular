@@ -19,7 +19,7 @@ class RunnerLicenseVerificationSubmissionAuthorizationTest extends TestCase
                 'license_class' => 'D',
                 'expires_at' => now()->addYear()->toDateString(),
             ]
-        )->assertNotFound();
+        )->assertMethodNotAllowed();
 
         $this->assertDatabaseCount(
             'runner_license_verifications',
