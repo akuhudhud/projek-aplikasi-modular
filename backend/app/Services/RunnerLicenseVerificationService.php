@@ -139,12 +139,16 @@ class RunnerLicenseVerificationService
                     );
                 }
 
-                if (
-                    $lockedAccount->runner_status
-                    !== Account::RUNNER_STATUS_NOT_RUNNER
-                ) {
+                if (!in_array(
+                    $lockedAccount->runner_status,
+                    [
+                        Account::RUNNER_STATUS_NOT_RUNNER,
+                        Account::RUNNER_STATUS_REJECTED,
+                    ],
+                    true
+                )) {
                     throw new DomainException(
-                        'Permohonan lesen hanya boleh dihantar bersama permohonan awal Runner.'
+                        'Permohonan lesen hanya boleh dihantar bersama permohonan awal Runner atau permohonan semula selepas penolakan.'
                     );
                 }
 
