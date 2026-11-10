@@ -1,3 +1,4 @@
+
 import {
     useCallback,
     useEffect,
@@ -83,11 +84,14 @@ export function useCustomerTasks({
                 setLastPage(result.pagination.last_page);
             })
             .catch(() => {
-                if (mounted) {
-                    setError(
-                        'Tidak berjaya memuatkan senarai tugasan.',
-                    );
+                if (!mounted) {
+                    return;
                 }
+
+                setTasks([]);
+                setError(
+                    'Tidak berjaya memuatkan senarai tugasan.',
+                );
             })
             .finally(() => {
                 if (mounted) {
