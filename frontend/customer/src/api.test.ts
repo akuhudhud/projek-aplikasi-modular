@@ -2,10 +2,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CustomerAccount } from './api';
 
-const { getMock, patchMock, postMock } = vi.hoisted(() => ({
+const {
+    getMock,
+    patchMock,
+    postMock,
+    responseInterceptorUseMock,
+} = vi.hoisted(() => ({
     getMock: vi.fn(),
     patchMock: vi.fn(),
     postMock: vi.fn(),
+    responseInterceptorUseMock: vi.fn(),
 }));
 
 vi.mock('axios', () => ({
@@ -14,7 +20,13 @@ vi.mock('axios', () => ({
             get: getMock,
             patch: patchMock,
             post: postMock,
+            interceptors: {
+                response: {
+                    use: responseInterceptorUseMock,
+                },
+            },
         })),
+        isAxiosError: vi.fn(() => false),
     },
 }));
 
