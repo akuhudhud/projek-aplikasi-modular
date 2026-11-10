@@ -74,7 +74,7 @@ class IdentityVerificationDeletionTest extends TestCase
             'mykad_number' => '900101145678',
             'status' => $status,
             'submitted_at' => now(),
-            'verified_at' => $status === IdentityVerification::STATUS_VERIFIED
+            'reviewed_at' => $status === IdentityVerification::STATUS_VERIFIED
                 ? now()
                 : null,
         ]);
