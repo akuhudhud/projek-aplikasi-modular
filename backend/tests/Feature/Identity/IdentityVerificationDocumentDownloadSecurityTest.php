@@ -100,6 +100,11 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
                 .'/documents/'.$document->id
         )->assertUnauthorized()
             ->assertJsonPath('success', false);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_DOWNLOADED',
+            'target_account_id' => $applicant->id,
+        ]);
     }
 
     public function test_admin_without_review_permission_cannot_download_identity_document(): void
@@ -119,6 +124,12 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
                 .'/documents/'.$document->id
         )->assertForbidden()
             ->assertJsonPath('success', false);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
+            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_DOWNLOADED',
+        ]);
     }
 
     public function test_reviewer_cannot_download_document_using_another_accounts_id(): void
@@ -145,6 +156,12 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
                 'message',
                 'Identity document not found.'
             );
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $owner->id,
+            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_DOWNLOADED',
+        ]);
     }
 
     public function test_reviewer_cannot_download_document_when_storage_file_is_missing(): void
@@ -172,9 +189,15 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
                 'message',
                 'Identity document not found.'
             );
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
+            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_DOWNLOADED',
+        ]);
     }
 
-    public function test_authorized_reviewer_can_download_plaintext_document(): void
+    public function test_authorized_reviewer_can_download_plaintext_document_and_access_is_audited(): void
     {
         Storage::fake('local');
 
@@ -214,5 +237,20 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
             self::DOCUMENT_CONTENT,
             $response->getContent()
         );
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
+            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_DOWNLOADED',
+            'reason' => 'Identity verification document downloaded by authorised reviewer.',
+        ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'reason' => '900101145678',
+        ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'reason' => self::DOCUMENT_CONTENT,
+        ]);
     }
 }
