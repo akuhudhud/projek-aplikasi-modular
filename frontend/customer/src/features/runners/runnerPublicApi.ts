@@ -1,0 +1,43 @@
+
+import axios from 'axios';
+
+export interface RunnerPublicProfileData {
+    public_slug: string;
+    display_name: string;
+    bio: string | null;
+    service_area: string | null;
+    base_location: string | null;
+    coverage_area: string | null;
+    services: string[];
+    rating_average: number | null;
+    rating_count: number;
+    views_count: number;
+}
+
+interface PublicProfileResponse {
+    success: boolean;
+    data: {
+        profile: RunnerPublicProfileData;
+    };
+}
+
+const runnerPublicHttp = axios.create({
+    baseURL: import.meta.env.VITE_API_BASE_URL ?? '/',
+    withCredentials: true,
+    headers: {
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+    },
+});
+
+export const runnerPublicApi = {
+    async getProfile(
+        slug: string,
+    ): Promise<RunnerPublicProfileData> {
+        const response = await runnerPublicHttp.get<PublicProfileResponse>(
+            `/api/runners/${encodeURIComponent(slug.toLowerCase())}`,
+        );
+
+        return response.data.data.profile;
+    },
+};
