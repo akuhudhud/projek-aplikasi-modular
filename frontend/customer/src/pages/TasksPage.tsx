@@ -6,6 +6,7 @@ import { formatCustomerDate } from '../customerPresentation';
 type TasksPageProps = {
     tasks: CustomerTaskItem[];
     tasksLoading: boolean;
+    tasksError: string;
     taskPage: number;
     taskLastPage: number;
     onOpenTask: (item: CustomerTaskItem) => void;
@@ -27,6 +28,7 @@ function taskClassLabel(taskClass: string): string {
 export default function TasksPage({
     tasks,
     tasksLoading,
+    tasksError,
     taskPage,
     taskLastPage,
     onOpenTask,
@@ -49,6 +51,8 @@ export default function TasksPage({
 
                 {tasksLoading ? (
                     <p>Memuatkan tugasan...</p>
+                ) : tasksError ? (
+                    <p role="alert">{tasksError}</p>
                 ) : tasks.length === 0 ? (
                     <section className="customer-empty">
                         <h3>Belum ada tugasan</h3>
