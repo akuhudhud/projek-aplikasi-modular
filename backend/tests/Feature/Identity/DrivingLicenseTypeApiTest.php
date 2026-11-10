@@ -78,7 +78,6 @@ class DrivingLicenseTypeApiTest extends TestCase
             'license_number' => 'D123456789012',
             'license_type' => $licenseType,
             'license_class' => 'D',
-            'previous_license_verification_id' => null,
             'expires_at' => now()->addYear()->toDateString(),
             'status' => RunnerLicenseVerification::STATUS_VERIFIED,
             'is_current' => true,
