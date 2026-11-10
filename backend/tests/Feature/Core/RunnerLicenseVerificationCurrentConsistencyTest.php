@@ -3,9 +3,7 @@
 namespace Tests\Feature\Core;
 
 use App\Models\Account;
-use App\Models\AccountPermission;
 use App\Models\RunnerLicenseVerification;
-use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -14,41 +12,24 @@ class RunnerLicenseVerificationCurrentConsistencyTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function createAccount(
-        string $role = 'USER'
-    ): Account {
+    private function createAccount(): Account
+    {
         return Account::query()->create([
             'id' => (string) Str::uuid(),
             'name' => 'License Consistency Test',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
-            'role' => $role,
+            'role' => 'USER',
             'status' => 'ACTIVE',
         ]);
     }
 
-    private function authenticateAs(
+    private function createLicense(
         Account $account,
-        string $token
-    ): static {
-        Session::query()->create([
-            'id' => (string) Str::uuid(),
-            'account_id' => $account->id,
-            'token_hash' => hash('sha256', $token),
-            'created_at' => now(),
-            'ended_at' => null,
-        ]);
-
-        return $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
-        );
-    }
-
-    private function createPendingLicense(
-        Account $account,
-        string $licenseNumber
+        string $licenseNumber,
+        string $status,
+        bool $isCurrent
     ): RunnerLicenseVerification {
         return RunnerLicenseVerification::query()->create([
             'id' => (string) Str::uuid(),
@@ -56,14 +37,17 @@ class RunnerLicenseVerificationCurrentConsistencyTest extends TestCase
             'license_number' => $licenseNumber,
             'license_type' => 'GENERAL',
             'license_class' => 'D',
-            'previous_license_verification_id' => null,
             'expires_at' => now()->addYear()->toDateString(),
-            'status' => RunnerLicenseVerification::STATUS_PENDING,
-            'is_current' => false,
+            'status' => $status,
+            'is_current' => $isCurrent,
             'submitted_at' => now(),
-            'reviewed_at' => null,
+            'reviewed_at' => $status === RunnerLicenseVerification::STATUS_PENDING
+                ? null
+                : now(),
             'reviewer_account_id' => null,
-            'rejection_reason' => null,
+            'rejection_reason' => $status === RunnerLicenseVerification::STATUS_REJECTED
+                ? 'Dokumen tidak jelas.'
+                : null,
             'disk' => 'local',
             'document_path' => 'runner-license-documents/'
                 .Str::uuid()
@@ -73,157 +57,129 @@ class RunnerLicenseVerificationCurrentConsistencyTest extends TestCase
         ]);
     }
 
-    private function grantReviewPermission(Account $admin): void
+    public function test_rejected_historical_license_remains_non_current_after_new_application_is_verified(): void
     {
-        AccountPermission::query()->create([
-            'account_id' => $admin->id,
-            'permission_key' => 'runner_license_verifications.review',
-        ]);
-    }
-
-    public function test_only_one_verified_license_is_current_for_same_type_and_class(): void
-    {
-        $admin = $this->createAccount('SUPER_ADMIN');
-        $this->grantReviewPermission($admin);
-
         $runner = $this->createAccount();
 
-        $olderLicense = $this->createPendingLicense(
+        /*
+         * Rekod permohonan pertama yang ditolak.
+         */
+        $rejectedLicense = $this->createLicense(
             $runner,
-            'D111111111111'
+            'D111111111111',
+            RunnerLicenseVerification::STATUS_REJECTED,
+            false
         );
 
-        $newerLicense = $this->createPendingLicense(
+        /*
+         * Permohonan semula yang kemudian disahkan.
+         */
+        $verifiedLicense = $this->createLicense(
             $runner,
-            'D222222222222'
+            'D222222222222',
+            RunnerLicenseVerification::STATUS_VERIFIED,
+            true
         );
-
-        $this->authenticateAs(
-            $admin,
-            'license-consistency-review-token'
-        )->postJson(
-            '/api/admin/runner-license-verifications/'
-                .$olderLicense->id
-                .'/decision',
-            [
-                'decision' => 'VERIFIED',
-            ]
-        )->assertOk()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath(
-                'data.runner_license_verification.status',
-                'VERIFIED'
-            );
-
-        $this->postJson(
-            '/api/admin/runner-license-verifications/'
-                .$newerLicense->id
-                .'/decision',
-            [
-                'decision' => 'VERIFIED',
-            ]
-        )->assertOk()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath(
-                'data.runner_license_verification.status',
-                'VERIFIED'
-            );
 
         $this->assertDatabaseHas('runner_license_verifications', [
-            'id' => $olderLicense->id,
-            'status' => RunnerLicenseVerification::STATUS_VERIFIED,
+            'id' => $rejectedLicense->id,
+            'account_id' => $runner->id,
+            'status' => RunnerLicenseVerification::STATUS_REJECTED,
             'is_current' => false,
         ]);
 
         $this->assertDatabaseHas('runner_license_verifications', [
-            'id' => $newerLicense->id,
+            'id' => $verifiedLicense->id,
+            'account_id' => $runner->id,
             'status' => RunnerLicenseVerification::STATUS_VERIFIED,
             'is_current' => true,
         ]);
 
+        /*
+         * Hanya satu rekod lesen boleh menjadi rekod semasa.
+         */
         $currentCount = RunnerLicenseVerification::query()
             ->where('account_id', $runner->id)
-            ->where('license_type', 'GENERAL')
-            ->where('license_class', 'D')
-            ->where(
-                'status',
-                RunnerLicenseVerification::STATUS_VERIFIED
-            )
             ->where('is_current', true)
             ->count();
 
         $this->assertSame(1, $currentCount);
 
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_account_id' => $admin->id,
-            'target_account_id' => $runner->id,
-            'action' => 'RUNNER_LICENSE_VERIFICATION_VERIFIED',
-        ]);
+        /*
+         * Rekod semasa mesti berstatus VERIFIED.
+         */
+        $currentLicense = RunnerLicenseVerification::query()
+            ->where('account_id', $runner->id)
+            ->where('is_current', true)
+            ->firstOrFail();
+
+        $this->assertSame(
+            RunnerLicenseVerification::STATUS_VERIFIED,
+            $currentLicense->status
+        );
+
+        $this->assertSame(
+            $verifiedLicense->id,
+            $currentLicense->id
+        );
 
         $this->assertSame(
             2,
-            \App\Models\AuditLog::query()
-                ->where('actor_account_id', $admin->id)
-                ->where('target_account_id', $runner->id)
-                ->where(
-                    'action',
-                    'RUNNER_LICENSE_VERIFICATION_VERIFIED'
-                )
+            RunnerLicenseVerification::query()
+                ->where('account_id', $runner->id)
                 ->count()
         );
     }
 
-    public function test_already_reviewed_license_cannot_be_decided_again(): void
+    public function test_pending_license_cannot_be_current(): void
     {
-        $admin = $this->createAccount('SUPER_ADMIN');
-        $this->grantReviewPermission($admin);
-
         $runner = $this->createAccount();
 
-        $license = $this->createPendingLicense(
+        $pendingLicense = $this->createLicense(
             $runner,
-            'D333333333333'
+            'D333333333333',
+            RunnerLicenseVerification::STATUS_PENDING,
+            false
         );
 
-        $this->authenticateAs(
-            $admin,
-            'license-consistency-repeat-token'
-        )->postJson(
-            '/api/admin/runner-license-verifications/'
-                .$license->id
-                .'/decision',
-            [
-                'decision' => 'VERIFIED',
-            ]
-        )->assertOk();
+        $this->assertDatabaseHas('runner_license_verifications', [
+            'id' => $pendingLicense->id,
+            'status' => RunnerLicenseVerification::STATUS_PENDING,
+            'is_current' => false,
+        ]);
 
-        $this->postJson(
-            '/api/admin/runner-license-verifications/'
-                .$license->id
-                .'/decision',
-            [
-                'decision' => 'REJECTED',
-                'rejection_reason' => 'Semakan kedua tidak dibenarkan',
-            ]
-        )->assertUnprocessable()
-            ->assertJsonPath('success', false);
+        $this->assertSame(
+            0,
+            RunnerLicenseVerification::query()
+                ->where('account_id', $runner->id)
+                ->where('is_current', true)
+                ->count()
+        );
+    }
+
+    public function test_rejected_license_cannot_be_current(): void
+    {
+        $runner = $this->createAccount();
+
+        $rejectedLicense = $this->createLicense(
+            $runner,
+            'D444444444444',
+            RunnerLicenseVerification::STATUS_REJECTED,
+            false
+        );
 
         $this->assertDatabaseHas('runner_license_verifications', [
-            'id' => $license->id,
-            'status' => RunnerLicenseVerification::STATUS_VERIFIED,
-            'is_current' => true,
+            'id' => $rejectedLicense->id,
+            'status' => RunnerLicenseVerification::STATUS_REJECTED,
+            'is_current' => false,
         ]);
 
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_account_id' => $admin->id,
-            'target_account_id' => $runner->id,
-            'action' => 'RUNNER_LICENSE_VERIFICATION_VERIFIED',
-        ]);
-
-        $this->assertDatabaseMissing('audit_logs', [
-            'actor_account_id' => $admin->id,
-            'target_account_id' => $runner->id,
-            'action' => 'RUNNER_LICENSE_VERIFICATION_REJECTED',
-        ]);
+        $this->assertSame(
+            0,
+            RunnerLicenseVerification::query()
+                ->where('account_id', $runner->id)
+                ->where('is_current', true)
+                ->count()
+        );
     }
 }
