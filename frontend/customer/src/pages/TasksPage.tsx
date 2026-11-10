@@ -1,4 +1,3 @@
-import React from 'react';
 import type { CustomerTaskItem } from '../api';
 
 type TasksPageProps = {
