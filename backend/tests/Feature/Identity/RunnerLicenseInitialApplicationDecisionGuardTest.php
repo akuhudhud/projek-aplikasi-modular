@@ -15,7 +15,7 @@ class RunnerLicenseInitialApplicationDecisionGuardTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_separate_license_decisions_cannot_mutate_pending_runner_application(): void
+    public function test_separate_license_decision_endpoint_is_removed(): void
     {
         Storage::fake('local');
 
@@ -57,7 +57,6 @@ class RunnerLicenseInitialApplicationDecisionGuardTest extends TestCase
             'license_number' => 'D123456789012',
             'license_type' => 'GENERAL',
             'license_class' => 'D',
-            'previous_license_verification_id' => null,
             'expires_at' => now()->addYear()->toDateString(),
             'status' => RunnerLicenseVerification::STATUS_PENDING,
             'is_current' => false,
@@ -97,12 +96,7 @@ class RunnerLicenseInitialApplicationDecisionGuardTest extends TestCase
                 '/api/admin/runner-license-verifications/'
                     .$applicant->id.'/decision',
                 $decision
-            )->assertUnprocessable()
-                ->assertJsonPath('success', false)
-                ->assertJsonPath(
-                    'message',
-                    'Lesen bagi permohonan awal Runner mesti disemak melalui keputusan permohonan Runner.'
-                );
+            )->assertNotFound();
 
             $this->assertDatabaseHas('runner_license_verifications', [
                 'id' => $verification->id,
