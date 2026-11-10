@@ -25,7 +25,6 @@ class RunnerLicenseVerification extends Model
         'license_number',
         'license_type',
         'license_class',
-        'previous_license_verification_id',
         'expires_at',
         'status',
         'is_current',
@@ -59,16 +58,5 @@ class RunnerLicenseVerification extends Model
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);
-    }
-
-    /**
-     * @return BelongsTo<RunnerLicenseVerification, $this>
-     */
-    public function previousVerification(): BelongsTo
-    {
-        return $this->belongsTo(
-            self::class,
-            'previous_license_verification_id'
-        );
     }
 }
