@@ -382,7 +382,7 @@ class RunnerLicenseDocumentAccessSecurityTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath(
                 'data.runner_license_verification.license_number_masked',
-                '********9012'
+                '*********9012'
             )
             ->assertJsonMissing([
                 'license_number' => 'D123456789012',
