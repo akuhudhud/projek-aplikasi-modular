@@ -1,3 +1,4 @@
+
 // @vitest-environment jsdom
 
 import {
@@ -448,6 +449,12 @@ describe(
 
                 await loginThroughRunnerProfile();
 
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Open Request',
+                    }),
+                );
+
                 expect(
                     await screen.findByText(
                         'Bantu membeli barang.',
@@ -513,6 +520,12 @@ describe(
                     .mockReturnValue(false);
 
                 await loginThroughRunnerProfile();
+
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Open Request',
+                    }),
+                );
 
                 expect(
                     await screen.findByText(
