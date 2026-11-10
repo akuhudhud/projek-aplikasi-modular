@@ -30,6 +30,8 @@ vi.mock('../../api', () => ({
         me: meMock,
         logout: logoutMock,
     },
+    CUSTOMER_SESSION_EXPIRED_EVENT:
+        'customer-session-expired',
 }));
 
 import { useCustomerSession } from './useCustomerSession';
@@ -138,6 +140,28 @@ describe('useCustomerSession', () => {
         expect(result.current.logoutError).toContain(
             'Tidak berjaya logout.',
         );
+        expect(result.current.logoutLoading).toBe(false);
+    });
+
+    it('clears the account when the customer session expires', async () => {
+        meMock.mockResolvedValue(account);
+
+        const { result } = renderHook(
+            () => useCustomerSession(),
+        );
+
+        await waitFor(() => {
+            expect(result.current.account).toEqual(account);
+        });
+
+        act(() => {
+            window.dispatchEvent(
+                new Event('customer-session-expired'),
+            );
+        });
+
+        expect(result.current.account).toBeNull();
+        expect(result.current.logoutError).toBe('');
         expect(result.current.logoutLoading).toBe(false);
     });
 });
