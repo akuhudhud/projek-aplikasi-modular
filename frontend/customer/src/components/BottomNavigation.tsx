@@ -1,9 +1,18 @@
+
 import type { CustomerPage } from '../app/navigation';
 import { CUSTOMER_NAVIGATION } from '../app/navigation';
 
 type BottomNavigationProps = {
     activePage: CustomerPage;
     onNavigate: (page: CustomerPage) => void;
+};
+
+const ACCESSIBLE_LABELS: Record<CustomerPage, string> = {
+    dashboard: 'Home',
+    requests: 'Open Request',
+    create: 'Create',
+    tasks: 'Tugasan Saya',
+    profile: 'Profil',
 };
 
 export default function BottomNavigation({
@@ -24,17 +33,13 @@ export default function BottomNavigation({
                         type="button"
                         className={[
                             'sr-bottom-navigation__item',
-                            active
-                                ? 'is-active'
-                                : '',
-                            item.primary
-                                ? 'is-primary'
-                                : '',
+                            active ? 'is-active' : '',
+                            item.primary ? 'is-primary' : '',
                         ]
                             .filter(Boolean)
                             .join(' ')}
                         aria-current={active ? 'page' : undefined}
-                        aria-label={item.description}
+                        aria-label={ACCESSIBLE_LABELS[item.id]}
                         onClick={() => onNavigate(item.id)}
                     >
                         <span className="sr-bottom-navigation__icon">
