@@ -1,0 +1,114 @@
+
+/*
+ * SUPER RUNNER CUSTOMER
+ * App Shell Integration Overrides
+ *
+ * Mengasingkan gaya AppShell daripada gaya global
+ * customer.css yang diwarisi daripada layout lama.
+ */
+
+/* MAIN CONTENT */
+
+#customer-app .sr-app-shell__content {
+    display: block;
+    flex: 1;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 28px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+/* TOP APP BAR LOGOUT */
+
+#customer-app .sr-top-app-bar__logout {
+    display: inline-flex;
+    min-height: 38px;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 13px;
+    border: 1px solid var(--sr-border);
+    border-radius: 10px;
+    background: var(--sr-surface);
+    color: var(--sr-text);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 160ms ease, border-color 160ms ease;
+}
+
+#customer-app .sr-top-app-bar__logout:hover:not(:disabled) {
+    border-color: var(--sr-primary);
+    background: #fffbeb;
+    color: var(--sr-text);
+}
+
+/* BOTTOM NAVIGATION */
+
+#customer-app .sr-bottom-navigation__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-width: 0;
+    min-height: 58px;
+    padding: 5px 3px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--sr-muted);
+    font-size: 12px;
+    font-weight: 650;
+    cursor: pointer;
+    transition:
+        background 160ms ease,
+        color 160ms ease,
+        transform 160ms ease;
+}
+
+#customer-app .sr-bottom-navigation__item:hover:not(:disabled) {
+    background: #f5f5f5;
+    color: var(--sr-text);
+}
+
+#customer-app .sr-bottom-navigation__item.is-active {
+    background: transparent;
+    color: var(--sr-primary-dark);
+}
+
+#customer-app .sr-bottom-navigation__item.is-primary {
+    background: transparent;
+    color: var(--sr-text);
+}
+
+#customer-app .sr-bottom-navigation__item:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+/* MOBILE */
+
+@media (max-width: 760px) {
+    #customer-app .sr-app-shell__content {
+        padding: 18px 15px 28px;
+    }
+
+    #customer-app .sr-bottom-navigation__item {
+        min-height: 54px;
+        gap: 3px;
+        padding: 5px 3px;
+    }
+}
+
+@media (max-width: 380px) {
+    #customer-app .sr-app-shell__content {
+        padding-right: 10px;
+        padding-left: 10px;
+    }
+}
