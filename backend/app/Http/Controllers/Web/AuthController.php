@@ -73,7 +73,10 @@ class AuthController extends Controller
         /** @var Account $account */
         $account = $request->attributes->get('account');
 
-        $account->fill($request->only(['name']));
+        $account->fill($request->only([
+            'profile_name',
+        ]));
+
         $account->save();
 
         return response()->json([
@@ -111,7 +114,7 @@ class AuthController extends Controller
     {
         return [
             'id' => $account->id,
-            'name' => $account->name,
+            'profile_name' => $account->profile_name,
             'phone' => $account->phone,
             'email' => $account->email,
             'profile_picture' => $account->profile_picture,
