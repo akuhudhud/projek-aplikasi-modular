@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { CustomerAccount } from '../api';
 
@@ -21,7 +20,8 @@ export default function ProfilePage({
     onNameChange,
     onSubmit,
 }: ProfilePageProps) {
-    const avatarLetter = account.name?.trim().charAt(0).toUpperCase() || '?';
+    const avatarLetter =
+        account.profile_name?.trim().charAt(0).toUpperCase() || '?';
 
     return (
         <div className="sr-profile-page">
