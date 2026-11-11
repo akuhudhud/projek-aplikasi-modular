@@ -376,6 +376,55 @@ class MarketplaceLifecycleApiTest extends TestCase
         ]);
     }
 
+    public function test_api_rejects_location_snapshots_without_address(): void
+    {
+        $customer = $this->makeAccount();
+        $customerToken = $this->createSessionToken($customer);
+
+        $invalidPayloads = [
+            [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Missing pickup address.',
+                'pickup_location_snapshot' => [],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
+                'expected_error' => 'pickup_location_snapshot.address',
+            ],
+            [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Missing delivery address.',
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [],
+                'expected_error' => 'delivery_location_snapshot.address',
+            ],
+            [
+                'task_class' => 'NON_DELIVERY',
+                'description' => 'Missing task location address.',
+                'task_location_snapshot' => [],
+                'expected_error' => 'task_location_snapshot.address',
+            ],
+        ];
+
+        foreach ($invalidPayloads as $payload) {
+            $expectedError = $payload['expected_error'];
+            unset($payload['expected_error']);
+
+            $payload['expires_at'] = now()
+                ->addHours(2)
+                ->toISOString();
+
+            $this->withToken($customerToken)
+                ->postJson('/api/marketplace/requests', $payload)
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors($expectedError);
+        }
+
+        $this->assertDatabaseCount('marketplace_requests', 0);
+    }
+
     private function makeAccount(
         string $runnerStatus = Account::RUNNER_STATUS_NOT_RUNNER
     ): Account {
