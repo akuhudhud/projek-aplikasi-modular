@@ -1,5 +1,4 @@
-
- // @vitest-environment jsdom
+// @vitest-environment jsdom
 
 import {
     afterEach,
@@ -43,9 +42,8 @@ const profile = {
     public_slug: 'test-runner',
     display_name: 'Runner Tuaran',
     bio: 'Servis penghantaran sekitar Tuaran.',
-    service_area: 'Tuaran',
-    base_location: 'Tuaran, Sabah',
-    coverage_area: 'Tuaran dan kawasan berhampiran',
+    base_location: 'Tuaran',
+    service_area: 'Tuaran - Kota Kinabalu sahaja',
     services: [
         'Penghantaran parcel',
         'Penghantaran dokumen',
@@ -65,7 +63,6 @@ function successfulProfileResponse() {
         },
     };
 }
-
 describe('RunnerPublicProfile', () => {
     beforeEach(() => {
         getMock.mockReset();
@@ -98,7 +95,7 @@ describe('RunnerPublicProfile', () => {
         );
     });
 
-    it('displays public profile information', async () => {
+    it('displays public profile information and exactly two location fields', async () => {
         getMock.mockResolvedValue(successfulProfileResponse());
 
         render(
@@ -124,8 +121,24 @@ describe('RunnerPublicProfile', () => {
         ).toBeTruthy();
 
         expect(
-            screen.getByText('Tuaran, Sabah'),
+            screen.getByText('Base:'),
         ).toBeTruthy();
+
+        expect(
+            screen.getByText('Tuaran'),
+        ).toBeTruthy();
+
+        expect(
+            screen.getByText('Kawasan Operasi:'),
+        ).toBeTruthy();
+
+        expect(
+            screen.getByText('Tuaran - Kota Kinabalu sahaja'),
+        ).toBeTruthy();
+
+        expect(
+            screen.queryByText('coverage_area'),
+        ).toBeNull();
 
         expect(
             screen.getByText('★ 4.8 / 5'),
@@ -137,8 +150,7 @@ describe('RunnerPublicProfile', () => {
             }),
         ).toBeTruthy();
     });
-
-    it('displays an empty rating state when no ratings exist', async () => {
+     it('displays an empty rating state when no ratings exist', async () => {
         getMock.mockResolvedValue({
             data: {
                 success: true,
