@@ -1,4 +1,6 @@
 
+// @vitest-environment jsdom
+
 import {
     afterEach,
     beforeEach,
@@ -50,6 +52,7 @@ function submitEvent() {
 describe('useCreateCustomerRequest', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+
         createRequestMock.mockResolvedValue({
             request_id: 'request-test-id',
         });
@@ -72,6 +75,7 @@ describe('useCreateCustomerRequest', () => {
         });
 
         expect(createRequestMock).not.toHaveBeenCalled();
+
         expect(result.current.error).toBe(
             'Pautan profil Runner tidak sah. Sila buka semula pautan yang diberikan oleh Runner.',
         );
@@ -98,6 +102,7 @@ describe('useCreateCustomerRequest', () => {
         });
 
         expect(createRequestMock).not.toHaveBeenCalled();
+
         expect(result.current.error).toBe(
             'Tarikh tamat mesti selepas masa sekarang dan tidak melebihi 24 jam.',
         );
@@ -120,6 +125,7 @@ describe('useCreateCustomerRequest', () => {
         });
 
         expect(createRequestMock).not.toHaveBeenCalled();
+
         expect(result.current.error).toBe(
             'Tarikh tamat mesti selepas masa sekarang dan tidak melebihi 24 jam.',
         );
@@ -140,12 +146,15 @@ describe('useCreateCustomerRequest', () => {
             result.current.setDescription(
                 '  Hantar parcel kepada pelanggan.  ',
             );
+
             result.current.setPickupAddress('  Pusat Pos Tuaran  ');
             result.current.setPickupContact('  Ali  ');
             result.current.setPickupPhone('  0123456789  ');
+
             result.current.setDeliveryAddress('  Kampung Tambalang  ');
             result.current.setDeliveryContact('  Abu  ');
             result.current.setDeliveryPhone('  0198765432  ');
+
             result.current.setExpiresAt(futureExpiry());
         });
 
@@ -154,16 +163,19 @@ describe('useCreateCustomerRequest', () => {
         });
 
         expect(createRequestMock).toHaveBeenCalledTimes(1);
+
         expect(createRequestMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 source_type: 'marketplace',
                 task_class: 'PICKUP_DELIVERY',
                 description: 'Hantar parcel kepada pelanggan.',
+
                 pickup_location_snapshot: {
                     address: 'Pusat Pos Tuaran',
                     contact_name: 'Ali',
                     phone: '0123456789',
                 },
+
                 delivery_location_snapshot: {
                     address: 'Kampung Tambalang',
                     contact_name: 'Abu',
@@ -174,8 +186,12 @@ describe('useCreateCustomerRequest', () => {
 
         const payload = createRequestMock.mock.calls[0][0];
 
-        expect(payload).not.toHaveProperty('task_location_snapshot');
+        expect(payload).not.toHaveProperty(
+            'task_location_snapshot',
+        );
+
         expect(onCreated).toHaveBeenCalledTimes(1);
+
         expect(result.current.success).toBe(
             'Permintaan tugasan berjaya dihantar.',
         );
@@ -207,6 +223,7 @@ describe('useCreateCustomerRequest', () => {
                 source_type: 'marketplace',
                 task_class: 'NON_DELIVERY',
                 description: 'Bantu membeli barang.',
+
                 task_location_snapshot: {
                     address: 'Pekan Tuaran',
                     contact_name: 'Ali',
@@ -217,8 +234,13 @@ describe('useCreateCustomerRequest', () => {
 
         const payload = createRequestMock.mock.calls[0][0];
 
-        expect(payload).not.toHaveProperty('pickup_location_snapshot');
-        expect(payload).not.toHaveProperty('delivery_location_snapshot');
+        expect(payload).not.toHaveProperty(
+            'pickup_location_snapshot',
+        );
+
+        expect(payload).not.toHaveProperty(
+            'delivery_location_snapshot',
+        );
     });
 
     it('targets the selected Runner when creating from a profile link', async () => {
