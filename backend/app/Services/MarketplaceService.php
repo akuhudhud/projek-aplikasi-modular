@@ -162,32 +162,40 @@ class MarketplaceService
             );
         }
 
+        // PICKUP_DELIVERY mesti mempunyai alamat pickup dan delivery yang sah.
         if (
             $taskClass === MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY
             && (
                 !isset($data['pickup_location_snapshot'])
                 || !is_array($data['pickup_location_snapshot'])
-                || $data['pickup_location_snapshot'] === []
+                || !isset($data['pickup_location_snapshot']['address'])
+                || !is_string($data['pickup_location_snapshot']['address'])
+                || trim($data['pickup_location_snapshot']['address']) === ''
                 || !isset($data['delivery_location_snapshot'])
                 || !is_array($data['delivery_location_snapshot'])
-                || $data['delivery_location_snapshot'] === []
+                || !isset($data['delivery_location_snapshot']['address'])
+                || !is_string($data['delivery_location_snapshot']['address'])
+                || trim($data['delivery_location_snapshot']['address']) === ''
             )
         ) {
             throw new DomainException(
-                'Pickup and delivery locations are required for this task class.'
+                'Pickup and delivery locations with valid addresses are required for this task class.'
             );
         }
 
+        // NON_DELIVERY mesti mempunyai alamat lokasi tugasan yang sah.
         if (
             $taskClass === MarketplaceRequest::TASK_CLASS_NON_DELIVERY
             && (
                 !isset($data['task_location_snapshot'])
                 || !is_array($data['task_location_snapshot'])
-                || $data['task_location_snapshot'] === []
+                || !isset($data['task_location_snapshot']['address'])
+                || !is_string($data['task_location_snapshot']['address'])
+                || trim($data['task_location_snapshot']['address']) === ''
             )
         ) {
             throw new DomainException(
-                'Task location is required for this task class.'
+                'Task location with a valid address is required for this task class.'
             );
         }
 
