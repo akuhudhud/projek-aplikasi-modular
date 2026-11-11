@@ -1,3 +1,4 @@
+
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -11,7 +12,7 @@ return new class extends Migration
         Schema::create('identity_verifications', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('account_id')->unique();
-            $table->string('real_name');
+            $table->string('verified_name');
             $table->string('mykad_number', 12);
             $table->string('status', 30)->default('PENDING')->index();
             $table->timestamp('submitted_at');
