@@ -127,7 +127,7 @@ describe('Customer quotation Runner public profile', () => {
 
         expect(
             within(card).getByText(
-                'Kawasan servis: Tuaran dan kawasan berhampiran',
+                'Kawasan perkhidmatan: Tuaran dan kawasan berhampiran',
             ),
         ).toBeTruthy();
 
