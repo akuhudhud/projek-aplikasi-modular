@@ -25,7 +25,7 @@ class IdentityVerification extends Model
     protected $fillable = [
         'id',
         'account_id',
-        'real_name',
+        'verified_name',
         'mykad_number',
         'status',
         'submitted_at',
