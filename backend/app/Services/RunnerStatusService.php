@@ -139,7 +139,7 @@ class RunnerStatusService
             ->orderBy('created_at')
             ->get([
                 'id',
-                'name',
+                'profile_name',
                 'phone',
                 'email',
                 'profile_picture',
