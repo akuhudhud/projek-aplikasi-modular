@@ -215,6 +215,9 @@ class CustomerMarketplaceRequestController extends Controller
             ], 401);
         }
 
+        // Luputkan permintaan dan quotation sebelum butiran dipaparkan.
+        $this->marketplaceService->expireDueItems();
+
         $marketplaceRequest = MarketplaceRequest::query()
             ->where('request_id', $requestId)
             ->where('customer_account_id', $account->id)
