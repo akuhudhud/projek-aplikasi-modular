@@ -29,6 +29,9 @@ class CustomerMarketplaceRequestController extends Controller
             ], 401);
         }
 
+        // Luputkan permintaan dan quotation sebelum senarai dipaparkan.
+        $this->marketplaceService->expireDueItems();
+
         $requests = MarketplaceRequest::query()
             ->where('customer_account_id', $account->id)
             ->orderByDesc('created_at')
