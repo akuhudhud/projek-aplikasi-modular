@@ -19,11 +19,13 @@ class CompleteRegistrationRequest extends FormRequest
                 'string',
                 'size:64',
             ],
-            'name' => [
+
+            'profile_name' => [
                 'required',
                 'string',
                 'max:255',
             ],
+
             'password' => [
                 'required',
                 'string',
@@ -33,6 +35,7 @@ class CompleteRegistrationRequest extends FormRequest
                 'regex:/[a-z]/',
                 'regex:/[0-9]/',
             ],
+
             'password_confirmation' => [
                 'required',
                 'same:password',
