@@ -71,8 +71,6 @@ export interface CustomerRequestPayload {
 
 export interface CustomerMarketplaceRequest {
     request_id: string;
-    customer_account_id: number | string;
-    target_runner_account_id: number | string | null;
     source_type: string;
     task_class: 'PICKUP_DELIVERY' | 'NON_DELIVERY';
     description: string;
@@ -154,7 +152,6 @@ export interface CustomerAwardQuotationResult {
         task_type: string;
         source_type: string;
         source_id: string;
-        assigned_account_id: number | string;
         generic_status: string;
         assigned_at: string | null;
         created_at: string;
