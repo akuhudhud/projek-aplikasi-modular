@@ -16,7 +16,8 @@ class Kernel extends ConsoleKernel
             ->everyMinute()
             ->withoutOverlapping();
     }
-        protected function commands(): void
+
+    protected function commands(): void
     {
         $this->load(__DIR__.'/Commands');
 
