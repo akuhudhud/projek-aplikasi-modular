@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Models;
@@ -19,7 +20,6 @@ class RunnerPublicProfile extends Model
         'profile_id',
         'account_id',
         'public_slug',
-        'display_name',
         'bio',
         'base_location',
         'service_area',
