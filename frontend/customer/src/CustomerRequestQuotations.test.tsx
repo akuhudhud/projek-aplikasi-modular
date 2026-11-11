@@ -159,7 +159,7 @@ async function loginThroughRunnerProfile() {
     );
 
     await screen.findByRole('heading', {
-        name: 'Cipta Open Request',
+        name: 'Cipta Permintaan Terbuka',
     });
 }
 
@@ -196,12 +196,12 @@ async function loginThroughCustomerDashboard() {
         }),
     );
 
-    await screen.findByText('Dashboard Pelanggan');
+    await screen.findByText('Halaman Utama Pelanggan');
 }
 
 function submitRequestForm() {
     const button = screen.getByRole('button', {
-        name: 'Hantar Open Request',
+        name: 'Hantar Permintaan',
     });
 
     const form = button.closest('form');
@@ -289,7 +289,7 @@ describe(
                 const pickup = screen.getByRole(
                     'group',
                     {
-                        name: 'Lokasi Pickup',
+                        name: 'Lokasi Pengambilan',
                     },
                 );
 
@@ -305,7 +305,7 @@ describe(
                 const delivery = screen.getByRole(
                     'group',
                     {
-                        name: 'Lokasi Delivery',
+                        name: 'Lokasi Penghantaran',
                     },
                 );
 
@@ -452,7 +452,7 @@ describe(
 
                 fireEvent.click(
                     screen.getByRole('button', {
-                        name: 'Open Request',
+                        name: 'Permintaan',
                     }),
                 );
 
@@ -524,7 +524,7 @@ describe(
 
                 fireEvent.click(
                     screen.getByRole('button', {
-                        name: 'Open Request',
+                        name: 'Permintaan',
                     }),
                 );
 
@@ -604,7 +604,7 @@ describe(
 
                 fireEvent.click(
                     screen.getByRole('button', {
-                        name: 'Tugasan Saya',
+                        name: 'Tugasan',
                     }),
                 );
 
@@ -714,12 +714,12 @@ describe(
                 expect(screen.getByText('5')).toBeTruthy();
 
                 expect(
-                    screen.getAllByText('Open Request'),
-                ).toHaveLength(2);
+                    screen.getByText('Jumlah Permintaan'),
+                ).toBeTruthy();
                 expect(screen.getByText('7')).toBeTruthy();
 
                 expect(
-                    screen.getByText('Open Request Terkini'),
+                    screen.getByText('Permintaan Terkini'),
                 ).toBeTruthy();
                 expect(
                     screen.getByText('Beli barang dapur.'),
@@ -794,7 +794,7 @@ describe(
 
                 fireEvent.click(
                     screen.getByRole('button', {
-                        name: 'Logout',
+                        name: 'Keluar',
                     }),
                 );
 
