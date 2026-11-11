@@ -221,6 +221,7 @@ describe('Customer Service Worker', () => {
         await activation;
 
         expect(worker.cachesMock.delete).toHaveBeenCalledTimes(1);
+
         expect(worker.cachesMock.delete).toHaveBeenCalledWith(
             'super-runner-customer-v2',
         );
@@ -299,20 +300,10 @@ describe('Customer Service Worker', () => {
         expect(respondWith).not.toHaveBeenCalled();
     });
 
-    it('uses cached application shell when navigation fails offline', async () => {
+    it('does not intercept page navigation requests', () => {
         const worker = createServiceWorkerHarness();
 
-        worker.fetchMock.mockRejectedValue(
-            new Error('Network unavailable'),
-        );
-
-        worker.cache.match.mockResolvedValue(
-            new Response('offline application shell', {
-                status: 200,
-            }),
-        );
-
-        let navigationResponse: Promise<Response> | undefined;
+        const respondWith = vi.fn();
 
         worker.listeners.get('fetch')?.({
             request: {
@@ -320,23 +311,39 @@ describe('Customer Service Worker', () => {
                 url: 'https://app.test/customer/tasks',
                 mode: 'navigate',
             },
-            respondWith(promise) {
-                navigationResponse = promise;
-            },
+            respondWith,
         });
 
-        expect(navigationResponse).toBeDefined();
+        expect(respondWith).not.toHaveBeenCalled();
+        expect(worker.cachesMock.open).not.toHaveBeenCalled();
+    });
 
-        if (!navigationResponse) {
-            throw new Error('Navigation response was not registered.');
+    it('does not cache non-asset same-origin resources', () => {
+        const worker = createServiceWorkerHarness();
+
+        const excludedPaths = [
+            '/manifest.webmanifest',
+            '/customer/tasks',
+            '/profile/avatar',
+            '/images/logo.png',
+        ];
+
+        for (const path of excludedPaths) {
+            const respondWith = vi.fn();
+
+            worker.listeners.get('fetch')?.({
+                request: {
+                    method: 'GET',
+                    url: `https://app.test${path}`,
+                    mode: 'cors',
+                },
+                respondWith,
+            });
+
+            expect(respondWith).not.toHaveBeenCalled();
         }
 
-        const response = await navigationResponse;
-
-        expect(response.status).toBe(200);
-        expect(await response.text()).toBe('offline application shell');
-
-        expect(worker.cache.match).toHaveBeenCalledWith('/');
+        expect(worker.cachesMock.open).not.toHaveBeenCalled();
     });
 
     it('uses cached assets before requesting the network', async () => {
