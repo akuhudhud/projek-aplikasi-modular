@@ -192,7 +192,6 @@ class MarketplaceAvailableRequestsApiTest extends TestCase
             'profile_id' => (string) Str::uuid(),
             'account_id' => $runner->id,
             'public_slug' => $slug,
-            'display_name' => 'Test Runner',
             'service_area' => 'Tuaran',
             'services' => ['General service'],
             'is_published' => true,
@@ -207,7 +206,7 @@ class MarketplaceAvailableRequestsApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Available Requests API Test',
+            'profile_name' => 'Marketplace Available Requests API Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
