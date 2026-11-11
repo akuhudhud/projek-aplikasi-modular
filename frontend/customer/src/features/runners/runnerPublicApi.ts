@@ -5,9 +5,13 @@ export interface RunnerPublicProfileData {
     public_slug: string;
     display_name: string;
     bio: string | null;
-    service_area: string | null;
+
+    // Base lokasi Runner.
     base_location: string | null;
-    coverage_area: string | null;
+
+    // Kawasan operasi Runner.
+    service_area: string | null;
+
     services: string[];
     rating_average: number | null;
     rating_count: number;
