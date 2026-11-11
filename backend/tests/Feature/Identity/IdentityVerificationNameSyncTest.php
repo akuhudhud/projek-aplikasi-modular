@@ -19,7 +19,7 @@ class IdentityVerificationNameSyncTest extends TestCase
     {
         return Account::query()->create([
             'id' => (string) Str::uuid(),
-            'name' => 'Nama Akaun Asal',
+            'profile_name' => 'Nama Akaun Asal',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
@@ -47,7 +47,7 @@ class IdentityVerificationNameSyncTest extends TestCase
         $verification = IdentityVerification::query()->create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'real_name' => 'Nama Penuh Disahkan',
+            'verified_name' => 'Nama Penuh Disahkan',
             'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_PENDING,
             'submitted_at' => now(),
@@ -69,7 +69,7 @@ class IdentityVerificationNameSyncTest extends TestCase
         return $verification;
     }
 
-    public function test_verified_identity_does_not_change_account_display_name(): void
+    public function test_verified_identity_does_not_change_account_profile_name(): void
     {
         $root = $this->createAccount('ROOT_SUPER_ADMIN');
         $verification = $this->createPendingVerification($root);
@@ -91,19 +91,19 @@ class IdentityVerificationNameSyncTest extends TestCase
 
         $this->assertDatabaseHas('accounts', [
             'id' => $root->id,
-            'name' => 'Nama Akaun Asal',
+            'profile_name' => 'Nama Akaun Asal',
         ]);
 
         $this->assertDatabaseHas('identity_verifications', [
             'id' => $verification->id,
             'account_id' => $root->id,
-            'real_name' => 'Nama Penuh Disahkan',
+            'verified_name' => 'Nama Penuh Disahkan',
             'status' => IdentityVerification::STATUS_VERIFIED,
             'reviewer_account_id' => $root->id,
         ]);
     }
 
-    public function test_rejected_identity_does_not_change_account_display_name(): void
+    public function test_rejected_identity_does_not_change_account_profile_name(): void
     {
         $root = $this->createAccount('ROOT_SUPER_ADMIN');
         $verification = $this->createPendingVerification($root);
@@ -128,13 +128,13 @@ class IdentityVerificationNameSyncTest extends TestCase
 
         $this->assertDatabaseHas('accounts', [
             'id' => $root->id,
-            'name' => 'Nama Akaun Asal',
+            'profile_name' => 'Nama Akaun Asal',
         ]);
 
         $this->assertDatabaseHas('identity_verifications', [
             'id' => $verification->id,
             'account_id' => $root->id,
-            'real_name' => 'Nama Penuh Disahkan',
+            'verified_name' => 'Nama Penuh Disahkan',
             'status' => IdentityVerification::STATUS_REJECTED,
             'reviewer_account_id' => $root->id,
             'rejection_reason' => 'Dokumen tidak jelas.',
