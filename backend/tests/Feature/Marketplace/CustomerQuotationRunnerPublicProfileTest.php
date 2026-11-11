@@ -16,7 +16,7 @@ class CustomerQuotationRunnerPublicProfileTest extends TestCase
     use RefreshDatabase;
 
     private function createAccount(
-        string $name,
+        string $profileName,
         string $runnerStatus = Account::RUNNER_STATUS_NOT_RUNNER
     ): Account {
         $id = (string) Str::uuid();
@@ -24,7 +24,7 @@ class CustomerQuotationRunnerPublicProfileTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => $name,
+            'profile_name' => $profileName,
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
@@ -66,7 +66,6 @@ class CustomerQuotationRunnerPublicProfileTest extends TestCase
             'profile_id' => (string) Str::uuid(),
             'account_id' => $runner->id,
             'public_slug' => 'runner-tuaran',
-            'display_name' => 'Runner Tuaran',
             'bio' => 'Servis penghantaran sekitar Tuaran.',
             'base_location' => 'Tuaran',
             'service_area' => 'Tuaran dan kawasan berhampiran',
@@ -133,7 +132,7 @@ class CustomerQuotationRunnerPublicProfileTest extends TestCase
                 'runner-tuaran'
             )
             ->assertJsonPath(
-                'data.quotations.0.runner_profile.display_name',
+                'data.quotations.0.runner_profile.profile_name',
                 'Runner Tuaran'
             )
             ->assertJsonPath(
@@ -175,7 +174,6 @@ class CustomerQuotationRunnerPublicProfileTest extends TestCase
             'profile_id' => (string) Str::uuid(),
             'account_id' => $runner->id,
             'public_slug' => 'runner-private',
-            'display_name' => 'Runner Private',
             'base_location' => 'Private Base',
             'service_area' => 'Private Area',
             'services' => ['Private Service'],
