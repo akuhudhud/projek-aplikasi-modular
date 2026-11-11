@@ -19,11 +19,11 @@ class AccountController extends Controller
         Request $request,
         AdminPermissionService $permissionService
     ): JsonResponse {
-        $account = $request->attributes->get('account');
+        $actor = $request->attributes->get('account');
 
         if (
-            !$account
-            || !$permissionService->allows($account, 'accounts.view')
+            !$actor
+            || !$permissionService->allows($actor, 'accounts.view')
         ) {
             return response()->json([
                 'success' => false,
@@ -34,18 +34,18 @@ class AccountController extends Controller
 
         $query = Account::query();
 
-        if ($account->role === 'SUPER_ADMIN') {
+        if ($actor->role === 'SUPER_ADMIN') {
             $query->where('role', 'USER');
         }
 
         $accounts = $query
             ->with([
-                'identityVerification:id,account_id,real_name,status',
+                'identityVerification:id,account_id,verified_name,status',
             ])
             ->orderBy('created_at')
             ->get([
                 'id',
-                'name',
+                'profile_name',
                 'job_title',
                 'phone',
                 'email',
@@ -59,15 +59,13 @@ class AccountController extends Controller
         $accounts->each(function (Account $account): void {
             $verification = $account->identityVerification;
 
-            $realName = $verification !== null
+            $verifiedName = $verification !== null
                 && $verification->status
                     === IdentityVerification::STATUS_VERIFIED
-                ? $verification->real_name
+                ? $verification->verified_name
                 : null;
 
-            $account->setAttribute('real_name', $realName);
-
-            // Prevent the identity record from appearing in the JSON response.
+            $account->setAttribute('verified_name', $verifiedName);
             $account->unsetRelation('identityVerification');
         });
 
@@ -93,7 +91,7 @@ class AccountController extends Controller
         }
 
         $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'profile_name' => ['required', 'string', 'max:255'],
             'job_title' => ['nullable', 'string', 'max:100'],
             'phone' => [
                 'nullable',
@@ -142,7 +140,7 @@ class AccountController extends Controller
         ): Account {
             $account = Account::create([
                 'id' => (string) Str::uuid(),
-                'name' => $request->input('name'),
+                'profile_name' => $request->input('profile_name'),
                 'job_title' => $request->input('job_title'),
                 'phone' => $request->input('phone'),
                 'email' => $request->input('email'),
@@ -168,7 +166,7 @@ class AccountController extends Controller
             'data' => [
                 'account' => [
                     'id' => $newSuperAdmin->id,
-                    'name' => $newSuperAdmin->name,
+                    'profile_name' => $newSuperAdmin->profile_name,
                     'job_title' => $newSuperAdmin->job_title,
                     'phone' => $newSuperAdmin->phone,
                     'email' => $newSuperAdmin->email,
@@ -273,7 +271,7 @@ class AccountController extends Controller
             'data' => [
                 'account' => [
                     'id' => $updatedTarget->id,
-                    'name' => $updatedTarget->name,
+                    'profile_name' => $updatedTarget->profile_name,
                     'job_title' => $updatedTarget->job_title,
                     'phone' => $updatedTarget->phone,
                     'email' => $updatedTarget->email,
@@ -322,7 +320,7 @@ class AccountController extends Controller
             'data' => [
                 'account' => [
                     'id' => $target->id,
-                    'name' => $target->name,
+                    'profile_name' => $target->profile_name,
                     'job_title' => $target->job_title,
                     'role' => $target->role,
                 ],
@@ -455,7 +453,7 @@ class AccountController extends Controller
             'data' => [
                 'account' => [
                     'id' => $target->id,
-                    'name' => $target->name,
+                    'profile_name' => $target->profile_name,
                     'job_title' => $target->job_title,
                     'role' => $target->role,
                 ],
