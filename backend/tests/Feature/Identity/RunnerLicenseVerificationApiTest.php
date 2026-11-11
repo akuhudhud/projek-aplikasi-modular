@@ -28,7 +28,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
     ): Account {
         $account = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Runner License API Test',
+            'profile_name' => 'Runner License API Test',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
@@ -88,7 +88,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
         IdentityVerification::create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'real_name' => 'Contoh Nama Sebenar',
+            'verified_name' => 'Contoh Nama Sebenar',
             'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_VERIFIED,
             'submitted_at' => now(),
