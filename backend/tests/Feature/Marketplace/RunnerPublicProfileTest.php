@@ -26,7 +26,6 @@ class RunnerPublicProfileTest extends TestCase
         $response = $this->withToken($token)
             ->postJson('/api/me/runner-profile', [
                 'public_slug' => 'runner-sabah-01',
-                'display_name' => 'Runner Sabah',
                 'bio' => 'Delivery services in my service area.',
                 'service_area' => 'Tuaran',
                 'services' => ['Parcel delivery', 'Document delivery'],
@@ -41,7 +40,7 @@ class RunnerPublicProfileTest extends TestCase
                 'runner-sabah-01'
             )
             ->assertJsonPath(
-                'data.profile.display_name',
+                'data.profile.profile_name',
                 'Runner Profile Test'
             )
             ->assertJsonPath('data.profile.is_published', true);
@@ -64,7 +63,6 @@ class RunnerPublicProfileTest extends TestCase
         $this->withToken($token)
             ->postJson('/api/me/runner-profile', [
                 'public_slug' => 'pending-runner',
-                'display_name' => 'Pending Runner',
                 'is_published' => true,
             ])
             ->assertForbidden();
@@ -82,7 +80,6 @@ class RunnerPublicProfileTest extends TestCase
             'profile_id' => (string) Str::uuid(),
             'account_id' => $runner->id,
             'public_slug' => 'public-runner',
-            'display_name' => 'Public Runner',
             'bio' => 'Available for deliveries.',
             'service_area' => 'Tuaran',
             'services' => ['Parcel delivery'],
@@ -93,14 +90,15 @@ class RunnerPublicProfileTest extends TestCase
         $this->getJson('/api/runners/public-runner')
             ->assertOk()
             ->assertJsonPath(
-                'data.profile.display_name',
+                'data.profile.profile_name',
                 'Runner Profile Test'
             )
             ->assertJsonPath('data.profile.views_count', 1)
             ->assertJsonMissingPath('data.profile.account_id')
             ->assertJsonMissingPath('data.profile.phone')
             ->assertJsonMissingPath('data.profile.email')
-            ->assertJsonMissingPath('data.profile.password');
+            ->assertJsonMissingPath('data.profile.password')
+            ->assertJsonMissingPath('data.profile.verified_name');
 
         $this->assertDatabaseHas('runner_public_profiles', [
             'public_slug' => 'public-runner',
@@ -118,7 +116,6 @@ class RunnerPublicProfileTest extends TestCase
             'profile_id' => (string) Str::uuid(),
             'account_id' => $runner->id,
             'public_slug' => 'private-runner',
-            'display_name' => 'Private Runner',
             'is_published' => false,
         ]);
 
@@ -142,14 +139,12 @@ class RunnerPublicProfileTest extends TestCase
             'profile_id' => (string) Str::uuid(),
             'account_id' => $first->id,
             'public_slug' => 'taken-runner',
-            'display_name' => 'First Runner',
             'is_published' => true,
         ]);
 
         $this->withToken($token)
             ->postJson('/api/me/runner-profile', [
                 'public_slug' => 'taken-runner',
-                'display_name' => 'Second Runner',
                 'is_published' => true,
             ])
             ->assertUnprocessable();
@@ -167,7 +162,6 @@ class RunnerPublicProfileTest extends TestCase
             'profile_id' => (string) Str::uuid(),
             'account_id' => $runner->id,
             'public_slug' => 'partial-runner',
-            'display_name' => 'Original Name',
             'bio' => 'Original bio',
             'service_area' => 'Tuaran',
             'services' => ['Parcel delivery'],
@@ -180,7 +174,7 @@ class RunnerPublicProfileTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath(
-                'data.profile.display_name',
+                'data.profile.profile_name',
                 'Runner Profile Test'
             )
             ->assertJsonPath('data.profile.bio', 'Original bio')
@@ -193,7 +187,6 @@ class RunnerPublicProfileTest extends TestCase
 
         $this->assertDatabaseHas('runner_public_profiles', [
             'account_id' => $runner->id,
-            'display_name' => 'Original Name',
             'bio' => 'Original bio',
             'service_area' => 'Tuaran',
             'is_published' => true,
@@ -212,7 +205,6 @@ class RunnerPublicProfileTest extends TestCase
             'profile_id' => (string) Str::uuid(),
             'account_id' => $runner->id,
             'public_slug' => 'update-values-runner',
-            'display_name' => 'Original Name',
             'bio' => 'Original bio',
             'service_area' => 'Tuaran',
             'services' => ['Parcel delivery'],
@@ -222,12 +214,11 @@ class RunnerPublicProfileTest extends TestCase
         $this->withToken($token)
             ->postJson('/api/me/runner-profile', [
                 'public_slug' => 'update-values-runner',
-                'display_name' => 'Updated Name',
                 'bio' => 'Updated bio',
             ])
             ->assertOk()
             ->assertJsonPath(
-                'data.profile.display_name',
+                'data.profile.profile_name',
                 'Runner Profile Test'
             )
             ->assertJsonPath('data.profile.bio', 'Updated bio')
@@ -240,7 +231,6 @@ class RunnerPublicProfileTest extends TestCase
 
         $this->assertDatabaseHas('runner_public_profiles', [
             'account_id' => $runner->id,
-            'display_name' => 'Original Name',
             'bio' => 'Updated bio',
             'service_area' => 'Tuaran',
             'is_published' => true,
@@ -259,7 +249,6 @@ class RunnerPublicProfileTest extends TestCase
             'profile_id' => (string) Str::uuid(),
             'account_id' => $runner->id,
             'public_slug' => 'clear-runner',
-            'display_name' => 'Runner Name',
             'bio' => 'Remove this bio',
             'service_area' => 'Remove this area',
             'services' => ['Parcel delivery'],
@@ -288,7 +277,7 @@ class RunnerPublicProfileTest extends TestCase
         ]);
     }
 
-    public function test_verified_real_name_is_not_returned_in_public_profile(): void
+    public function test_verified_name_is_not_returned_in_public_profile(): void
     {
         $runner = $this->createApprovedRunner();
 
@@ -302,12 +291,12 @@ class RunnerPublicProfileTest extends TestCase
         $this->getJson('/api/runners/verified-runner')
             ->assertOk()
             ->assertJsonPath(
-                'data.profile.display_name',
+                'data.profile.profile_name',
                 'Nama Akaun Runner'
             )
-            ->assertJsonMissingPath('data.profile.real_name')
+            ->assertJsonMissingPath('data.profile.verified_name')
             ->assertJsonMissing([
-                'real_name' => 'Nama Sebenar Disahkan',
+                'verified_name' => 'Nama Sebenar Disahkan',
             ])
             ->assertJsonMissingPath('data.profile.account_id')
             ->assertJsonMissingPath('data.profile.phone')
@@ -315,7 +304,7 @@ class RunnerPublicProfileTest extends TestCase
             ->assertJsonMissingPath('data.profile.mykad_number');
     }
 
-    public function test_real_name_is_not_returned_when_identity_is_pending(): void
+    public function test_verified_name_is_not_returned_when_identity_is_pending(): void
     {
         $runner = $this->createApprovedRunner();
 
@@ -329,16 +318,16 @@ class RunnerPublicProfileTest extends TestCase
         $this->getJson('/api/runners/verified-runner')
             ->assertOk()
             ->assertJsonPath(
-                'data.profile.display_name',
+                'data.profile.profile_name',
                 'Nama Akaun Runner'
             )
-            ->assertJsonMissingPath('data.profile.real_name')
+            ->assertJsonMissingPath('data.profile.verified_name')
             ->assertJsonMissing([
-                'real_name' => 'Nama Sebenar Disahkan',
+                'verified_name' => 'Nama Sebenar Disahkan',
             ]);
     }
 
-    public function test_real_name_is_not_returned_when_identity_is_rejected(): void
+    public function test_verified_name_is_not_returned_when_identity_is_rejected(): void
     {
         $runner = $this->createApprovedRunner();
 
@@ -352,16 +341,16 @@ class RunnerPublicProfileTest extends TestCase
         $this->getJson('/api/runners/verified-runner')
             ->assertOk()
             ->assertJsonPath(
-                'data.profile.display_name',
+                'data.profile.profile_name',
                 'Nama Akaun Runner'
             )
-            ->assertJsonMissingPath('data.profile.real_name')
+            ->assertJsonMissingPath('data.profile.verified_name')
             ->assertJsonMissing([
-                'real_name' => 'Nama Sebenar Disahkan',
+                'verified_name' => 'Nama Sebenar Disahkan',
             ]);
     }
 
-    public function test_real_name_is_not_returned_without_identity_record(): void
+    public function test_verified_name_is_not_returned_without_identity_record(): void
     {
         $runner = $this->createApprovedRunner();
 
@@ -370,28 +359,28 @@ class RunnerPublicProfileTest extends TestCase
         $this->getJson('/api/runners/verified-runner')
             ->assertOk()
             ->assertJsonPath(
-                'data.profile.display_name',
+                'data.profile.profile_name',
                 'Nama Akaun Runner'
             )
-            ->assertJsonMissingPath('data.profile.real_name');
+            ->assertJsonMissingPath('data.profile.verified_name');
     }
 
-    public function test_public_display_name_uses_current_account_name_not_legacy_profile_name(): void
+    public function test_public_profile_name_uses_current_account_profile_name(): void
     {
         $runner = $this->createApprovedRunner();
 
         $this->createPublicProfile($runner);
 
-        $runner->name = 'Nama Akaun Dikemas Kini';
+        $runner->profile_name = 'Nama Akaun Dikemas Kini';
         $runner->save();
 
         $this->getJson('/api/runners/verified-runner')
             ->assertOk()
             ->assertJsonPath(
-                'data.profile.display_name',
+                'data.profile.profile_name',
                 'Nama Akaun Dikemas Kini'
             )
-            ->assertJsonMissingPath('data.profile.real_name');
+            ->assertJsonMissingPath('data.profile.verified_name');
     }
 
     private function makeAccount(
@@ -402,7 +391,7 @@ class RunnerPublicProfileTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Runner Profile Test',
+            'profile_name' => 'Runner Profile Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
@@ -438,7 +427,7 @@ class RunnerPublicProfileTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Nama Akaun Runner',
+            'profile_name' => 'Nama Akaun Runner',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
@@ -457,7 +446,7 @@ class RunnerPublicProfileTest extends TestCase
         return IdentityVerification::query()->create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'real_name' => 'Nama Sebenar Disahkan',
+            'verified_name' => 'Nama Sebenar Disahkan',
             'mykad_number' => '900101145678',
             'status' => $status,
             'submitted_at' => now(),
@@ -478,7 +467,6 @@ class RunnerPublicProfileTest extends TestCase
             'profile_id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'public_slug' => 'verified-runner',
-            'display_name' => 'Nama Paparan Runner',
             'bio' => 'Profil ujian.',
             'service_area' => 'Tuaran',
             'services' => ['Penghantaran'],
