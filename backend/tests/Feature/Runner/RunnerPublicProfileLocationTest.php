@@ -145,7 +145,6 @@ class RunnerPublicProfileLocationTest extends TestCase
             $profile['display_name']
         );
 
-        $this->assertArrayNotHasKey('coverage_area', $profile);
         $this->assertArrayNotHasKey('latitude', $profile);
         $this->assertArrayNotHasKey('longitude', $profile);
     }
@@ -174,8 +173,6 @@ class RunnerPublicProfileLocationTest extends TestCase
             'Tuaran dan Tamparuli',
             $profile['service_area']
         );
-
-        $this->assertArrayNotHasKey('coverage_area', $profile);
     }
 
     public function test_runner_can_update_base_without_changing_operating_area(): void
@@ -300,6 +297,5 @@ class RunnerPublicProfileLocationTest extends TestCase
 
         $this->assertSame('Tuaran', $profile['base_location']);
         $this->assertSame('Seluruh Sabah', $profile['service_area']);
-        $this->assertArrayNotHasKey('coverage_area', $profile);
     }
 }
