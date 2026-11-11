@@ -175,7 +175,7 @@ describe('RunnerPublicProfile', () => {
         ).toBeTruthy();
 
         expect(
-            screen.getByText('Base:'),
+            screen.getByText('Lokasi Asas:'),
         ).toBeTruthy();
 
         expect(
@@ -183,7 +183,7 @@ describe('RunnerPublicProfile', () => {
         ).toBeTruthy();
 
         expect(
-            screen.getByText('Kawasan Operasi:'),
+            screen.getByText('Kawasan Liputan:'),
         ).toBeTruthy();
 
         expect(
