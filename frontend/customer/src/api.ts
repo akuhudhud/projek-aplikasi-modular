@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 
 export const CUSTOMER_SESSION_EXPIRED_EVENT =
@@ -6,7 +5,7 @@ export const CUSTOMER_SESSION_EXPIRED_EVENT =
 
 export interface CustomerAccount {
     id: number | string;
-    name: string;
+    profile_name: string;
     phone: string | null;
     email: string | null;
     profile_picture: string | null;
@@ -102,11 +101,11 @@ export interface CustomerOwnMarketplaceRequest {
  * untuk dipaparkan kepada Customer.
  *
  * Tidak mengandungi account_id, nombor telefon,
- * e-mel, koordinat GPS atau maklumat dalaman.
+ * e-mel, koordinat GPS atau maklumat identiti sah.
  */
 export interface CustomerRunnerPublicProfile {
     public_slug: string;
-    display_name: string;
+    profile_name: string;
     bio: string | null;
     base_location: string | null;
     service_area: string | null;
@@ -236,7 +235,7 @@ export interface RegistrationOtpVerifyResult {
 
 export interface RegistrationCompletePayload {
     verification_token: string;
-    name: string;
+    profile_name: string;
     password: string;
     password_confirmation: string;
 }
@@ -334,7 +333,9 @@ export const customerApi = {
         return response.data.data.account;
     },
 
-    async updateProfile(payload: { name: string }): Promise<CustomerAccount> {
+    async updateProfile(
+        payload: { profile_name: string },
+    ): Promise<CustomerAccount> {
         const response = await api.patch<ApiResponse<AccountData>>(
             '/web/auth/profile',
             payload,
