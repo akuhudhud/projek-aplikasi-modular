@@ -239,7 +239,7 @@ class ContactChangeController extends Controller
                 'data' => [
                     'account' => [
                         'id' => $account->id,
-                        'name' => $account->name,
+                        'profile_name' => $account->profile_name,
                         'phone' => $account->phone,
                         'email' => $account->email,
                         'phone_verified_at' => $account->phone_verified_at,
