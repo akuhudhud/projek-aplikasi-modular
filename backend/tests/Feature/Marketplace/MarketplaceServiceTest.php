@@ -641,7 +641,6 @@ class MarketplaceServiceTest extends TestCase
             'profile_id' => (string) Str::uuid(),
             'account_id' => $runner->id,
             'public_slug' => $slug,
-            'display_name' => 'Test Runner',
             'service_area' => 'Tuaran',
             'services' => ['General service'],
             'is_published' => true,
@@ -656,7 +655,7 @@ class MarketplaceServiceTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Test Account',
+            'profile_name' => 'Test Account',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
