@@ -30,8 +30,6 @@ class RunnerApplicationApiTest extends TestCase
 
         Storage::fake('local');
 
-        // Ujian membina katalog sendiri. Tiada jenis lesen hardcode
-        // melalui seeder atau pemalar lama TYPE_GENERAL.
         $this->licenseType = DrivingLicenseType::create([
             'id' => (string) Str::uuid(),
             'code' => 'GENERAL',
@@ -59,7 +57,7 @@ class RunnerApplicationApiTest extends TestCase
     ): Account {
         $account = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Runner API Test',
+            'profile_name' => 'Runner API Test',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
@@ -78,7 +76,7 @@ class RunnerApplicationApiTest extends TestCase
         IdentityVerification::create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'real_name' => 'Contoh Nama Sebenar',
+            'verified_name' => 'Contoh Nama Sebenar',
             'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_VERIFIED,
             'submitted_at' => now(),
@@ -377,7 +375,7 @@ class RunnerApplicationApiTest extends TestCase
         IdentityVerification::create([
             'id' => (string) Str::uuid(),
             'account_id' => $user->id,
-            'real_name' => 'Contoh Nama Sebenar',
+            'verified_name' => 'Contoh Nama Sebenar',
             'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_PENDING,
             'submitted_at' => now(),
@@ -400,7 +398,7 @@ class RunnerApplicationApiTest extends TestCase
         IdentityVerification::create([
             'id' => (string) Str::uuid(),
             'account_id' => $user->id,
-            'real_name' => 'Contoh Nama Sebenar',
+            'verified_name' => 'Contoh Nama Sebenar',
             'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_REJECTED,
             'submitted_at' => now(),
