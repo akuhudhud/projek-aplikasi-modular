@@ -26,8 +26,8 @@ type HomePageProps = {
 
 function taskClassLabel(taskClass: string): string {
     return taskClass === 'PICKUP_DELIVERY'
-        ? 'Ambil & Hantar'
-        : 'Bukan Penghantaran';
+        ? 'Ambil dan Hantar'
+        : 'Tugasan Bukan Penghantaran';
 }
 
 export default function HomePage({
@@ -49,7 +49,7 @@ export default function HomePage({
     return (
         <div className="sr-home-page">
             <section className="customer-welcome">
-                <p>Papan Pemuka Pelanggan</p>
+                <p>Halaman Utama Pelanggan</p>
                 <h2>Hai, {account.name}</h2>
                 <span>Selamat datang ke Super Runner.</span>
             </section>
@@ -60,10 +60,10 @@ export default function HomePage({
                         PERLUKAN BANTUAN?
                     </span>
 
-                    <h2>Cipta tugasan baharu</h2>
+                    <h2>Cipta Tugasan Baharu</h2>
 
                     <p>
-                        Hantar permintaan dan terima sebut harga
+                        Hantar permintaan anda dan terima sebut harga
                         daripada Runner.
                     </p>
                 </div>
@@ -91,7 +91,7 @@ export default function HomePage({
                 </article>
 
                 <article className="customer-summary-card">
-                    <span>Permintaan Terbuka</span>
+                    <span>Jumlah Permintaan</span>
                     <strong>{ownRequestTotal}</strong>
                 </article>
 
@@ -109,19 +109,20 @@ export default function HomePage({
                         type="button"
                         onClick={onNavigateTasks}
                     >
-                        Lihat semua
+                        Lihat Semua
                     </button>
                 </div>
 
                 {tasksLoading ? (
-                    <p>Memuatkan tugasan...</p>
+                    <p>Sedang memuatkan tugasan...</p>
                 ) : tasksError ? (
                     <p role="alert">{tasksError}</p>
                 ) : tasks.length === 0 ? (
                     <section className="customer-empty">
-                        <h3>Belum ada tugasan</h3>
+                        <h3>Belum Ada Tugasan</h3>
                         <p>
-                            Tugasan yang anda cipta akan dipaparkan di sini.
+                            Tugasan yang berjaya diwujudkan akan
+                            dipaparkan di sini.
                         </p>
                     </section>
                 ) : (
@@ -156,25 +157,26 @@ export default function HomePage({
 
             <section className="customer-panel">
                 <div className="customer-section-heading">
-                    <h2>Permintaan Terbuka Terkini</h2>
+                    <h2>Permintaan Terkini</h2>
 
                     <button
                         type="button"
                         onClick={onNavigateRequests}
                     >
-                        Lihat semua
+                        Lihat Semua
                     </button>
                 </div>
 
                 {ownRequestsLoading ? (
-                    <p>Memuatkan permintaan...</p>
+                    <p>Sedang memuatkan permintaan...</p>
                 ) : ownRequestsError ? (
                     <p role="alert">{ownRequestsError}</p>
                 ) : ownRequests.length === 0 ? (
                     <section className="customer-empty">
-                        <h3>Belum ada permintaan terbuka</h3>
+                        <h3>Belum Ada Permintaan</h3>
                         <p>
-                            Permintaan yang anda cipta akan dipaparkan di sini.
+                            Permintaan yang anda cipta akan
+                            dipaparkan di sini.
                         </p>
 
                         <button
@@ -205,7 +207,8 @@ export default function HomePage({
                                 </span>
 
                                 <span>
-                                    Tamat: {formatCustomerDate(request.expires_at)}
+                                    Tarikh Tamat:{' '}
+                                    {formatCustomerDate(request.expires_at)}
                                 </span>
                             </article>
                         ))}
