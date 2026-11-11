@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Account;
-use App\Models\CoreTask;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
 use App\Services\MarketplaceService;
@@ -208,7 +207,7 @@ class MarketplaceController extends Controller
                     ->get([
                         'runner_public_profiles.account_id',
                         'runner_public_profiles.public_slug',
-                        'runner_public_profiles.display_name',
+                        'accounts.profile_name',
                         'runner_public_profiles.bio',
                         'runner_public_profiles.base_location',
                         'runner_public_profiles.service_area',
@@ -237,7 +236,6 @@ class MarketplaceController extends Controller
                         $quotation->runner_account_id
                     );
 
-                    // ID akaun hanya untuk kegunaan dalaman.
                     unset($quotationData['runner_account_id']);
 
                     if ($profile === null) {
@@ -264,7 +262,7 @@ class MarketplaceController extends Controller
 
                     $quotationData['runner_profile'] = [
                         'public_slug' => $profile->public_slug,
-                        'display_name' => $profile->display_name,
+                        'profile_name' => $profile->profile_name,
                         'bio' => $profile->bio,
                         'base_location' => $profile->base_location,
                         'service_area' => $profile->service_area,
@@ -336,7 +334,6 @@ class MarketplaceController extends Controller
                 'string',
                 'max:10000',
             ],
-
             'pickup_location_snapshot' => [
                 'required_if:task_class,PICKUP_DELIVERY',
                 'array',
@@ -356,7 +353,6 @@ class MarketplaceController extends Controller
                 'string',
                 'max:30',
             ],
-
             'delivery_location_snapshot' => [
                 'required_if:task_class,PICKUP_DELIVERY',
                 'array',
@@ -376,7 +372,6 @@ class MarketplaceController extends Controller
                 'string',
                 'max:30',
             ],
-
             'task_location_snapshot' => [
                 'required_if:task_class,NON_DELIVERY',
                 'array',
@@ -396,7 +391,6 @@ class MarketplaceController extends Controller
                 'string',
                 'max:30',
             ],
-
             'expires_at' => [
                 'required',
                 'date',
