@@ -101,7 +101,6 @@ class CustomerMarketplaceRequestController extends Controller
                 'string',
                 'max:10000',
             ],
-
             'pickup_location_snapshot' => [
                 'required_if:task_class,PICKUP_DELIVERY',
                 'array',
@@ -121,7 +120,6 @@ class CustomerMarketplaceRequestController extends Controller
                 'string',
                 'max:30',
             ],
-
             'delivery_location_snapshot' => [
                 'required_if:task_class,PICKUP_DELIVERY',
                 'array',
@@ -141,7 +139,6 @@ class CustomerMarketplaceRequestController extends Controller
                 'string',
                 'max:30',
             ],
-
             'task_location_snapshot' => [
                 'required_if:task_class,NON_DELIVERY',
                 'array',
@@ -161,7 +158,6 @@ class CustomerMarketplaceRequestController extends Controller
                 'string',
                 'max:30',
             ],
-
             'expires_at' => [
                 'required',
                 'date',
@@ -478,7 +474,7 @@ class CustomerMarketplaceRequestController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $exception->getMessage(),
-            ], 404);
+            ], 422);
         }
     }
 }
