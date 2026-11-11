@@ -29,8 +29,6 @@ class CustomerMarketplaceRequestController extends Controller
             ], 401);
         }
 
-        $this->marketplaceService->expireDueItems();
-
         $requests = MarketplaceRequest::query()
             ->where('customer_account_id', $account->id)
             ->orderByDesc('created_at')
@@ -213,8 +211,6 @@ class CustomerMarketplaceRequestController extends Controller
                 'message' => 'Unauthorized.',
             ], 401);
         }
-
-        $this->marketplaceService->expireDueItems();
 
         $marketplaceRequest = MarketplaceRequest::query()
             ->where('request_id', $requestId)
