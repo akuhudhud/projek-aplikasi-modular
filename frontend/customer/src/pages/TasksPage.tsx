@@ -15,11 +15,11 @@ type TasksPageProps = {
 
 function taskClassLabel(taskClass: string): string {
     if (taskClass === 'PICKUP_DELIVERY') {
-        return 'Pickup & Delivery';
+        return 'Ambil dan Hantar';
     }
 
     if (taskClass === 'NON_DELIVERY') {
-        return 'Non-Delivery';
+        return 'Tugasan Bukan Penghantaran';
     }
 
     return taskClass;
@@ -39,10 +39,10 @@ export default function TasksPage({
             <section className="customer-panel">
                 <div className="customer-section-heading">
                     <div>
-                        <h2>My Tasks</h2>
+                        <h2>Tugasan Saya</h2>
                         <p>
                             Senarai tugasan yang telah berjaya diwujudkan
-                            daripada Open Request.
+                            daripada Permintaan Terbuka.
                         </p>
                     </div>
 
