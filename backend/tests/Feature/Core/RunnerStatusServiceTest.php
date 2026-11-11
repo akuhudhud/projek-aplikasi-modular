@@ -60,7 +60,7 @@ class RunnerStatusServiceTest extends TestCase
     ): Account {
         $account = Account::query()->create([
             'id' => (string) Str::uuid(),
-            'name' => 'Runner Status Test',
+            'profile_name' => 'Runner Status Test',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
@@ -79,7 +79,7 @@ class RunnerStatusServiceTest extends TestCase
         IdentityVerification::query()->create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'real_name' => 'Contoh Nama Sebenar',
+            'verified_name' => 'Contoh Nama Sebenar',
             'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_VERIFIED,
             'submitted_at' => now(),
