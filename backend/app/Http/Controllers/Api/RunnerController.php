@@ -42,10 +42,6 @@ class RunnerController extends Controller
         /** @var Account $account */
         $account = $request->attributes->get('account');
 
-        /*
-         * Semak identiti dahulu supaya pengguna menerima arahan
-         * pengesahan identiti, bukan ralat medan lesen yang kosong.
-         */
         $identityVerified = IdentityVerification::query()
             ->where('account_id', $account->id)
             ->where(
@@ -72,9 +68,6 @@ class RunnerController extends Controller
             );
         }
 
-        /*
-         * Permohonan pertama dan permohonan semula selepas ditolak sahaja.
-         */
         if (!in_array(
             $account->runner_status,
             [
@@ -278,7 +271,7 @@ class RunnerController extends Controller
                 'data' => [
                     'account' => [
                         'id' => $updatedAccount->id,
-                        'name' => $updatedAccount->name,
+                        'profile_name' => $updatedAccount->profile_name,
                         'role' => $updatedAccount->role,
                         'status' => $updatedAccount->status,
                         'runner_status' => $updatedAccount->runner_status,
