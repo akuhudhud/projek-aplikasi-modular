@@ -371,7 +371,6 @@ describe('useCustomerRequests', () => {
                         task_type: 'MARKETPLACE_SERVICE_REQUEST',
                         source_type: 'MARKETPLACE_REQUEST',
                         source_id: 'request-123',
-                        assigned_account_id: 'runner-123',
                         generic_status: 'ASSIGNED',
                         assigned_at: '2026-11-11T11:00:00.000Z',
                         created_at: '2026-11-11T11:00:00.000Z',
