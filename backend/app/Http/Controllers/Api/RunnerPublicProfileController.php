@@ -50,39 +50,23 @@ class RunnerPublicProfileController extends Controller
                 'max:80',
             ],
             'bio' => ['sometimes', 'nullable', 'string', 'max:2000'],
+
+            // Base: lokasi asas Runner dalam bentuk teks.
+            'base_location' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:120',
+            ],
+
+            // Kawasan Operasi: kawasan liputan Runner dalam bentuk teks.
             'service_area' => [
                 'sometimes',
                 'nullable',
                 'string',
                 'max:120',
             ],
-            'base_location' => [
-                'sometimes',
-                'nullable',
-                'string',
-                'max:120',
-                function (
-                    string $attribute,
-                    mixed $value,
-                    \Closure $fail
-                ): void {
-                    if (
-                        $value !== null
-                        && trim($value) !== ''
-                        && !$this->isSafeAdministrativeAreaLabel($value)
-                    ) {
-                        $fail(
-                            'Base location must contain an administrative-area label only. Do not enter coordinates, a postcode or a detailed street address.'
-                        );
-                    }
-                },
-            ],
-            'coverage_area' => [
-                'sometimes',
-                'nullable',
-                'string',
-                'max:500',
-            ],
+
             'services' => ['sometimes', 'nullable', 'array', 'max:20'],
             'services.*' => ['required', 'string', 'max:64'],
             'is_published' => ['sometimes', 'boolean'],
@@ -112,9 +96,11 @@ class RunnerPublicProfileController extends Controller
 
         $values = [
             'public_slug' => $slug,
+
             'display_name' => $profile !== null
                 ? $profile->display_name
                 : trim($validated['display_name']),
+
             'bio' => array_key_exists('bio', $validated)
                 ? (
                     $validated['bio'] === null
@@ -122,13 +108,7 @@ class RunnerPublicProfileController extends Controller
                         : trim($validated['bio'])
                 )
                 : ($profile !== null ? $profile->bio : null),
-            'service_area' => array_key_exists('service_area', $validated)
-                ? (
-                    $validated['service_area'] === null
-                        ? null
-                        : trim($validated['service_area'])
-                )
-                : ($profile !== null ? $profile->service_area : null),
+
             'base_location' => array_key_exists(
                 'base_location',
                 $validated
@@ -139,16 +119,18 @@ class RunnerPublicProfileController extends Controller
                         : trim($validated['base_location'])
                 )
                 : ($profile !== null ? $profile->base_location : null),
-            'coverage_area' => array_key_exists(
-                'coverage_area',
+
+            'service_area' => array_key_exists(
+                'service_area',
                 $validated
             )
                 ? (
-                    $validated['coverage_area'] === null
+                    $validated['service_area'] === null
                         ? null
-                        : trim($validated['coverage_area'])
+                        : trim($validated['service_area'])
                 )
-                : ($profile !== null ? $profile->coverage_area : null),
+                : ($profile !== null ? $profile->service_area : null),
+
             'services' => array_key_exists('services', $validated)
                 ? ($validated['services'] ?? [])
                 : (
@@ -156,6 +138,7 @@ class RunnerPublicProfileController extends Controller
                         ? ($profile->services ?? [])
                         : []
                 ),
+
             'is_published' => $isPublished,
         ];
 
@@ -213,16 +196,22 @@ class RunnerPublicProfileController extends Controller
 
         $profile->increment('views_count');
 
-        $publicBaseLocation = $this->isSafeAdministrativeAreaLabel(
-            $profile->base_location
-        )
-            ? $profile->base_location
-            : null;
-
         /*
-         * Query Builder mengelakkan PHPStan menganggap alias
-         * rating_count dan rating_average sebagai property model.
+         * Lokasi profil ialah teks yang diisi oleh Runner.
+         * Tiada GPS, koordinat atau penjejakan lokasi.
          */
+        $publicProfile = [
+            'public_slug' => $profile->public_slug,
+            'display_name' => $account->name,
+            'bio' => $profile->bio,
+            'base_location' => $profile->base_location,
+            'service_area' => $profile->service_area,
+            'services' => $profile->services ?? [],
+            'rating_average' => null,
+            'rating_count' => 0,
+            'views_count' => $profile->views_count,
+        ];
+
         $ratingSummary = DB::table('runner_task_ratings')
             ->where('runner_account_id', $account->id)
             ->selectRaw(
@@ -232,22 +221,10 @@ class RunnerPublicProfileController extends Controller
 
         $ratingCount = (int) ($ratingSummary->rating_count ?? 0);
 
-        $ratingAverage = $ratingCount > 0
+        $publicProfile['rating_count'] = $ratingCount;
+        $publicProfile['rating_average'] = $ratingCount > 0
             ? round((float) $ratingSummary->rating_average, 1)
             : null;
-
-        $publicProfile = [
-            'public_slug' => $profile->public_slug,
-            'display_name' => $account->name,
-            'bio' => $profile->bio,
-            'service_area' => $profile->service_area,
-            'base_location' => $publicBaseLocation,
-            'coverage_area' => $profile->coverage_area,
-            'services' => $profile->services ?? [],
-            'rating_average' => $ratingAverage,
-            'rating_count' => $ratingCount,
-            'views_count' => $profile->views_count,
-        ];
 
         return response()->json([
             'success' => true,
@@ -322,40 +299,6 @@ class RunnerPublicProfileController extends Controller
         ]);
     }
 
-    private function isSafeAdministrativeAreaLabel(?string $value): bool
-    {
-        if ($value === null || trim($value) === '') {
-            return true;
-        }
-
-        $location = trim($value);
-
-        $looksLikeCoordinates = preg_match(
-            '/^\s*[+-]?\d{1,3}(?:\.\d+)?\s*[,;\/]\s*[+-]?\d{1,3}(?:\.\d+)?\s*$/',
-            $location
-        ) === 1;
-
-        $containsCoordinatePair = preg_match(
-            '/(?<!\d)[+-]?\d{1,3}\.\d{3,}(?:\s*[,;\/]\s*|\s+)[+-]?\d{1,3}\.\d{3,}(?!\d)/',
-            $location
-        ) === 1;
-
-        $containsPostcode = preg_match(
-            '/(?<!\d)\d{5}(?!\d)/',
-            $location
-        ) === 1;
-
-        $containsAddressMarker = preg_match(
-            '/\b(?:jalan|jln|lorong|lrg|persiaran|lebuh|lebuh raya|highway|postcode|postal code|poskod|nombor|lot|unit|tingkat|blok|block|street address)\b/i',
-            $location
-        ) === 1;
-
-        return !$looksLikeCoordinates
-            && !$containsCoordinatePair
-            && !$containsPostcode
-            && !$containsAddressMarker;
-    }
-
     private function isEligibleRunner(Account $account): bool
     {
         return $account->status === 'ACTIVE'
@@ -370,9 +313,8 @@ class RunnerPublicProfileController extends Controller
             'public_slug' => $profile->public_slug,
             'display_name' => $profile->account->name,
             'bio' => $profile->bio,
-            'service_area' => $profile->service_area,
             'base_location' => $profile->base_location,
-            'coverage_area' => $profile->coverage_area,
+            'service_area' => $profile->service_area,
             'services' => $profile->services ?? [],
             'is_published' => $profile->is_published,
             'views_count' => $profile->views_count,
