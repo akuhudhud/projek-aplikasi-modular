@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import {
@@ -67,10 +66,10 @@ function getApiErrorMessage(
     return fallback;
 }
 
-function getRunnerDisplayName(
+function getRunnerProfileName(
     quotation: CustomerMarketplaceQuotation,
 ): string {
-    return quotation.runner_profile?.display_name?.trim()
+    return quotation.runner_profile?.profile_name?.trim()
         || 'Profil awam tidak tersedia';
 }
 
@@ -205,7 +204,7 @@ export default function CustomerRequestQuotations({
             return;
         }
 
-        const runnerName = getRunnerDisplayName(currentQuotation);
+        const runnerName = getRunnerProfileName(currentQuotation);
 
         const confirmed = window.confirm(
             `Pilih ${runnerName} dengan harga ` +
@@ -408,7 +407,7 @@ export default function CustomerRequestQuotations({
 
                                     <div className="customer-quotation-runner-profile">
                                         <strong className="customer-quotation-runner">
-                                            {getRunnerDisplayName(quotation)}
+                                            {getRunnerProfileName(quotation)}
                                         </strong>
 
                                         {profile && (
