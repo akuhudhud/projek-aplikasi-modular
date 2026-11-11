@@ -15,8 +15,6 @@ return new class extends Migration
 
             $table->string('public_slug', 50)->unique();
 
-            $table->string('display_name', 80);
-
             $table->text('bio')->nullable();
 
             // Base runner.
