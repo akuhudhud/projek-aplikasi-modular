@@ -286,11 +286,11 @@ class CustomerMarketplaceRequestController extends Controller
                 ->get([
                     'runner_public_profiles.account_id',
                     'runner_public_profiles.public_slug',
+                    'runner_public_profiles.display_name',
                     'runner_public_profiles.bio',
                     'runner_public_profiles.base_location',
                     'runner_public_profiles.service_area',
                     'runner_public_profiles.services',
-                    'accounts.name as display_name',
                 ])
                 ->keyBy('account_id');
 
@@ -314,6 +314,9 @@ class CustomerMarketplaceRequestController extends Controller
                 $profile = $publicProfiles->get(
                     $quotation->runner_account_id
                 );
+
+                // ID akaun tidak boleh dihantar kepada pelanggan.
+                unset($quotationData['runner_account_id']);
 
                 // Profil tidak diterbitkan atau Runner tidak layak.
                 if ($profile === null) {
