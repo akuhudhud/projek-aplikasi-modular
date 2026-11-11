@@ -129,7 +129,6 @@ describe('customerApi.getRequest', () => {
                 {
                     quotation_id: 'quotation-123',
                     request_id: 'request-123',
-                    runner_account_id: 'runner-123',
                     amount: '18.50',
                     currency: 'MYR',
                     message: 'Saya boleh siapkan.',
@@ -138,6 +137,16 @@ describe('customerApi.getRequest', () => {
                     accepted_at: null,
                     withdrawn_at: null,
                     created_at: '2026-11-07T10:30:00.000000Z',
+                    runner_profile: {
+                        public_slug: 'runner-tuaran',
+                        display_name: 'Runner Tuaran',
+                        bio: 'Servis penghantaran sekitar Tuaran.',
+                        base_location: 'Tuaran',
+                        service_area: 'Tuaran dan kawasan berhampiran',
+                        services: ['Penghantaran parcel'],
+                        rating_average: null,
+                        rating_count: 0,
+                    },
                 },
             ],
         };
@@ -156,6 +165,12 @@ describe('customerApi.getRequest', () => {
             '/web/customer/requests/request-123',
         );
         expect(result).toEqual(detail);
+        expect(result.quotations[0]).not.toHaveProperty(
+            'runner_account_id',
+        );
+        expect(result.quotations[0].runner_profile?.display_name).toBe(
+            'Runner Tuaran',
+        );
     });
 
     it('encodes the request ID in the endpoint', async () => {
