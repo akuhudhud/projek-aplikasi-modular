@@ -23,7 +23,7 @@ class IdentityVerificationApiTest extends TestCase
     ): Account {
         return Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Identity API Test',
+            'profile_name' => 'Identity API Test',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
@@ -70,7 +70,7 @@ class IdentityVerificationApiTest extends TestCase
         $verification = IdentityVerification::create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'real_name' => 'Contoh Nama Sebenar',
+            'verified_name' => 'Contoh Nama Sebenar',
             'mykad_number' => $mykad,
             'status' => IdentityVerification::STATUS_PENDING,
             'submitted_at' => now(),
@@ -109,7 +109,7 @@ class IdentityVerificationApiTest extends TestCase
                 null
             )
             ->assertJsonMissingPath(
-                'data.identity_verification.real_name'
+                'data.identity_verification.verified_name'
             )
             ->assertJsonMissingPath(
                 'data.identity_verification.mykad_number'
@@ -126,7 +126,7 @@ class IdentityVerificationApiTest extends TestCase
             $account,
             'identity-submit-token'
         )->post('/api/me/identity-verification', [
-            'real_name' => 'Nama Sebenar Pengguna',
+            'verified_name' => 'Nama Sebenar Pengguna',
             'mykad_number' => '900101145678',
             'documents' => [
                 UploadedFile::fake()->image('mykad.png'),
@@ -141,7 +141,7 @@ class IdentityVerificationApiTest extends TestCase
             )
             ->assertJsonMissing([
                 'mykad_number' => '900101145678',
-                'real_name' => 'Nama Sebenar Pengguna',
+                'verified_name' => 'Nama Sebenar Pengguna',
             ]);
 
         $verification = IdentityVerification::query()
