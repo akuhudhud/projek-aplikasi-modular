@@ -119,7 +119,7 @@ class MarketplaceApiTest extends TestCase
                 'data.request.quotations.0.runner_account_id'
             )
             ->assertJsonPath(
-                'data.request.quotations.0.runner_profile.display_name',
+                'data.request.quotations.0.runner_profile.profile_name',
                 'Test Runner'
             )
             ->assertJsonPath(
@@ -372,7 +372,6 @@ class MarketplaceApiTest extends TestCase
             'profile_id' => (string) Str::uuid(),
             'account_id' => $runner->id,
             'public_slug' => $slug,
-            'display_name' => 'Test Runner',
             'service_area' => 'Tuaran',
             'services' => ['General service'],
             'is_published' => $published,
@@ -387,7 +386,7 @@ class MarketplaceApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace API Test',
+            'profile_name' => 'Test Runner',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
