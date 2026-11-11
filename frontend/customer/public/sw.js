@@ -1,3 +1,4 @@
+
 const CACHE_PREFIX = 'super-runner-customer-';
 const CACHE_NAME = `${CACHE_PREFIX}v3`;
 
@@ -70,20 +71,21 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then((cacheNames) =>
-            Promise.all(
-                cacheNames
-                    .filter(
-                        (cacheName) =>
-                            cacheName.startsWith(CACHE_PREFIX) &&
-                            cacheName !== CACHE_NAME,
-                    )
-                    .map((cacheName) => caches.delete(cacheName)),
+        Promise.all([
+            caches.keys().then((cacheNames) =>
+                Promise.all(
+                    cacheNames
+                        .filter(
+                            (cacheName) =>
+                                cacheName.startsWith(CACHE_PREFIX) &&
+                                cacheName !== CACHE_NAME,
+                        )
+                        .map((cacheName) => caches.delete(cacheName)),
+                ),
             ),
-        ),
+            self.clients.claim(),
+        ]),
     );
-
-    self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
