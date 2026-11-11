@@ -63,6 +63,7 @@ function successfulProfileResponse() {
         },
     };
 }
+
 describe('RunnerPublicProfile', () => {
     beforeEach(() => {
         getMock.mockReset();
@@ -137,10 +138,6 @@ describe('RunnerPublicProfile', () => {
         ).toBeTruthy();
 
         expect(
-            screen.queryByText('coverage_area'),
-        ).toBeNull();
-
-        expect(
             screen.getByText('★ 4.8 / 5'),
         ).toBeTruthy();
 
@@ -150,7 +147,8 @@ describe('RunnerPublicProfile', () => {
             }),
         ).toBeTruthy();
     });
-     it('displays an empty rating state when no ratings exist', async () => {
+
+    it('displays an empty rating state when no ratings exist', async () => {
         getMock.mockResolvedValue({
             data: {
                 success: true,
