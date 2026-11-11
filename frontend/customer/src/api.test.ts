@@ -225,7 +225,6 @@ describe('customerApi.awardQuotation', () => {
                         task_type: 'MARKETPLACE_SERVICE_REQUEST',
                         source_type: 'MARKETPLACE_REQUEST',
                         source_id: 'request-123',
-                        assigned_account_id: 'runner-123',
                         generic_status: 'ASSIGNED',
                         assigned_at: '2026-11-07T11:00:00.000000Z',
                         created_at: '2026-11-07T11:00:00.000000Z',
@@ -248,7 +247,7 @@ describe('customerApi.awardQuotation', () => {
         );
     });
 
-    it('returns the created Core Task data', async () => {
+    it('returns the created Core Task data without internal account ID', async () => {
         const resultData = {
             request: {
                 request_id: 'request-123',
@@ -263,7 +262,6 @@ describe('customerApi.awardQuotation', () => {
                 task_type: 'MARKETPLACE_SERVICE_REQUEST',
                 source_type: 'MARKETPLACE_REQUEST',
                 source_id: 'request-123',
-                assigned_account_id: 'runner-123',
                 generic_status: 'ASSIGNED',
                 assigned_at: '2026-11-07T11:00:00.000000Z',
                 created_at: '2026-11-07T11:00:00.000000Z',
@@ -283,6 +281,7 @@ describe('customerApi.awardQuotation', () => {
         );
 
         expect(result).toEqual(resultData);
+        expect(result.task).not.toHaveProperty('assigned_account_id');
     });
 
     it('encodes the request ID in the endpoint', async () => {
