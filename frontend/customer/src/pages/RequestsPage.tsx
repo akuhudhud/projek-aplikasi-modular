@@ -30,8 +30,8 @@ type RequestsPageProps = {
 
 function taskClassLabel(taskClass: string): string {
     return taskClass === 'PICKUP_DELIVERY'
-        ? 'Pickup & Delivery'
-        : 'Non-Delivery';
+        ? 'Ambil dan Hantar'
+        : 'Tugasan Bukan Penghantaran';
 }
 
 export default function RequestsPage({
@@ -53,7 +53,7 @@ export default function RequestsPage({
             <section className="customer-panel">
                 <div className="customer-section-heading">
                     <div>
-                        <h2>Open Request Saya</h2>
+                        <h2>Permintaan Saya</h2>
                         <p>Jumlah permintaan: {total}</p>
                     </div>
                 </div>
@@ -77,9 +77,9 @@ export default function RequestsPage({
                     <p role="alert">{error}</p>
                 ) : requests.length === 0 ? (
                     <section className="customer-empty">
-                        <h3>Belum ada Open Request</h3>
+                        <h3>Belum ada permintaan</h3>
                         <p>
-                            Permintaan yang kau cipta akan dipaparkan di sini.
+                            Permintaan yang anda cipta akan dipaparkan di sini.
                         </p>
                     </section>
                 ) : (
@@ -111,14 +111,14 @@ export default function RequestsPage({
                                     {request.task_class === 'PICKUP_DELIVERY' && (
                                         <div className="customer-location-grid">
                                             <LocationSnapshotPanel
-                                                title="Lokasi Pickup"
+                                                title="Lokasi Pengambilan"
                                                 snapshot={
                                                     request.pickup_location_snapshot
                                                 }
                                             />
 
                                             <LocationSnapshotPanel
-                                                title="Lokasi Delivery"
+                                                title="Lokasi Penghantaran"
                                                 snapshot={
                                                     request.delivery_location_snapshot
                                                 }
@@ -156,7 +156,7 @@ export default function RequestsPage({
                                         >
                                             {cancellingRequestId ===
                                             request.request_id
-                                                ? 'Membatalkan...'
+                                                ? 'Sedang membatalkan...'
                                                 : 'Batalkan Permintaan'}
                                         </button>
                                     )}
