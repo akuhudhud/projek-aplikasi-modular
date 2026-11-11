@@ -21,7 +21,7 @@ class MeTest extends TestCase
     ): Account {
         $account = Account::create([
             'id' => $accountId,
-            'name' => $name,
+            'profile_name' => $name,
             'email' => strtolower(str_replace(' ', '.', $name)).'@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -42,12 +42,12 @@ class MeTest extends TestCase
     private function createIdentityVerification(
         Account $account,
         string $status,
-        string $realName = 'Nama Sebenar Pengguna'
+        string $verifiedName = 'Nama Sebenar Pengguna'
     ): IdentityVerification {
         return IdentityVerification::create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'real_name' => $realName,
+            'verified_name' => $verifiedName,
             'mykad_number' => '900101145678',
             'status' => $status,
             'submitted_at' => now(),
@@ -74,8 +74,8 @@ class MeTest extends TestCase
                 'data' => [
                     'account' => [
                         'id' => $account->id,
-                        'name' => 'Current User',
-                        'real_name' => null,
+                        'profile_name' => 'Current User',
+                        'verified_name' => null,
                         'phone' => null,
                         'email' => 'current.user@example.com',
                         'profile_picture' => null,
@@ -98,7 +98,7 @@ class MeTest extends TestCase
             ]);
     }
 
-    public function test_me_displays_real_name_when_identity_is_verified(): void
+    public function test_me_displays_verified_name_when_identity_is_verified(): void
     {
         $account = $this->createAccountWithSession(
             'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
@@ -119,7 +119,7 @@ class MeTest extends TestCase
         )->getJson('/api/me')
             ->assertOk()
             ->assertJsonPath(
-                'data.account.real_name',
+                'data.account.verified_name',
                 'Nama Disahkan'
             )
             ->assertJsonMissing([
@@ -127,7 +127,7 @@ class MeTest extends TestCase
             ]);
     }
 
-    public function test_me_hides_real_name_when_identity_is_pending(): void
+    public function test_me_hides_verified_name_when_identity_is_pending(): void
     {
         $account = $this->createAccountWithSession(
             'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
@@ -147,13 +147,13 @@ class MeTest extends TestCase
             'Bearer pending-identity-profile-token'
         )->getJson('/api/me')
             ->assertOk()
-            ->assertJsonPath('data.account.real_name', null)
+            ->assertJsonPath('data.account.verified_name', null)
             ->assertJsonMissing([
-                'real_name' => 'Nama Belum Disahkan',
+                'verified_name' => 'Nama Belum Disahkan',
             ]);
     }
 
-    public function test_me_hides_real_name_when_identity_is_rejected(): void
+    public function test_me_hides_verified_name_when_identity_is_rejected(): void
     {
         $account = $this->createAccountWithSession(
             '11111111-1111-4111-8111-111111111111',
@@ -173,9 +173,9 @@ class MeTest extends TestCase
             'Bearer rejected-identity-profile-token'
         )->getJson('/api/me')
             ->assertOk()
-            ->assertJsonPath('data.account.real_name', null)
+            ->assertJsonPath('data.account.verified_name', null)
             ->assertJsonMissing([
-                'real_name' => 'Nama Ditolak',
+                'verified_name' => 'Nama Ditolak',
             ]);
     }
 
@@ -220,7 +220,7 @@ class MeTest extends TestCase
 
         $this->assertDatabaseHas('accounts', [
             'id' => $account->id,
-            'name' => 'Read Only User',
+            'profile_name' => 'Read Only User',
             'email' => 'read.only.user@example.com',
             'status' => 'ACTIVE',
         ]);
