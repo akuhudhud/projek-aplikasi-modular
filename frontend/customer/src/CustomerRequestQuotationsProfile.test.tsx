@@ -53,7 +53,6 @@ const runnerProfile = {
 const quotation = {
     quotation_id: 'quotation-test-001',
     request_id: 'request-test-001',
-    runner_account_id: 987654,
     amount: '15.00',
     currency: 'MYR',
     message: 'Saya boleh selesaikan tugasan ini.',
@@ -148,7 +147,7 @@ describe('Customer quotation Runner public profile', () => {
             'noopener noreferrer',
         );
 
-        expect(card.textContent).not.toContain('987654');
+        expect(card.textContent).not.toContain('runner_account_id');
     });
 
     it('does not expose profile details when public profile is unavailable', async () => {
@@ -188,7 +187,6 @@ describe('Customer quotation Runner public profile', () => {
             }),
         ).toBeNull();
 
-        expect(card.textContent).not.toContain('987654');
         expect(card.textContent).not.toContain('Tuaran');
     });
 
@@ -220,7 +218,7 @@ describe('Customer quotation Runner public profile', () => {
         );
 
         expect(confirmationMessage).toContain('Runner Tuaran');
-        expect(confirmationMessage).not.toContain('987654');
+        expect(confirmationMessage).not.toContain('runner_account_id');
 
         expect(awardQuotationMock).not.toHaveBeenCalled();
     });
