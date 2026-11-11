@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { CustomerAccount } from '../api';
 
@@ -27,7 +28,7 @@ export default function ProfilePage({
             <section className="customer-panel">
                 <div className="customer-section-heading">
                     <div>
-                        <h2>My Profile</h2>
+                        <h2>Profil Saya</h2>
                         <p>Maklumat akaun pelanggan Super Runner.</p>
                     </div>
                 </div>
@@ -95,7 +96,7 @@ export default function ProfilePage({
                         disabled={profileSaving}
                     >
                         {profileSaving
-                            ? 'Menyimpan...'
+                            ? 'Sedang menyimpan...'
                             : 'Simpan Perubahan'}
                     </button>
                 </form>
