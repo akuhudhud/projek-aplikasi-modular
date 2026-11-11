@@ -10,6 +10,7 @@ use DomainException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CustomerMarketplaceRequestController extends Controller
 {
@@ -246,6 +247,119 @@ class CustomerMarketplaceRequestController extends Controller
                 'created_at',
             ]);
 
+        /*
+         * Ambil profil awam yang diterbitkan sahaja.
+         *
+         * Akaun Runner mesti masih ACTIVE dan APPROVED.
+         * account_id digunakan untuk padanan dalaman sahaja
+         * dan tidak dimasukkan ke dalam objek runner_profile.
+         */
+        $runnerAccountIds = $quotations
+            ->pluck('runner_account_id')
+            ->unique()
+            ->values();
+
+        $publicProfiles = collect();
+        $ratingSummaries = collect();
+
+        if ($runnerAccountIds->isNotEmpty()) {
+            $publicProfiles = DB::table('runner_public_profiles')
+                ->join(
+                    'accounts',
+                    'accounts.id',
+                    '=',
+                    'runner_public_profiles.account_id'
+                )
+                ->whereIn(
+                    'runner_public_profiles.account_id',
+                    $runnerAccountIds
+                )
+                ->where(
+                    'runner_public_profiles.is_published',
+                    true
+                )
+                ->where('accounts.status', 'ACTIVE')
+                ->where(
+                    'accounts.runner_status',
+                    Account::RUNNER_STATUS_APPROVED
+                )
+                ->get([
+                    'runner_public_profiles.account_id',
+                    'runner_public_profiles.public_slug',
+                    'runner_public_profiles.bio',
+                    'runner_public_profiles.base_location',
+                    'runner_public_profiles.service_area',
+                    'runner_public_profiles.services',
+                    'accounts.name as display_name',
+                ])
+                ->keyBy('account_id');
+
+            $ratingSummaries = DB::table('runner_task_ratings')
+                ->whereIn('runner_account_id', $runnerAccountIds)
+                ->selectRaw(
+                    'runner_account_id, COUNT(*) as rating_count, AVG(rating) as rating_average'
+                )
+                ->groupBy('runner_account_id')
+                ->get()
+                ->keyBy('runner_account_id');
+        }
+
+        $quotationsWithProfiles = $quotations
+            ->map(function ($quotation) use (
+                $publicProfiles,
+                $ratingSummaries
+            ): array {
+                $quotationData = $quotation->toArray();
+
+                $profile = $publicProfiles->get(
+                    $quotation->runner_account_id
+                );
+
+                // Profil tidak diterbitkan atau Runner tidak layak.
+                if ($profile === null) {
+                    $quotationData['runner_profile'] = null;
+
+                    return $quotationData;
+                }
+
+                $rating = $ratingSummaries->get(
+                    $quotation->runner_account_id
+                );
+
+                $ratingCount = (int) ($rating->rating_count ?? 0);
+
+                $services = $profile->services;
+
+                if (is_string($services)) {
+                    $decodedServices = json_decode($services, true);
+
+                    $services = is_array($decodedServices)
+                        ? $decodedServices
+                        : [];
+                }
+
+                $quotationData['runner_profile'] = [
+                    'public_slug' => $profile->public_slug,
+                    'display_name' => $profile->display_name,
+                    'bio' => $profile->bio,
+                    'base_location' => $profile->base_location,
+                    'service_area' => $profile->service_area,
+                    'services' => is_array($services)
+                        ? $services
+                        : [],
+                    'rating_average' => $ratingCount > 0
+                        ? round(
+                            (float) $rating->rating_average,
+                            1
+                        )
+                        : null,
+                    'rating_count' => $ratingCount,
+                ];
+
+                return $quotationData;
+            })
+            ->values();
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -264,7 +378,7 @@ class CustomerMarketplaceRequestController extends Controller
                     'created_at',
                     'updated_at',
                 ]),
-                'quotations' => $quotations,
+                'quotations' => $quotationsWithProfiles,
             ],
         ], 200);
     }
