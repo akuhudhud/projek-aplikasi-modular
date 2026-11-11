@@ -125,7 +125,7 @@ export default function CustomerAuthPage({
             setError(
                 getApiErrorMessage(
                     requestError,
-                    'Login gagal. Sila semak maklumat anda.',
+                    'Log masuk gagal. Sila semak maklumat anda.',
                 ),
             );
         } finally {
@@ -354,7 +354,7 @@ export default function CustomerAuthPage({
                     </form>
 
                     <p>
-                        Belum ada akaun?{' '}
+                        Belum mempunyai akaun?{' '}
 
                         <button
                             type="button"
@@ -371,7 +371,7 @@ export default function CustomerAuthPage({
 
                     <p>
                         Daftar akaun menggunakan nombor telefon
-                        atau e-mel.
+                        atau alamat e-mel.
                     </p>
 
                     <div
@@ -383,7 +383,7 @@ export default function CustomerAuthPage({
                                 registrationStep >= 1 ? 'active' : ''
                             }
                         >
-                            1. Hubungan
+                            1. Maklumat Hubungan
                         </span>
 
                         <span
@@ -391,7 +391,7 @@ export default function CustomerAuthPage({
                                 registrationStep >= 2 ? 'active' : ''
                             }
                         >
-                            2. OTP
+                            2. Pengesahan OTP
                         </span>
 
                         <span
@@ -399,7 +399,7 @@ export default function CustomerAuthPage({
                                 registrationStep >= 3 ? 'active' : ''
                             }
                         >
-                            3. Akaun
+                            3. Maklumat Akaun
                         </span>
                     </div>
 
@@ -409,7 +409,7 @@ export default function CustomerAuthPage({
                         >
                             <div>
                                 <label htmlFor="registration-channel">
-                                    Daftar menggunakan
+                                    Kaedah Pendaftaran
                                 </label>
 
                                 <select
@@ -476,7 +476,7 @@ export default function CustomerAuthPage({
                                 disabled={loading}
                             >
                                 {loading
-                                    ? 'Menghantar OTP...'
+                                    ? 'Sedang menghantar OTP...'
                                     : 'Hantar Kod OTP'}
                             </button>
                         </form>
@@ -530,7 +530,7 @@ export default function CustomerAuthPage({
                                 }
                             >
                                 {loading
-                                    ? 'Mengesahkan...'
+                                    ? 'Sedang mengesahkan...'
                                     : 'Sahkan OTP'}
                             </button>
 
@@ -545,7 +545,7 @@ export default function CustomerAuthPage({
                                     setError('');
                                 }}
                             >
-                                Tukar Nombor / E-mel
+                                Tukar Nombor Telefon / E-mel
                             </button>
                         </form>
                     )}
@@ -604,8 +604,8 @@ export default function CustomerAuthPage({
                                 />
 
                                 <small>
-                                    8–12 aksara, mesti ada huruf besar,
-                                    huruf kecil dan nombor.
+                                    8–12 aksara, mesti mengandungi huruf
+                                    besar, huruf kecil dan nombor.
                                 </small>
                             </div>
 
@@ -642,7 +642,7 @@ export default function CustomerAuthPage({
                                 disabled={loading}
                             >
                                 {loading
-                                    ? 'Mencipta akaun...'
+                                    ? 'Sedang mencipta akaun...'
                                     : 'Cipta Akaun'}
                             </button>
 
@@ -661,7 +661,7 @@ export default function CustomerAuthPage({
                     )}
 
                     <p>
-                        Sudah ada akaun?{' '}
+                        Sudah mempunyai akaun?{' '}
 
                         <button
                             type="button"
