@@ -28,7 +28,7 @@ class IdentityVerificationRestoreIntegrityTest extends TestCase
         $verification = IdentityVerification::create([
             'id' => (string) Str::uuid(),
             'account_id' => $applicant->id,
-            'real_name' => 'Nama Ujian',
+            'verified_name' => 'Nama Ujian',
             'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_PENDING,
             'submitted_at' => now(),
@@ -130,7 +130,7 @@ class IdentityVerificationRestoreIntegrityTest extends TestCase
     {
         return Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Identity Restore Integrity Test',
+            'profile_name' => 'Identity Restore Integrity Test',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
