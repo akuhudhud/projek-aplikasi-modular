@@ -259,9 +259,8 @@ class CustomerMarketplaceQuotationWebApiTest extends TestCase
                 'data.request.winning_quotation_id',
                 $quotationId
             )
-            ->assertJsonPath(
-                'data.task.assigned_account_id',
-                $runner->id
+            ->assertJsonMissingPath(
+                'data.task.assigned_account_id'
             )
             ->assertJsonPath(
                 'data.task.generic_status',
