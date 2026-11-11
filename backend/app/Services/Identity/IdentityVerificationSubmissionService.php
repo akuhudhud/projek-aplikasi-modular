@@ -29,16 +29,16 @@ class IdentityVerificationSubmissionService
      */
     public function submit(
         Account $account,
-        string $realName,
+        string $verifiedName,
         string $mykadNumber,
         array $files
     ): IdentityVerification {
-        $realName = trim($realName);
+        $verifiedName = trim($verifiedName);
         $mykadNumber = trim($mykadNumber);
 
-        if ($realName === '' || $mykadNumber === '') {
+        if ($verifiedName === '' || $mykadNumber === '') {
             throw new InvalidArgumentException(
-                'Real name and MyKad number are required.'
+                'Verified name and MyKad number are required.'
             );
         }
 
@@ -66,7 +66,7 @@ class IdentityVerificationSubmissionService
         try {
             $verification = DB::transaction(function () use (
                 $account,
-                $realName,
+                $verifiedName,
                 $mykadNumber,
                 $validatedFiles,
                 &$storedPaths,
@@ -99,7 +99,7 @@ class IdentityVerificationSubmissionService
 
                     $verification->documents()->delete();
 
-                    $verification->real_name = $realName;
+                    $verification->verified_name = $verifiedName;
                     $verification->mykad_number = $mykadNumber;
                     $verification->status =
                         IdentityVerification::STATUS_PENDING;
@@ -112,7 +112,7 @@ class IdentityVerificationSubmissionService
                     $verification = IdentityVerification::create([
                         'id' => (string) Str::uuid(),
                         'account_id' => $account->id,
-                        'real_name' => $realName,
+                        'verified_name' => $verifiedName,
                         'mykad_number' => $mykadNumber,
                         'status' => IdentityVerification::STATUS_PENDING,
                         'submitted_at' => now(),
