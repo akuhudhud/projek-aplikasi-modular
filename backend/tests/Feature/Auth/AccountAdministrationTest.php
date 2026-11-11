@@ -38,7 +38,7 @@ class AccountAdministrationTest extends TestCase
 
     private function createAccount(
         string $id,
-        string $name,
+        string $profileName,
         string $phone,
         string $email,
         string $role,
@@ -46,7 +46,7 @@ class AccountAdministrationTest extends TestCase
     ): Account {
         return Account::create([
             'id' => $id,
-            'name' => $name,
+            'profile_name' => $profileName,
             'phone' => $phone,
             'email' => $email,
             'password' => 'Password1',
@@ -58,12 +58,12 @@ class AccountAdministrationTest extends TestCase
     private function createIdentityVerification(
         Account $account,
         string $status,
-        string $realName
+        string $verifiedName
     ): IdentityVerification {
         return IdentityVerification::create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'real_name' => $realName,
+            'verified_name' => $verifiedName,
             'mykad_number' => '900101145678',
             'status' => $status,
             'submitted_at' => now(),
@@ -215,7 +215,7 @@ class AccountAdministrationTest extends TestCase
         ]);
     }
 
-    public function test_account_list_shows_real_name_only_when_identity_is_verified(): void
+    public function test_account_list_shows_verified_name_only_when_identity_is_verified(): void
     {
         $root = $this->createAccount(
             'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -253,7 +253,7 @@ class AccountAdministrationTest extends TestCase
             'Nama Sebenar Belum Disahkan'
         );
 
-        $token = 'account-list-real-name-token';
+        $token = 'account-list-verified-name-token';
 
         $this->createSessionForAccount(
             $root,
@@ -270,18 +270,18 @@ class AccountAdministrationTest extends TestCase
 
         $response->assertJsonFragment([
             'id' => $verifiedUser->id,
-            'name' => 'Verified Display Name',
-            'real_name' => 'Nama Sebenar Disahkan',
+            'profile_name' => 'Verified Display Name',
+            'verified_name' => 'Nama Sebenar Disahkan',
         ]);
 
         $response->assertJsonFragment([
             'id' => $pendingUser->id,
-            'name' => 'Pending Display Name',
-            'real_name' => null,
+            'profile_name' => 'Pending Display Name',
+            'verified_name' => null,
         ]);
 
         $response->assertJsonMissing([
-            'real_name' => 'Nama Sebenar Belum Disahkan',
+            'verified_name' => 'Nama Sebenar Belum Disahkan',
         ]);
 
         $response->assertJsonMissing([
@@ -361,8 +361,8 @@ class AccountAdministrationTest extends TestCase
                 'accounts' => [
                     '*' => [
                         'id',
-                        'name',
-                        'real_name',
+                        'profile_name',
+                        'verified_name',
                         'phone',
                         'email',
                         'profile_picture',
