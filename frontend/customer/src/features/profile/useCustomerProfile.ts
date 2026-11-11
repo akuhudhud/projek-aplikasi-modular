@@ -1,4 +1,3 @@
-
 import {
     useCallback,
     useEffect,
@@ -43,8 +42,8 @@ export function useCustomerProfile({
     const [message, setMessage] = useState('');
 
     useEffect(() => {
-        setProfileName(account?.name ?? '');
-    }, [account?.id, account?.name]);
+        setProfileNameState(account?.profile_name ?? '');
+    }, [account?.id, account?.profile_name]);
 
     const setProfileName = useCallback((value: string) => {
         setProfileNameState(value);
@@ -76,9 +75,11 @@ export function useCustomerProfile({
 
         try {
             const updatedAccount =
-                await customerApi.updateProfile({ name });
+                await customerApi.updateProfile({
+                    profile_name: name,
+                });
 
-            setProfileNameState(updatedAccount.name);
+            setProfileNameState(updatedAccount.profile_name);
             setMessage('Profil berjaya dikemaskini.');
 
             onAccountUpdated(updatedAccount);
@@ -87,7 +88,8 @@ export function useCustomerProfile({
         } catch (requestError) {
             if (axios.isAxiosError(requestError)) {
                 const validationMessage =
-                    requestError.response?.data?.errors?.name?.[0];
+                    requestError.response?.data?.errors
+                        ?.profile_name?.[0];
 
                 setError(
                     validationMessage ??
