@@ -50,7 +50,7 @@ class RunnerApprovalIdentityRecheckTest extends TestCase
     ): Account {
         $account = Account::query()->create([
             'id' => (string) Str::uuid(),
-            'name' => 'Runner Approval Test',
+            'profile_name' => 'Runner Approval Test',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
@@ -79,7 +79,7 @@ class RunnerApprovalIdentityRecheckTest extends TestCase
         return IdentityVerification::query()->create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'real_name' => 'Nama Identiti Ujian',
+            'verified_name' => 'Nama Identiti Ujian',
             'mykad_number' => '900101145678',
             'status' => $status,
             'submitted_at' => now(),
