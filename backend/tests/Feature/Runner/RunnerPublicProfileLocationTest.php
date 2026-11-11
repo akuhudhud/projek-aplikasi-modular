@@ -47,22 +47,20 @@ class RunnerPublicProfileLocationTest extends TestCase
         return $request;
     }
 
-    private function createLegacyPublicProfile(
+    private function createPublicProfile(
         Account $account,
         string $slug,
         ?string $baseLocation,
-        ?string $serviceArea,
-        ?string $legacyCoverageArea = null
+        ?string $serviceArea
     ): RunnerPublicProfile {
         return RunnerPublicProfile::query()->create([
             'profile_id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'public_slug' => $slug,
-            'display_name' => 'Legacy Runner',
+            'display_name' => 'Runner Location Test',
             'bio' => null,
             'base_location' => $baseLocation,
             'service_area' => $serviceArea,
-            'coverage_area' => $legacyCoverageArea,
             'services' => [],
             'is_published' => true,
             'views_count' => 0,
@@ -121,12 +119,11 @@ class RunnerPublicProfileLocationTest extends TestCase
     {
         $account = $this->createApprovedRunner();
 
-        $this->createLegacyPublicProfile(
+        $this->createPublicProfile(
             $account,
             'runner-location-public',
             'Tuaran',
-            'Tuaran - Kota Kinabalu sahaja',
-            'Legacy coverage value'
+            'Tuaran - Kota Kinabalu sahaja'
         );
 
         $response = app(RunnerPublicProfileController::class)
@@ -137,10 +134,12 @@ class RunnerPublicProfileLocationTest extends TestCase
         $profile = $response->getData(true)['data']['profile'];
 
         $this->assertSame('Tuaran', $profile['base_location']);
+
         $this->assertSame(
             'Tuaran - Kota Kinabalu sahaja',
             $profile['service_area']
         );
+
         $this->assertSame(
             'Runner Location Test',
             $profile['display_name']
@@ -151,30 +150,31 @@ class RunnerPublicProfileLocationTest extends TestCase
         $this->assertArrayNotHasKey('longitude', $profile);
     }
 
-    public function test_public_profile_does_not_expose_legacy_coverage_area(): void
+    public function test_public_profile_does_not_expose_third_location_field(): void
     {
         $account = $this->createApprovedRunner();
 
-        $this->createLegacyPublicProfile(
+        $this->createPublicProfile(
             $account,
-            'runner-legacy-coverage',
+            'runner-two-location-fields',
             'Tuaran',
-            'Tuaran dan Tamparuli',
-            'Old coverage data'
+            'Tuaran dan Tamparuli'
         );
 
         $response = app(RunnerPublicProfileController::class)
-            ->show('runner-legacy-coverage');
+            ->show('runner-two-location-fields');
 
         $this->assertSame(200, $response->getStatusCode());
 
         $profile = $response->getData(true)['data']['profile'];
 
         $this->assertSame('Tuaran', $profile['base_location']);
+
         $this->assertSame(
             'Tuaran dan Tamparuli',
             $profile['service_area']
         );
+
         $this->assertArrayNotHasKey('coverage_area', $profile);
     }
 
@@ -277,16 +277,15 @@ class RunnerPublicProfileLocationTest extends TestCase
         ]);
     }
 
-    public function test_private_profile_payload_does_not_expose_coverage_area(): void
+    public function test_private_profile_payload_does_not_expose_third_location_field(): void
     {
         $account = $this->createApprovedRunner();
 
-        $this->createLegacyPublicProfile(
+        $this->createPublicProfile(
             $account,
             'runner-private-payload',
             'Tuaran',
-            'Seluruh Sabah',
-            'Old coverage value'
+            'Seluruh Sabah'
         );
 
         $response = app(RunnerPublicProfileController::class)->save(
