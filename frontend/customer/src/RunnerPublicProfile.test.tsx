@@ -196,7 +196,7 @@ describe('RunnerPublicProfile', () => {
 
         expect(
             screen.getByRole('button', {
-                name: 'Minta Servis Ini',
+                name: 'Buat Permintaan',
             }),
         ).toBeTruthy();
     });
@@ -340,7 +340,7 @@ describe('RunnerPublicProfile', () => {
 
         fireEvent.click(
             screen.getByRole('button', {
-                name: 'Lihat Lagi Ulasan',
+                name: 'Lihat Lebih Banyak Ulasan',
             }),
         );
 
@@ -380,7 +380,7 @@ describe('RunnerPublicProfile', () => {
 
         expect(
             await screen.findByRole('heading', {
-                name: 'Profil tidak ditemui',
+                name: 'Profil Tidak Ditemui',
             }),
         ).toBeTruthy();
     });
@@ -413,7 +413,7 @@ describe('RunnerPublicProfile', () => {
         ).toBeTruthy();
     });
 
-    it('retries loading the profile after clicking Cuba Lagi', async () => {
+    it('retries loading the profile after clicking Cuba Semula', async () => {
         let profileAttempts = 0;
 
         getMock.mockImplementation((url: string) => {
@@ -448,7 +448,7 @@ describe('RunnerPublicProfile', () => {
 
         fireEvent.click(
             screen.getByRole('button', {
-                name: 'Cuba Lagi',
+                name: 'Cuba Semula',
             }),
         );
 
