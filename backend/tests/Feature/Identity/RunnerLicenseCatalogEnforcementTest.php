@@ -90,7 +90,7 @@ class RunnerLicenseCatalogEnforcementTest extends TestCase
     {
         $account = Account::query()->create([
             'id' => (string) Str::uuid(),
-            'name' => 'Ujian Katalog Lesen',
+            'profile_name' => 'Ujian Katalog Lesen',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
@@ -101,7 +101,7 @@ class RunnerLicenseCatalogEnforcementTest extends TestCase
         IdentityVerification::query()->create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'real_name' => 'Nama Ujian',
+            'verified_name' => 'Nama Ujian',
             'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_VERIFIED,
             'submitted_at' => now(),
