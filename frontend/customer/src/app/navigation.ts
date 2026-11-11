@@ -17,43 +17,43 @@ export type CustomerNavigationItem = {
 export const CUSTOMER_NAVIGATION: CustomerNavigationItem[] = [
     {
         id: 'dashboard',
-        label: 'Home',
+        label: 'Utama',
         icon: 'home',
         description: 'Halaman utama pelanggan',
     },
     {
         id: 'requests',
-        label: 'Open Request',
+        label: 'Permintaan',
         icon: 'clipboard-list',
-        description: 'Senarai Open Request pelanggan',
+        description: 'Senarai Open Request anda',
     },
     {
         id: 'create',
-        label: 'Create',
+        label: 'Cipta',
         icon: 'plus-circle',
         description: 'Cipta Open Request baharu',
         primary: true,
     },
     {
         id: 'tasks',
-        label: 'Tasks',
+        label: 'Tugasan',
         icon: 'package',
-        description: 'Senarai tugasan pelanggan',
+        description: 'Senarai tugasan anda',
     },
     {
         id: 'profile',
-        label: 'Profile',
+        label: 'Profil',
         icon: 'user-round',
         description: 'Profil dan tetapan akaun',
     },
 ];
 
 export const CUSTOMER_PAGE_LABELS: Record<CustomerPage, string> = {
-    dashboard: 'Home',
-    requests: 'Requests',
-    create: 'Create Request',
-    tasks: 'My Tasks',
-    profile: 'My Profile',
+    dashboard: 'Utama',
+    requests: 'Senarai Permintaan',
+    create: 'Cipta Permintaan',
+    tasks: 'Tugasan Saya',
+    profile: 'Profil Saya',
 };
 
 export function isCustomerPage(
