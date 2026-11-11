@@ -24,7 +24,7 @@ export default function TopAppBar({
 
                 <div className="sr-top-app-bar__brand-text">
                     <strong>Super Runner</strong>
-                    <span>Customer</span>
+                    <span>Pelanggan</span>
                 </div>
             </div>
 
@@ -46,7 +46,7 @@ export default function TopAppBar({
                 <button
                     type="button"
                     className="sr-top-app-bar__logout"
-                    aria-label="Logout"
+                    aria-label="Keluar"
                     onClick={onLogout}
                     disabled={loading}
                 >
