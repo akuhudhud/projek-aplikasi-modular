@@ -120,7 +120,6 @@ export interface CustomerRunnerPublicProfile {
 export interface CustomerMarketplaceQuotation {
     quotation_id: string;
     request_id: string;
-    runner_account_id: number | string;
     amount: string | number;
     currency: string;
     message: string | null;
