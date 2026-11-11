@@ -87,7 +87,7 @@ export default function RunnerPublicProfile({ slug }: Props) {
         return (
             <main className="runner-public-page">
                 <section className="runner-public-card" aria-live="polite">
-                    <p>Memuatkan profil Runner...</p>
+                    <p>Sedang memuatkan profil Runner...</p>
                 </section>
             </main>
         );
@@ -97,12 +97,12 @@ export default function RunnerPublicProfile({ slug }: Props) {
         return (
             <main className="runner-public-page">
                 <section className="runner-public-card runner-public-state">
-                    <h1>Profil tidak ditemui</h1>
+                    <h1>Profil Tidak Ditemui</h1>
                     <p>
                         Pautan ini mungkin tidak sah atau profil Runner
                         belum diterbitkan.
                     </p>
-                    <a href="/">Ke halaman utama</a>
+                    <a href="/">Kembali ke halaman utama</a>
                 </section>
             </main>
         );
@@ -115,7 +115,7 @@ export default function RunnerPublicProfile({ slug }: Props) {
                     <h1>Ralat</h1>
                     <p role="alert">{error}</p>
                     <button type="button" onClick={reload}>
-                        Cuba Lagi
+                        Cuba Semula
                     </button>
                 </section>
             </main>
@@ -157,14 +157,14 @@ export default function RunnerPublicProfile({ slug }: Props) {
 
                         {profile.base_location && (
                             <p>
-                                <strong>Base:</strong>{' '}
+                                <strong>Lokasi Asas:</strong>{' '}
                                 {profile.base_location}
                             </p>
                         )}
 
                         {profile.service_area && (
                             <p>
-                                <strong>Kawasan Operasi:</strong>{' '}
+                                <strong>Kawasan Liputan:</strong>{' '}
                                 {profile.service_area}
                             </p>
                         )}
@@ -180,7 +180,7 @@ export default function RunnerPublicProfile({ slug }: Props) {
 
                 {profile.services.length > 0 && (
                     <section className="runner-public-section">
-                        <h2>Servis</h2>
+                        <h2>Perkhidmatan</h2>
                         <ul className="runner-public-services">
                             {profile.services.map((service, index) => (
                                 <li key={`${service}-${index}`}>
@@ -202,7 +202,7 @@ export default function RunnerPublicProfile({ slug }: Props) {
 
                     {reviewsLoading && reviews.length === 0 && (
                         <p aria-live="polite">
-                            Memuatkan ulasan pelanggan...
+                            Sedang memuatkan ulasan pelanggan...
                         </p>
                     )}
 
@@ -260,7 +260,7 @@ export default function RunnerPublicProfile({ slug }: Props) {
                                 type="button"
                                 onClick={reloadReviews}
                             >
-                                Cuba Lagi
+                                Cuba Semula
                             </button>
                         </div>
                     )}
@@ -273,8 +273,8 @@ export default function RunnerPublicProfile({ slug }: Props) {
                             disabled={loadingMore}
                         >
                             {loadingMore
-                                ? 'Memuatkan...'
-                                : 'Lihat Lagi Ulasan'}
+                                ? 'Sedang memuatkan...'
+                                : 'Lihat Lebih Banyak Ulasan'}
                         </button>
                     )}
                 </section>
@@ -285,7 +285,7 @@ export default function RunnerPublicProfile({ slug }: Props) {
                         type="button"
                         onClick={openRequestForm}
                     >
-                        Minta Servis Ini
+                        Buat Permintaan
                     </button>
 
                     <button
