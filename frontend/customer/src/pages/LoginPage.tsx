@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export type CustomerAuthMode = 'login' | 'register';
@@ -51,10 +52,8 @@ export default function LoginPage({
     authMode,
     loading,
     error,
-
     identifier,
     password,
-
     registrationStep,
     registrationChannel,
     registrationContact,
@@ -62,22 +61,18 @@ export default function LoginPage({
     registrationName,
     registrationPassword,
     registrationPasswordConfirmation,
-
     onIdentifierChange,
     onPasswordChange,
-
     onRegistrationChannelChange,
     onRegistrationContactChange,
     onRegistrationOtpChange,
     onRegistrationNameChange,
     onRegistrationPasswordChange,
     onRegistrationPasswordConfirmationChange,
-
     onLogin,
     onRequestOtp,
     onVerifyOtp,
     onCompleteRegistration,
-
     onChangeAuthMode,
     onChangeRegistrationStep,
 }: LoginPageProps) {
@@ -85,7 +80,7 @@ export default function LoginPage({
         <main className="customer-login">
             <div className="sr-auth-brand">
                 <h1>Super Runner</h1>
-                <p>Customer</p>
+                <p>Pelanggan</p>
             </div>
 
             {authMode === 'login' ? (
@@ -160,15 +155,15 @@ export default function LoginPage({
                         aria-label="Langkah pendaftaran"
                     >
                         <span className={registrationStep >= 1 ? 'active' : ''}>
-                            1. Hubungan
+                            1. Maklumat Hubungan
                         </span>
 
                         <span className={registrationStep >= 2 ? 'active' : ''}>
-                            2. OTP
+                            2. Pengesahan OTP
                         </span>
 
                         <span className={registrationStep >= 3 ? 'active' : ''}>
-                            3. Akaun
+                            3. Maklumat Akaun
                         </span>
                     </div>
 
@@ -238,7 +233,7 @@ export default function LoginPage({
                             {error && <p role="alert">{error}</p>}
 
                             <button type="submit" disabled={loading}>
-                                {loading ? 'Menghantar OTP...' : 'Hantar Kod OTP'}
+                                {loading ? 'Sedang menghantar OTP...' : 'Hantar Kod OTP'}
                             </button>
                         </form>
                     )}
@@ -282,7 +277,7 @@ export default function LoginPage({
                                 type="submit"
                                 disabled={loading || registrationOtp.length !== 6}
                             >
-                                {loading ? 'Mengesahkan...' : 'Sahkan OTP'}
+                                {loading ? 'Sedang mengesahkan...' : 'Sahkan OTP'}
                             </button>
 
                             <button
@@ -290,7 +285,7 @@ export default function LoginPage({
                                 disabled={loading}
                                 onClick={() => onChangeRegistrationStep(1)}
                             >
-                                Tukar Nombor / E-mel
+                                Tukar Nombor Telefon / E-mel
                             </button>
                         </form>
                     )}
@@ -375,7 +370,7 @@ export default function LoginPage({
                             {error && <p role="alert">{error}</p>}
 
                             <button type="submit" disabled={loading}>
-                                {loading ? 'Mencipta akaun...' : 'Cipta Akaun'}
+                                {loading ? 'Sedang mencipta akaun...' : 'Cipta Akaun'}
                             </button>
 
                             <button
