@@ -25,7 +25,7 @@ class IdentityVerificationController extends Controller
         IdentityVerificationSubmissionService $submissionService
     ): JsonResponse {
         $validated = $request->validate([
-            'real_name' => ['required', 'string', 'max:255'],
+            'verified_name' => ['required', 'string', 'max:255'],
             'mykad_number' => ['required', 'string', 'regex:/^\d{12}$/'],
             'documents' => ['required', 'array', 'min:1'],
             'documents.*' => [
@@ -42,7 +42,7 @@ class IdentityVerificationController extends Controller
         try {
             $verification = $submissionService->submit(
                 $account,
-                $validated['real_name'],
+                $validated['verified_name'],
                 $validated['mykad_number'],
                 $validated['documents']
             );
@@ -129,8 +129,6 @@ class IdentityVerificationController extends Controller
 
         $targetAccount = $verification->account;
 
-        // Record successful access to the identity verification record.
-        // Never include MyKad data or document contents in the audit log.
         $auditLogService->record(
             $actor,
             $targetAccount,
@@ -145,8 +143,8 @@ class IdentityVerificationController extends Controller
             'data' => [
                 'identity_verification' => [
                     'account_id' => $verification->account_id,
-                    'display_name' => $targetAccount->name,
-                    'real_name' => $verification->real_name,
+                    'profile_name' => $targetAccount->profile_name,
+                    'verified_name' => $verification->verified_name,
                     'status' => $verification->status,
                     'mykad_number_masked' => str_repeat('*', 8)
                         . substr($mykadNumber, -4),
@@ -205,8 +203,6 @@ class IdentityVerificationController extends Controller
         /** @var Account $actor */
         $actor = $request->attributes->get('account');
 
-        // Appointed Super Admin cannot decide their own identity application.
-        // Root retains the owner-level exception.
         if (
             $actor->role === 'SUPER_ADMIN'
             && $actor->id === $accountId
@@ -225,10 +221,6 @@ class IdentityVerificationController extends Controller
                 $rejectionReason,
                 $auditLogService
             ): IdentityVerification {
-                /*
-                 * Lock order is account first, then identity verification.
-                 * RunnerStatusService uses the same order during approval.
-                 */
                 $targetAccount = Account::query()
                     ->whereKey($accountId)
                     ->lockForUpdate()
@@ -260,9 +252,9 @@ class IdentityVerificationController extends Controller
                 }
 
                 /*
-                 * Keep accounts.name as the user's Display Name.
-                 * The verified Real Name remains in identity_verifications.real_name.
-                 * Public profile logic controls whether the Real Name is exposed.
+                 * accounts.profile_name stores the user's profile/display name.
+                 * identity_verifications.verified_name stores the verified legal name.
+                 * The legal name must never be exposed through public runner profiles.
                  */
                 $verification->status = $validated['decision'];
                 $verification->reviewer_account_id = $actor->id;
@@ -283,7 +275,6 @@ class IdentityVerificationController extends Controller
                         ? 'Identity verification marked VERIFIED.'
                         : 'Identity verification marked REJECTED.';
 
-                // Never put MyKad data, documents, or free-text reasons in audit logs.
                 $auditLogService->record(
                     $actor,
                     $targetAccount,
@@ -366,8 +357,6 @@ class IdentityVerificationController extends Controller
 
         $targetAccount = $document->identityVerification->account;
 
-        // Record only successful document retrieval.
-        // Do not record the document path, MyKad number, or file contents.
         $auditLogService->record(
             $actor,
             $targetAccount,
