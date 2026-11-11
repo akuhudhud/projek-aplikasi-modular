@@ -1,9 +1,8 @@
-
 import axios from 'axios';
 
 export interface RunnerPublicProfileData {
     public_slug: string;
-    display_name: string;
+    profile_name: string;
     bio: string | null;
     base_location: string | null;
     service_area: string | null;
