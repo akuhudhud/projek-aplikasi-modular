@@ -18,7 +18,7 @@ class RunnerPublicProfileLocationTest extends TestCase
     {
         $account = Account::query()->create([
             'id' => (string) Str::uuid(),
-            'name' => 'Runner Location Test',
+            'profile_name' => 'Runner Location Test',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
@@ -57,7 +57,6 @@ class RunnerPublicProfileLocationTest extends TestCase
             'profile_id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'public_slug' => $slug,
-            'display_name' => 'Runner Location Test',
             'bio' => null,
             'base_location' => $baseLocation,
             'service_area' => $serviceArea,
@@ -74,7 +73,6 @@ class RunnerPublicProfileLocationTest extends TestCase
         $response = app(RunnerPublicProfileController::class)->save(
             $this->makeAuthenticatedRequest($account, [
                 'public_slug' => 'runner-location-test',
-                'display_name' => 'Runner Location Test',
                 'base_location' => 'Tuaran',
                 'service_area' => 'Tuaran - Kota Kinabalu sahaja',
                 'is_published' => true,
@@ -99,7 +97,6 @@ class RunnerPublicProfileLocationTest extends TestCase
         $response = app(RunnerPublicProfileController::class)->save(
             $this->makeAuthenticatedRequest($account, [
                 'public_slug' => 'runner-sabah-location',
-                'display_name' => 'Runner Sabah',
                 'base_location' => 'Sabah',
                 'service_area' => 'Seluruh Sabah',
                 'is_published' => true,
@@ -142,11 +139,12 @@ class RunnerPublicProfileLocationTest extends TestCase
 
         $this->assertSame(
             'Runner Location Test',
-            $profile['display_name']
+            $profile['profile_name']
         );
 
         $this->assertArrayNotHasKey('latitude', $profile);
         $this->assertArrayNotHasKey('longitude', $profile);
+        $this->assertArrayNotHasKey('verified_name', $profile);
     }
 
     public function test_public_profile_does_not_expose_third_location_field(): void
@@ -183,7 +181,6 @@ class RunnerPublicProfileLocationTest extends TestCase
         $createResponse = $controller->save(
             $this->makeAuthenticatedRequest($account, [
                 'public_slug' => 'runner-location-update',
-                'display_name' => 'Runner Location Update',
                 'base_location' => 'Tuaran',
                 'service_area' => 'Tuaran - Kota Kinabalu sahaja',
                 'is_published' => true,
@@ -216,7 +213,6 @@ class RunnerPublicProfileLocationTest extends TestCase
         $createResponse = $controller->save(
             $this->makeAuthenticatedRequest($account, [
                 'public_slug' => 'runner-operating-area-update',
-                'display_name' => 'Runner Operating Area',
                 'base_location' => 'Tuaran',
                 'service_area' => 'Tuaran sahaja',
                 'is_published' => true,
@@ -249,7 +245,6 @@ class RunnerPublicProfileLocationTest extends TestCase
         $createResponse = $controller->save(
             $this->makeAuthenticatedRequest($account, [
                 'public_slug' => 'runner-location-preserve',
-                'display_name' => 'Runner Location Preserve',
                 'base_location' => 'Tuaran',
                 'service_area' => 'Tuaran - Kota Kinabalu sahaja',
                 'is_published' => true,
@@ -297,5 +292,10 @@ class RunnerPublicProfileLocationTest extends TestCase
 
         $this->assertSame('Tuaran', $profile['base_location']);
         $this->assertSame('Seluruh Sabah', $profile['service_area']);
+        $this->assertSame(
+            'Runner Location Test',
+            $profile['profile_name']
+        );
+        $this->assertArrayNotHasKey('verified_name', $profile);
     }
 }
