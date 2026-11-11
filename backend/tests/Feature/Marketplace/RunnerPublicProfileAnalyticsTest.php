@@ -26,7 +26,6 @@ class RunnerPublicProfileAnalyticsTest extends TestCase
             'profile_id' => (string) Str::uuid(),
             'account_id' => $runner->id,
             'public_slug' => 'analytics-runner',
-            'display_name' => 'Analytics Runner',
             'is_published' => true,
             'views_count' => 17,
         ]);
@@ -105,7 +104,7 @@ class RunnerPublicProfileAnalyticsTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Analytics Test Account',
+            'profile_name' => 'Analytics Test Account',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
