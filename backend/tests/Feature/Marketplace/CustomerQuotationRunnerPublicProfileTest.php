@@ -125,6 +125,9 @@ class CustomerQuotationRunnerPublicProfileTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('success', true)
+            ->assertJsonMissingPath(
+                'data.quotations.0.runner_account_id'
+            )
             ->assertJsonPath(
                 'data.quotations.0.runner_profile.public_slug',
                 'runner-tuaran'
@@ -226,9 +229,8 @@ class CustomerQuotationRunnerPublicProfileTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath(
-                'data.quotations.0.runner_account_id',
-                $runner->id
+            ->assertJsonMissingPath(
+                'data.quotations.0.runner_account_id'
             )
             ->assertJsonPath(
                 'data.quotations.0.runner_profile',
