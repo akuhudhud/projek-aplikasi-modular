@@ -67,7 +67,7 @@ class RunnerLicenseVerificationController extends Controller
                 'runner_license_verification' => [
                     'id' => $verification->id,
                     'account_id' => $verification->account_id,
-                    'display_name' => $targetAccount->name,
+                    'profile_name' => $targetAccount->profile_name,
                     'license_number_masked' => str_repeat(
                         '*',
                         max(0, strlen($licenseNumber) - 4)
