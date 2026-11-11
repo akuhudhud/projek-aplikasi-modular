@@ -44,29 +44,19 @@ class RunnerPublicProfileController extends Controller
                 'min:3',
                 'max:50',
             ],
-            'display_name' => [
-                $profile ? 'sometimes' : 'required',
-                'string',
-                'max:80',
-            ],
             'bio' => ['sometimes', 'nullable', 'string', 'max:2000'],
-
-            // Base: lokasi asas Runner dalam bentuk teks.
             'base_location' => [
                 'sometimes',
                 'nullable',
                 'string',
                 'max:120',
             ],
-
-            // Kawasan Operasi: kawasan liputan Runner dalam bentuk teks.
             'service_area' => [
                 'sometimes',
                 'nullable',
                 'string',
                 'max:120',
             ],
-
             'services' => ['sometimes', 'nullable', 'array', 'max:20'],
             'services.*' => ['required', 'string', 'max:64'],
             'is_published' => ['sometimes', 'boolean'],
@@ -96,10 +86,6 @@ class RunnerPublicProfileController extends Controller
 
         $values = [
             'public_slug' => $slug,
-
-            'display_name' => $profile !== null
-                ? $profile->display_name
-                : trim($validated['display_name']),
 
             'bio' => array_key_exists('bio', $validated)
                 ? (
@@ -197,12 +183,14 @@ class RunnerPublicProfileController extends Controller
         $profile->increment('views_count');
 
         /*
-         * Lokasi profil ialah teks yang diisi oleh Runner.
-         * Tiada GPS, koordinat atau penjejakan lokasi.
+         * Profil awam hanya menggunakan profile_name.
+         * verified_name, MyKad dan maklumat identiti sahih tidak didedahkan.
+         * Lokasi profil ialah teks pentadbiran yang diisi oleh Runner,
+         * bukan koordinat GPS atau lokasi masa nyata.
          */
         $publicProfile = [
             'public_slug' => $profile->public_slug,
-            'display_name' => $account->name,
+            'profile_name' => $account->profile_name,
             'bio' => $profile->bio,
             'base_location' => $profile->base_location,
             'service_area' => $profile->service_area,
@@ -307,11 +295,13 @@ class RunnerPublicProfileController extends Controller
 
     private function privatePayload(RunnerPublicProfile $profile): array
     {
+        $account = $profile->account;
+
         return [
             'profile_id' => $profile->profile_id,
             'account_id' => $profile->account_id,
             'public_slug' => $profile->public_slug,
-            'display_name' => $profile->account->name,
+            'profile_name' => $account?->profile_name,
             'bio' => $profile->bio,
             'base_location' => $profile->base_location,
             'service_area' => $profile->service_area,
