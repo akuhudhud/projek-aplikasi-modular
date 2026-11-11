@@ -138,7 +138,7 @@ describe('useCustomerSession', () => {
         expect(logoutResult).toBe(false);
         expect(result.current.account).toEqual(account);
         expect(result.current.logoutError).toContain(
-            'Tidak berjaya logout.',
+            'Tidak berjaya log keluar. Sila cuba semula.',
         );
         expect(result.current.logoutLoading).toBe(false);
     });
