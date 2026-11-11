@@ -29,7 +29,7 @@ class Account extends Model
 
     protected $fillable = [
         'id',
-        'name',
+        'profile_name',
         'job_title',
         'phone',
         'email',
