@@ -199,7 +199,7 @@ describe('Customer registration interface', () => {
         );
 
         fireEvent.change(
-            screen.getByLabelText('Daftar menggunakan'),
+            screen.getByLabelText('Kaedah Pendaftaran'),
             {
                 target: {
                     value: 'email',
