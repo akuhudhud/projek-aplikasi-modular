@@ -163,7 +163,7 @@ class RegistrationController extends Controller
 
                 $accountData = [
                     'id' => (string) Str::uuid(),
-                    'name' => $request->name,
+                    'profile_name' => $request->profile_name,
                     'password' => $request->password,
                     'role' => 'USER',
                     'status' => 'ACTIVE',
@@ -195,7 +195,7 @@ class RegistrationController extends Controller
                     'data' => [
                         'account' => [
                             'id' => $account->id,
-                            'name' => $account->name,
+                            'profile_name' => $account->profile_name,
                             'phone' => $account->phone,
                             'email' => $account->email,
                             'profile_picture' => $account->profile_picture,
