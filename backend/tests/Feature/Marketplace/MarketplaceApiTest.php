@@ -68,6 +68,8 @@ class MarketplaceApiTest extends TestCase
         $customerToken = $this->createSessionToken($customer);
         $runnerToken = $this->createSessionToken($runner);
 
+        $this->createPublicProfile($runner, 'api-test-runner-profile');
+
         $created = $this->withToken($customerToken)
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
@@ -112,6 +114,17 @@ class MarketplaceApiTest extends TestCase
             ->assertJsonPath(
                 'data.request.quotations.0.quotation_id',
                 $quotationId
+            )
+            ->assertJsonMissingPath(
+                'data.request.quotations.0.runner_account_id'
+            )
+            ->assertJsonPath(
+                'data.request.quotations.0.runner_profile.display_name',
+                'Test Runner'
+            )
+            ->assertJsonPath(
+                'data.request.quotations.0.runner_profile.public_slug',
+                'api-test-runner-profile'
             );
 
         $awardResponse = $this->withToken($customerToken)
