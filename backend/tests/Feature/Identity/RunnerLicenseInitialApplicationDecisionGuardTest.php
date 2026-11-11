@@ -35,7 +35,7 @@ class RunnerLicenseInitialApplicationDecisionGuardTest extends TestCase
         IdentityVerification::query()->create([
             'id' => (string) Str::uuid(),
             'account_id' => $applicant->id,
-            'real_name' => 'Nama Pemohon',
+            'verified_name' => 'Nama Pemohon',
             'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_VERIFIED,
             'submitted_at' => now(),
@@ -129,12 +129,12 @@ class RunnerLicenseInitialApplicationDecisionGuardTest extends TestCase
     }
 
     private function createAccount(
-        string $name,
+        string $profileName,
         string $role
     ): Account {
         return Account::query()->create([
             'id' => (string) Str::uuid(),
-            'name' => $name,
+            'profile_name' => $profileName,
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
