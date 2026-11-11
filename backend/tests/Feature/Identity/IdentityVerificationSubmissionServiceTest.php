@@ -20,7 +20,7 @@ class IdentityVerificationSubmissionServiceTest extends TestCase
     {
         return Account::create([
             'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-            'name' => 'Display Name',
+            'profile_name' => 'Display Name',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
@@ -52,7 +52,7 @@ class IdentityVerificationSubmissionServiceTest extends TestCase
             $verification->status
         );
 
-        $this->assertSame('Real Name', $verification->real_name);
+        $this->assertSame('Real Name', $verification->verified_name);
 
         $this->assertSame(
             $mykadNumber,
@@ -85,6 +85,7 @@ class IdentityVerificationSubmissionServiceTest extends TestCase
         $this->assertDatabaseHas('identity_verifications', [
             'id' => $verification->id,
             'account_id' => $account->id,
+            'verified_name' => 'Real Name',
             'mykad_number' => $mykadNumber,
             'status' => IdentityVerification::STATUS_PENDING,
         ]);
@@ -246,6 +247,11 @@ class IdentityVerificationSubmissionServiceTest extends TestCase
         $this->assertSame(
             IdentityVerification::STATUS_PENDING,
             $resubmitted->status
+        );
+
+        $this->assertSame(
+            'Real Name',
+            $resubmitted->verified_name
         );
 
         $this->assertSame(
