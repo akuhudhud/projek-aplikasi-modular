@@ -155,7 +155,7 @@ describe('Customer page-specific data loading', () => {
     it('loads tasks and requests on the dashboard', async () => {
         await loginAt('/');
 
-        await screen.findByText('Dashboard Pelanggan');
+        await screen.findByText('Halaman Utama Pelanggan');
 
         await waitFor(() => {
             expect(getTasksMock).toHaveBeenCalledTimes(1);
@@ -170,7 +170,7 @@ describe('Customer page-specific data loading', () => {
         await loginAt('/?runner=Test-Runner');
 
         await screen.findByRole('heading', {
-            name: 'Cipta Open Request',
+            name: 'Cipta Permintaan Terbuka',
         });
 
         expect(getTasksMock).not.toHaveBeenCalled();
@@ -178,13 +178,13 @@ describe('Customer page-specific data loading', () => {
 
         fireEvent.click(
             screen.getByRole('button', {
-                name: 'Open Request',
+                name: 'Permintaan',
             }),
         );
 
         await screen.findByRole('heading', {
-            name: 'Open Request Saya',
-        }).catch(() => screen.findByText('Senarai Open Request'));
+            name: 'Permintaan Saya',
+        });
 
         await waitFor(() => {
             expect(getRequestsMock).toHaveBeenCalledTimes(1);
@@ -194,9 +194,13 @@ describe('Customer page-specific data loading', () => {
 
         fireEvent.click(
             screen.getByRole('button', {
-                name: 'Tugasan Saya',
+                name: 'Tugasan',
             }),
         );
+
+        await screen.findByRole('heading', {
+            name: 'Tugasan Saya',
+        });
 
         await waitFor(() => {
             expect(getTasksMock).toHaveBeenCalledTimes(1);
@@ -210,7 +214,7 @@ describe('Customer page-specific data loading', () => {
         await loginAt('/?runner=Test-Runner');
 
         await screen.findByRole('heading', {
-            name: 'Cipta Open Request',
+            name: 'Cipta Permintaan Terbuka',
         });
 
         fireEvent.click(
@@ -220,7 +224,7 @@ describe('Customer page-specific data loading', () => {
         );
 
         await screen.findByRole('heading', {
-            name: 'My Profile',
+            name: 'Profil Saya',
         });
 
         expect(getTasksMock).not.toHaveBeenCalled();
@@ -234,7 +238,7 @@ describe('Customer page-specific data loading', () => {
 
         await loginAt('/');
 
-        await screen.findByText('Dashboard Pelanggan');
+        await screen.findByText('Halaman Utama Pelanggan');
 
         const alert = await screen.findByRole('alert');
 
@@ -249,17 +253,17 @@ describe('Customer page-specific data loading', () => {
         await loginAt('/?runner=Test-Runner');
 
         await screen.findByRole('heading', {
-            name: 'Cipta Open Request',
+            name: 'Cipta Permintaan Terbuka',
         });
 
         fireEvent.click(
             screen.getByRole('button', {
-                name: 'Tugasan Saya',
+                name: 'Tugasan',
             }),
         );
 
         await screen.findByRole('heading', {
-            name: 'My Tasks',
+            name: 'Tugasan Saya',
         });
 
         const alert = await screen.findByRole('alert');
