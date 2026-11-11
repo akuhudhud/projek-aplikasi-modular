@@ -1,3 +1,4 @@
+
 <?php
 
 namespace Tests\Feature\Marketplace;
@@ -33,10 +34,10 @@ class MarketplaceApiTest extends TestCase
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Collect and deliver a parcel.',
                 'pickup_location_snapshot' => [
-                    'label' => 'Point A',
+                    'address' => 'Point A',
                 ],
                 'delivery_location_snapshot' => [
-                    'label' => 'Point B',
+                    'address' => 'Point B',
                 ],
                 'expires_at' => now()->addHours(2)->toISOString(),
             ]);
@@ -73,10 +74,10 @@ class MarketplaceApiTest extends TestCase
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Deliver a document.',
                 'pickup_location_snapshot' => [
-                    'label' => 'Document pickup',
+                    'address' => 'Document pickup',
                 ],
                 'delivery_location_snapshot' => [
-                    'label' => 'Document delivery',
+                    'address' => 'Document delivery',
                 ],
                 'expires_at' => now()->addHours(2)->toISOString(),
             ])
@@ -155,10 +156,10 @@ class MarketplaceApiTest extends TestCase
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Deliver a package.',
                 'pickup_location_snapshot' => [
-                    'label' => 'Package pickup',
+                    'address' => 'Package pickup',
                 ],
                 'delivery_location_snapshot' => [
-                    'label' => 'Package delivery',
+                    'address' => 'Package delivery',
                 ],
                 'expires_at' => now()->addHours(2)->toISOString(),
             ])
@@ -221,10 +222,10 @@ class MarketplaceApiTest extends TestCase
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Request for a specific runner.',
                 'pickup_location_snapshot' => [
-                    'label' => 'Specific runner pickup',
+                    'address' => 'Specific runner pickup',
                 ],
                 'delivery_location_snapshot' => [
-                    'label' => 'Specific runner delivery',
+                    'address' => 'Specific runner delivery',
                 ],
                 'expires_at' => now()->addHours(2)->toISOString(),
             ])
@@ -287,10 +288,10 @@ class MarketplaceApiTest extends TestCase
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'This request must be rejected.',
                 'pickup_location_snapshot' => [
-                    'label' => 'Pickup location',
+                    'address' => 'Pickup location',
                 ],
                 'delivery_location_snapshot' => [
-                    'label' => 'Delivery location',
+                    'address' => 'Delivery location',
                 ],
                 'expires_at' => now()->addHours(2)->toISOString(),
             ])
@@ -311,10 +312,10 @@ class MarketplaceApiTest extends TestCase
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Missing profile slug.',
                 'pickup_location_snapshot' => [
-                    'label' => 'Pickup location',
+                    'address' => 'Pickup location',
                 ],
                 'delivery_location_snapshot' => [
-                    'label' => 'Delivery location',
+                    'address' => 'Delivery location',
                 ],
                 'expires_at' => now()->addHours(2)->toISOString(),
             ])
@@ -338,10 +339,10 @@ class MarketplaceApiTest extends TestCase
                 'task_class' => 'PICKUP_DELIVERY',
                 'description' => 'Marketplace requests cannot target a runner.',
                 'pickup_location_snapshot' => [
-                    'label' => 'Pickup location',
+                    'address' => 'Pickup location',
                 ],
                 'delivery_location_snapshot' => [
-                    'label' => 'Delivery location',
+                    'address' => 'Delivery location',
                 ],
                 'expires_at' => now()->addHours(2)->toISOString(),
             ])
