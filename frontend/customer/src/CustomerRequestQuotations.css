@@ -100,17 +100,69 @@
 
 .customer-quotation-status.status-rejected,
 .customer-quotation-status.status-expired,
-.customer-quotation-status.status-withdrawn {
+.customer-quotation-status.status-withdrawn,
+.customer-quotation-status.status-not_selected {
     background: #f4f4f5;
     color: #71717a;
 }
 
+/* RUNNER PUBLIC PROFILE */
+
+.customer-quotation-runner-profile {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    padding: 13px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fafafa;
+}
+
 .customer-quotation-runner {
-    color: #525252;
-    font-size: 13px;
-    font-weight: 700;
+    color: #171717;
+    font-size: 15px;
+    font-weight: 800;
     overflow-wrap: anywhere;
 }
+
+.customer-quotation-location {
+    display: grid;
+    gap: 4px;
+    color: #525252;
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.customer-quotation-rating {
+    color: #92400e;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.customer-quotation-profile-link {
+    display: inline-flex;
+    width: fit-content;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 7px 11px;
+    border: 1px solid #eab308;
+    border-radius: 8px;
+    background: #fffbeb;
+    color: #92400e;
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.customer-quotation-profile-link:hover {
+    border-color: #ca8a04;
+    background: #fef3c7;
+    color: #78350f;
+}
+
+/* QUOTATION MESSAGE */
 
 .customer-quotation-message {
     margin: 0;
@@ -134,6 +186,8 @@
     font-size: 11px;
     line-height: 1.5;
 }
+
+/* AWARD BUTTON */
 
 #customer-app .customer-quotation-card .customer-quotation-award-button {
     width: 100%;
@@ -162,7 +216,7 @@
     line-height: 1.5;
 }
 
-/* QUOTATION STATUS MESSAGE */
+/* STATUS MESSAGE */
 
 #customer-app .customer-quotation-section [role="status"] {
     margin: 0;
@@ -184,20 +238,6 @@
     color: #b91c1c;
     font-size: 13px;
     line-height: 1.5;
-}
-
-@media (max-width: 480px) {
-    .customer-quotation-card {
-        padding: 14px;
-    }
-
-    .customer-quotation-card-header > strong {
-        font-size: 19px;
-    }
-
-    .customer-quotation-section > button {
-        width: 100%;
-    }
 }
 
 /* CSS ISOLATION */
@@ -224,7 +264,23 @@
 }
 
 @media (max-width: 480px) {
+    .customer-quotation-card {
+        padding: 14px;
+    }
+
+    .customer-quotation-card-header > strong {
+        font-size: 19px;
+    }
+
+    .customer-quotation-section > button {
+        width: 100%;
+    }
+
     #customer-app .customer-quotation-section > button {
+        width: 100%;
+    }
+
+    .customer-quotation-profile-link {
         width: 100%;
     }
 }
