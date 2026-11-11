@@ -99,6 +99,24 @@ export interface CustomerOwnMarketplaceRequest {
     updated_at: string;
 }
 
+/**
+ * Maklumat profil awam Runner yang dibenarkan
+ * untuk dipaparkan kepada Customer.
+ *
+ * Tidak mengandungi account_id, nombor telefon,
+ * e-mel, koordinat GPS atau maklumat dalaman.
+ */
+export interface CustomerRunnerPublicProfile {
+    public_slug: string;
+    display_name: string;
+    bio: string | null;
+    base_location: string | null;
+    service_area: string | null;
+    services: string[];
+    rating_average: number | null;
+    rating_count: number;
+}
+
 export interface CustomerMarketplaceQuotation {
     quotation_id: string;
     request_id: string;
@@ -111,6 +129,9 @@ export interface CustomerMarketplaceQuotation {
     accepted_at: string | null;
     withdrawn_at: string | null;
     created_at: string;
+
+    // null jika profil belum diterbitkan atau Runner tidak layak.
+    runner_profile: CustomerRunnerPublicProfile | null;
 }
 
 export interface CustomerMarketplaceRequestDetail {
