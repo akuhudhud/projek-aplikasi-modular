@@ -53,7 +53,7 @@ class RunnerStatusSecurityApiTest extends TestCase
     {
         $account = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Runner Security Test',
+            'profile_name' => 'Runner Security Test',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
@@ -72,7 +72,7 @@ class RunnerStatusSecurityApiTest extends TestCase
         IdentityVerification::create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'real_name' => 'Contoh Nama Sebenar',
+            'verified_name' => 'Contoh Nama Sebenar',
             'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_VERIFIED,
             'submitted_at' => now(),
@@ -113,17 +113,17 @@ class RunnerStatusSecurityApiTest extends TestCase
             $account,
             'runner-profile-security-token'
         )->patchJson('/api/me', [
-            'name' => 'Updated Runner Security Test',
+            'profile_name' => 'Updated Runner Security Test',
             'runner_status' => Account::RUNNER_STATUS_APPROVED,
         ])->assertOk()
             ->assertJsonPath(
-                'data.account.name',
+                'data.account.profile_name',
                 'Updated Runner Security Test'
             );
 
         $this->assertDatabaseHas('accounts', [
             'id' => $account->id,
-            'name' => 'Updated Runner Security Test',
+            'profile_name' => 'Updated Runner Security Test',
             'role' => 'USER',
             'runner_status' => Account::RUNNER_STATUS_NOT_RUNNER,
         ]);
@@ -149,13 +149,13 @@ class RunnerStatusSecurityApiTest extends TestCase
             ->assertJsonPath('success', true);
 
         $this->patchJson('/api/me', [
-            'name' => 'Pending Runner Security Test',
+            'profile_name' => 'Pending Runner Security Test',
             'runner_status' => Account::RUNNER_STATUS_APPROVED,
         ])->assertOk();
 
         $this->assertDatabaseHas('accounts', [
             'id' => $account->id,
-            'name' => 'Pending Runner Security Test',
+            'profile_name' => 'Pending Runner Security Test',
             'role' => 'USER',
             'runner_status' => Account::RUNNER_STATUS_PENDING,
         ]);
