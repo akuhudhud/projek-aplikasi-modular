@@ -93,12 +93,15 @@ class CustomerMarketplaceRequestWebApiTest extends TestCase
                 'data.request.delivery_location_snapshot.address',
                 'Lokasi delivery'
             )
-            ->assertJsonPath(
-                'data.request.customer_account_id',
-                $customer->id
+            ->assertJsonMissingPath(
+                'data.request.customer_account_id'
             );
 
         $this->assertDatabaseCount('marketplace_requests', 1);
+        $this->assertDatabaseHas('marketplace_requests', [
+            'customer_account_id' => $customer->id,
+            'task_class' => MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY,
+        ]);
         $this->assertDatabaseCount('core_tasks', 0);
     }
 
@@ -128,12 +131,15 @@ class CustomerMarketplaceRequestWebApiTest extends TestCase
                 'data.request.task_location_snapshot.address',
                 'Kedai yang ditetapkan'
             )
-            ->assertJsonPath(
-                'data.request.customer_account_id',
-                $customer->id
+            ->assertJsonMissingPath(
+                'data.request.customer_account_id'
             );
 
         $this->assertDatabaseCount('marketplace_requests', 1);
+        $this->assertDatabaseHas('marketplace_requests', [
+            'customer_account_id' => $customer->id,
+            'task_class' => MarketplaceRequest::TASK_CLASS_NON_DELIVERY,
+        ]);
         $this->assertDatabaseCount('core_tasks', 0);
     }
 
