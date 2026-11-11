@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 
 import { useRunnerPublicProfile } from './features/runners/useRunnerPublicProfile';
@@ -57,7 +56,7 @@ export default function RunnerPublicProfile({ slug }: Props) {
         if (navigator.share) {
             try {
                 await navigator.share({
-                    title: profile?.display_name ?? 'Profil Runner Super Runner',
+                    title: profile?.profile_name ?? 'Profil Runner Super Runner',
                     text: 'Lihat profil Runner ini.',
                     url,
                 });
@@ -134,11 +133,11 @@ export default function RunnerPublicProfile({ slug }: Props) {
 
                 <section className="runner-public-identity">
                     <div className="runner-public-avatar" aria-hidden="true">
-                        {profile.display_name.trim().charAt(0).toUpperCase() || 'R'}
+                        {profile.profile_name.trim().charAt(0).toUpperCase() || 'R'}
                     </div>
 
                     <div>
-                        <h1>{profile.display_name}</h1>
+                        <h1>{profile.profile_name}</h1>
 
                         <div className="runner-public-rating">
                             <span>
