@@ -78,7 +78,11 @@ function successfulProfileResponse() {
 }
 
 function successfulReviewsResponse(
-    reviews = [],
+    reviews: Array<{
+        rating: number;
+        review: string;
+        created_at: string;
+    }> = [],
     currentPage = 1,
     lastPage = 1,
     total = reviews.length,
@@ -288,7 +292,14 @@ describe('RunnerPublicProfile', () => {
 
     it('loads the next page of written reviews', async () => {
         getMock.mockImplementation(
-            (url: string, config?: { params?: { page?: number } }) => {
+            (
+                url: string,
+                config?: {
+                    params?: {
+                        page?: number;
+                    };
+                },
+            ) => {
                 if (url.includes('/reviews')) {
                     if (config?.params?.page === 2) {
                         return Promise.resolve(
@@ -340,7 +351,9 @@ describe('RunnerPublicProfile', () => {
         expect(getMock).toHaveBeenCalledWith(
             '/api/runners/test-runner/reviews',
             expect.objectContaining({
-                params: { page: 2 },
+                params: {
+                    page: 2,
+                },
             }),
         );
     });
