@@ -1,4 +1,3 @@
-
 import {
     useCallback,
     useEffect,
@@ -322,7 +321,7 @@ export default function CustomerWorkspace({
     return (
         <AppShell
             activePage={navigation.activePage}
-            accountName={account.name}
+            accountName={account.profile_name}
             onNavigate={handleNavigate}
             onLogout={onLogout}
             loading={logoutLoading}
