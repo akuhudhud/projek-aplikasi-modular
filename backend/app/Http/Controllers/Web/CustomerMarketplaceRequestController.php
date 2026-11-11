@@ -271,7 +271,7 @@ class CustomerMarketplaceRequestController extends Controller
                 ->get([
                     'runner_public_profiles.account_id',
                     'runner_public_profiles.public_slug',
-                    'runner_public_profiles.display_name',
+                    'accounts.profile_name',
                     'runner_public_profiles.bio',
                     'runner_public_profiles.base_location',
                     'runner_public_profiles.service_area',
@@ -326,7 +326,7 @@ class CustomerMarketplaceRequestController extends Controller
 
                 $quotationData['runner_profile'] = [
                     'public_slug' => $profile->public_slug,
-                    'display_name' => $profile->display_name,
+                    'profile_name' => $profile->profile_name,
                     'bio' => $profile->bio,
                     'base_location' => $profile->base_location,
                     'service_area' => $profile->service_area,
