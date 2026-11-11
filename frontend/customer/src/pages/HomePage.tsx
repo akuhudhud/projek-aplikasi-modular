@@ -1,4 +1,3 @@
-
 import type {
     CustomerAccount,
     CustomerTaskItem,
@@ -50,7 +49,7 @@ export default function HomePage({
         <div className="sr-home-page">
             <section className="customer-welcome">
                 <p>Halaman Utama Pelanggan</p>
-                <h2>Hai, {account.name}</h2>
+                <h2>Hai, {account.profile_name}</h2>
                 <span>Selamat datang ke Super Runner.</span>
             </section>
 
