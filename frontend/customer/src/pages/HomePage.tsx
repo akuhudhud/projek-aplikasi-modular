@@ -26,8 +26,8 @@ type HomePageProps = {
 
 function taskClassLabel(taskClass: string): string {
     return taskClass === 'PICKUP_DELIVERY'
-        ? 'Pickup & Delivery'
-        : 'Non-Delivery';
+        ? 'Ambil & Hantar'
+        : 'Bukan Penghantaran';
 }
 
 export default function HomePage({
@@ -49,7 +49,7 @@ export default function HomePage({
     return (
         <div className="sr-home-page">
             <section className="customer-welcome">
-                <p>Dashboard Pelanggan</p>
+                <p>Papan Pemuka Pelanggan</p>
                 <h2>Hai, {account.name}</h2>
                 <span>Selamat datang ke Super Runner.</span>
             </section>
@@ -72,7 +72,7 @@ export default function HomePage({
                     type="button"
                     onClick={onNavigateCreate}
                 >
-                    + Cipta Request
+                    + Cipta Permintaan
                 </button>
             </section>
 
@@ -91,7 +91,7 @@ export default function HomePage({
                 </article>
 
                 <article className="customer-summary-card">
-                    <span>Open Request</span>
+                    <span>Permintaan Terbuka</span>
                     <strong>{ownRequestTotal}</strong>
                 </article>
 
@@ -121,7 +121,7 @@ export default function HomePage({
                     <section className="customer-empty">
                         <h3>Belum ada tugasan</h3>
                         <p>
-                            Tugasan yang anda buat akan dipaparkan di sini.
+                            Tugasan yang anda cipta akan dipaparkan di sini.
                         </p>
                     </section>
                 ) : (
@@ -156,7 +156,7 @@ export default function HomePage({
 
             <section className="customer-panel">
                 <div className="customer-section-heading">
-                    <h2>Open Request Terkini</h2>
+                    <h2>Permintaan Terbuka Terkini</h2>
 
                     <button
                         type="button"
@@ -167,12 +167,12 @@ export default function HomePage({
                 </div>
 
                 {ownRequestsLoading ? (
-                    <p>Memuatkan Open Request...</p>
+                    <p>Memuatkan permintaan...</p>
                 ) : ownRequestsError ? (
                     <p role="alert">{ownRequestsError}</p>
                 ) : ownRequests.length === 0 ? (
                     <section className="customer-empty">
-                        <h3>Belum ada Open Request</h3>
+                        <h3>Belum ada permintaan terbuka</h3>
                         <p>
                             Permintaan yang anda cipta akan dipaparkan di sini.
                         </p>
@@ -181,7 +181,7 @@ export default function HomePage({
                             type="button"
                             onClick={onNavigateCreate}
                         >
-                            Cipta Open Request
+                            Cipta Permintaan
                         </button>
                     </section>
                 ) : (
