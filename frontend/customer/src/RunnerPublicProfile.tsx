@@ -2,10 +2,25 @@
 import { useState } from 'react';
 
 import { useRunnerPublicProfile } from './features/runners/useRunnerPublicProfile';
+import { useRunnerPublicReviews } from './features/runners/useRunnerPublicReviews';
 import './RunnerPublicProfile.css';
 
 interface Props {
     slug: string;
+}
+
+function formatReviewDate(value: string): string {
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    return date.toLocaleDateString('ms-MY', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+    });
 }
 
 export default function RunnerPublicProfile({ slug }: Props) {
@@ -16,6 +31,17 @@ export default function RunnerPublicProfile({ slug }: Props) {
         error,
         reload,
     } = useRunnerPublicProfile(slug);
+
+    const {
+        reviews,
+        pagination,
+        loading: reviewsLoading,
+        loadingMore,
+        error: reviewsError,
+        hasMore,
+        loadMore,
+        reload: reloadReviews,
+    } = useRunnerPublicReviews(slug);
 
     const [shareError, setShareError] = useState('');
 
@@ -164,6 +190,94 @@ export default function RunnerPublicProfile({ slug }: Props) {
                         </ul>
                     </section>
                 )}
+
+                <section className="runner-public-section runner-public-reviews">
+                    <h2>Ulasan Pelanggan</h2>
+
+                    {pagination && (
+                        <p className="runner-public-review-count">
+                            {pagination.total} ulasan bertulis
+                        </p>
+                    )}
+
+                    {reviewsLoading && reviews.length === 0 && (
+                        <p aria-live="polite">
+                            Memuatkan ulasan pelanggan...
+                        </p>
+                    )}
+
+                    {!reviewsLoading && reviews.length === 0 && !reviewsError && (
+                        <p className="runner-public-review-empty">
+                            Belum ada ulasan bertulis daripada pelanggan.
+                        </p>
+                    )}
+
+                    {reviews.length > 0 && (
+                        <div className="runner-public-review-list">
+                            {reviews.map((review, index) => (
+                                <article
+                                    className="runner-public-review-item"
+                                    key={`${review.created_at}-${index}`}
+                                >
+                                    <div className="runner-public-review-heading">
+                                        <span
+                                            className="runner-public-review-stars"
+                                            aria-label={`${review.rating} daripada 5 bintang`}
+                                        >
+                                            {'★'.repeat(
+                                                Math.max(
+                                                    0,
+                                                    Math.min(5, review.rating),
+                                                ),
+                                            )}
+                                            <span className="runner-public-review-empty-stars">
+                                                {'★'.repeat(
+                                                    5 - Math.max(
+                                                        0,
+                                                        Math.min(5, review.rating),
+                                                    ),
+                                                )}
+                                            </span>
+                                        </span>
+
+                                        <span className="runner-public-review-date">
+                                            {formatReviewDate(review.created_at)}
+                                        </span>
+                                    </div>
+
+                                    <p className="runner-public-review-text">
+                                        {review.review}
+                                    </p>
+                                </article>
+                            ))}
+                        </div>
+                    )}
+
+                    {reviewsError && (
+                        <div className="runner-public-review-error">
+                            <p role="alert">{reviewsError}</p>
+                            <button
+                                type="button"
+                                onClick={reloadReviews}
+                            >
+                                Cuba Lagi
+                            </button>
+                        </div>
+                    )}
+
+                    {hasMore && !reviewsError && (
+                        <button
+                            className="runner-public-review-more"
+                            type="button"
+                            onClick={loadMore}
+                            disabled={loadingMore}
+                        >
+                            {loadingMore
+                                ? 'Memuatkan...'
+                                : 'Lihat Lagi Ulasan'}
+                        </button>
+                    )}
+                </section>
 
                 <footer className="runner-public-footer">
                     <button
