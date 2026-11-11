@@ -41,27 +41,25 @@ function AppShellHarness({
             onLogout={onLogout}
         >
             <section>
-                <h1>Workspace Content</h1>
+                <h1>Kandungan Ruang Kerja</h1>
             </section>
         </AppShell>
     );
 }
 
-describe('Customer AppShell integration', () => {
+describe('Integrasi AppShell Pelanggan', () => {
     afterEach(() => {
         cleanup();
         vi.restoreAllMocks();
     });
 
     it(
-        'renders all five navigation destinations and updates the active page',
+        'memaparkan lima destinasi navigasi dan mengemas kini halaman aktif',
         () => {
             const onLogout = vi.fn();
 
             const { container } = render(
-                <AppShellHarness
-                    onLogout={onLogout}
-                />,
+                <AppShellHarness onLogout={onLogout} />,
             );
 
             const navigation = screen.getByRole(
@@ -81,7 +79,7 @@ describe('Customer AppShell integration', () => {
             ).toBeTruthy();
 
             expect(
-                screen.getByText('Customer'),
+                screen.getByText('Pelanggan'),
             ).toBeTruthy();
 
             expect(
@@ -90,7 +88,7 @@ describe('Customer AppShell integration', () => {
 
             expect(
                 screen.getByRole('heading', {
-                    name: 'Workspace Content',
+                    name: 'Kandungan Ruang Kerja',
                 }),
             ).toBeTruthy();
 
@@ -107,28 +105,28 @@ describe('Customer AppShell integration', () => {
             }> = [
                 {
                     page: 'dashboard',
-                    accessibleLabel: 'Home',
-                    pageTitle: 'Home',
+                    accessibleLabel: 'Utama',
+                    pageTitle: 'Utama',
                 },
                 {
                     page: 'requests',
-                    accessibleLabel: 'Open Request',
-                    pageTitle: 'Requests',
+                    accessibleLabel: 'Permintaan',
+                    pageTitle: 'Senarai Permintaan',
                 },
                 {
                     page: 'create',
-                    accessibleLabel: 'Create',
-                    pageTitle: 'Create Request',
+                    accessibleLabel: 'Cipta',
+                    pageTitle: 'Cipta Permintaan',
                 },
                 {
                     page: 'tasks',
-                    accessibleLabel: 'Tugasan Saya',
-                    pageTitle: 'My Tasks',
+                    accessibleLabel: 'Tugasan',
+                    pageTitle: 'Tugasan Saya',
                 },
                 {
                     page: 'profile',
                     accessibleLabel: 'Profil',
-                    pageTitle: 'My Profile',
+                    pageTitle: 'Profil Saya',
                 },
             ];
 
@@ -142,9 +140,9 @@ describe('Customer AppShell integration', () => {
 
                 fireEvent.click(button);
 
-                expect(
-                    pageTitle?.textContent,
-                ).toBe(destination.pageTitle);
+                expect(pageTitle?.textContent).toBe(
+                    destination.pageTitle,
+                );
 
                 expect(
                     button.getAttribute('aria-current'),
@@ -164,9 +162,7 @@ describe('Customer AppShell integration', () => {
                         );
 
                     expect(
-                        otherButton.getAttribute(
-                            'aria-current',
-                        ),
+                        otherButton.getAttribute('aria-current'),
                     ).toBeNull();
                 }
             }
@@ -176,19 +172,17 @@ describe('Customer AppShell integration', () => {
     );
 
     it(
-        'calls the logout handler when the logout button is clicked',
+        'memanggil fungsi log keluar apabila butang ditekan',
         () => {
             const onLogout = vi.fn();
 
             render(
-                <AppShellHarness
-                    onLogout={onLogout}
-                />,
+                <AppShellHarness onLogout={onLogout} />,
             );
 
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Logout',
+                    name: 'Keluar',
                 }),
             );
 
@@ -197,7 +191,7 @@ describe('Customer AppShell integration', () => {
     );
 
     it(
-        'disables the logout button while logout is loading',
+        'menyahaktifkan butang log keluar semasa proses sedang berjalan',
         () => {
             const onLogout = vi.fn();
 
@@ -209,14 +203,14 @@ describe('Customer AppShell integration', () => {
                     onLogout={onLogout}
                     loading
                 >
-                    <p>Workspace Content</p>
+                    <p>Kandungan Ruang Kerja</p>
                 </AppShell>,
             );
 
             const logoutButton = screen.getByRole(
                 'button',
                 {
-                    name: 'Logout',
+                    name: 'Keluar',
                 },
             );
 
