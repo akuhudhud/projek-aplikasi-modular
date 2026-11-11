@@ -108,10 +108,12 @@ class CustomerTaskWebApiTest extends TestCase
     {
         $customer = $this->createAccount();
         $otherCustomer = $this->createAccount();
+        $runner = $this->createAccount();
 
         $ownTask = $this->createMarketplaceTask(
             $customer,
-            MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY
+            MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY,
+            $runner
         );
 
         $otherTask = $this->createMarketplaceTask(
@@ -137,6 +139,15 @@ class CustomerTaskWebApiTest extends TestCase
             ->assertJsonMissing([
                 'task_id' => $otherTask['task']->task_id,
             ])
+            ->assertJsonMissingPath(
+                'data.tasks.0.task.assigned_account_id'
+            )
+            ->assertJsonMissingPath(
+                'data.tasks.0.task.created_by_account_id'
+            )
+            ->assertJsonMissingPath(
+                'data.tasks.0.request.customer_account_id'
+            )
             ->assertJsonPath('data.pagination.total', 1)
             ->assertJsonPath('data.pagination.per_page', 25);
     }
@@ -186,10 +197,12 @@ class CustomerTaskWebApiTest extends TestCase
     public function test_customer_can_view_own_task_details(): void
     {
         $customer = $this->createAccount();
+        $runner = $this->createAccount();
 
         $created = $this->createMarketplaceTask(
             $customer,
-            MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY
+            MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY,
+            $runner
         );
 
         $this->authenticateCustomer($customer);
@@ -214,6 +227,15 @@ class CustomerTaskWebApiTest extends TestCase
             ->assertJsonPath(
                 'data.request.delivery_location_snapshot.address',
                 'Delivery address'
+            )
+            ->assertJsonMissingPath(
+                'data.task.assigned_account_id'
+            )
+            ->assertJsonMissingPath(
+                'data.task.created_by_account_id'
+            )
+            ->assertJsonMissingPath(
+                'data.request.customer_account_id'
             )
             ->assertJsonMissingPath('data.task.task_class');
     }
@@ -254,10 +276,12 @@ class CustomerTaskWebApiTest extends TestCase
     public function test_customer_can_view_non_delivery_task_snapshot(): void
     {
         $customer = $this->createAccount();
+        $runner = $this->createAccount();
 
         $created = $this->createMarketplaceTask(
             $customer,
-            MarketplaceRequest::TASK_CLASS_NON_DELIVERY
+            MarketplaceRequest::TASK_CLASS_NON_DELIVERY,
+            $runner
         );
 
         $this->authenticateCustomer($customer);
@@ -281,6 +305,15 @@ class CustomerTaskWebApiTest extends TestCase
             ->assertJsonPath(
                 'data.request.delivery_location_snapshot',
                 null
+            )
+            ->assertJsonMissingPath(
+                'data.task.assigned_account_id'
+            )
+            ->assertJsonMissingPath(
+                'data.task.created_by_account_id'
+            )
+            ->assertJsonMissingPath(
+                'data.request.customer_account_id'
             )
             ->assertJsonMissingPath('data.task.task_class');
     }
