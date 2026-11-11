@@ -289,7 +289,7 @@ describe(
                 const pickup = screen.getByRole(
                     'group',
                     {
-                        name: 'Lokasi Pickup',
+                        name: 'Lokasi Pengambilan',
                     },
                 );
 
@@ -305,7 +305,7 @@ describe(
                 const delivery = screen.getByRole(
                     'group',
                     {
-                        name: 'Lokasi Delivery',
+                        name: 'Lokasi Penghantaran',
                     },
                 );
 
