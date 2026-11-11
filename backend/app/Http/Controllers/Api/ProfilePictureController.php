@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Account\UpdateProfilePictureRequest;
 use App\Services\Profile\ProfilePictureService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class ProfilePictureController extends Controller
 {
@@ -27,7 +26,7 @@ class ProfilePictureController extends Controller
             'data' => [
                 'account' => [
                     'id' => $account->id,
-                    'name' => $account->name,
+                    'profile_name' => $account->profile_name,
                     'phone' => $account->phone,
                     'email' => $account->email,
                     'profile_picture' => $path,
