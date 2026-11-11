@@ -172,7 +172,7 @@ export default function CustomerRequestQuotations({
 
         if (currentStatus !== 'OPEN') {
             setError(
-                'Open Request ini tidak lagi boleh menerima pilihan Runner.',
+                'Permintaan ini tidak lagi boleh menerima pilihan Runner.',
             );
             return;
         }
@@ -286,7 +286,7 @@ export default function CustomerRequestQuotations({
             onAwarded(targetRequestId, awardResult);
         } catch {
             setNotice(
-                'Core Task telah berjaya dicipta, tetapi paparan halaman utama gagal dikemas kini.',
+                'Core Task berjaya dicipta, tetapi paparan halaman utama gagal dikemas kini.',
             );
         }
 
@@ -334,9 +334,9 @@ export default function CustomerRequestQuotations({
                 }}
             >
                 {loading
-                    ? 'Memuatkan sebut harga...'
+                    ? 'Sedang memuatkan sebut harga...'
                     : expanded
-                        ? 'Tutup Sebut Harga'
+                        ? 'Tutup Senarai Sebut Harga'
                         : 'Lihat Sebut Harga'}
             </button>
 
@@ -363,7 +363,7 @@ export default function CustomerRequestQuotations({
 
             {expanded && visibleDetail && (
                 <div className="customer-quotation-list">
-                    <h4>Sebut Harga Runner</h4>
+                    <h4>Sebut Harga daripada Runner</h4>
 
                     {visibleDetail.quotations.length === 0 ? (
                         <p className="customer-quotation-empty">
@@ -396,7 +396,13 @@ export default function CustomerRequestQuotations({
                                                 `status-${quotation.status.toLowerCase()}`
                                             }
                                         >
-                                            {quotation.status}
+                                            {quotation.status === 'SUBMITTED'
+                                                ? 'Dihantar'
+                                                : quotation.status === 'ACCEPTED'
+                                                    ? 'Diterima'
+                                                    : quotation.status === 'NOT_SELECTED'
+                                                        ? 'Tidak Dipilih'
+                                                        : quotation.status}
                                         </span>
                                     </div>
 
@@ -416,7 +422,7 @@ export default function CustomerRequestQuotations({
 
                                                     {profile.service_area && (
                                                         <span>
-                                                            Kawasan servis: {profile.service_area}
+                                                            Kawasan perkhidmatan: {profile.service_area}
                                                         </span>
                                                     )}
                                                 </span>
@@ -471,7 +477,7 @@ export default function CustomerRequestQuotations({
                                             }}
                                         >
                                             {awardingQuotationId === quotation.quotation_id
-                                                ? 'Memproses pilihan...'
+                                                ? 'Sedang memproses pilihan...'
                                                 : 'Pilih Runner Ini'}
                                         </button>
                                     )}
