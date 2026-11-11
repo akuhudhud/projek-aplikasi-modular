@@ -112,7 +112,7 @@ export function useCustomerSession(): CustomerSession {
             return true;
         } catch {
             setLogoutError(
-                'Tidak berjaya logout. Sila cuba semula.',
+                'Tidak berjaya log keluar. Sila cuba semula.',
             );
 
             return false;
