@@ -443,7 +443,7 @@ class MarketplaceServiceTest extends TestCase
         $this->assertDatabaseCount('core_tasks', 0);
     }
 
-    public function test_pickup_delivery_requires_both_locations_at_service_layer(): void
+    public function test_pickup_delivery_requires_valid_addresses_at_service_layer(): void
     {
         $customer = $this->makeAccount();
 
@@ -474,17 +474,60 @@ class MarketplaceServiceTest extends TestCase
                 'delivery_location_snapshot' => [],
                 'expires_at' => now()->addHours(2),
             ],
+            [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Pickup address missing.',
+                'pickup_location_snapshot' => ['label' => 'Pickup'],
+                'delivery_location_snapshot' => ['address' => 'Lokasi B'],
+                'expires_at' => now()->addHours(2),
+            ],
+            [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Pickup address blank.',
+                'pickup_location_snapshot' => ['address' => '   '],
+                'delivery_location_snapshot' => ['address' => 'Lokasi B'],
+                'expires_at' => now()->addHours(2),
+            ],
+            [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Pickup address not a string.',
+                'pickup_location_snapshot' => ['address' => 123],
+                'delivery_location_snapshot' => ['address' => 'Lokasi B'],
+                'expires_at' => now()->addHours(2),
+            ],
+            [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Delivery address missing.',
+                'pickup_location_snapshot' => ['address' => 'Lokasi A'],
+                'delivery_location_snapshot' => ['label' => 'Delivery'],
+                'expires_at' => now()->addHours(2),
+            ],
+            [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Delivery address blank.',
+                'pickup_location_snapshot' => ['address' => 'Lokasi A'],
+                'delivery_location_snapshot' => ['address' => '   '],
+                'expires_at' => now()->addHours(2),
+            ],
+            [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Delivery address not a string.',
+                'pickup_location_snapshot' => ['address' => 'Lokasi A'],
+                'delivery_location_snapshot' => ['address' => false],
+                'expires_at' => now()->addHours(2),
+            ],
         ];
 
         foreach ($invalidPayloads as $payload) {
             try {
                 $this->marketplace->createRequest($customer, $payload);
+
                 $this->fail(
-                    'Invalid pickup and delivery locations must be rejected.'
+                    'Invalid pickup and delivery addresses must be rejected.'
                 );
             } catch (DomainException $exception) {
                 $this->assertSame(
-                    'Pickup and delivery locations are required for this task class.',
+                    'Pickup and delivery locations with valid addresses are required for this task class.',
                     $exception->getMessage()
                 );
             }
@@ -493,7 +536,7 @@ class MarketplaceServiceTest extends TestCase
         }
     }
 
-    public function test_non_delivery_requires_task_location_at_service_layer(): void
+    public function test_non_delivery_requires_valid_task_address_at_service_layer(): void
     {
         $customer = $this->makeAccount();
 
@@ -509,15 +552,36 @@ class MarketplaceServiceTest extends TestCase
                 'task_location_snapshot' => [],
                 'expires_at' => now()->addHours(2),
             ],
+            [
+                'task_class' => 'NON_DELIVERY',
+                'description' => 'Task address missing.',
+                'task_location_snapshot' => ['label' => 'Lokasi tugasan'],
+                'expires_at' => now()->addHours(2),
+            ],
+            [
+                'task_class' => 'NON_DELIVERY',
+                'description' => 'Task address blank.',
+                'task_location_snapshot' => ['address' => '   '],
+                'expires_at' => now()->addHours(2),
+            ],
+            [
+                'task_class' => 'NON_DELIVERY',
+                'description' => 'Task address not a string.',
+                'task_location_snapshot' => ['address' => 123],
+                'expires_at' => now()->addHours(2),
+            ],
         ];
 
         foreach ($invalidPayloads as $payload) {
             try {
                 $this->marketplace->createRequest($customer, $payload);
-                $this->fail('Invalid task location must be rejected.');
+
+                $this->fail(
+                    'Invalid task location address must be rejected.'
+                );
             } catch (DomainException $exception) {
                 $this->assertSame(
-                    'Task location is required for this task class.',
+                    'Task location with a valid address is required for this task class.',
                     $exception->getMessage()
                 );
             }
