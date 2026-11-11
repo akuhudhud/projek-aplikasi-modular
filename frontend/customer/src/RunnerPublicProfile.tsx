@@ -114,12 +114,6 @@ export default function RunnerPublicProfile({ slug }: Props) {
                     <div>
                         <h1>{profile.display_name}</h1>
 
-                        {profile.base_location && (
-                            <p className="runner-public-base">
-                                {profile.base_location}
-                            </p>
-                        )}
-
                         <div className="runner-public-rating">
                             <span>
                                 {profile.rating_average === null
@@ -130,6 +124,26 @@ export default function RunnerPublicProfile({ slug }: Props) {
                         </div>
                     </div>
                 </section>
+
+                {(profile.base_location || profile.service_area) && (
+                    <section className="runner-public-section">
+                        <h2>Lokasi Runner</h2>
+
+                        {profile.base_location && (
+                            <p>
+                                <strong>Base:</strong>{' '}
+                                {profile.base_location}
+                            </p>
+                        )}
+
+                        {profile.service_area && (
+                            <p>
+                                <strong>Kawasan Operasi:</strong>{' '}
+                                {profile.service_area}
+                            </p>
+                        )}
+                    </section>
+                )}
 
                 {profile.bio && (
                     <section className="runner-public-section">
@@ -148,20 +162,6 @@ export default function RunnerPublicProfile({ slug }: Props) {
                                 </li>
                             ))}
                         </ul>
-                    </section>
-                )}
-
-                {(profile.service_area || profile.coverage_area) && (
-                    <section className="runner-public-section">
-                        <h2>Kawasan Servis</h2>
-
-                        {profile.service_area && (
-                            <p>{profile.service_area}</p>
-                        )}
-
-                        {profile.coverage_area && (
-                            <p>{profile.coverage_area}</p>
-                        )}
                     </section>
                 )}
 
