@@ -99,21 +99,14 @@ self.addEventListener('fetch', (event) => {
 
     if (
         url.origin !== self.location.origin ||
-        isApiPath(url.pathname)
+        isApiPath(url.pathname) ||
+        !url.pathname.startsWith('/assets/')
     ) {
         return;
     }
 
     event.respondWith(
         caches.open(CACHE_NAME).then(async (cache) => {
-            if (request.mode === 'navigate') {
-                try {
-                    return await fetch(request);
-                } catch {
-                    return (await cache.match('/')) || Response.error();
-                }
-            }
-
             const cached = await cache.match(request);
 
             if (cached) {
