@@ -64,7 +64,7 @@ class AuthController extends Controller
 
                 $accountData = [
                     'id' => (string) Str::uuid(),
-                    'name' => $request->name,
+                    'profile_name' => $request->profile_name,
                     'password' => $request->password,
                     'role' => 'USER',
                     'status' => 'ACTIVE',
@@ -89,7 +89,7 @@ class AuthController extends Controller
                     'data' => [
                         'account' => [
                             'id' => $account->id,
-                            'name' => $account->name,
+                            'profile_name' => $account->profile_name,
                             'phone' => $account->phone,
                             'email' => $account->email,
                             'profile_picture' => $account->profile_picture,
@@ -135,7 +135,7 @@ class AuthController extends Controller
             'data' => [
                 'account' => [
                     'id' => $account->id,
-                    'name' => $account->name,
+                    'profile_name' => $account->profile_name,
                     'phone' => $account->phone,
                     'email' => $account->email,
                     'profile_picture' => $account->profile_picture,
@@ -156,10 +156,10 @@ class AuthController extends Controller
 
         $identityVerification = $account->identityVerification;
 
-        $realName = $identityVerification !== null
+        $verifiedName = $identityVerification !== null
             && $identityVerification->status
                 === IdentityVerification::STATUS_VERIFIED
-            ? $identityVerification->real_name
+            ? $identityVerification->verified_name
             : null;
 
         return response()->json([
@@ -167,8 +167,8 @@ class AuthController extends Controller
             'data' => [
                 'account' => [
                     'id' => $account->id,
-                    'name' => $account->name,
-                    'real_name' => $realName,
+                    'profile_name' => $account->profile_name,
+                    'verified_name' => $verifiedName,
                     'phone' => $account->phone,
                     'email' => $account->email,
                     'profile_picture' => $account->profile_picture,
@@ -184,7 +184,7 @@ class AuthController extends Controller
         $account = $request->attributes->get('account');
 
         $account->fill($request->only([
-            'name',
+            'profile_name',
         ]));
 
         $account->save();
@@ -195,7 +195,7 @@ class AuthController extends Controller
             'data' => [
                 'account' => [
                     'id' => $account->id,
-                    'name' => $account->name,
+                    'profile_name' => $account->profile_name,
                     'phone' => $account->phone,
                     'email' => $account->email,
                     'profile_picture' => $account->profile_picture,
