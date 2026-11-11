@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export type CustomerTaskClass =
@@ -91,7 +92,7 @@ function LocationFields({
 
             <div>
                 <label>
-                    Nama Orang Dihubungi (Pilihan)
+                    Nama Orang untuk Dihubungi (Pilihan)
                     <input
                         type="text"
                         value={contact}
@@ -179,12 +180,12 @@ export default function CreateRequestPage({
             <section className="customer-panel">
                 <div className="customer-section-heading">
                     <div>
-                        <h2>Cipta Open Request</h2>
+                        <h2>Cipta Permintaan Terbuka</h2>
 
                         <p>
                             {runnerSlug && !hasInvalidRunnerSlug
                                 ? runnerDescription
-                                : 'Nyatakan tugasan yang kau perlukan. Runner yang layak boleh menghantar sebut harga.'}
+                                : 'Nyatakan tugasan yang anda perlukan. Runner yang layak boleh menghantar sebut harga.'}
                         </p>
                     </div>
                 </div>
@@ -215,11 +216,11 @@ export default function CreateRequestPage({
                             disabled={requestLoading}
                         >
                             <option value="PICKUP_DELIVERY">
-                                Pickup &amp; Delivery
+                                Ambil dan Hantar
                             </option>
 
                             <option value="NON_DELIVERY">
-                                Non-Delivery
+                                Tugasan Bukan Penghantaran
                             </option>
                         </select>
                     </div>
@@ -239,14 +240,14 @@ export default function CreateRequestPage({
                             maxLength={10000}
                             rows={5}
                             disabled={requestLoading}
-                            placeholder="Terangkan tugasan yang kau perlukan..."
+                            placeholder="Terangkan tugasan yang anda perlukan..."
                         />
                     </div>
 
                     {taskClass === 'PICKUP_DELIVERY' && (
                         <>
                             <LocationFields
-                                title="Lokasi Pickup"
+                                title="Lokasi Pengambilan"
                                 address={pickupAddress}
                                 contact={pickupContact}
                                 phone={pickupPhone}
@@ -257,7 +258,7 @@ export default function CreateRequestPage({
                             />
 
                             <LocationFields
-                                title="Lokasi Delivery"
+                                title="Lokasi Penghantaran"
                                 address={deliveryAddress}
                                 contact={deliveryContact}
                                 phone={deliveryPhone}
@@ -317,8 +318,8 @@ export default function CreateRequestPage({
                         disabled={requestLoading}
                     >
                         {requestLoading
-                            ? 'Menghantar permintaan...'
-                            : 'Hantar Open Request'}
+                            ? 'Sedang menghantar permintaan...'
+                            : 'Hantar Permintaan'}
                     </button>
                 </form>
             </section>
