@@ -159,7 +159,7 @@ async function loginThroughRunnerProfile() {
     );
 
     await screen.findByRole('heading', {
-        name: 'Cipta Open Request',
+        name: 'Cipta Permintaan Terbuka',
     });
 }
 
@@ -196,12 +196,12 @@ async function loginThroughCustomerDashboard() {
         }),
     );
 
-    await screen.findByText('Dashboard Pelanggan');
+    await screen.findByText('Halaman Utama Pelanggan');
 }
 
 function submitRequestForm() {
     const button = screen.getByRole('button', {
-        name: 'Hantar Open Request',
+        name: 'Hantar Permintaan',
     });
 
     const form = button.closest('form');
@@ -452,7 +452,7 @@ describe(
 
                 fireEvent.click(
                     screen.getByRole('button', {
-                        name: 'Open Request',
+                        name: 'Permintaan',
                     }),
                 );
 
@@ -524,7 +524,7 @@ describe(
 
                 fireEvent.click(
                     screen.getByRole('button', {
-                        name: 'Open Request',
+                        name: 'Permintaan',
                     }),
                 );
 
@@ -604,7 +604,7 @@ describe(
 
                 fireEvent.click(
                     screen.getByRole('button', {
-                        name: 'Tugasan Saya',
+                        name: 'Tugasan',
                     }),
                 );
 
@@ -682,7 +682,7 @@ describe(
 
                 const requestSummary = within(
                     summaryGrid as HTMLElement,
-                ).getByText('Open Request').closest('article');
+                ).getByText('Jumlah Permintaan').closest('article');
 
                 expect(taskSummary?.textContent).toContain('5');
                 expect(activeTaskSummary?.textContent).toContain('2');
@@ -690,7 +690,7 @@ describe(
 
                 expect(
                     screen.getByRole('heading', {
-                        name: 'Open Request Terkini',
+                        name: 'Permintaan Terkini',
                     }),
                 ).toBeTruthy();
 
@@ -761,7 +761,7 @@ describe(
 
                 fireEvent.click(
                     screen.getByRole('button', {
-                        name: 'Logout',
+                        name: 'Keluar',
                     }),
                 );
 
