@@ -25,7 +25,7 @@ class CustomerMarketplaceQuotationWebApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Quotation Web Test',
+            'profile_name' => 'Marketplace Quotation Web Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
@@ -43,7 +43,6 @@ class CustomerMarketplaceQuotationWebApiTest extends TestCase
             'profile_id' => (string) Str::uuid(),
             'account_id' => $runner->id,
             'public_slug' => 'runner-web-test',
-            'display_name' => 'Nama Paparan Runner',
             'bio' => 'Runner sekitar Tuaran.',
             'base_location' => 'Tuaran',
             'service_area' => 'Tuaran dan kawasan berhampiran',
@@ -130,6 +129,10 @@ class CustomerMarketplaceQuotationWebApiTest extends TestCase
             Account::RUNNER_STATUS_APPROVED
         );
 
+        $runner->forceFill([
+            'profile_name' => 'Nama Paparan Runner',
+        ])->save();
+
         $this->createPublicProfile($runner);
 
         $this->authenticateCustomer($customer);
@@ -170,7 +173,7 @@ class CustomerMarketplaceQuotationWebApiTest extends TestCase
                 'runner-web-test'
             )
             ->assertJsonPath(
-                'data.quotations.0.runner_profile.display_name',
+                'data.quotations.0.runner_profile.profile_name',
                 'Nama Paparan Runner'
             )
             ->assertJsonPath(
