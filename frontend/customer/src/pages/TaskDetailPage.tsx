@@ -22,11 +22,11 @@ function formatDate(value: string | null | undefined): string {
 
 function taskClassLabel(taskClass: string): string {
     if (taskClass === 'PICKUP_DELIVERY') {
-        return 'Pickup & Delivery';
+        return 'Ambil dan Hantar';
     }
 
     if (taskClass === 'NON_DELIVERY') {
-        return 'Non-Delivery';
+        return 'Tugasan Bukan Penghantaran';
     }
 
     return taskClass;
@@ -68,7 +68,7 @@ export default function TaskDetailPage({
                     </div>
 
                     <div>
-                        <dt>Status</dt>
+                        <dt>Status Tugasan</dt>
                         <dd>{task.generic_status}</dd>
                     </div>
 
@@ -83,22 +83,22 @@ export default function TaskDetailPage({
                     </div>
 
                     <div>
-                        <dt>Runner ditugaskan</dt>
+                        <dt>Runner Ditugaskan</dt>
                         <dd>{formatDate(task.assigned_at)}</dd>
                     </div>
 
                     <div>
-                        <dt>Mula</dt>
+                        <dt>Waktu Mula</dt>
                         <dd>{formatDate(task.started_at)}</dd>
                     </div>
 
                     <div>
-                        <dt>Selesai</dt>
+                        <dt>Waktu Selesai</dt>
                         <dd>{formatDate(task.completed_at)}</dd>
                     </div>
 
                     <div>
-                        <dt>Tarikh luput permintaan</dt>
+                        <dt>Tarikh Luput Permintaan</dt>
                         <dd>{formatDate(request.expires_at)}</dd>
                     </div>
                 </dl>
@@ -106,12 +106,12 @@ export default function TaskDetailPage({
                 {request.task_class === 'PICKUP_DELIVERY' && (
                     <div className="customer-location-grid">
                         <LocationSnapshotPanel
-                            title="Lokasi Pickup"
+                            title="Lokasi Pengambilan"
                             snapshot={request.pickup_location_snapshot}
                         />
 
                         <LocationSnapshotPanel
-                            title="Lokasi Delivery"
+                            title="Lokasi Penghantaran"
                             snapshot={request.delivery_location_snapshot}
                         />
                     </div>
