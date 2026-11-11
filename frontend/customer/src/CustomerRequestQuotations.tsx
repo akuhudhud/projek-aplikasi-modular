@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import {
@@ -64,6 +65,32 @@ function getApiErrorMessage(
     }
 
     return fallback;
+}
+
+function getRunnerDisplayName(
+    quotation: CustomerMarketplaceQuotation,
+): string {
+    return quotation.runner_profile?.display_name?.trim()
+        || 'Profil awam tidak tersedia';
+}
+
+function formatRunnerRating(
+    quotation: CustomerMarketplaceQuotation,
+): string {
+    const profile = quotation.runner_profile;
+
+    if (
+        !profile ||
+        profile.rating_average === null ||
+        profile.rating_count === 0
+    ) {
+        return 'Belum dinilai';
+    }
+
+    return (
+        `★ ${profile.rating_average.toFixed(1)} / 5 ` +
+        `(${profile.rating_count} penilaian)`
+    );
 }
 
 export default function CustomerRequestQuotations({
@@ -178,8 +205,10 @@ export default function CustomerRequestQuotations({
             return;
         }
 
+        const runnerName = getRunnerDisplayName(currentQuotation);
+
         const confirmed = window.confirm(
-            `Pilih Runner ${currentQuotation.runner_account_id} dengan harga ` +
+            `Pilih ${runnerName} dengan harga ` +
             `${formatAmount(
                 currentQuotation.amount,
                 currentQuotation.currency,
@@ -346,6 +375,8 @@ export default function CustomerRequestQuotations({
                                 visibleDetail.request.status === 'OPEN' &&
                                 quotation.status === 'SUBMITTED';
 
+                            const profile = quotation.runner_profile;
+
                             return (
                                 <article
                                     className="customer-quotation-card"
@@ -369,9 +400,48 @@ export default function CustomerRequestQuotations({
                                         </span>
                                     </div>
 
-                                    <span className="customer-quotation-runner">
-                                        ID Runner: {quotation.runner_account_id}
-                                    </span>
+                                    <div className="customer-quotation-runner-profile">
+                                        <strong className="customer-quotation-runner">
+                                            {getRunnerDisplayName(quotation)}
+                                        </strong>
+
+                                        {profile && (
+                                            <>
+                                                <span className="customer-quotation-location">
+                                                    {profile.base_location && (
+                                                        <span>
+                                                            Lokasi asas: {profile.base_location}
+                                                        </span>
+                                                    )}
+
+                                                    {profile.service_area && (
+                                                        <span>
+                                                            Kawasan servis: {profile.service_area}
+                                                        </span>
+                                                    )}
+                                                </span>
+
+                                                <span className="customer-quotation-rating">
+                                                    {formatRunnerRating(quotation)}
+                                                </span>
+
+                                                <a
+                                                    className="customer-quotation-profile-link"
+                                                    href={`/me/${encodeURIComponent(profile.public_slug)}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    Lihat Profil Runner
+                                                </a>
+                                            </>
+                                        )}
+
+                                        {!profile && (
+                                            <span className="customer-quotation-rating">
+                                                Maklumat profil awam tidak tersedia.
+                                            </span>
+                                        )}
+                                    </div>
 
                                     {quotation.message && (
                                         <p className="customer-quotation-message">
