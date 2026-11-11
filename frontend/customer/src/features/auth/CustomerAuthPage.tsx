@@ -1,4 +1,3 @@
-
 import { useState, type FormEvent } from 'react';
 import axios from 'axios';
 
@@ -251,7 +250,7 @@ export default function CustomerAuthPage({
             const account =
                 await customerApi.completeRegistration({
                     verification_token: registrationVerificationToken,
-                    name: registrationName.trim(),
+                    profile_name: registrationName.trim(),
                     password: registrationPassword,
                     password_confirmation:
                         registrationPasswordConfirmation,
