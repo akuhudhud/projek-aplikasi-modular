@@ -7,14 +7,6 @@ type BottomNavigationProps = {
     onNavigate: (page: CustomerPage) => void;
 };
 
-const ACCESSIBLE_LABELS: Record<CustomerPage, string> = {
-    dashboard: 'Home',
-    requests: 'Open Request',
-    create: 'Create',
-    tasks: 'Tugasan Saya',
-    profile: 'Profil',
-};
-
 export default function BottomNavigation({
     activePage,
     onNavigate,
@@ -39,7 +31,8 @@ export default function BottomNavigation({
                             .filter(Boolean)
                             .join(' ')}
                         aria-current={active ? 'page' : undefined}
-                        aria-label={ACCESSIBLE_LABELS[item.id]}
+                        aria-label={item.label}
+                        title={item.description}
                         onClick={() => onNavigate(item.id)}
                     >
                         <span className="sr-bottom-navigation__icon">
