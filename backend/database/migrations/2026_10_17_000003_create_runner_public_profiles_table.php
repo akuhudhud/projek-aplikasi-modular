@@ -19,13 +19,11 @@ return new class extends Migration
 
             $table->text('bio')->nullable();
 
-            $table->string('service_area', 120)->nullable();
-
-            // Lokasi asas runner: kawasan pentadbiran sahaja.
+            // Base runner.
             $table->string('base_location', 120)->nullable();
 
-            // Kawasan liputan untuk paparan profil.
-            $table->string('coverage_area', 500)->nullable();
+            // Kawasan operasi runner.
+            $table->string('service_area', 120)->nullable();
 
             $table->json('services')->nullable();
 
