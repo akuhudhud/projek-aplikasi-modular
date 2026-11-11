@@ -30,7 +30,6 @@ class CustomerMarketplaceRequestController extends Controller
             ], 401);
         }
 
-        // Luputkan permintaan dan quotation sebelum senarai dipaparkan.
         $this->marketplaceService->expireDueItems();
 
         $requests = MarketplaceRequest::query()
@@ -181,8 +180,6 @@ class CustomerMarketplaceRequestController extends Controller
                 'data' => [
                     'request' => $marketplaceRequest->only([
                         'request_id',
-                        'customer_account_id',
-                        'target_runner_account_id',
                         'source_type',
                         'task_class',
                         'description',
@@ -216,7 +213,6 @@ class CustomerMarketplaceRequestController extends Controller
             ], 401);
         }
 
-        // Luputkan permintaan dan quotation sebelum butiran dipaparkan.
         $this->marketplaceService->expireDueItems();
 
         $marketplaceRequest = MarketplaceRequest::query()
@@ -247,13 +243,6 @@ class CustomerMarketplaceRequestController extends Controller
                 'created_at',
             ]);
 
-        /*
-         * Ambil profil awam yang diterbitkan sahaja.
-         *
-         * Akaun Runner mesti masih ACTIVE dan APPROVED.
-         * account_id digunakan untuk padanan dalaman sahaja
-         * dan tidak dimasukkan ke dalam objek runner_profile.
-         */
         $runnerAccountIds = $quotations
             ->pluck('runner_account_id')
             ->unique()
@@ -315,10 +304,8 @@ class CustomerMarketplaceRequestController extends Controller
                     $quotation->runner_account_id
                 );
 
-                // ID akaun tidak boleh dihantar kepada pelanggan.
                 unset($quotationData['runner_account_id']);
 
-                // Profil tidak diterbitkan atau Runner tidak layak.
                 if ($profile === null) {
                     $quotationData['runner_profile'] = null;
 
@@ -434,7 +421,6 @@ class CustomerMarketplaceRequestController extends Controller
                         'task_type',
                         'source_type',
                         'source_id',
-                        'assigned_account_id',
                         'generic_status',
                         'assigned_at',
                         'created_at',
@@ -492,7 +478,7 @@ class CustomerMarketplaceRequestController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $exception->getMessage(),
-            ], 422);
+            ], 404);
         }
     }
 }
