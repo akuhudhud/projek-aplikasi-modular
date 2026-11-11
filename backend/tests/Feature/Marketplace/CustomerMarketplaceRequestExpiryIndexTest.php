@@ -16,29 +16,7 @@ class CustomerMarketplaceRequestExpiryIndexTest extends TestCase
 
     public function test_request_listing_expires_due_open_requests(): void
     {
-        $customer = Account::create([
-            'id' => (string) Str::uuid(),
-            'name' => 'Expiry Index Customer',
-            'password' => 'Password1',
-            'role' => 'USER',
-            'status' => 'ACTIVE',
-        ]);
-
-        $token = Str::random(64);
-
-        Session::create([
-            'id' => (string) Str::uuid(),
-            'account_id' => $customer->id,
-            'token_hash' => hash('sha256', $token),
-            'created_at' => now(),
-            'last_activity_at' => now(),
-            'ended_at' => null,
-            'end_reason' => null,
-        ]);
-
-        $this->withSession([
-            AuthenticateWebSession::SESSION_TOKEN_KEY => $token,
-        ]);
+        $customer = $this->createCustomerWithWebSession();
 
         $expiredRequestId = (string) Str::uuid();
 
@@ -101,9 +79,80 @@ class CustomerMarketplaceRequestExpiryIndexTest extends TestCase
         ]);
     }
 
+    public function test_request_listing_expires_open_requests_without_expiry(): void
+    {
+        $customer = $this->createCustomerWithWebSession();
+
+        $requestId = (string) Str::uuid();
+
+        MarketplaceRequest::create([
+            'request_id' => $requestId,
+            'customer_account_id' => $customer->id,
+            'source_type' => MarketplaceRequest::SOURCE_MARKETPLACE,
+            'task_class' => MarketplaceRequest::TASK_CLASS_NON_DELIVERY,
+            'description' => 'Permintaan tanpa tarikh luput.',
+            'task_location_snapshot' => [
+                'address' => 'Tuaran',
+            ],
+            'status' => MarketplaceRequest::STATUS_OPEN,
+            'expires_at' => null,
+        ]);
+
+        $response = $this->getJson('/web/customer/requests');
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.pagination.total', 1);
+
+        $response->assertJsonPath(
+            'data.requests.0.request_id',
+            $requestId
+        );
+
+        $response->assertJsonPath(
+            'data.requests.0.status',
+            MarketplaceRequest::STATUS_EXPIRED
+        );
+
+        $this->assertDatabaseHas('marketplace_requests', [
+            'request_id' => $requestId,
+            'status' => MarketplaceRequest::STATUS_EXPIRED,
+            'expires_at' => null,
+        ]);
+    }
+
     public function test_request_listing_still_requires_web_session(): void
     {
         $this->getJson('/web/customer/requests')
             ->assertUnauthorized();
+    }
+
+    private function createCustomerWithWebSession(): Account
+    {
+        $customer = Account::create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Expiry Index Customer',
+            'password' => 'Password1',
+            'role' => 'USER',
+            'status' => 'ACTIVE',
+        ]);
+
+        $token = Str::random(64);
+
+        Session::create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $customer->id,
+            'token_hash' => hash('sha256', $token),
+            'created_at' => now(),
+            'last_activity_at' => now(),
+            'ended_at' => null,
+            'end_reason' => null,
+        ]);
+
+        $this->withSession([
+            AuthenticateWebSession::SESSION_TOKEN_KEY => $token,
+        ]);
+
+        return $customer;
     }
 }
