@@ -30,7 +30,7 @@ class MarketplaceService
 
             $expiredRequests = MarketplaceRequest::query()
                 ->where('status', MarketplaceRequest::STATUS_OPEN)
-                ->where(function ($query) use ($now) {
+                ->where(function ($query) use ($now): void {
                     $query
                         ->whereNull('expires_at')
                         ->orWhere('expires_at', '<=', $now);
@@ -132,11 +132,6 @@ class MarketplaceService
             throw new DomainException('Request description is required.');
         }
 
-        /*
-         * Customer-defined request expiry is mandatory.
-         * The selected expiry must be in the future and no more
-         * than 24 hours from the request creation time.
-         */
         $expiresAtInput = $data['expires_at'] ?? null;
 
         if ($expiresAtInput === null || $expiresAtInput === '') {
@@ -167,7 +162,6 @@ class MarketplaceService
             );
         }
 
-        // PICKUP_DELIVERY requires both pickup and delivery locations.
         if (
             $taskClass === MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY
             && (
@@ -184,7 +178,6 @@ class MarketplaceService
             );
         }
 
-        // NON_DELIVERY requires a task location.
         if (
             $taskClass === MarketplaceRequest::TASK_CLASS_NON_DELIVERY
             && (
@@ -252,8 +245,7 @@ class MarketplaceService
             ];
 
             if (
-                $taskClass
-                === MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY
+                $taskClass === MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY
             ) {
                 $locationData['pickup_location_snapshot'] =
                     $data['pickup_location_snapshot'];
@@ -263,8 +255,7 @@ class MarketplaceService
             }
 
             if (
-                $taskClass
-                === MarketplaceRequest::TASK_CLASS_NON_DELIVERY
+                $taskClass === MarketplaceRequest::TASK_CLASS_NON_DELIVERY
             ) {
                 $locationData['task_location_snapshot'] =
                     $data['task_location_snapshot'];
@@ -512,15 +503,13 @@ class MarketplaceService
             }
 
             if (
-                $quotation->status
-                === MarketplaceQuotation::STATUS_EXPIRED
+                $quotation->status === MarketplaceQuotation::STATUS_EXPIRED
             ) {
                 throw new DomainException('This quotation has expired.');
             }
 
             if (
-                $quotation->status
-                !== MarketplaceQuotation::STATUS_SUBMITTED
+                $quotation->status !== MarketplaceQuotation::STATUS_SUBMITTED
             ) {
                 throw new DomainException(
                     'Only submitted quotations can be withdrawn.'
@@ -636,15 +625,13 @@ class MarketplaceService
             }
 
             if (
-                $quotation->status
-                === MarketplaceQuotation::STATUS_EXPIRED
+                $quotation->status === MarketplaceQuotation::STATUS_EXPIRED
             ) {
                 throw new DomainException('This quotation has expired.');
             }
 
             if (
-                $quotation->status
-                !== MarketplaceQuotation::STATUS_SUBMITTED
+                $quotation->status !== MarketplaceQuotation::STATUS_SUBMITTED
             ) {
                 throw new DomainException(
                     'The selected quotation is no longer available.'
@@ -662,8 +649,6 @@ class MarketplaceService
                 return 'quotation_expired';
             }
 
-            // Lock the runner account so eligibility is checked against
-            // the current account row within this transaction.
             $runner = Account::query()
                 ->whereKey($quotation->runner_account_id)
                 ->lockForUpdate()
