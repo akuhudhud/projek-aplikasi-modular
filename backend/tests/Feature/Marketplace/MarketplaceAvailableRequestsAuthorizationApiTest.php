@@ -31,7 +31,7 @@ class MarketplaceAvailableRequestsAuthorizationApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Suspended Approved Runner API Test',
+            'profile_name' => 'Suspended Approved Runner API Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'SUSPENDED',
