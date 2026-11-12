@@ -1,5 +1,5 @@
 
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
@@ -30,5 +30,10 @@ export default defineConfig({
         outDir: 'dist',
         emptyOutDir: true,
         manifest: 'manifest.json',
+    },
+
+    test: {
+        environment: 'jsdom',
+        setupFiles: ['./src/testSetup.ts'],
     },
 });
