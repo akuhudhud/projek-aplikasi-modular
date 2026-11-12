@@ -146,7 +146,7 @@ class MarketplaceCoreTaskResolutionApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Resolution Test',
+            'profile_name' => 'Marketplace Resolution Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
