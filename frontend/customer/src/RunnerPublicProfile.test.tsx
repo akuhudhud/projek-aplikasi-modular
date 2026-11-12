@@ -41,7 +41,7 @@ import RunnerPublicProfile from './RunnerPublicProfile';
 
 const profile = {
     public_slug: 'test-runner',
-    display_name: 'Runner Tuaran',
+    profile_name: 'Runner Tuaran',
     bio: 'Servis penghantaran sekitar Tuaran.',
     base_location: 'Tuaran',
     service_area: 'Tuaran - Kota Kinabalu sahaja',
