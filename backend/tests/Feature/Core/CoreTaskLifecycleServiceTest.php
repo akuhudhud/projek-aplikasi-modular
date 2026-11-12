@@ -32,7 +32,7 @@ class CoreTaskLifecycleServiceTest extends TestCase
     ): Account {
         $account = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Lifecycle Test Account',
+            'profile_name' => 'Lifecycle Test Account',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
