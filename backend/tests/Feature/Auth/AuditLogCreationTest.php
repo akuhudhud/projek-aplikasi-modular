@@ -45,7 +45,7 @@ class AuditLogCreationTest extends TestCase
 
     private function createAccount(
         string $id,
-        string $name,
+        string $profileName,
         string $phone,
         string $email,
         string $role,
@@ -53,7 +53,7 @@ class AuditLogCreationTest extends TestCase
     ): Account {
         return Account::create([
             'id' => $id,
-            'name' => $name,
+            'profile_name' => $profileName,
             'phone' => $phone,
             'email' => $email,
             'password' => 'Password1',
@@ -408,7 +408,7 @@ class AuditLogCreationTest extends TestCase
 
     private function createAccountWithSession(
         string $accountId,
-        string $name,
+        string $profileName,
         string $phone,
         string $email,
         string $token,
@@ -416,7 +416,7 @@ class AuditLogCreationTest extends TestCase
     ): Account {
         $account = Account::create([
             'id' => $accountId,
-            'name' => $name,
+            'profile_name' => $profileName,
             'phone' => $phone,
             'email' => $email,
             'password' => 'Password1',
@@ -543,7 +543,7 @@ class AuditLogCreationTest extends TestCase
     {
         $root = Account::create([
             'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-            'name' => 'Root Owner',
+            'profile_name' => 'Root Owner',
             'phone' => '60111111111',
             'email' => 'root@example.com',
             'password' => 'Password1',
@@ -568,7 +568,7 @@ class AuditLogCreationTest extends TestCase
     {
         return Account::create([
             'id' => 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-            'name' => 'Appointed Super Admin',
+            'profile_name' => 'Appointed Super Admin',
             'phone' => '60222222222',
             'email' => 'admin@example.com',
             'password' => 'Password1',
