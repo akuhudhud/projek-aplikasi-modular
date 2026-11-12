@@ -124,7 +124,7 @@ class MarketplaceQuotationPrivacyApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Quotation Privacy API Test',
+            'profile_name' => 'Marketplace Quotation Privacy API Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
