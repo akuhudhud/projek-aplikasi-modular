@@ -50,7 +50,7 @@ class RunnerLicenseDocumentAccessSecurityTest extends TestCase
     {
         return Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Ujian Akses Dokumen',
+            'profile_name' => 'Ujian Akses Dokumen',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
