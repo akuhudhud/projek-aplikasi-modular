@@ -15,7 +15,7 @@ class RootSuperAdminJobTitleTest extends TestCase
     {
         $root = Account::create([
             'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-            'name' => 'Root Owner',
+            'profile_name' => 'Root Owner',
             'phone' => '60111111111',
             'email' => 'root@example.com',
             'password' => 'Password1',
@@ -44,7 +44,7 @@ class RootSuperAdminJobTitleTest extends TestCase
             'Authorization',
             'Bearer '.$token
         )->postJson('/api/admin/accounts', [
-            'name' => 'Ahmad',
+            'profile_name' => 'Ahmad',
             'job_title' => 'Pengurus Akaun',
             'phone' => '60222222222',
             'email' => 'ahmad@example.com',
@@ -55,7 +55,7 @@ class RootSuperAdminJobTitleTest extends TestCase
 
         $response
             ->assertStatus(201)
-            ->assertJsonPath('data.account.name', 'Ahmad')
+            ->assertJsonPath('data.account.profile_name', 'Ahmad')
             ->assertJsonPath(
                 'data.account.job_title',
                 'Pengurus Akaun'
@@ -70,7 +70,7 @@ class RootSuperAdminJobTitleTest extends TestCase
 
         $this->assertDatabaseHas('accounts', [
             'email' => 'ahmad@example.com',
-            'name' => 'Ahmad',
+            'profile_name' => 'Ahmad',
             'job_title' => 'Pengurus Akaun',
             'role' => 'SUPER_ADMIN',
         ]);
@@ -82,7 +82,7 @@ class RootSuperAdminJobTitleTest extends TestCase
 
         $admin = Account::create([
             'id' => 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-            'name' => 'Ali',
+            'profile_name' => 'Ali',
             'job_title' => 'Pengurus Kawasan',
             'phone' => '60333333333',
             'email' => 'ali@example.com',
@@ -118,7 +118,7 @@ class RootSuperAdminJobTitleTest extends TestCase
                 'data' => [
                     'account' => [
                         'id',
-                        'name',
+                        'profile_name',
                         'job_title',
                         'phone',
                         'email',
@@ -149,7 +149,7 @@ class RootSuperAdminJobTitleTest extends TestCase
 
         $admin = Account::create([
             'id' => 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-            'name' => 'Ali',
+            'profile_name' => 'Ali',
             'job_title' => 'Pengurus Kawasan',
             'phone' => '60444444444',
             'email' => 'ali-clear@example.com',
@@ -182,7 +182,7 @@ class RootSuperAdminJobTitleTest extends TestCase
     {
         $admin = Account::create([
             'id' => 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-            'name' => 'Super Admin',
+            'profile_name' => 'Super Admin',
             'phone' => '60555555555',
             'email' => 'superadmin@example.com',
             'password' => 'Password1',
@@ -202,7 +202,7 @@ class RootSuperAdminJobTitleTest extends TestCase
 
         $target = Account::create([
             'id' => '11111111-1111-4111-8111-111111111111',
-            'name' => 'Target Admin',
+            'profile_name' => 'Target Admin',
             'phone' => '60666666666',
             'email' => 'target-admin@example.com',
             'password' => 'Password1',
