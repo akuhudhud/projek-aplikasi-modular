@@ -496,7 +496,7 @@ class MarketplaceExpiryServiceTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Expiry Test',
+            'profile_name' => 'Marketplace Expiry Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
