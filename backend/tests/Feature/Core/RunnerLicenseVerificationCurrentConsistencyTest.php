@@ -16,7 +16,7 @@ class RunnerLicenseVerificationCurrentConsistencyTest extends TestCase
     {
         return Account::query()->create([
             'id' => (string) Str::uuid(),
-            'name' => 'License Consistency Test',
+            'profile_name' => 'License Consistency Test',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
