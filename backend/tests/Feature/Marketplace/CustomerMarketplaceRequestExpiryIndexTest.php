@@ -131,7 +131,7 @@ class CustomerMarketplaceRequestExpiryIndexTest extends TestCase
     {
         $customer = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Expiry Index Customer',
+            'profile_name' => 'Expiry Index Customer',
             'password' => 'Password1',
             'role' => 'USER',
             'status' => 'ACTIVE',
