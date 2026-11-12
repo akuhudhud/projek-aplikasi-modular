@@ -3,7 +3,6 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\Account;
-use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,7 +14,7 @@ class LoginTest extends TestCase
     {
         Account::create([
             'id' => '33333333-3333-4333-8333-333333333333',
-            'name' => 'Phone User',
+            'profile_name' => 'Phone User',
             'phone' => '60123456789',
             'password' => 'Password1',
             'role' => 'USER',
@@ -30,7 +29,7 @@ class LoginTest extends TestCase
         $response
             ->assertStatus(200)
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.account.name', 'Phone User')
+            ->assertJsonPath('data.account.profile_name', 'Phone User')
             ->assertJsonPath('data.account.phone', '60123456789')
             ->assertJsonPath('data.account.role', 'USER')
             ->assertJsonPath('data.account.status', 'ACTIVE')
@@ -40,7 +39,7 @@ class LoginTest extends TestCase
                 'data' => [
                     'account' => [
                         'id',
-                        'name',
+                        'profile_name',
                         'phone',
                         'email',
                         'profile_picture',
@@ -67,7 +66,7 @@ class LoginTest extends TestCase
     {
         Account::create([
             'id' => '44444444-4444-4444-8444-444444444444',
-            'name' => 'Email User',
+            'profile_name' => 'Email User',
             'email' => 'email@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -82,7 +81,7 @@ class LoginTest extends TestCase
         $response
             ->assertStatus(200)
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.account.name', 'Email User')
+            ->assertJsonPath('data.account.profile_name', 'Email User')
             ->assertJsonPath('data.account.email', 'email@example.com')
             ->assertJsonPath('data.account.role', 'USER')
             ->assertJsonPath('data.account.status', 'ACTIVE');
@@ -101,7 +100,7 @@ class LoginTest extends TestCase
     {
         Account::create([
             'id' => '55555555-5555-4555-8555-555555555555',
-            'name' => 'Password User',
+            'profile_name' => 'Password User',
             'email' => 'password@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -160,7 +159,7 @@ class LoginTest extends TestCase
     {
         Account::create([
             'id' => '66666666-6666-4666-8666-666666666666',
-            'name' => 'Suspended User',
+            'profile_name' => 'Suspended User',
             'email' => 'suspended@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -184,7 +183,7 @@ class LoginTest extends TestCase
     {
         Account::create([
             'id' => '77777777-7777-4777-8777-777777777777',
-            'name' => 'Deactivated User',
+            'profile_name' => 'Deactivated User',
             'email' => 'deactivated@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -208,7 +207,7 @@ class LoginTest extends TestCase
     {
         Account::create([
             'id' => '88888888-8888-4888-8888-888888888888',
-            'name' => 'Deleted User',
+            'profile_name' => 'Deleted User',
             'email' => 'deleted@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -232,7 +231,7 @@ class LoginTest extends TestCase
     {
         Account::create([
             'id' => '99999999-9999-4999-8999-999999999999',
-            'name' => 'Locked User',
+            'profile_name' => 'Locked User',
             'email' => 'locked@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -272,7 +271,7 @@ class LoginTest extends TestCase
     {
         Account::create([
             'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-            'name' => 'Expired Lock User',
+            'profile_name' => 'Expired Lock User',
             'email' => 'expiredlock@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -300,7 +299,7 @@ class LoginTest extends TestCase
     {
         Account::create([
             'id' => 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-            'name' => 'Reset User',
+            'profile_name' => 'Reset User',
             'email' => 'reset@example.com',
             'password' => 'Password1',
             'role' => 'USER',
