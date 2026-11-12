@@ -18,11 +18,11 @@ import {
 
 import type {
     CustomerTaskRatingPayload,
-} from '../../api';
+} from '../api';
 
 import type {
     CustomerTaskDetailItem,
-} from '../../features/tasks/useCustomerTasks';
+} from '../features/tasks/useCustomerTasks';
 
 import TaskDetailPage from './TaskDetailPage';
 
