@@ -19,7 +19,7 @@ class SessionSecurityHardeningTest extends TestCase
     {
         $account = Account::create([
             'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-            'name' => 'Activity User',
+            'profile_name' => 'Activity User',
             'email' => 'activity@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -65,7 +65,7 @@ class SessionSecurityHardeningTest extends TestCase
     {
         $account = Account::create([
             'id' => 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-            'name' => 'Logout Reason User',
+            'profile_name' => 'Logout Reason User',
             'email' => 'logout-reason@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -108,7 +108,7 @@ class SessionSecurityHardeningTest extends TestCase
     {
         $account = Account::create([
             'id' => 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-            'name' => 'Login Replacement User',
+            'profile_name' => 'Login Replacement User',
             'email' => 'login-replacement@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -158,7 +158,7 @@ class SessionSecurityHardeningTest extends TestCase
     {
         $account = Account::create([
             'id' => '11111111-1111-4111-8111-111111111111',
-            'name' => 'Password Reason User',
+            'profile_name' => 'Password Reason User',
             'email' => 'password-reason@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -215,7 +215,7 @@ class SessionSecurityHardeningTest extends TestCase
     {
         $account = Account::create([
             'id' => '33333333-3333-4333-8333-333333333333',
-            'name' => 'Deactivation Reason User',
+            'profile_name' => 'Deactivation Reason User',
             'email' => 'deactivation-reason@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -261,7 +261,7 @@ class SessionSecurityHardeningTest extends TestCase
     {
         $admin = Account::create([
             'id' => '55555555-5555-4555-8555-555555555555',
-            'name' => 'Session Admin',
+            'profile_name' => 'Session Admin',
             'email' => 'session-admin@example.com',
             'password' => 'Password1',
             'role' => 'SUPER_ADMIN',
@@ -287,7 +287,7 @@ class SessionSecurityHardeningTest extends TestCase
 
         $account = Account::create([
             'id' => '77777777-7777-4777-8777-777777777777',
-            'name' => 'Suspension Reason User',
+            'profile_name' => 'Suspension Reason User',
             'email' => 'suspension-reason@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -338,7 +338,7 @@ class SessionSecurityHardeningTest extends TestCase
     {
         $account = Account::create([
             'id' => '99999999-9999-4999-8999-999999999999',
-            'name' => 'Deletion Reason User',
+            'profile_name' => 'Deletion Reason User',
             'email' => 'deletion-reason@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -384,7 +384,7 @@ class SessionSecurityHardeningTest extends TestCase
     {
         $account = Account::create([
             'id' => 'bbbbbbbb-cccc-4bbb-8ccc-bbbbbbbbbbbb',
-            'name' => 'Multiple Session User',
+            'profile_name' => 'Multiple Session User',
             'email' => 'multiple-session@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -464,7 +464,7 @@ class SessionSecurityHardeningTest extends TestCase
     {
         $account = Account::create([
             'id' => 'eeeeeeee-ffff-4eee-8fff-eeeeeeeeeeee',
-            'name' => 'Inactive Login User',
+            'profile_name' => 'Inactive Login User',
             'email' => 'inactive-login@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -492,7 +492,7 @@ class SessionSecurityHardeningTest extends TestCase
     {
         $account = Account::create([
             'id' => 'ffffffff-aaaa-4fff-8aaa-ffffffffffff',
-            'name' => 'Session Service State User',
+            'profile_name' => 'Session Service State User',
             'email' => 'session-service-state@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -516,7 +516,7 @@ class SessionSecurityHardeningTest extends TestCase
     {
         $account = Account::create([
             'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-            'name' => 'Ended Session Test',
+            'profile_name' => 'Ended Session Test',
             'phone' => '60111111111',
             'email' => 'ended-session@example.com',
             'password' => 'Password1',
@@ -556,7 +556,7 @@ class SessionSecurityHardeningTest extends TestCase
     {
         $account = Account::create([
             'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-            'name' => 'Logout User',
+            'profile_name' => 'Logout User',
             'email' => 'logout@example.com',
             'password' => 'Password1',
             'role' => 'USER',
@@ -596,7 +596,7 @@ class SessionSecurityHardeningTest extends TestCase
     {
         $account = Account::create([
             'id' => 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-            'name' => 'Ended Session User',
+            'profile_name' => 'Ended Session User',
             'email' => 'ended@example.com',
             'password' => 'Password1',
             'role' => 'USER',
