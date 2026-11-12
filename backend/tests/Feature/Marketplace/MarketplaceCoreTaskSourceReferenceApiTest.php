@@ -117,7 +117,7 @@ class MarketplaceCoreTaskSourceReferenceApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Source Reference Test',
+            'profile_name' => 'Marketplace Source Reference Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
