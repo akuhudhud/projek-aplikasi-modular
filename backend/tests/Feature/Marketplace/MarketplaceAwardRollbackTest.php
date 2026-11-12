@@ -104,7 +104,7 @@ class MarketplaceAwardRollbackTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Rollback Test',
+            'profile_name' => 'Marketplace Rollback Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
