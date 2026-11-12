@@ -34,7 +34,7 @@ import { customerApi } from './api';
 
 const account: CustomerAccount = {
     id: 101,
-    name: 'Nazim Updated',
+    profile_name: 'Nazim Updated',
     phone: '60123456789',
     email: 'nazim@example.com',
     profile_picture: null,
@@ -59,14 +59,14 @@ describe('customerApi.updateProfile', () => {
         });
 
         await customerApi.updateProfile({
-            name: 'Nazim Updated',
+            profile_name: 'Nazim Updated',
         });
 
         expect(patchMock).toHaveBeenCalledTimes(1);
         expect(patchMock).toHaveBeenCalledWith(
             '/web/auth/profile',
             {
-                name: 'Nazim Updated',
+                profile_name: 'Nazim Updated',
             },
         );
     });
@@ -82,7 +82,7 @@ describe('customerApi.updateProfile', () => {
         });
 
         const result = await customerApi.updateProfile({
-            name: 'Nazim Updated',
+            profile_name: 'Nazim Updated',
         });
 
         expect(result).toEqual(account);
@@ -95,7 +95,7 @@ describe('customerApi.updateProfile', () => {
 
         await expect(
             customerApi.updateProfile({
-                name: 'Nazim Updated',
+                profile_name: 'Nazim Updated',
             }),
         ).rejects.toBe(apiError);
     });
@@ -139,7 +139,7 @@ describe('customerApi.getRequest', () => {
                     created_at: '2026-11-07T10:30:00.000000Z',
                     runner_profile: {
                         public_slug: 'runner-tuaran',
-                        display_name: 'Runner Tuaran',
+                        profile_name: 'Runner Tuaran',
                         bio: 'Servis penghantaran sekitar Tuaran.',
                         base_location: 'Tuaran',
                         service_area: 'Tuaran dan kawasan berhampiran',
@@ -168,7 +168,7 @@ describe('customerApi.getRequest', () => {
         expect(result.quotations[0]).not.toHaveProperty(
             'runner_account_id',
         );
-        expect(result.quotations[0].runner_profile?.display_name).toBe(
+        expect(result.quotations[0].runner_profile?.profile_name).toBe(
             'Runner Tuaran',
         );
     });
