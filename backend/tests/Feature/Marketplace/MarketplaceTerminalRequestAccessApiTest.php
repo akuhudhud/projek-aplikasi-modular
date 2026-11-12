@@ -121,7 +121,7 @@ class MarketplaceTerminalRequestAccessApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Terminal Access Test',
+            'profile_name' => 'Marketplace Terminal Access Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
