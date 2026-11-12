@@ -15,7 +15,7 @@ class WebSessionRotationTest extends TestCase
     {
         Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Session Rotation User',
+            'profile_name' => 'Session Rotation User',
             'phone' => '60123456789',
             'email' => 'rotation@example.com',
             'password' => 'Password1',
