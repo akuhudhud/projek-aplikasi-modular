@@ -20,7 +20,7 @@ class WebAuthenticationTest extends TestCase
     ): Account {
         return Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Web Customer',
+            'profile_name' => 'Web Customer',
             'phone' => $phone,
             'email' => $email,
             'password' => 'Password1',
