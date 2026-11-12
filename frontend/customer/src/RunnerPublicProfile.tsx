@@ -1,4 +1,6 @@
 
+import { useState } from 'react';
+
 import { useRunnerPublicProfile } from './features/runners/useRunnerPublicProfile';
 import './RunnerPublicProfile.css';
 
@@ -10,66 +12,123 @@ export default function RunnerPublicProfile({ slug }: Props) {
     const {
         profile,
         loading,
+        notFound,
         error,
         reload,
     } = useRunnerPublicProfile(slug);
 
+    const [shareError, setShareError] = useState('');
+
     const reviewsUrl = `/me/${encodeURIComponent(slug.toLowerCase())}/ulasan`;
 
-    if (loading && !profile) {
+    function openRequestForm() {
+        window.location.href = `/?runner=${encodeURIComponent(slug.toLowerCase())}`;
+    }
+
+    async function shareProfile() {
+        const url = `${window.location.origin}/me/${encodeURIComponent(slug.toLowerCase())}`;
+
+        setShareError('');
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: profile?.profile_name ?? 'Profil Runner Super Runner',
+                    text: 'Lihat profil Runner ini.',
+                    url,
+                });
+            } catch (shareError) {
+                if (
+                    shareError instanceof Error &&
+                    shareError.name === 'AbortError'
+                ) {
+                    return;
+                }
+
+                setShareError('Tidak berjaya berkongsi pautan profil.');
+            }
+
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(url);
+            window.alert('Pautan profil berjaya disalin.');
+        } catch {
+            setShareError('Tidak berjaya menyalin pautan profil.');
+        }
+    }
+
+    if (loading) {
         return (
             <main className="runner-public-page">
-                <article className="runner-public-card">
+                <section className="runner-public-card" aria-live="polite">
                     <p>Sedang memuatkan profil Runner...</p>
-                </article>
+                </section>
             </main>
         );
     }
 
-    if (error || !profile) {
+    if (notFound) {
         return (
             <main className="runner-public-page">
-                <article className="runner-public-card">
-                    <p className="runner-public-error" role="alert">
-                        {error || 'Profil Runner tidak dijumpai.'}
+                <section className="runner-public-card runner-public-state">
+                    <h1>Profil Tidak Ditemui</h1>
+                    <p>
+                        Pautan ini mungkin tidak sah atau profil Runner
+                        belum diterbitkan.
                     </p>
+                    <a href="/">Kembali ke halaman utama</a>
+                </section>
+            </main>
+        );
+    }
 
-                    <button
-                        type="button"
-                        className="runner-public-primary"
-                        onClick={reload}
-                    >
+    if (error && !profile) {
+        return (
+            <main className="runner-public-page">
+                <section className="runner-public-card runner-public-state">
+                    <h1>Ralat</h1>
+                    <p role="alert">{error}</p>
+                    <button type="button" onClick={reload}>
                         Cuba Semula
                     </button>
-                </article>
+                </section>
             </main>
         );
     }
+
+    if (!profile) return null;
 
     return (
         <main className="runner-public-page">
             <article className="runner-public-card">
                 <header className="runner-public-header">
-                    <span className="runner-public-brand">
-                        SUPER RUNNER
-                    </span>
-
-                    <span className="runner-public-label">
-                        PROFIL RUNNER
-                    </span>
+                    <span className="runner-public-brand">SUPER RUNNER</span>
+                    <span className="runner-public-label">PROFIL RUNNER</span>
                 </header>
 
-                <section className="runner-public-section">
-                    <h1>{profile.profile_name}</h1>
+                <section className="runner-public-identity">
+                    <div className="runner-public-avatar" aria-hidden="true">
+                        {profile.profile_name.trim().charAt(0).toUpperCase() || 'R'}
+                    </div>
 
-                    {profile.rating_average !== null && (
-                        <p>
-                            <strong>
-                                ★ {Number(profile.rating_average).toFixed(1)}
-                            </strong>
-                            {' '}daripada 5
-                        </p>
-                    )}
+                    <div>
+                        <h1>{profile.profile_name}</h1>
+
+                        <div className="runner-public-rating">
+                            <span>
+                                {profile.rating_average === null
+                                    ? 'Belum dinilai'
+                                    : `★ ${profile.rating_average.toFixed(1)} / 5`}
+                            </span>
+                            <span>({profile.rating_count} penilaian)</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="runner-public-section">
+                    <h2>Ulasan Pelanggan</h2>
 
                     <p className="runner-public-review-count">
                         {profile.rating_count} penilaian pelanggan
@@ -83,27 +142,33 @@ export default function RunnerPublicProfile({ slug }: Props) {
                             minHeight: 46,
                             alignItems: 'center',
                             justifyContent: 'center',
+                            marginTop: 12,
                             borderRadius: 10,
                             textDecoration: 'none',
                             fontWeight: 700,
-                            marginTop: 12,
                         }}
                     >
                         Lihat Ulasan
                     </a>
                 </section>
 
-                {profile.base_location && (
+                {(profile.base_location || profile.service_area) && (
                     <section className="runner-public-section">
-                        <h2>Lokasi</h2>
-                        <p>{profile.base_location}</p>
-                    </section>
-                )}
+                        <h2>Lokasi Runner</h2>
 
-                {profile.service_area && (
-                    <section className="runner-public-section">
-                        <h2>Kawasan Perkhidmatan</h2>
-                        <p>{profile.service_area}</p>
+                        {profile.base_location && (
+                            <p>
+                                <strong>Lokasi Asas:</strong>{' '}
+                                {profile.base_location}
+                            </p>
+                        )}
+
+                        {profile.service_area && (
+                            <p>
+                                <strong>Kawasan Liputan:</strong>{' '}
+                                {profile.service_area}
+                            </p>
+                        )}
                     </section>
                 )}
 
@@ -117,8 +182,7 @@ export default function RunnerPublicProfile({ slug }: Props) {
                 {profile.services.length > 0 && (
                     <section className="runner-public-section">
                         <h2>Perkhidmatan</h2>
-
-                        <ul>
+                        <ul className="runner-public-services">
                             {profile.services.map((service, index) => (
                                 <li key={`${service}-${index}`}>
                                     {service}
@@ -130,30 +194,26 @@ export default function RunnerPublicProfile({ slug }: Props) {
 
                 <footer className="runner-public-footer">
                     <button
-                        type="button"
                         className="runner-public-primary"
+                        type="button"
+                        onClick={openRequestForm}
                     >
                         Buat Permintaan
                     </button>
 
                     <button
-                        type="button"
                         className="runner-public-secondary"
-                        onClick={() => {
-                            if (navigator.share) {
-                                void navigator.share({
-                                    title: profile.profile_name,
-                                    url: window.location.href,
-                                });
-                            } else {
-                                void navigator.clipboard.writeText(
-                                    window.location.href,
-                                );
-                            }
-                        }}
+                        type="button"
+                        onClick={shareProfile}
                     >
                         Kongsi Profil
                     </button>
+
+                    {shareError && (
+                        <p className="runner-public-error" role="alert">
+                            {shareError}
+                        </p>
+                    )}
                 </footer>
             </article>
         </main>
