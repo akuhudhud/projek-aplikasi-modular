@@ -18,7 +18,7 @@ class DrivingLicenseCatalogAuditLogTest extends TestCase
     {
         return Account::query()->create([
             'id' => (string) Str::uuid(),
-            'name' => 'Ujian Audit Katalog',
+            'profile_name' => 'Ujian Audit Katalog',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
