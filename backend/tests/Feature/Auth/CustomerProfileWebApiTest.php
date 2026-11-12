@@ -17,7 +17,7 @@ class CustomerProfileWebApiTest extends TestCase
     {
         return Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Original Customer',
+            'profile_name' => 'Original Customer',
             'phone' => '60123456789',
             'email' => 'customer@example.com',
             'password' => 'Password1',
@@ -51,25 +51,25 @@ class CustomerProfileWebApiTest extends TestCase
 
         $response = $this->authenticatedRequest($account)
             ->patchJson('/web/auth/profile', [
-                'name' => 'Updated Customer',
+                'profile_name' => 'Updated Customer',
             ]);
 
         $response
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.account.name', 'Updated Customer')
+            ->assertJsonPath('data.account.profile_name', 'Updated Customer')
             ->assertJsonPath('data.account.id', $account->id);
 
         $this->assertDatabaseHas('accounts', [
             'id' => $account->id,
-            'name' => 'Updated Customer',
+            'profile_name' => 'Updated Customer',
         ]);
     }
 
     public function test_profile_update_requires_web_authentication(): void
     {
         $this->patchJson('/web/auth/profile', [
-            'name' => 'Updated Customer',
+            'profile_name' => 'Updated Customer',
         ])->assertUnauthorized();
     }
 
@@ -79,16 +79,16 @@ class CustomerProfileWebApiTest extends TestCase
 
         $response = $this->authenticatedRequest($account)
             ->patchJson('/web/auth/profile', [
-                'name' => str_repeat('A', 256),
+                'profile_name' => str_repeat('A', 256),
             ]);
 
         $response
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['name']);
+            ->assertJsonValidationErrors(['profile_name']);
 
         $this->assertDatabaseHas('accounts', [
             'id' => $account->id,
-            'name' => 'Original Customer',
+            'profile_name' => 'Original Customer',
         ]);
     }
 
@@ -98,16 +98,16 @@ class CustomerProfileWebApiTest extends TestCase
 
         $response = $this->authenticatedRequest($account)
             ->patchJson('/web/auth/profile', [
-                'name' => ['Invalid'],
+                'profile_name' => ['Invalid'],
             ]);
 
         $response
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['name']);
+            ->assertJsonValidationErrors(['profile_name']);
 
         $this->assertDatabaseHas('accounts', [
             'id' => $account->id,
-            'name' => 'Original Customer',
+            'profile_name' => 'Original Customer',
         ]);
     }
 }
