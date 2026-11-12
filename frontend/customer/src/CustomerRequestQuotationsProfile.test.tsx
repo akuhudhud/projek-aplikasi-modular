@@ -41,7 +41,7 @@ import CustomerRequestQuotations from './CustomerRequestQuotations';
 
 const runnerProfile = {
     public_slug: 'runner-tuaran',
-    display_name: 'Runner Tuaran',
+    profile_name: 'Runner Tuaran',
     bio: 'Servis penghantaran sekitar Tuaran.',
     base_location: 'Tuaran',
     service_area: 'Tuaran dan kawasan berhampiran',
@@ -190,7 +190,7 @@ describe('Customer quotation Runner public profile', () => {
         expect(card.textContent).not.toContain('Tuaran');
     });
 
-    it('uses Runner display name in quotation award confirmation', async () => {
+    it('uses Runner profile name in quotation award confirmation', async () => {
         const confirmMock = vi
             .spyOn(window, 'confirm')
             .mockReturnValue(false);
