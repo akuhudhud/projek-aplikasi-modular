@@ -1,4 +1,3 @@
-
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
@@ -30,7 +29,7 @@ import { customerApi } from './api';
 
 const account = {
     id: 101,
-    name: 'Customer Test',
+    profile_name: 'Customer Test',
     phone: '60123456789',
     email: 'customer@example.com',
     profile_picture: null,
@@ -142,7 +141,7 @@ describe('customerApi authentication', () => {
     it('completes registration and returns the new account', async () => {
         const payload = {
             verification_token: 'verified-token',
-            name: 'Customer Test',
+            profile_name: 'Customer Test',
             password: 'Password123',
             password_confirmation: 'Password123',
         };
