@@ -20,7 +20,7 @@ class CoreTaskLifecycleApiTest extends TestCase
     ): Account {
         $account = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Lifecycle API Account',
+            'profile_name' => 'Lifecycle API Account',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
