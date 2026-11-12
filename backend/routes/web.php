@@ -4,6 +4,7 @@ use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\RegistrationController;
 use App\Http\Controllers\Web\CustomerMarketplaceRequestController;
 use App\Http\Controllers\Web\CustomerTaskController;
+use App\Http\Controllers\Api\RunnerTaskRatingController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('web/auth')
@@ -55,6 +56,16 @@ Route::prefix('web/customer')
 
         Route::get('/tasks/{taskId}', [CustomerTaskController::class, 'show'])
             ->name('tasks.show');
+
+        Route::post(
+            '/tasks/{taskId}/rating',
+            [RunnerTaskRatingController::class, 'storeOrUpdate']
+        )->name('tasks.rating.store');
+
+        Route::patch(
+            '/tasks/{taskId}/rating',
+            [RunnerTaskRatingController::class, 'storeOrUpdate']
+        )->name('tasks.rating.update');
 
         Route::get('/requests', [CustomerMarketplaceRequestController::class, 'index'])
             ->name('requests.index');
