@@ -18,7 +18,7 @@ class DrivingLicenseCatalogValidationTest extends TestCase
     {
         return Account::query()->create([
             'id' => (string) Str::uuid(),
-            'name' => 'Ujian Validasi Katalog',
+            'profile_name' => 'Ujian Validasi Katalog',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
