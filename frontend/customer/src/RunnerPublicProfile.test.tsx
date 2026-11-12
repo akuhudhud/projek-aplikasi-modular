@@ -15,6 +15,7 @@ import {
     fireEvent,
     render,
     screen,
+    waitFor,
 } from '@testing-library/react';
 
 const { getMock, isAxiosErrorMock } = vi.hoisted(() => ({
@@ -54,18 +55,6 @@ const profile = {
     views_count: 35,
 };
 
-const firstReview = {
-    rating: 5,
-    review: 'Runner sangat baik dan penghantaran cepat.',
-    created_at: '2026-11-10T10:00:00.000000Z',
-};
-
-const secondReview = {
-    rating: 4,
-    review: 'Servis memuaskan.',
-    created_at: '2026-11-09T10:00:00.000000Z',
-};
-
 function successfulProfileResponse() {
     return {
         data: {
@@ -77,68 +66,47 @@ function successfulProfileResponse() {
     };
 }
 
-function successfulReviewsResponse(
-    reviews: Array<{
-        rating: number;
-        review: string;
-        created_at: string;
-    }> = [],
-    currentPage = 1,
-    lastPage = 1,
-    total = reviews.length,
-) {
-    return {
-        data: {
-            success: true,
-            data: {
-                reviews,
-                pagination: {
-                    current_page: currentPage,
-                    last_page: lastPage,
-                    per_page: 20,
-                    total,
-                },
-            },
-        },
-    };
-}
-
-function mockSuccessfulRequests() {
-    getMock.mockImplementation((url: string) => {
-        if (url.includes('/reviews')) {
-            return Promise.resolve(
-                successfulReviewsResponse(),
-            );
-        }
-
-        return Promise.resolve(
-            successfulProfileResponse(),
-        );
-    });
+function mockSuccessfulProfile() {
+    getMock.mockResolvedValue(successfulProfileResponse());
 }
 
 describe('RunnerPublicProfile', () => {
     beforeEach(() => {
         getMock.mockReset();
         isAxiosErrorMock.mockClear();
+
+        window.history.replaceState({}, '', '/me/test-runner');
+
+        Object.defineProperty(window.navigator, 'share', {
+            configurable: true,
+            value: undefined,
+        });
+
+        Object.defineProperty(window.navigator, 'clipboard', {
+            configurable: true,
+            value: {
+                writeText: vi.fn().mockResolvedValue(undefined),
+            },
+        });
     });
 
     afterEach(() => {
         cleanup();
+        vi.restoreAllMocks();
     });
 
     it('loads the public profile using the normalized slug', async () => {
-        mockSuccessfulRequests();
+        mockSuccessfulProfile();
 
-        render(
-            <RunnerPublicProfile slug="TEST-RUNNER" />,
-        );
+        render(<RunnerPublicProfile slug="TEST-RUNNER" />);
 
         expect(
             await screen.findByRole('heading', {
                 name: 'Runner Tuaran',
             }),
         ).toBeTruthy();
+
+        expect(getMock).toHaveBeenCalledTimes(1);
 
         expect(getMock).toHaveBeenCalledWith(
             '/api/runners/test-runner',
@@ -149,21 +117,17 @@ describe('RunnerPublicProfile', () => {
         );
     });
 
-    it('displays public profile information and exactly two location fields', async () => {
-        mockSuccessfulRequests();
+    it('displays public profile information and location fields', async () => {
+        mockSuccessfulProfile();
 
-        render(
-            <RunnerPublicProfile slug="test-runner" />,
-        );
+        render(<RunnerPublicProfile slug="test-runner" />);
 
         await screen.findByRole('heading', {
             name: 'Runner Tuaran',
         });
 
         expect(
-            screen.getByText(
-                'Servis penghantaran sekitar Tuaran.',
-            ),
+            screen.getByText('Servis penghantaran sekitar Tuaran.'),
         ).toBeTruthy();
 
         expect(
@@ -174,209 +138,170 @@ describe('RunnerPublicProfile', () => {
             screen.getByText('Penghantaran dokumen'),
         ).toBeTruthy();
 
-        expect(
-            screen.getByText('Lokasi Asas:'),
-        ).toBeTruthy();
+        expect(screen.getByText('Lokasi Asas:')).toBeTruthy();
+        expect(screen.getByText('Tuaran')).toBeTruthy();
 
-        expect(
-            screen.getByText('Tuaran'),
-        ).toBeTruthy();
-
-        expect(
-            screen.getByText('Kawasan Liputan:'),
-        ).toBeTruthy();
+        expect(screen.getByText('Kawasan Liputan:')).toBeTruthy();
 
         expect(
             screen.getByText('Tuaran - Kota Kinabalu sahaja'),
         ).toBeTruthy();
 
-        expect(
-            screen.getByText('★ 4.8 / 5'),
-        ).toBeTruthy();
+        expect(screen.getByText('★ 4.8 / 5')).toBeTruthy();
+        expect(screen.getByText('(12 penilaian)')).toBeTruthy();
+    });
 
-        expect(
-            screen.getByRole('button', {
-                name: 'Buat Permintaan',
-            }),
-        ).toBeTruthy();
+    it('displays the runner avatar using the first letter of the profile name', async () => {
+        mockSuccessfulProfile();
+
+        render(<RunnerPublicProfile slug="test-runner" />);
+
+        await screen.findByRole('heading', {
+            name: 'Runner Tuaran',
+        });
+
+        expect(screen.getByText('R')).toBeTruthy();
     });
 
     it('displays an empty rating state when no ratings exist', async () => {
-        mockSuccessfulRequests();
-
-        getMock.mockImplementation((url: string) => {
-            if (url.includes('/reviews')) {
-                return Promise.resolve(
-                    successfulReviewsResponse(),
-                );
-            }
-
-            return Promise.resolve({
+        getMock.mockResolvedValue({
+            data: {
+                success: true,
                 data: {
-                    success: true,
-                    data: {
-                        profile: {
-                            ...profile,
-                            rating_average: null,
-                            rating_count: 0,
-                        },
+                    profile: {
+                        ...profile,
+                        rating_average: null,
+                        rating_count: 0,
                     },
                 },
-            });
+            },
         });
 
-        render(
-            <RunnerPublicProfile slug="test-runner" />,
-        );
+        render(<RunnerPublicProfile slug="test-runner" />);
 
         expect(
             await screen.findByText('Belum dinilai'),
         ).toBeTruthy();
 
-        expect(
-            screen.getByText('(0 penilaian)'),
-        ).toBeTruthy();
+        expect(screen.getByText('(0 penilaian)')).toBeTruthy();
     });
 
-    it('displays anonymous written reviews without reviewer identity', async () => {
-        getMock.mockImplementation((url: string) => {
-            if (url.includes('/reviews')) {
-                return Promise.resolve(
-                    successfulReviewsResponse(
-                        [firstReview],
-                    ),
-                );
-            }
+    it('does not display written reviews inside the public profile', async () => {
+        mockSuccessfulProfile();
 
-            return Promise.resolve(
-                successfulProfileResponse(),
-            );
+        render(<RunnerPublicProfile slug="test-runner" />);
+
+        await screen.findByRole('heading', {
+            name: 'Runner Tuaran',
         });
 
-        render(
-            <RunnerPublicProfile slug="test-runner" />,
-        );
+        expect(
+            screen.queryByText('Runner sangat baik dan penghantaran cepat.'),
+        ).toBeNull();
 
         expect(
-            await screen.findByText(
-                'Runner sangat baik dan penghantaran cepat.',
-            ),
-        ).toBeTruthy();
+            screen.queryByRole('button', {
+                name: 'Lihat Lebih Banyak Ulasan',
+            }),
+        ).toBeNull();
 
         expect(
-            screen.getByText('1 ulasan bertulis'),
-        ).toBeTruthy();
-
-        expect(
-            screen.getByLabelText('5 daripada 5 bintang'),
-        ).toBeTruthy();
-
-        expect(
-            screen.queryByText(/nama pelanggan/i),
+            screen.queryByText('Belum ada ulasan bertulis daripada pelanggan.'),
         ).toBeNull();
     });
 
-    it('displays an empty written reviews state', async () => {
-        mockSuccessfulRequests();
+    it('provides a separate link to the runner reviews page', async () => {
+        mockSuccessfulProfile();
 
-        render(
-            <RunnerPublicProfile slug="test-runner" />,
+        render(<RunnerPublicProfile slug="TEST-RUNNER" />);
+
+        await screen.findByRole('heading', {
+            name: 'Runner Tuaran',
+        });
+
+        const reviewsLink = screen.getByRole('link', {
+            name: 'Lihat Ulasan',
+        });
+
+        expect(reviewsLink.getAttribute('href')).toBe(
+            '/me/test-runner/ulasan',
         );
-
-        expect(
-            await screen.findByText(
-                'Belum ada ulasan bertulis daripada pelanggan.',
-            ),
-        ).toBeTruthy();
     });
 
-    it('loads the next page of written reviews', async () => {
-        getMock.mockImplementation(
-            (
-                url: string,
-                config?: {
-                    params?: {
-                        page?: number;
-                    };
+    it('opens the request form with the runner slug', async () => {
+        mockSuccessfulProfile();
+
+        render(<RunnerPublicProfile slug="TEST-RUNNER" />);
+
+        await screen.findByRole('heading', {
+            name: 'Runner Tuaran',
+        });
+
+        const locationSetter = vi.fn();
+
+        Object.defineProperty(window, 'location', {
+            configurable: true,
+            value: {
+                ...window.location,
+                set href(value: string) {
+                    locationSetter(value);
                 },
-            ) => {
-                if (url.includes('/reviews')) {
-                    if (config?.params?.page === 2) {
-                        return Promise.resolve(
-                            successfulReviewsResponse(
-                                [secondReview],
-                                2,
-                                2,
-                                2,
-                            ),
-                        );
-                    }
-
-                    return Promise.resolve(
-                        successfulReviewsResponse(
-                            [firstReview],
-                            1,
-                            2,
-                            2,
-                        ),
-                    );
-                }
-
-                return Promise.resolve(
-                    successfulProfileResponse(),
-                );
+                get href() {
+                    return '/me/test-runner';
+                },
+                origin: 'http://localhost',
             },
-        );
-
-        render(
-            <RunnerPublicProfile slug="test-runner" />,
-        );
-
-        expect(
-            await screen.findByText(
-                'Runner sangat baik dan penghantaran cepat.',
-            ),
-        ).toBeTruthy();
+        });
 
         fireEvent.click(
             screen.getByRole('button', {
-                name: 'Lihat Lebih Banyak Ulasan',
+                name: 'Buat Permintaan',
             }),
         );
 
-        expect(
-            await screen.findByText('Servis memuaskan.'),
-        ).toBeTruthy();
-
-        expect(getMock).toHaveBeenCalledWith(
-            '/api/runners/test-runner/reviews',
-            expect.objectContaining({
-                params: {
-                    page: 2,
-                },
-            }),
+        expect(locationSetter).toHaveBeenCalledWith(
+            '/?runner=test-runner',
         );
     });
 
-    it('displays not found when the public profile does not exist', async () => {
-        getMock.mockImplementation((url: string) => {
-            if (url.includes('/reviews')) {
-                return Promise.resolve(
-                    successfulReviewsResponse(),
-                );
-            }
+    it('copies the public profile link when native sharing is unavailable', async () => {
+        mockSuccessfulProfile();
 
-            return Promise.reject({
-                isAxiosError: true,
-                response: {
-                    status: 404,
-                },
-            });
+        const writeText = vi.fn().mockResolvedValue(undefined);
+
+        Object.defineProperty(window.navigator, 'clipboard', {
+            configurable: true,
+            value: { writeText },
         });
 
-        render(
-            <RunnerPublicProfile slug="missing-runner" />,
+        render(<RunnerPublicProfile slug="test-runner" />);
+
+        await screen.findByRole('heading', {
+            name: 'Runner Tuaran',
+        });
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Kongsi Profil',
+            }),
         );
+
+        await waitFor(() => {
+            expect(writeText).toHaveBeenCalledWith(
+                'http://localhost/me/test-runner',
+            );
+        });
+    });
+
+    it('displays not found when the public profile does not exist', async () => {
+        getMock.mockRejectedValue({
+            isAxiosError: true,
+            response: {
+                status: 404,
+            },
+        });
+
+        render(<RunnerPublicProfile slug="missing-runner" />);
 
         expect(
             await screen.findByRole('heading', {
@@ -386,21 +311,9 @@ describe('RunnerPublicProfile', () => {
     });
 
     it('displays an error when the profile request fails', async () => {
-        getMock.mockImplementation((url: string) => {
-            if (url.includes('/reviews')) {
-                return Promise.resolve(
-                    successfulReviewsResponse(),
-                );
-            }
+        getMock.mockRejectedValue(new Error('Network error'));
 
-            return Promise.reject(
-                new Error('Network error'),
-            );
-        });
-
-        render(
-            <RunnerPublicProfile slug="test-runner" />,
-        );
+        render(<RunnerPublicProfile slug="test-runner" />);
 
         expect(
             await screen.findByRole('heading', {
@@ -408,37 +321,15 @@ describe('RunnerPublicProfile', () => {
             }),
         ).toBeTruthy();
 
-        expect(
-            screen.getByRole('alert'),
-        ).toBeTruthy();
+        expect(screen.getByRole('alert')).toBeTruthy();
     });
 
     it('retries loading the profile after clicking Cuba Semula', async () => {
-        let profileAttempts = 0;
+        getMock
+            .mockRejectedValueOnce(new Error('Network error'))
+            .mockResolvedValueOnce(successfulProfileResponse());
 
-        getMock.mockImplementation((url: string) => {
-            if (url.includes('/reviews')) {
-                return Promise.resolve(
-                    successfulReviewsResponse(),
-                );
-            }
-
-            profileAttempts += 1;
-
-            if (profileAttempts === 1) {
-                return Promise.reject(
-                    new Error('Network error'),
-                );
-            }
-
-            return Promise.resolve(
-                successfulProfileResponse(),
-            );
-        });
-
-        render(
-            <RunnerPublicProfile slug="test-runner" />,
-        );
+        render(<RunnerPublicProfile slug="test-runner" />);
 
         expect(
             await screen.findByRole('heading', {
@@ -458,6 +349,6 @@ describe('RunnerPublicProfile', () => {
             }),
         ).toBeTruthy();
 
-        expect(profileAttempts).toBe(2);
+        expect(getMock).toHaveBeenCalledTimes(2);
     });
 });
