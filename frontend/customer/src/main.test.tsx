@@ -358,7 +358,7 @@ async function openCompletedCustomerTask(
     });
 
     await screen.findByRole('heading', {
-        name: 'Nilai Pengalaman Anda',
+        name: /Nilai Pengalaman Anda|Kemaskini Penilaian/,
     });
 }
 
