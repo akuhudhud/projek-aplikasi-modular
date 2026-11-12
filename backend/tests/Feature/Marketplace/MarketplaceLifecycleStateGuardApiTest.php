@@ -201,7 +201,7 @@ class MarketplaceLifecycleStateGuardApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Lifecycle State Guard Test',
+            'profile_name' => 'Marketplace Lifecycle State Guard Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
