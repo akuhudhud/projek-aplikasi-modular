@@ -18,7 +18,7 @@ class DrivingLicenseCatalogUpdateIntegrityTest extends TestCase
     {
         $root = Account::query()->create([
             'id' => (string) Str::uuid(),
-            'name' => 'Root Catalog Integrity',
+            'profile_name' => 'Root Catalog Integrity',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
