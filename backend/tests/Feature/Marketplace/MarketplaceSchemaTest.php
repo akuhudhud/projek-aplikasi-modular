@@ -459,14 +459,14 @@ class MarketplaceSchemaTest extends TestCase
     /**
      * Insert a test account and return its UUID.
      */
-    private function insertAccount(string $name): string
+    private function insertAccount(string $profileName): string
     {
         $accountId = (string) Str::uuid();
         $now = now();
 
         DB::table('accounts')->insert([
             'id' => $accountId,
-            'name' => $name,
+            'profile_name' => $profileName,
             'password' => bcrypt('test-password'),
             'created_at' => $now,
             'updated_at' => $now,
