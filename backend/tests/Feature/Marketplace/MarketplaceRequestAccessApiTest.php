@@ -249,7 +249,7 @@ class MarketplaceRequestAccessApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Request Access API Test',
+            'profile_name' => 'Marketplace Request Access API Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
