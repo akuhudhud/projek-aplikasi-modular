@@ -32,7 +32,7 @@ class CoreTaskAssignmentServiceTest extends TestCase
     ): Account {
         $account = Account::create([
             'id' => $id,
-            'name' => 'Assignment Test Account',
+            'profile_name' => 'Assignment Test Account',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
@@ -76,7 +76,7 @@ class CoreTaskAssignmentServiceTest extends TestCase
     {
         $account = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'New Account',
+            'profile_name' => 'New Account',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
