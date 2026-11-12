@@ -23,7 +23,7 @@ class ContactChangeTest extends TestCase
     ): Account {
         $account = Account::create(array_merge([
             'id' => $accountId,
-            'name' => 'Test User',
+            'profile_name' => 'Test User',
             'phone' => '601'.$this->phoneCounter++,
             'email' => str_replace('-', '', $accountId).'@example.com',
             'password' => 'Password1',
