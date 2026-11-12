@@ -241,6 +241,7 @@ export default function TaskDetailPage({
                                                     ? 'customer-rating-star is-selected'
                                                     : 'customer-rating-star'
                                             }
+                                            disabled={ratingSaving}
                                             onClick={() =>
                                                 setSelectedRating(value)
                                             }
