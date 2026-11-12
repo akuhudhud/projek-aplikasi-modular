@@ -1,3 +1,4 @@
+
 <?php
 
 namespace Tests\Feature\Identity;
@@ -24,11 +25,11 @@ class IdentityVerificationDeletionTest extends TestCase
     private function createAccount(
         string $role = 'USER',
         string $status = 'ACTIVE',
-        string $name = 'Identity Deletion Test'
+        string $profileName = 'Identity Deletion Test'
     ): Account {
         return Account::create([
             'id' => (string) Str::uuid(),
-            'name' => $name,
+            'profile_name' => $profileName,
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
@@ -70,7 +71,7 @@ class IdentityVerificationDeletionTest extends TestCase
         return IdentityVerification::create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'real_name' => 'Nama Ujian',
+            'verified_name' => 'Nama Ujian',
             'mykad_number' => '900101145678',
             'status' => $status,
             'submitted_at' => now(),
