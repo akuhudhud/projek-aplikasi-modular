@@ -8,6 +8,7 @@ use App\Models\CoreTask;
 use App\Models\MarketplaceRequest;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -96,6 +97,9 @@ class CustomerTaskWebApiTest extends TestCase
             'assigned_account_id' => $runner?->id,
             'generic_status' => $status,
             'assigned_at' => now(),
+            'completed_at' => $status === CoreTask::STATUS_COMPLETED
+                ? now()
+                : null,
         ]);
 
         return [
@@ -228,6 +232,7 @@ class CustomerTaskWebApiTest extends TestCase
                 'data.request.delivery_location_snapshot.address',
                 'Delivery address'
             )
+            ->assertJsonPath('data.rating', null)
             ->assertJsonMissingPath(
                 'data.task.assigned_account_id'
             )
@@ -238,6 +243,63 @@ class CustomerTaskWebApiTest extends TestCase
                 'data.request.customer_account_id'
             )
             ->assertJsonMissingPath('data.task.task_class');
+    }
+
+    public function test_customer_can_view_own_saved_task_rating_without_identity_fields(): void
+    {
+        $customer = $this->createAccount();
+        $runner = $this->createAccount();
+
+        $created = $this->createMarketplaceTask(
+            $customer,
+            MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY,
+            $runner,
+            CoreTask::STATUS_COMPLETED
+        );
+
+        $createdAt = now()->subMinutes(5);
+        $updatedAt = now();
+
+        DB::table('runner_task_ratings')->insert([
+            'rating_id' => (string) Str::uuid(),
+            'task_id' => $created['task']->task_id,
+            'customer_account_id' => $customer->id,
+            'runner_account_id' => $runner->id,
+            'rating' => 5,
+            'review' => 'Runner sangat membantu.',
+            'created_at' => $createdAt,
+            'updated_at' => $updatedAt,
+        ]);
+
+        $this->authenticateCustomer($customer);
+
+        $this->getJson(
+            '/web/customer/tasks/'.$created['task']->task_id
+        )
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.rating.rating', 5)
+            ->assertJsonPath(
+                'data.rating.review',
+                'Runner sangat membantu.'
+            )
+            ->assertJsonPath(
+                'data.rating.created_at',
+                $createdAt->toJSON()
+            )
+            ->assertJsonPath(
+                'data.rating.updated_at',
+                $updatedAt->toJSON()
+            )
+            ->assertJsonMissingPath(
+                'data.rating.rating_id'
+            )
+            ->assertJsonMissingPath(
+                'data.rating.customer_account_id'
+            )
+            ->assertJsonMissingPath(
+                'data.rating.runner_account_id'
+            );
     }
 
     public function test_customer_cannot_view_another_customers_task(): void
