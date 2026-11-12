@@ -18,7 +18,7 @@ class CustomerMarketplaceRequestWebApiTest extends TestCase
     {
         return Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Customer Open Request Test',
+            'profile_name' => 'Customer Open Request Test',
             'password' => 'Password1',
             'role' => 'USER',
             'status' => 'ACTIVE',
