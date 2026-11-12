@@ -38,7 +38,7 @@ import { useCustomerSession } from './useCustomerSession';
 
 const account = {
     id: 101,
-    name: 'Customer Test',
+    profile_name: 'Customer Test',
     phone: '60123456789',
     email: 'customer@example.com',
     profile_picture: null,
