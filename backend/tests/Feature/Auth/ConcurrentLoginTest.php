@@ -35,7 +35,7 @@ class ConcurrentLoginTest extends TestCase
 
         Account::create([
             'id' => $accountId,
-            'name' => 'F-006 Concurrency User',
+            'profile_name' => 'F-006 Concurrency User',
             'email' => $email,
             'password' => 'Password1',
             'role' => 'USER',
