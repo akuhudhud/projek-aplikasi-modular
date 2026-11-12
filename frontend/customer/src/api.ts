@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 
 export const CUSTOMER_SESSION_EXPIRED_EVENT =
@@ -26,6 +27,18 @@ export interface CustomerTask {
     cancelled_at: string | null;
     created_at: string;
     updated_at: string;
+}
+
+export interface CustomerTaskRating {
+    rating: number;
+    review: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CustomerTaskRatingPayload {
+    rating: number;
+    review?: string | null;
 }
 
 export interface CustomerTaskRequest {
@@ -182,6 +195,11 @@ interface CustomerTasksData {
 interface CustomerTaskData {
     task: CustomerTask;
     request: CustomerTaskRequest;
+    rating: CustomerTaskRating | null;
+}
+
+interface CustomerTaskRatingData {
+    rating: CustomerTaskRating;
 }
 
 interface CustomerMarketplaceRequestData {
@@ -402,6 +420,34 @@ export const customerApi = {
         );
 
         return response.data.data;
+    },
+
+    async submitTaskRating(
+        taskId: string,
+        payload: CustomerTaskRatingPayload,
+    ): Promise<CustomerTaskRating> {
+        const response = await api.post<
+            ApiResponse<CustomerTaskRatingData>
+        >(
+            `/web/customer/tasks/${encodeURIComponent(taskId)}/rating`,
+            payload,
+        );
+
+        return response.data.data.rating;
+    },
+
+    async updateTaskRating(
+        taskId: string,
+        payload: CustomerTaskRatingPayload,
+    ): Promise<CustomerTaskRating> {
+        const response = await api.patch<
+            ApiResponse<CustomerTaskRatingData>
+        >(
+            `/web/customer/tasks/${encodeURIComponent(taskId)}/rating`,
+            payload,
+        );
+
+        return response.data.data.rating;
     },
 
     async createRequest(
