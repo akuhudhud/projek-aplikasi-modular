@@ -80,7 +80,7 @@ class CustomerMarketplaceRequestLocationValidationTest extends TestCase
     {
         $customer = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Location Validation Customer',
+            'profile_name' => 'Location Validation Customer',
             'password' => 'Password1',
             'role' => 'USER',
             'status' => 'ACTIVE',
