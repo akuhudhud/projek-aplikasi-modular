@@ -45,7 +45,7 @@ class OtpEndpointTest extends TestCase
     ): Account {
         $account = Account::create([
             'id' => $accountId,
-            'name' => 'OTP Failure Test',
+            'profile_name' => 'OTP Failure Test',
             'phone' => '601'.$this->phoneCounter++,
             'email' => str_replace('-', '', $accountId)
                 .'@example.com',
