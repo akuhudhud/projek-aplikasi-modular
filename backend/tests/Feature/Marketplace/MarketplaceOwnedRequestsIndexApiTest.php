@@ -138,7 +138,7 @@ class MarketplaceOwnedRequestsIndexApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Owned Requests Index API Test',
+            'profile_name' => 'Marketplace Owned Requests Index API Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
