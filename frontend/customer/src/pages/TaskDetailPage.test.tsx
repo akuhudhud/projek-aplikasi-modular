@@ -304,18 +304,19 @@ describe('TaskDetailPage rating', () => {
             expect(
                 screen.getByRole('button', {
                     name: 'Menyimpan...',
-                }),
-            ).toBeDisabled();
+                }).hasAttribute('disabled'),
+            ).toBe(true);
 
             expect(
                 screen.getByRole('radio', {
                     name: '1 bintang',
-                }),
-            ).toBeDisabled();
+                }).hasAttribute('disabled'),
+            ).toBe(true);
 
             expect(
-                screen.getByLabelText('Ulasan (Pilihan)'),
-            ).toBeDisabled();
+                screen.getByLabelText('Ulasan (Pilihan)')
+                    .hasAttribute('disabled'),
+            ).toBe(true);
         },
     );
 
