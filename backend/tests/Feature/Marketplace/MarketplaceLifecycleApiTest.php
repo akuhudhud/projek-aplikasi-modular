@@ -433,7 +433,7 @@ class MarketplaceLifecycleApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Lifecycle Test',
+            'profile_name' => 'Marketplace Lifecycle Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
