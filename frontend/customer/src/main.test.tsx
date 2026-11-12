@@ -10,6 +10,8 @@ import {
     vi,
 } from 'vitest';
 
+import type { CustomerTaskRating } from './api';
+
 import {
     cleanup,
     fireEvent,
@@ -244,7 +246,37 @@ function makeOpenRequest() {
     };
 }
 
-function makeCompletedCustomerTask() {
+function makeCompletedCustomerTask(): {
+    task: {
+        task_id: string;
+        module_key: string;
+        task_type: string;
+        source_type: string;
+        source_id: string;
+        generic_status: string;
+        assigned_at: string;
+        started_at: string;
+        completed_at: string;
+        cancelled_at: null;
+        created_at: string;
+        updated_at: string;
+    };
+    request: {
+        request_id: string;
+        task_class: 'NON_DELIVERY';
+        description: string;
+        pickup_location_snapshot: null;
+        delivery_location_snapshot: null;
+        task_location_snapshot: {
+            address: string;
+        };
+        status: string;
+        expires_at: null;
+        awarded_at: string;
+        cancelled_at: null;
+    };
+    rating: CustomerTaskRating | null;
+} {
     const now = new Date().toISOString();
 
     const task = {
