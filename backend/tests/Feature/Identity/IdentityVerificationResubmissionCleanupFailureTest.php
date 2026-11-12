@@ -24,7 +24,7 @@ class IdentityVerificationResubmissionCleanupFailureTest extends TestCase
 
         $account = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Resubmission Cleanup Test',
+            'profile_name' => 'Resubmission Cleanup Test',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
