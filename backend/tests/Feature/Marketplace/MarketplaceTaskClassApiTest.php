@@ -187,7 +187,7 @@ class MarketplaceTaskClassApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Task Class API Test',
+            'profile_name' => 'Marketplace Task Class API Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
