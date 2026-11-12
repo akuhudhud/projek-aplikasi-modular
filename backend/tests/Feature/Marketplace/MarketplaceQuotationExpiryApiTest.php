@@ -158,7 +158,7 @@ class MarketplaceQuotationExpiryApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Quotation Expiry API Test',
+            'profile_name' => 'Marketplace Quotation Expiry API Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
