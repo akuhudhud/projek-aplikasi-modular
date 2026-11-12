@@ -29,6 +29,8 @@ const {
     getTaskMock,
     updateProfileMock,
     logoutMock,
+    submitTaskRatingMock,
+    updateTaskRatingMock,
 } = vi.hoisted(() => ({
     meMock: vi.fn(),
     loginMock: vi.fn(),
@@ -39,6 +41,8 @@ const {
     getTaskMock: vi.fn(),
     updateProfileMock: vi.fn(),
     logoutMock: vi.fn(),
+    submitTaskRatingMock: vi.fn(),
+    updateTaskRatingMock: vi.fn(),
 }));
 
 vi.mock('axios', () => ({
@@ -58,6 +62,8 @@ vi.mock('./api', () => ({
         getTask: getTaskMock,
         updateProfile: updateProfileMock,
         logout: logoutMock,
+        submitTaskRating: submitTaskRatingMock,
+        updateTaskRating: updateTaskRatingMock,
         requestRegistrationOtp: vi.fn(),
         verifyRegistrationOtp: vi.fn(),
         completeRegistration: vi.fn(),
@@ -236,6 +242,92 @@ function makeOpenRequest() {
         created_at: now,
         updated_at: now,
     };
+}
+
+function makeCompletedCustomerTask() {
+    const now = new Date().toISOString();
+
+    const task = {
+        task_id: 'customer-task-rating-1',
+        module_key: 'Marketplace',
+        task_type: 'MARKETPLACE_SERVICE_REQUEST',
+        source_type: 'marketplace_request',
+        source_id: 'customer-request-rating-1',
+        generic_status: 'COMPLETED',
+        assigned_at: now,
+        started_at: now,
+        completed_at: now,
+        cancelled_at: null,
+        created_at: now,
+        updated_at: now,
+    };
+
+    const request = {
+        request_id: 'customer-request-rating-1',
+        task_class: 'NON_DELIVERY' as const,
+        description: 'Bantu urus tugasan pelanggan.',
+        pickup_location_snapshot: null,
+        delivery_location_snapshot: null,
+        task_location_snapshot: {
+            address: 'Pekan Tuaran',
+        },
+        status: 'AWARDED',
+        expires_at: null,
+        awarded_at: now,
+        cancelled_at: null,
+    };
+
+    return {
+        task,
+        request,
+        rating: null,
+    };
+}
+
+async function openCompletedCustomerTask(
+    detail: ReturnType<typeof makeCompletedCustomerTask>,
+) {
+    getTasksMock.mockResolvedValue({
+        tasks: [
+            {
+                task: detail.task,
+                request: detail.request,
+            },
+        ],
+        summary: {
+            active_total: 0,
+        },
+        pagination: {
+            current_page: 1,
+            per_page: 10,
+            total: 1,
+            last_page: 1,
+        },
+    });
+
+    getTaskMock.mockResolvedValue(detail);
+
+    await loginThroughRunnerProfile();
+
+    fireEvent.click(
+        screen.getByRole('button', {
+            name: 'Tugasan',
+        }),
+    );
+
+    const taskCard = await screen.findByText(
+        'Bantu urus tugasan pelanggan.',
+    );
+
+    fireEvent.click(taskCard.closest('button')!);
+
+    await screen.findByRole('heading', {
+        name: 'Butiran Tugasan',
+    });
+
+    await screen.findByRole('heading', {
+        name: 'Nilai Pengalaman Anda',
+    });
 }
 
 describe(
@@ -598,6 +690,7 @@ describe(
                 getTaskMock.mockResolvedValue({
                     task,
                     request,
+                    rating: null,
                 });
 
                 await loginThroughRunnerProfile();
@@ -806,6 +899,159 @@ describe(
                 expect(
                     createRequestMock,
                 ).not.toHaveBeenCalled();
+            },
+        );
+
+        it(
+            'submits a new rating through Customer Workspace',
+            async () => {
+                const detail = makeCompletedCustomerTask();
+
+                submitTaskRatingMock.mockResolvedValue({
+                    rating: 4,
+                    review: 'Runner sangat membantu.',
+                });
+
+                await openCompletedCustomerTask(detail);
+
+                fireEvent.click(
+                    screen.getByRole('radio', {
+                        name: '4 bintang',
+                    }),
+                );
+
+                fireEvent.change(
+                    screen.getByLabelText('Ulasan (Pilihan)'),
+                    {
+                        target: {
+                            value: 'Runner sangat membantu.',
+                        },
+                    },
+                );
+
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Hantar Penilaian',
+                    }),
+                );
+
+                await waitFor(() => {
+                    expect(
+                        submitTaskRatingMock,
+                    ).toHaveBeenCalledWith(
+                        'customer-task-rating-1',
+                        {
+                            rating: 4,
+                            review: 'Runner sangat membantu.',
+                        },
+                    );
+                });
+
+                expect(
+                    await screen.findByRole('status'),
+                ).toHaveTextContent(
+                    'Penilaian berjaya dihantar.',
+                );
+
+                await waitFor(() => {
+                    expect(getTaskMock).toHaveBeenCalledTimes(2);
+                });
+            },
+        );
+
+        it(
+            'updates an existing rating through Customer Workspace',
+            async () => {
+                const detail = {
+                    ...makeCompletedCustomerTask(),
+                    rating: {
+                        rating: 3,
+                        review: 'Pengalaman sederhana.',
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                    },
+                };
+
+                updateTaskRatingMock.mockResolvedValue({
+                    rating: 5,
+                    review: 'Pengalaman sangat baik.',
+                });
+
+                await openCompletedCustomerTask(detail);
+
+                expect(
+                    screen.getByRole('heading', {
+                        name: 'Kemaskini Penilaian',
+                    }),
+                ).toBeTruthy();
+
+                fireEvent.click(
+                    screen.getByRole('radio', {
+                        name: '5 bintang',
+                    }),
+                );
+
+                fireEvent.change(
+                    screen.getByLabelText('Ulasan (Pilihan)'),
+                    {
+                        target: {
+                            value: 'Pengalaman sangat baik.',
+                        },
+                    },
+                );
+
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Kemaskini Penilaian',
+                    }),
+                );
+
+                await waitFor(() => {
+                    expect(
+                        updateTaskRatingMock,
+                    ).toHaveBeenCalledWith(
+                        'customer-task-rating-1',
+                        {
+                            rating: 5,
+                            review: 'Pengalaman sangat baik.',
+                        },
+                    );
+                });
+
+                expect(
+                    await screen.findByRole('status'),
+                ).toHaveTextContent(
+                    'Penilaian berjaya dikemaskini.',
+                );
+
+                expect(
+                    submitTaskRatingMock,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        it(
+            'shows an error when rating submission fails',
+            async () => {
+                const detail = makeCompletedCustomerTask();
+
+                submitTaskRatingMock.mockRejectedValue(
+                    new Error('Rating API unavailable'),
+                );
+
+                await openCompletedCustomerTask(detail);
+
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Hantar Penilaian',
+                    }),
+                );
+
+                expect(
+                    await screen.findByRole('alert'),
+                ).toHaveTextContent(
+                    'Penilaian tidak berjaya disimpan. Sila cuba semula.',
+                );
             },
         );
     },
