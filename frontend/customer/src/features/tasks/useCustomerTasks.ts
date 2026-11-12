@@ -8,7 +8,12 @@ import {
 import {
     customerApi,
     type CustomerTaskItem,
+    type CustomerTaskRating,
 } from '../../api';
+
+export type CustomerTaskDetailItem = CustomerTaskItem & {
+    rating: CustomerTaskRating | null;
+};
 
 type CustomerTasksState = {
     tasks: CustomerTaskItem[];
@@ -18,7 +23,7 @@ type CustomerTasksState = {
     lastPage: number;
     loading: boolean;
     error: string;
-    selectedTask: CustomerTaskItem | null;
+    selectedTask: CustomerTaskDetailItem | null;
     selectedTaskId: string | null;
     detailLoading: boolean;
     detailError: string;
@@ -27,6 +32,7 @@ type CustomerTasksState = {
 type CustomerTasksActions = {
     setCurrentPage: (page: number) => void;
     refresh: () => void;
+    refreshSelectedTask: () => void;
     openTask: (item: CustomerTaskItem) => void;
     closeTask: () => void;
 };
@@ -52,9 +58,10 @@ export function useCustomerTasks({
     const [error, setError] = useState('');
 
     const [refreshKey, setRefreshKey] = useState(0);
+    const [detailRefreshKey, setDetailRefreshKey] = useState(0);
 
     const [selectedTask, setSelectedTask] =
-        useState<CustomerTaskItem | null>(null);
+        useState<CustomerTaskDetailItem | null>(null);
 
     const [selectedTaskId, setSelectedTaskId] =
         useState<string | null>(null);
@@ -124,6 +131,7 @@ export function useCustomerTasks({
                 setSelectedTask({
                     task: result.task,
                     request: result.request,
+                    rating: result.rating,
                 });
             })
             .catch(() => {
@@ -142,7 +150,7 @@ export function useCustomerTasks({
         return () => {
             mounted = false;
         };
-    }, [selectedTaskId]);
+    }, [selectedTaskId, detailRefreshKey]);
 
     const setCurrentPage = useCallback((page: number) => {
         setCurrentPageState(Math.max(1, page));
@@ -151,6 +159,12 @@ export function useCustomerTasks({
     const refresh = useCallback(() => {
         setRefreshKey((current) => current + 1);
     }, []);
+
+    const refreshSelectedTask = useCallback(() => {
+        if (selectedTaskId) {
+            setDetailRefreshKey((current) => current + 1);
+        }
+    }, [selectedTaskId]);
 
     const openTask = useCallback((item: CustomerTaskItem) => {
         setSelectedTask(null);
@@ -179,6 +193,7 @@ export function useCustomerTasks({
         detailError,
         setCurrentPage,
         refresh,
+        refreshSelectedTask,
         openTask,
         closeTask,
     };
