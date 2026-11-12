@@ -23,7 +23,7 @@ class RunnerPublicRatingReviewTest extends TestCase
     ): Account {
         $account = Account::query()->create([
             'id' => (string) Str::uuid(),
-            'name' => 'Runner Rating Review Test',
+            'profile_name' => 'Runner Rating Review Test',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
@@ -38,7 +38,6 @@ class RunnerPublicRatingReviewTest extends TestCase
             'profile_id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'public_slug' => $slug,
-            'display_name' => 'Legacy Runner Name',
             'bio' => 'Profil ujian rating dan ulasan awam.',
             'base_location' => 'Tuaran',
             'service_area' => 'Tuaran - Kota Kinabalu sahaja',
@@ -61,7 +60,7 @@ class RunnerPublicRatingReviewTest extends TestCase
             ? Account::query()->findOrFail($customerId)
             : Account::query()->create([
                 'id' => (string) Str::uuid(),
-                'name' => 'Rating Test Customer',
+                'profile_name' => 'Rating Test Customer',
                 'phone' => null,
                 'email' => null,
                 'password' => 'Password1',
@@ -113,9 +112,11 @@ class RunnerPublicRatingReviewTest extends TestCase
         $this->assertSame(3, $profile['rating_count']);
         $this->assertSame(
             'Runner Rating Review Test',
-            $profile['display_name']
+            $profile['profile_name']
         );
 
+        $this->assertArrayNotHasKey('display_name', $profile);
+        $this->assertArrayNotHasKey('verified_name', $profile);
         $this->assertArrayNotHasKey('review', $profile);
         $this->assertArrayNotHasKey('reviews', $profile);
         $this->assertArrayNotHasKey('customer_account_id', $profile);
