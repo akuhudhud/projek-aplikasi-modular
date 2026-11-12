@@ -36,7 +36,7 @@ class AdminAccountRecoveryTest extends TestCase
     {
         $admin = Account::create([
             'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-            'name' => 'Super Admin',
+            'profile_name' => 'Super Admin',
             'phone' => '60111111111',
             'email' => 'admin@example.com',
             'password' => 'Password1',
@@ -61,7 +61,7 @@ class AdminAccountRecoveryTest extends TestCase
     {
         return Account::create([
             'id' => 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-            'name' => 'Deactivated User',
+            'profile_name' => 'Deactivated User',
             'phone' => '60222222222',
             'email' => 'deactivated@example.com',
             'password' => 'Password1',
@@ -126,7 +126,7 @@ class AdminAccountRecoveryTest extends TestCase
 
         $user = Account::create([
             'id' => 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-            'name' => 'Regular User',
+            'profile_name' => 'Regular User',
             'phone' => '60333333333',
             'email' => 'regular@example.com',
             'password' => 'Password1',
@@ -183,7 +183,7 @@ class AdminAccountRecoveryTest extends TestCase
 
         $account = Account::create([
             'id' => 'ffffffff-ffff-4fff-8fff-ffffffffffff',
-            'name' => 'Active User',
+            'profile_name' => 'Active User',
             'phone' => '60444444444',
             'email' => 'active@example.com',
             'password' => 'Password1',
@@ -210,7 +210,7 @@ class AdminAccountRecoveryTest extends TestCase
 
         $account = Account::create([
             'id' => '11111111-1111-4111-8111-111111111111',
-            'name' => 'Suspended User',
+            'profile_name' => 'Suspended User',
             'phone' => '60555555555',
             'email' => 'suspended@example.com',
             'password' => 'Password1',
@@ -244,7 +244,7 @@ class AdminAccountRecoveryTest extends TestCase
 
         $account = Account::create([
             'id' => '22222222-2222-4222-8222-222222222222',
-            'name' => 'Deleted User',
+            'profile_name' => 'Deleted User',
             'phone' => '60666666666',
             'email' => 'deleted@example.com',
             'password' => 'Password1',
@@ -276,7 +276,7 @@ class AdminAccountRecoveryTest extends TestCase
     {
         $admin = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Super Admin',
+            'profile_name' => 'Super Admin',
             'phone' => '0190000001',
             'email' => 'admin@example.com',
             'password' => 'password123',
@@ -288,7 +288,7 @@ class AdminAccountRecoveryTest extends TestCase
 
         $user = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Suspended User',
+            'profile_name' => 'Suspended User',
             'phone' => '0190000002',
             'email' => 'user@example.com',
             'password' => 'password123',
@@ -328,7 +328,7 @@ class AdminAccountRecoveryTest extends TestCase
     {
         $user = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Regular User',
+            'profile_name' => 'Regular User',
             'phone' => '0190000011',
             'email' => 'regular@example.com',
             'password' => 'password123',
@@ -338,7 +338,7 @@ class AdminAccountRecoveryTest extends TestCase
 
         $target = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Suspended User',
+            'profile_name' => 'Suspended User',
             'phone' => '0190000012',
             'email' => 'suspended@example.com',
             'password' => 'password123',
@@ -372,7 +372,7 @@ class AdminAccountRecoveryTest extends TestCase
     {
         $target = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Suspended User',
+            'profile_name' => 'Suspended User',
             'phone' => '0190000021',
             'email' => 'suspended2@example.com',
             'password' => 'password123',
@@ -396,7 +396,7 @@ class AdminAccountRecoveryTest extends TestCase
     {
         $admin = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Super Admin',
+            'profile_name' => 'Super Admin',
             'phone' => '0190000031',
             'email' => 'admin2@example.com',
             'password' => 'password123',
@@ -406,7 +406,7 @@ class AdminAccountRecoveryTest extends TestCase
 
         $target = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Active User',
+            'profile_name' => 'Active User',
             'phone' => '0190000032',
             'email' => 'active@example.com',
             'password' => 'password123',
@@ -441,7 +441,7 @@ class AdminAccountRecoveryTest extends TestCase
     {
         $admin = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Super Admin',
+            'profile_name' => 'Super Admin',
             'phone' => '0190000041',
             'email' => 'admin3@example.com',
             'password' => 'password123',
