@@ -321,7 +321,7 @@ class MarketplaceAwardConcurrencyTest extends TestCase
     }
 
     private function makeAccount(
-        string $name,
+        string $profileName,
         string $runnerStatus = Account::RUNNER_STATUS_NOT_RUNNER
     ): Account {
         $id = (string) Str::uuid();
@@ -329,7 +329,7 @@ class MarketplaceAwardConcurrencyTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => $name,
+            'profile_name' => $profileName,
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
