@@ -1,3 +1,4 @@
+
 import {
     useCallback,
     useEffect,
@@ -5,7 +6,12 @@ import {
 } from 'react';
 
 import type { FormEvent } from 'react';
-import type { CustomerAccount } from '../api';
+import type {
+    CustomerAccount,
+    CustomerTaskRatingPayload,
+} from '../api';
+
+import { customerApi } from '../api';
 
 import AppShell from './AppShell';
 import { useCustomerNavigation } from './useCustomerNavigation';
@@ -41,6 +47,10 @@ export default function CustomerWorkspace({
 
     const [profileSuccessMessage, setProfileSuccessMessage] =
         useState('');
+
+    const [ratingSaving, setRatingSaving] = useState(false);
+    const [ratingError, setRatingError] = useState('');
+    const [ratingMessage, setRatingMessage] = useState('');
 
     const tasks = useCustomerTasks({
         enabled:
@@ -80,6 +90,9 @@ export default function CustomerWorkspace({
             tasks.closeTask();
             navigation.navigate(page);
 
+            setRatingError('');
+            setRatingMessage('');
+
             if (page !== 'profile') {
                 setProfileSuccessMessage('');
             }
@@ -93,18 +106,92 @@ export default function CustomerWorkspace({
             }
         },
         [
-            tasks,
+            tasks.closeTask,
             navigation,
-            requests,
-            createRequest,
+            requests.clearActionMessages,
+            createRequest.clearMessages,
         ],
     );
 
     const handleOpenTask = useCallback(
         (item: Parameters<typeof tasks.openTask>[0]) => {
+            setRatingError('');
+            setRatingMessage('');
             tasks.openTask(item);
         },
         [tasks.openTask],
+    );
+
+    const handleSubmitTaskRating = useCallback(
+        async (payload: CustomerTaskRatingPayload): Promise<void> => {
+            const selectedTask = tasks.selectedTask;
+
+            if (!selectedTask) {
+                setRatingError(
+                    'Butiran tugasan tidak tersedia. Sila cuba semula.',
+                );
+                return;
+            }
+
+            setRatingSaving(true);
+            setRatingError('');
+            setRatingMessage('');
+
+            try {
+                if (selectedTask.rating) {
+                    await customerApi.updateTaskRating(
+                        selectedTask.task.task_id,
+                        payload,
+                    );
+
+                    setRatingMessage(
+                        'Penilaian berjaya dikemaskini.',
+                    );
+                } else {
+                    await customerApi.submitTaskRating(
+                        selectedTask.task.task_id,
+                        payload,
+                    );
+
+                    setRatingMessage(
+                        'Penilaian berjaya dihantar.',
+                    );
+                }
+
+                tasks.refreshSelectedTask();
+            } catch (error: unknown) {
+                let message =
+                    'Penilaian tidak berjaya disimpan. Sila cuba semula.';
+
+                if (
+                    typeof error === 'object' &&
+                    error !== null &&
+                    'response' in error
+                ) {
+                    const response = (
+                        error as {
+                            response?: {
+                                data?: {
+                                    message?: string;
+                                };
+                            };
+                        }
+                    ).response;
+
+                    if (response?.data?.message) {
+                        message = response.data.message;
+                    }
+                }
+
+                setRatingError(message);
+            } finally {
+                setRatingSaving(false);
+            }
+        },
+        [
+            tasks.selectedTask,
+            tasks.refreshSelectedTask,
+        ],
     );
 
     const handleProfileNameChange = useCallback(
@@ -161,6 +248,10 @@ export default function CustomerWorkspace({
                 <TaskDetailPage
                     item={tasks.selectedTask}
                     onBack={tasks.closeTask}
+                    onSubmitRating={handleSubmitTaskRating}
+                    ratingSaving={ratingSaving}
+                    ratingError={ratingError}
+                    ratingMessage={ratingMessage}
                 />
             );
         }
