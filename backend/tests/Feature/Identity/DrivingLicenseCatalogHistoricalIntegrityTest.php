@@ -19,7 +19,7 @@ class DrivingLicenseCatalogHistoricalIntegrityTest extends TestCase
     {
         $root = Account::query()->create([
             'id' => (string) Str::uuid(),
-            'name' => 'Root Owner',
+            'profile_name' => 'Root Owner',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
@@ -70,7 +70,7 @@ class DrivingLicenseCatalogHistoricalIntegrityTest extends TestCase
     {
         return Account::query()->create([
             'id' => (string) Str::uuid(),
-            'name' => 'Runner History Test',
+            'profile_name' => 'Runner History Test',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
