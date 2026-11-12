@@ -19,7 +19,7 @@ class DrivingLicenseCatalogParentStateTest extends TestCase
     {
         return Account::query()->create([
             'id' => (string) Str::uuid(),
-            'name' => 'Ujian Status Induk Lesen',
+            'profile_name' => 'Ujian Status Induk Lesen',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
