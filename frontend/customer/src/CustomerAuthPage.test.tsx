@@ -1,4 +1,3 @@
-
 // @vitest-environment jsdom
 
 import {
@@ -47,7 +46,7 @@ import CustomerAuthPage from './features/auth/CustomerAuthPage';
 
 const account = {
     id: 101,
-    name: 'Customer Test',
+    profile_name: 'Customer Test',
     phone: '60123456789',
     email: 'customer@example.com',
     profile_picture: null,
@@ -174,7 +173,7 @@ describe('Customer registration interface', () => {
                 completeRegistrationMock,
             ).toHaveBeenCalledWith({
                 verification_token: 'verified-token',
-                name: 'Customer Test',
+                profile_name: 'Customer Test',
                 password: 'Password123',
                 password_confirmation: 'Password123',
             });
