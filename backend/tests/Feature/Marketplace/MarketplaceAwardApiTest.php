@@ -257,7 +257,7 @@ class MarketplaceAwardApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Award API Test',
+            'profile_name' => 'Marketplace Award API Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
