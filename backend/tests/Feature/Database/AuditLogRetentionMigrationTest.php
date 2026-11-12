@@ -102,7 +102,7 @@ class AuditLogRetentionMigrationTest extends TestCase
     {
         return Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Audit Retention Test Account',
+            'profile_name' => 'Audit Retention Test Account',
             'phone' => null,
             'email' => 'audit-'.Str::uuid().'@example.com',
             'password' => 'Password1',
