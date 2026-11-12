@@ -47,7 +47,7 @@ class AuditLogAccessTest extends TestCase
     ): Account {
         return Account::create([
             'id' => $id,
-            'name' => $name,
+            'profile_name' => $name,
             'phone' => $phone,
             'email' => $email,
             'password' => 'Password1',
