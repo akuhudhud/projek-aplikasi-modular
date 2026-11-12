@@ -75,7 +75,7 @@ class AccountLifecycleConcurrentTransitionTest extends TestCase
     ): void {
         $root = Account::create([
             'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-            'name' => 'Root Admin',
+            'profile_name' => 'Root Admin',
             'phone' => '60111111111',
             'email' => 'root@example.com',
             'password' => 'Password1',
@@ -95,7 +95,7 @@ class AccountLifecycleConcurrentTransitionTest extends TestCase
 
         $target = Account::create([
             'id' => 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-            'name' => 'Target User',
+            'profile_name' => 'Target User',
             'phone' => '60222222222',
             'email' => 'target@example.com',
             'password' => 'Password1',
@@ -169,7 +169,7 @@ class AccountLifecycleConcurrentTransitionTest extends TestCase
     ): void {
         $account = Account::create([
             'id' => 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-            'name' => 'Account Owner',
+            'profile_name' => 'Account Owner',
             'phone' => '60333333333',
             'email' => 'owner@example.com',
             'password' => 'Password1',
