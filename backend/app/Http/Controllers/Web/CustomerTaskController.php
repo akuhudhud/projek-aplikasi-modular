@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\CoreTask;
 use App\Models\MarketplaceRequest;
+use App\Models\RunnerTaskRating;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -180,6 +181,16 @@ class CustomerTaskController extends Controller
             ], 404);
         }
 
+        $rating = RunnerTaskRating::query()
+            ->where('task_id', $task->task_id)
+            ->where('customer_account_id', $account->id)
+            ->first([
+                'rating',
+                'review',
+                'created_at',
+                'updated_at',
+            ]);
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -209,6 +220,12 @@ class CustomerTaskController extends Controller
                     'awarded_at',
                     'cancelled_at',
                 ]),
+                'rating' => $rating ? [
+                    'rating' => (int) $rating->rating,
+                    'review' => $rating->review,
+                    'created_at' => $rating->created_at,
+                    'updated_at' => $rating->updated_at,
+                ] : null,
             ],
         ], 200);
     }
