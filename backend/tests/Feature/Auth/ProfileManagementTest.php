@@ -17,7 +17,7 @@ class ProfileManagementTest extends TestCase
     {
         $account = Account::create([
             'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-            'name' => 'Original Name',
+            'profile_name' => 'Original Name',
             'phone' => '60111111111',
             'email' => 'original@example.com',
             'password' => 'Password1',
@@ -57,19 +57,19 @@ class ProfileManagementTest extends TestCase
             'Authorization',
             'Bearer '.$token
         )->patchJson('/api/me', [
-            'name' => 'Updated Name',
+            'profile_name' => 'Updated Name',
         ]);
 
         $response
             ->assertStatus(200)
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.account.name', 'Updated Name')
+            ->assertJsonPath('data.account.profile_name', 'Updated Name')
             ->assertJsonPath('data.account.phone', '60111111111')
             ->assertJsonPath('data.account.email', 'original@example.com');
 
         $this->assertDatabaseHas('accounts', [
             'id' => $account->id,
-            'name' => 'Updated Name',
+            'profile_name' => 'Updated Name',
             'phone' => '60111111111',
             'email' => 'original@example.com',
         ]);
@@ -90,7 +90,7 @@ class ProfileManagementTest extends TestCase
 
         $this->assertDatabaseHas('accounts', [
             'id' => $account->id,
-            'name' => 'Original Name',
+            'profile_name' => 'Original Name',
             'phone' => '60111111111',
             'email' => 'original@example.com',
         ]);
@@ -111,7 +111,7 @@ class ProfileManagementTest extends TestCase
 
         $this->assertDatabaseHas('accounts', [
             'id' => $account->id,
-            'name' => 'Original Name',
+            'profile_name' => 'Original Name',
             'phone' => '60111111111',
             'email' => 'original@example.com',
         ]);
@@ -125,20 +125,20 @@ class ProfileManagementTest extends TestCase
             'Authorization',
             'Bearer '.$token
         )->patchJson('/api/me', [
-            'name' => 'Updated Name',
+            'profile_name' => 'Updated Name',
             'phone' => '60222222222',
             'email' => 'updated@example.com',
         ]);
 
         $response
             ->assertStatus(200)
-            ->assertJsonPath('data.account.name', 'Updated Name')
+            ->assertJsonPath('data.account.profile_name', 'Updated Name')
             ->assertJsonPath('data.account.phone', '60111111111')
             ->assertJsonPath('data.account.email', 'original@example.com');
 
         $this->assertDatabaseHas('accounts', [
             'id' => $account->id,
-            'name' => 'Updated Name',
+            'profile_name' => 'Updated Name',
             'phone' => '60111111111',
             'email' => 'original@example.com',
         ]);
@@ -147,7 +147,7 @@ class ProfileManagementTest extends TestCase
     public function test_update_profile_requires_session_token(): void
     {
         $response = $this->patchJson('/api/me', [
-            'name' => 'Updated Name',
+            'profile_name' => 'Updated Name',
         ]);
 
         $response
@@ -164,7 +164,7 @@ class ProfileManagementTest extends TestCase
             'Authorization',
             'Bearer invalid-session-token'
         )->patchJson('/api/me', [
-            'name' => 'Updated Name',
+            'profile_name' => 'Updated Name',
         ]);
 
         $response
