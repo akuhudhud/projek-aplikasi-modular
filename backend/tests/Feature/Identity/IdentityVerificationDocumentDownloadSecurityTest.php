@@ -24,7 +24,7 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
     ): Account {
         return Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Identity Document Security Test',
+            'profile_name' => 'Identity Document Security Test',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
@@ -65,7 +65,7 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
         $verification = IdentityVerification::create([
             'id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'real_name' => 'Nama Ujian Sulit',
+            'verified_name' => 'Nama Ujian Sulit',
             'mykad_number' => '900101145678',
             'status' => IdentityVerification::STATUS_PENDING,
             'submitted_at' => now(),
