@@ -75,7 +75,7 @@ class MarketplaceSuspendedRunnerQuotationApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Suspended Runner Quotation API Test',
+            'profile_name' => 'Marketplace Suspended Runner Quotation API Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => $status,
