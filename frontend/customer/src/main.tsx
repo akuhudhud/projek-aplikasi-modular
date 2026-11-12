@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 
 import CustomerApp from './app/CustomerApp';
 import RunnerPublicProfile from './RunnerPublicProfile';
+import RunnerPublicReviews from './RunnerPublicReviews';
 
 import '../styles/customer.css';
 import '../styles/app-shell.css';
@@ -13,6 +14,10 @@ export { default as CustomerApp } from './app/CustomerApp';
 
 const rootElement = document.getElementById('customer-app');
 
+const publicRunnerReviewsMatch = window.location.pathname.match(
+    /^\/me\/([A-Za-z0-9_-]{3,50})\/ulasan\/?$/,
+);
+
 const publicRunnerMatch = window.location.pathname.match(
     /^\/me\/([A-Za-z0-9_-]{3,50})\/?$/,
 );
@@ -20,7 +25,9 @@ const publicRunnerMatch = window.location.pathname.match(
 if (rootElement) {
     createRoot(rootElement).render(
         <StrictMode>
-            {publicRunnerMatch ? (
+            {publicRunnerReviewsMatch ? (
+                <RunnerPublicReviews slug={publicRunnerReviewsMatch[1]} />
+            ) : publicRunnerMatch ? (
                 <RunnerPublicProfile slug={publicRunnerMatch[1]} />
             ) : (
                 <CustomerApp />
