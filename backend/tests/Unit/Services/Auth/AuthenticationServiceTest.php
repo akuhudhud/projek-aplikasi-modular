@@ -333,7 +333,7 @@ class AuthenticationServiceTest extends TestCase
     {
         return Account::create(array_merge([
             'id' => (string) \Illuminate\Support\Str::uuid(),
-            'name' => 'Authentication Test User',
+            'profile_name' => 'Authentication Test User',
             'email' => 'authentication-test@example.com',
             'password' => 'Password1',
             'role' => 'USER',
