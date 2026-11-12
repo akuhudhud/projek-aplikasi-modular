@@ -21,7 +21,7 @@ import { runnerPublicApi } from './runnerPublicApi';
 
 const profile = {
     public_slug: 'runner-tuaran',
-    display_name: 'Runner Tuaran',
+    profile_name: 'Runner Tuaran',
     bio: 'Servis penghantaran sekitar Tuaran.',
     base_location: 'Tuaran',
     service_area: 'Tuaran',
@@ -92,6 +92,9 @@ describe('runnerPublicApi.getProfile', () => {
         );
 
         expect(result).toEqual(profile);
+        expect(result.profile_name).toBe('Runner Tuaran');
+        expect(result).not.toHaveProperty('display_name');
+        expect(result).not.toHaveProperty('verified_name');
     });
 
     it('encodes special characters in the slug', async () => {
