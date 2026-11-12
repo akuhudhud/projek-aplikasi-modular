@@ -19,7 +19,7 @@ class CustomerTaskWebApiTest extends TestCase
     {
         return Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Customer Task Test',
+            'profile_name' => 'Customer Task Test',
             'password' => 'Password1',
             'role' => 'USER',
             'status' => 'ACTIVE',
