@@ -16,7 +16,7 @@ class AuditTransactionIntegrityTest extends TestCase
 
     private function createAccount(
         string $id,
-        string $name,
+        string $profileName,
         string $phone,
         string $email,
         string $role,
@@ -24,7 +24,7 @@ class AuditTransactionIntegrityTest extends TestCase
     ): Account {
         return Account::create([
             'id' => $id,
-            'name' => $name,
+            'profile_name' => $profileName,
             'phone' => $phone,
             'email' => $email,
             'password' => 'Password1',
@@ -141,7 +141,7 @@ class AuditTransactionIntegrityTest extends TestCase
                 'Authorization',
                 'Bearer '.$token
             )->postJson('/api/admin/accounts', [
-                'name' => 'New Super Admin',
+                'profile_name' => 'New Super Admin',
                 'phone' => '60222222222',
                 'email' => 'new-admin-audit-test@example.com',
                 'password' => 'Password1',
