@@ -37,7 +37,7 @@ class RootSuperAdminGovernanceTest extends TestCase
 
     private function createAccount(
         string $id,
-        string $name,
+        string $profileName,
         string $phone,
         string $email,
         string $role,
@@ -45,7 +45,7 @@ class RootSuperAdminGovernanceTest extends TestCase
     ): Account {
         return Account::create([
             'id' => $id,
-            'name' => $name,
+            'profile_name' => $profileName,
             'phone' => $phone,
             'email' => $email,
             'password' => 'Password1',
@@ -95,7 +95,7 @@ class RootSuperAdminGovernanceTest extends TestCase
     ): array {
         $account = Account::create([
             'id' => $accountId,
-            'name' => 'Test '.$role,
+            'profile_name' => 'Test '.$role,
             'phone' => $phone,
             'email' => $email,
             'password' => 'Password1',
@@ -124,7 +124,7 @@ class RootSuperAdminGovernanceTest extends TestCase
             'Authorization',
             'Bearer '.$token
         )->postJson('/api/admin/accounts', [
-            'name' => 'New Super Admin',
+            'profile_name' => 'New Super Admin',
             'phone' => '60222222222',
             'email' => 'newadmin@example.com',
             'password' => 'Password1',
@@ -140,7 +140,7 @@ class RootSuperAdminGovernanceTest extends TestCase
             ]);
 
         $this->assertDatabaseHas('accounts', [
-            'name' => 'New Super Admin',
+            'profile_name' => 'New Super Admin',
             'phone' => '60222222222',
             'email' => 'newadmin@example.com',
             'role' => 'SUPER_ADMIN',
@@ -176,7 +176,7 @@ class RootSuperAdminGovernanceTest extends TestCase
             'Authorization',
             'Bearer '.$token
         )->postJson('/api/admin/accounts', [
-            'name' => 'Another Super Admin',
+            'profile_name' => 'Another Super Admin',
             'phone' => '60222222222',
             'email' => 'anotheradmin@example.com',
             'password' => 'Password1',
@@ -222,7 +222,7 @@ class RootSuperAdminGovernanceTest extends TestCase
             'Authorization',
             'Bearer '.$token
         )->postJson('/api/admin/accounts', [
-            'name' => 'Another Super Admin',
+            'profile_name' => 'Another Super Admin',
             'phone' => '60222222222',
             'email' => 'anotheradmin@example.com',
             'password' => 'Password1',
@@ -244,7 +244,7 @@ class RootSuperAdminGovernanceTest extends TestCase
     public function test_super_admin_creation_requires_session_token(): void
     {
         $response = $this->postJson('/api/admin/accounts', [
-            'name' => 'New Super Admin',
+            'profile_name' => 'New Super Admin',
             'phone' => '60222222222',
             'email' => 'newadmin@example.com',
             'password' => 'Password1',
@@ -268,7 +268,7 @@ class RootSuperAdminGovernanceTest extends TestCase
             'Authorization',
             'Bearer '.$token
         )->postJson('/api/admin/accounts', [
-            'name' => 'New Super Admin',
+            'profile_name' => 'New Super Admin',
             'phone' => '60222222222',
             'email' => 'newadmin@example.com',
             'password' => 'Password1',
@@ -297,7 +297,7 @@ class RootSuperAdminGovernanceTest extends TestCase
             'Authorization',
             'Bearer '.$token
         )->postJson('/api/admin/accounts', [
-            'name' => 'New Super Admin',
+            'profile_name' => 'New Super Admin',
             'phone' => '60222222222',
             'email' => 'newadmin@example.com',
             'password' => 'Password1',
@@ -327,7 +327,7 @@ class RootSuperAdminGovernanceTest extends TestCase
             'Authorization',
             'Bearer '.$token
         )->postJson('/api/admin/accounts', [
-            'name' => 'New Super Admin',
+            'profile_name' => 'New Super Admin',
             'phone' => '60222222222',
             'email' => 'newadmin@example.com',
             'password' => 'Password1',
@@ -343,7 +343,7 @@ class RootSuperAdminGovernanceTest extends TestCase
                 'data' => [
                     'account' => [
                         'id',
-                        'name',
+                        'profile_name',
                         'job_title',
                         'phone',
                         'email',
@@ -384,7 +384,7 @@ class RootSuperAdminGovernanceTest extends TestCase
             'Authorization',
             'Bearer '.$token
         )->postJson('/api/admin/accounts', [
-            'name' => 'New Super Admin',
+            'profile_name' => 'New Super Admin',
             'phone' => '60222222222',
             'email' => 'newadmin@example.com',
             'password' => 'Password1',
