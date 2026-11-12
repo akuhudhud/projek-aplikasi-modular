@@ -106,7 +106,7 @@ class MarketplaceClosedRequestAccessApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Closed Request Access Test',
+            'profile_name' => 'Marketplace Closed Request Access Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
