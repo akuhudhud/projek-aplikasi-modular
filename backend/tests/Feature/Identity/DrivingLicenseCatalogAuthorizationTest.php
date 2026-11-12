@@ -19,7 +19,7 @@ class DrivingLicenseCatalogAuthorizationTest extends TestCase
     {
         return Account::query()->create([
             'id' => (string) Str::uuid(),
-            'name' => 'Ujian Akses Katalog Lesen',
+            'profile_name' => 'Ujian Akses Katalog Lesen',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
