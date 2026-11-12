@@ -404,3 +404,169 @@ describe('customerApi.cancelRequest', () => {
         ).rejects.toBe(apiError);
     });
 });
+
+describe('customerApi.submitTaskRating', () => {
+    beforeEach(() => {
+        postMock.mockReset();
+    });
+
+    const payload = {
+        rating: 5,
+        review: 'Runner sangat membantu dan menepati masa.',
+    };
+
+    const savedRating = {
+        rating: 5,
+        review: 'Runner sangat membantu dan menepati masa.',
+        created_at: '2026-11-12T10:00:00.000Z',
+        updated_at: '2026-11-12T10:00:00.000Z',
+    };
+
+    it('sends a new rating to the correct endpoint', async () => {
+        postMock.mockResolvedValue({
+            data: {
+                success: true,
+                data: {
+                    rating: savedRating,
+                },
+            },
+        });
+
+        await customerApi.submitTaskRating('task-123', payload);
+
+        expect(postMock).toHaveBeenCalledTimes(1);
+        expect(postMock).toHaveBeenCalledWith(
+            '/web/customer/tasks/task-123/rating',
+            payload,
+        );
+    });
+
+    it('returns the saved rating from the API response', async () => {
+        postMock.mockResolvedValue({
+            data: {
+                success: true,
+                data: {
+                    rating: savedRating,
+                },
+            },
+        });
+
+        const result = await customerApi.submitTaskRating(
+            'task-123',
+            payload,
+        );
+
+        expect(result).toEqual(savedRating);
+    });
+
+    it('encodes the task ID in the endpoint', async () => {
+        postMock.mockResolvedValue({
+            data: {
+                success: true,
+                data: {
+                    rating: savedRating,
+                },
+            },
+        });
+
+        await customerApi.submitTaskRating('task/123', payload);
+
+        expect(postMock).toHaveBeenCalledWith(
+            '/web/customer/tasks/task%2F123/rating',
+            payload,
+        );
+    });
+
+    it('propagates API errors to the caller', async () => {
+        const apiError = new Error('Rating submission failed.');
+
+        postMock.mockRejectedValue(apiError);
+
+        await expect(
+            customerApi.submitTaskRating('task-123', payload),
+        ).rejects.toBe(apiError);
+    });
+});
+
+describe('customerApi.updateTaskRating', () => {
+    beforeEach(() => {
+        patchMock.mockReset();
+    });
+
+    const payload = {
+        rating: 4,
+        review: 'Pengalaman baik dan memuaskan.',
+    };
+
+    const updatedRating = {
+        rating: 4,
+        review: 'Pengalaman baik dan memuaskan.',
+        created_at: '2026-11-12T10:00:00.000Z',
+        updated_at: '2026-11-12T11:00:00.000Z',
+    };
+
+    it('sends an updated rating to the correct endpoint', async () => {
+        patchMock.mockResolvedValue({
+            data: {
+                success: true,
+                data: {
+                    rating: updatedRating,
+                },
+            },
+        });
+
+        await customerApi.updateTaskRating('task-123', payload);
+
+        expect(patchMock).toHaveBeenCalledTimes(1);
+        expect(patchMock).toHaveBeenCalledWith(
+            '/web/customer/tasks/task-123/rating',
+            payload,
+        );
+    });
+
+    it('returns the updated rating from the API response', async () => {
+        patchMock.mockResolvedValue({
+            data: {
+                success: true,
+                data: {
+                    rating: updatedRating,
+                },
+            },
+        });
+
+        const result = await customerApi.updateTaskRating(
+            'task-123',
+            payload,
+        );
+
+        expect(result).toEqual(updatedRating);
+    });
+
+    it('encodes the task ID in the endpoint', async () => {
+        patchMock.mockResolvedValue({
+            data: {
+                success: true,
+                data: {
+                    rating: updatedRating,
+                },
+            },
+        });
+
+        await customerApi.updateTaskRating('task/123', payload);
+
+        expect(patchMock).toHaveBeenCalledWith(
+            '/web/customer/tasks/task%2F123/rating',
+            payload,
+        );
+    });
+
+    it('propagates API errors to the caller', async () => {
+        const apiError = new Error('Rating update failed.');
+
+        patchMock.mockRejectedValue(apiError);
+
+        await expect(
+            customerApi.updateTaskRating('task-123', payload),
+        ).rejects.toBe(apiError);
+    });
+});
