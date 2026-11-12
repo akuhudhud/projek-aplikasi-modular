@@ -21,7 +21,7 @@ class RunnerTaskRatingApiTest extends TestCase
     ): Account {
         $account = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Rating Test Account',
+            'profile_name' => 'Rating Test Account',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
