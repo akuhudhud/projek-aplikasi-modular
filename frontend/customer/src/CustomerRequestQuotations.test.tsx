@@ -71,7 +71,7 @@ import { CustomerApp } from './main';
 
 const account = {
     id: 'customer-test-id',
-    name: 'Customer Test',
+    profile_name: 'Customer Test',
     phone: '0123456789',
     email: 'customer@example.com',
     profile_picture: null,
@@ -738,7 +738,7 @@ describe(
             async () => {
                 updateProfileMock.mockResolvedValue({
                     ...account,
-                    name: 'Updated Customer',
+                    profile_name: 'Updated Customer',
                 });
 
                 await loginThroughCustomerDashboard();
@@ -768,7 +768,7 @@ describe(
                     expect(
                         updateProfileMock,
                     ).toHaveBeenCalledWith({
-                        name: 'Updated Customer',
+                        profile_name: 'Updated Customer',
                     });
                 });
 
