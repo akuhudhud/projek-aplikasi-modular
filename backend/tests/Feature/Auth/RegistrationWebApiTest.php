@@ -45,7 +45,7 @@ class RegistrationWebApiTest extends TestCase
     {
         Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Existing Customer',
+            'profile_name' => 'Existing Customer',
             'phone' => '60123456789',
             'password' => 'Password1',
             'role' => 'USER',
@@ -175,7 +175,7 @@ class RegistrationWebApiTest extends TestCase
             '/web/auth/register/complete',
             [
                 'verification_token' => $verificationToken,
-                'name' => 'New Customer',
+                'profile_name' => 'New Customer',
                 'password' => 'Password1',
                 'password_confirmation' => 'Password1',
             ]
@@ -185,7 +185,7 @@ class RegistrationWebApiTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('success', true)
             ->assertJsonPath(
-                'data.account.name',
+                'data.account.profile_name',
                 'New Customer'
             )
             ->assertJsonPath(
@@ -230,7 +230,7 @@ class RegistrationWebApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.account.id', $account->id)
-            ->assertJsonPath('data.account.name', 'New Customer');
+            ->assertJsonPath('data.account.profile_name', 'New Customer');
     }
 
     public function test_registration_verification_token_cannot_be_reused(): void
@@ -262,7 +262,7 @@ class RegistrationWebApiTest extends TestCase
 
         $payload = [
             'verification_token' => $verificationToken,
-            'name' => 'New Customer',
+            'profile_name' => 'New Customer',
             'password' => 'Password1',
             'password_confirmation' => 'Password1',
         ];
@@ -286,7 +286,7 @@ class RegistrationWebApiTest extends TestCase
             '/web/auth/register/complete',
             [
                 'verification_token' => str_repeat('x', 64),
-                'name' => 'New Customer',
+                'profile_name' => 'New Customer',
                 'password' => 'Password1',
                 'password_confirmation' => 'Password1',
             ]
@@ -324,7 +324,7 @@ class RegistrationWebApiTest extends TestCase
                 'verification_token' => $verify->json(
                     'data.verification_token'
                 ),
-                'name' => 'Email Customer',
+                'profile_name' => 'Email Customer',
                 'password' => 'Password1',
                 'password_confirmation' => 'Password1',
             ]
@@ -370,7 +370,7 @@ class RegistrationWebApiTest extends TestCase
 
         Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Existing Customer',
+            'profile_name' => 'Existing Customer',
             'phone' => '60123456789',
             'password' => 'Password1',
             'role' => 'USER',
@@ -381,7 +381,7 @@ class RegistrationWebApiTest extends TestCase
             '/web/auth/register/complete',
             [
                 'verification_token' => $verificationToken,
-                'name' => 'Duplicate Customer',
+                'profile_name' => 'Duplicate Customer',
                 'password' => 'Password1',
                 'password_confirmation' => 'Password1',
             ]
