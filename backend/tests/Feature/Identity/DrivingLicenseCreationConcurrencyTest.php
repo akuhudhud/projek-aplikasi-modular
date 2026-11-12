@@ -155,7 +155,7 @@ class DrivingLicenseCreationConcurrencyTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => $name,
+            'profile_name' => $name,
             'password' => bcrypt('TestPassword123'),
             'role' => 'ROOT_SUPER_ADMIN',
             'status' => 'ACTIVE',
