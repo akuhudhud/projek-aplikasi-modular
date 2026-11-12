@@ -15,14 +15,14 @@ class CoreTaskListApiTest extends TestCase
 
     private function createAccount(
         string $id,
-        string $name,
+        string $profileName,
         string $phone,
         string $email,
         string $role
     ): Account {
         return Account::create([
             'id' => $id,
-            'name' => $name,
+            'profile_name' => $profileName,
             'phone' => $phone,
             'email' => $email,
             'password' => 'Password1',
