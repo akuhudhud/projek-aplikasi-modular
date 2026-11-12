@@ -18,7 +18,7 @@ class ChangePasswordTest extends TestCase
     {
         $account = Account::create([
             'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-            'name' => 'Password User',
+            'profile_name' => 'Password User',
             'phone' => '60111111111',
             'email' => 'password@example.com',
             'password' => 'Password1',
