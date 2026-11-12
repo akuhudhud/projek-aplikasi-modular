@@ -257,8 +257,9 @@ class CustomerTaskWebApiTest extends TestCase
             CoreTask::STATUS_COMPLETED
         );
 
-        $createdAt = now()->subMinutes(5);
-        $updatedAt = now();
+        // Match database timestamp precision (seconds).
+        $createdAt = now()->subMinutes(5)->startOfSecond();
+        $updatedAt = now()->startOfSecond();
 
         DB::table('runner_task_ratings')->insert([
             'rating_id' => (string) Str::uuid(),
