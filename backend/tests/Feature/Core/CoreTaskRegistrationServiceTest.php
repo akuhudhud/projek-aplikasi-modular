@@ -26,7 +26,7 @@ class CoreTaskRegistrationServiceTest extends TestCase
     {
         return Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Core Task Test Account',
+            'profile_name' => 'Core Task Test Account',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
@@ -377,7 +377,8 @@ class CoreTaskRegistrationServiceTest extends TestCase
             $this->assertDatabaseCount('core_tasks', 0);
         }
     }
-        public static function rejectedRegistrationProvider(): array
+
+    public static function rejectedRegistrationProvider(): array
     {
         return [
             'unknown module' => [
