@@ -1,5 +1,4 @@
-
- // @vitest-environment jsdom
+// @vitest-environment jsdom
 
 import {
     afterEach,
@@ -39,7 +38,7 @@ function makeAccount(
 ): CustomerAccount {
     return {
         id: 1,
-        name: 'Nazim',
+        profile_name: 'Nazim',
         phone: '0123456789',
         email: 'nazim@example.com',
         profile_picture: null,
@@ -55,7 +54,7 @@ describe('useCustomerProfile', () => {
 
         updateProfileMock.mockResolvedValue(
             makeAccount({
-                name: 'Nama Baharu',
+                profile_name: 'Nama Baharu',
             }),
         );
     });
@@ -67,7 +66,7 @@ describe('useCustomerProfile', () => {
 
     it('initializes profile name from account', async () => {
         const account = makeAccount({
-            name: 'Nama Akaun',
+            profile_name: 'Nama Akaun',
         });
 
         const { result } = renderHook(() =>
@@ -110,7 +109,7 @@ describe('useCustomerProfile', () => {
                 initialProps: {
                     account: makeAccount({
                         id: 1,
-                        name: 'Nama Lama',
+                        profile_name: 'Nama Lama',
                     }),
                 },
             },
@@ -125,7 +124,7 @@ describe('useCustomerProfile', () => {
         rerender({
             account: makeAccount({
                 id: 2,
-                name: 'Nama Baharu',
+                profile_name: 'Nama Baharu',
             }),
         });
 
@@ -202,7 +201,7 @@ describe('useCustomerProfile', () => {
 
     it('updates profile and notifies account callback', async () => {
         const updatedAccount = makeAccount({
-            name: 'Nama Baharu',
+            profile_name: 'Nama Baharu',
         });
 
         const onAccountUpdated = vi.fn();
@@ -233,7 +232,7 @@ describe('useCustomerProfile', () => {
         expect(success).toBe(true);
 
         expect(updateProfileMock).toHaveBeenCalledWith({
-            name: 'Nama Baharu',
+            profile_name: 'Nama Baharu',
         });
 
         expect(result.current.profileName).toBe(
@@ -257,7 +256,7 @@ describe('useCustomerProfile', () => {
             response: {
                 data: {
                     errors: {
-                        name: [
+                        profile_name: [
                             'Nama telah digunakan.',
                         ],
                     },
