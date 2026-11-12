@@ -24,7 +24,7 @@ class IdentityVerificationSubmissionAuditIntegrityTest extends TestCase
 
         $account = Account::create([
             'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-            'name' => 'Identity Audit Test User',
+            'profile_name' => 'Identity Audit Test User',
             'phone' => null,
             'email' => null,
             'password' => 'Password1',
