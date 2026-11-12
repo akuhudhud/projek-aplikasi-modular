@@ -15,7 +15,7 @@ class AccountSelfServiceLifecycleTest extends TestCase
     {
         $account = Account::create([
             'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-            'name' => 'Deactivate User',
+            'profile_name' => 'Deactivate User',
             'phone' => '60111111111',
             'email' => 'deactivate@example.com',
             'password' => 'Password1',
@@ -40,7 +40,7 @@ class AccountSelfServiceLifecycleTest extends TestCase
     {
         $account = Account::create([
             'id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-            'name' => 'Delete User',
+            'profile_name' => 'Delete User',
             'phone' => '60111111111',
             'email' => 'delete@example.com',
             'password' => 'Password1',
