@@ -18,7 +18,7 @@ class CustomerMarketplaceRequestDetailExpiryTest extends TestCase
     {
         $customer = Account::create([
             'id' => (string) Str::uuid(),
-            'name' => 'Request Detail Expiry Customer',
+            'profile_name' => 'Request Detail Expiry Customer',
             'password' => 'Password1',
             'role' => 'USER',
             'status' => 'ACTIVE',
