@@ -174,7 +174,7 @@ class MarketplaceValidationContractApiTest extends TestCase
 
         DB::table('accounts')->insert([
             'id' => $id,
-            'name' => 'Marketplace Validation API Test',
+            'profile_name' => 'Marketplace Validation API Test',
             'password' => bcrypt('TestPassword123'),
             'role' => 'USER',
             'status' => 'ACTIVE',
