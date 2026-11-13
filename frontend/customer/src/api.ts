@@ -272,6 +272,7 @@ function isProtectedCustomerEndpoint(
     return (
         path === '/web/auth/me' ||
         path === '/web/auth/profile' ||
+        path === '/web/auth/profile-picture' ||
         path === '/web/auth/logout' ||
         path.startsWith('/web/customer/')
     );
@@ -357,6 +358,21 @@ export const customerApi = {
         const response = await api.patch<ApiResponse<AccountData>>(
             '/web/auth/profile',
             payload,
+        );
+
+        return response.data.data.account;
+    },
+
+    async uploadProfilePicture(
+        file: File,
+    ): Promise<CustomerAccount> {
+        const formData = new FormData();
+
+        formData.append('profile_picture', file);
+
+        const response = await api.post<ApiResponse<AccountData>>(
+            '/web/auth/profile-picture',
+            formData,
         );
 
         return response.data.data.account;
