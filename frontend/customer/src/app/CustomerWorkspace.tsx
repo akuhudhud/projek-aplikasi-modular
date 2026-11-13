@@ -205,9 +205,9 @@ export default function CustomerWorkspace({
     );
 
     const handleProfilePictureSelect = useCallback(
-        (file: File) => {
+        async (file: File): Promise<boolean> => {
             setProfileSuccessMessage('');
-            void profile.uploadProfilePicture(file);
+            return await profile.uploadProfilePicture(file);
         },
         [profile.uploadProfilePicture],
     );
