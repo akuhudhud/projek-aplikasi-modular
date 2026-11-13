@@ -11,6 +11,11 @@ import {
     customerApi,
     type CustomerAccount,
     type ChangePasswordPayload,
+    type ChangePhonePayload,
+    type ChangeEmailPayload,
+    type ContactChangeVerifyPayload,
+    type ContactChangeRequestResult,
+    type ContactChangeVerifyResult,
 } from '../../api';
 
 type CustomerProfileState = {
@@ -24,6 +29,14 @@ type CustomerProfileState = {
     passwordSaving: boolean;
     passwordError: string;
     passwordMessage: string;
+
+    contactSaving: boolean;
+    contactError: string;
+    contactMessage: string;
+    phoneChangeVerification: ContactChangeRequestResult | null;
+    emailChangeVerification: ContactChangeRequestResult | null;
+    phoneChangeToken: ContactChangeVerifyResult | null;
+    emailChangeToken: ContactChangeVerifyResult | null;
 };
 
 type CustomerProfileActions = {
@@ -31,6 +44,16 @@ type CustomerProfileActions = {
     updateProfile: () => Promise<boolean>;
     uploadProfilePicture: (file: File) => Promise<boolean>;
     changePassword: (payload: ChangePasswordPayload) => Promise<boolean>;
+
+    requestPhoneChange: (payload: ChangePhonePayload) => Promise<boolean>;
+    verifyPhoneChange: (payload: ContactChangeVerifyPayload) => Promise<boolean>;
+    completePhoneChange: () => Promise<boolean>;
+
+    requestEmailChange: (payload: ChangeEmailPayload) => Promise<boolean>;
+    verifyEmailChange: (payload: ContactChangeVerifyPayload) => Promise<boolean>;
+    completeEmailChange: () => Promise<boolean>;
+
+    clearContactChange: () => void;
     clearMessages: () => void;
 };
 
@@ -50,6 +73,26 @@ const ALLOWED_PROFILE_PICTURE_TYPES = [
 
 const MAX_PROFILE_PICTURE_SIZE = 5 * 1024 * 1024;
 
+function getRequestError(
+    requestError: unknown,
+    fallback: string,
+    field?: string,
+): string {
+    if (!axios.isAxiosError(requestError)) {
+        return fallback;
+    }
+
+    const validationMessage = field
+        ? requestError.response?.data?.errors?.[field]?.[0]
+        : undefined;
+
+    return (
+        validationMessage ??
+        requestError.response?.data?.message ??
+        fallback
+    );
+}
+
 export function useCustomerProfile({
     account,
     onAccountUpdated,
@@ -68,6 +111,20 @@ export function useCustomerProfile({
     const [passwordError, setPasswordError] = useState('');
     const [passwordMessage, setPasswordMessage] = useState('');
 
+    const [contactSaving, setContactSaving] = useState(false);
+    const [contactError, setContactError] = useState('');
+    const [contactMessage, setContactMessage] = useState('');
+
+    const [phoneChangeVerification, setPhoneChangeVerification] =
+        useState<ContactChangeRequestResult | null>(null);
+    const [emailChangeVerification, setEmailChangeVerification] =
+        useState<ContactChangeRequestResult | null>(null);
+
+    const [phoneChangeToken, setPhoneChangeToken] =
+        useState<ContactChangeVerifyResult | null>(null);
+    const [emailChangeToken, setEmailChangeToken] =
+        useState<ContactChangeVerifyResult | null>(null);
+
     useEffect(() => {
         setProfileNameState(account?.profile_name ?? '');
     }, [account?.id, account?.profile_name]);
@@ -78,6 +135,15 @@ export function useCustomerProfile({
         setMessage('');
     }, []);
 
+    const clearContactChange = useCallback(() => {
+        setContactError('');
+        setContactMessage('');
+        setPhoneChangeVerification(null);
+        setEmailChangeVerification(null);
+        setPhoneChangeToken(null);
+        setEmailChangeToken(null);
+    }, []);
+
     const clearMessages = useCallback(() => {
         setError('');
         setMessage('');
@@ -85,6 +151,8 @@ export function useCustomerProfile({
         setPictureMessage('');
         setPasswordError('');
         setPasswordMessage('');
+        setContactError('');
+        setContactMessage('');
     }, []);
 
     const updateProfile = useCallback(async (): Promise<boolean> => {
@@ -112,26 +180,17 @@ export function useCustomerProfile({
 
             setProfileNameState(updatedAccount.profile_name);
             setMessage('Profil berjaya dikemaskini.');
-
             onAccountUpdated(updatedAccount);
 
             return true;
         } catch (requestError) {
-            if (axios.isAxiosError(requestError)) {
-                const validationMessage =
-                    requestError.response?.data?.errors
-                        ?.profile_name?.[0];
-
-                setError(
-                    validationMessage ??
-                        requestError.response?.data?.message ??
-                        'Tidak berjaya mengemaskini profil.',
-                );
-            } else {
-                setError(
+            setError(
+                getRequestError(
+                    requestError,
                     'Tidak berjaya mengemaskini profil.',
-                );
-            }
+                    'profile_name',
+                ),
+            );
 
             return false;
         } finally {
@@ -153,9 +212,7 @@ export function useCustomerProfile({
             setPictureError('');
             setPictureMessage('');
 
-            if (
-                !ALLOWED_PROFILE_PICTURE_TYPES.includes(file.type)
-            ) {
+            if (!ALLOWED_PROFILE_PICTURE_TYPES.includes(file.type)) {
                 setPictureError(
                     'Format gambar mesti JPG, PNG atau WebP.',
                 );
@@ -183,21 +240,13 @@ export function useCustomerProfile({
 
                 return true;
             } catch (requestError) {
-                if (axios.isAxiosError(requestError)) {
-                    const validationMessage =
-                        requestError.response?.data?.errors
-                            ?.profile_picture?.[0];
-
-                    setPictureError(
-                        validationMessage ??
-                            requestError.response?.data?.message ??
-                            'Tidak berjaya memuat naik gambar profil.',
-                    );
-                } else {
-                    setPictureError(
+                setPictureError(
+                    getRequestError(
+                        requestError,
                         'Tidak berjaya memuat naik gambar profil.',
-                    );
-                }
+                        'profile_picture',
+                    ),
+                );
 
                 return false;
             } finally {
@@ -253,25 +302,13 @@ export function useCustomerProfile({
 
                 return true;
             } catch (requestError) {
-                if (axios.isAxiosError(requestError)) {
-                    const validationErrors =
-                        requestError.response?.data?.errors;
-
-                    const validationMessage =
-                        validationErrors?.current_password?.[0] ??
-                        validationErrors?.new_password?.[0] ??
-                        validationErrors?.new_password_confirmation?.[0];
-
-                    setPasswordError(
-                        validationMessage ??
-                            requestError.response?.data?.message ??
-                            'Tidak berjaya menukar kata laluan. Sila cuba semula.',
-                    );
-                } else {
-                    setPasswordError(
+                setPasswordError(
+                    getRequestError(
+                        requestError,
                         'Tidak berjaya menukar kata laluan. Sila cuba semula.',
-                    );
-                }
+                        'current_password',
+                    ),
+                );
 
                 return false;
             } finally {
@@ -281,6 +318,264 @@ export function useCustomerProfile({
         [
             account,
             passwordSaving,
+        ],
+    );
+
+    const requestPhoneChange = useCallback(
+        async (payload: ChangePhonePayload): Promise<boolean> => {
+            if (!account || contactSaving) {
+                return false;
+            }
+
+            setContactSaving(true);
+            setContactError('');
+            setContactMessage('');
+            setPhoneChangeVerification(null);
+            setPhoneChangeToken(null);
+
+            try {
+                const result =
+                    await customerApi.requestPhoneChangeOtp(payload);
+
+                setPhoneChangeVerification(result);
+                setContactMessage(
+                    'Kod pengesahan telah dihantar ke nombor telefon baharu.',
+                );
+
+                return true;
+            } catch (requestError) {
+                setContactError(
+                    getRequestError(
+                        requestError,
+                        'Tidak berjaya menghantar kod pengesahan.',
+                        'phone',
+                    ),
+                );
+
+                return false;
+            } finally {
+                setContactSaving(false);
+            }
+        },
+        [account, contactSaving],
+    );
+
+    const verifyPhoneChange = useCallback(
+        async (
+            payload: ContactChangeVerifyPayload,
+        ): Promise<boolean> => {
+            if (!account || contactSaving) {
+                return false;
+            }
+
+            setContactSaving(true);
+            setContactError('');
+            setContactMessage('');
+
+            try {
+                const result =
+                    await customerApi.verifyPhoneChangeOtp(payload);
+
+                setPhoneChangeToken(result);
+                setContactMessage(
+                    'Kod pengesahan nombor telefon berjaya disahkan.',
+                );
+
+                return true;
+            } catch (requestError) {
+                setContactError(
+                    getRequestError(
+                        requestError,
+                        'Kod pengesahan tidak sah atau telah tamat tempoh.',
+                        'otp',
+                    ),
+                );
+
+                return false;
+            } finally {
+                setContactSaving(false);
+            }
+        },
+        [account, contactSaving],
+    );
+
+    const completePhoneChange = useCallback(
+        async (): Promise<boolean> => {
+            if (
+                !account ||
+                contactSaving ||
+                !phoneChangeToken
+            ) {
+                return false;
+            }
+
+            setContactSaving(true);
+            setContactError('');
+            setContactMessage('');
+
+            try {
+                const updatedAccount =
+                    await customerApi.completePhoneChange({
+                        verification_token:
+                            phoneChangeToken.verification_token,
+                    });
+
+                onAccountUpdated(updatedAccount);
+                setPhoneChangeVerification(null);
+                setPhoneChangeToken(null);
+                setContactMessage(
+                    'Nombor telefon berjaya dikemaskini.',
+                );
+
+                return true;
+            } catch (requestError) {
+                setContactError(
+                    getRequestError(
+                        requestError,
+                        'Tidak berjaya mengemaskini nombor telefon.',
+                        'verification_token',
+                    ),
+                );
+
+                return false;
+            } finally {
+                setContactSaving(false);
+            }
+        },
+        [
+            account,
+            contactSaving,
+            phoneChangeToken,
+            onAccountUpdated,
+        ],
+    );
+
+    const requestEmailChange = useCallback(
+        async (payload: ChangeEmailPayload): Promise<boolean> => {
+            if (!account || contactSaving) {
+                return false;
+            }
+
+            setContactSaving(true);
+            setContactError('');
+            setContactMessage('');
+            setEmailChangeVerification(null);
+            setEmailChangeToken(null);
+
+            try {
+                const result =
+                    await customerApi.requestEmailChangeOtp(payload);
+
+                setEmailChangeVerification(result);
+                setContactMessage(
+                    'Kod pengesahan telah dihantar ke e-mel baharu.',
+                );
+
+                return true;
+            } catch (requestError) {
+                setContactError(
+                    getRequestError(
+                        requestError,
+                        'Tidak berjaya menghantar kod pengesahan.',
+                        'email',
+                    ),
+                );
+
+                return false;
+            } finally {
+                setContactSaving(false);
+            }
+        },
+        [account, contactSaving],
+    );
+
+    const verifyEmailChange = useCallback(
+        async (
+            payload: ContactChangeVerifyPayload,
+        ): Promise<boolean> => {
+            if (!account || contactSaving) {
+                return false;
+            }
+
+            setContactSaving(true);
+            setContactError('');
+            setContactMessage('');
+
+            try {
+                const result =
+                    await customerApi.verifyEmailChangeOtp(payload);
+
+                setEmailChangeToken(result);
+                setContactMessage(
+                    'Kod pengesahan e-mel berjaya disahkan.',
+                );
+
+                return true;
+            } catch (requestError) {
+                setContactError(
+                    getRequestError(
+                        requestError,
+                        'Kod pengesahan tidak sah atau telah tamat tempoh.',
+                        'otp',
+                    ),
+                );
+
+                return false;
+            } finally {
+                setContactSaving(false);
+            }
+        },
+        [account, contactSaving],
+    );
+
+    const completeEmailChange = useCallback(
+        async (): Promise<boolean> => {
+            if (
+                !account ||
+                contactSaving ||
+                !emailChangeToken
+            ) {
+                return false;
+            }
+
+            setContactSaving(true);
+            setContactError('');
+            setContactMessage('');
+
+            try {
+                const updatedAccount =
+                    await customerApi.completeEmailChange({
+                        verification_token:
+                            emailChangeToken.verification_token,
+                    });
+
+                onAccountUpdated(updatedAccount);
+                setEmailChangeVerification(null);
+                setEmailChangeToken(null);
+                setContactMessage(
+                    'E-mel berjaya dikemaskini.',
+                );
+
+                return true;
+            } catch (requestError) {
+                setContactError(
+                    getRequestError(
+                        requestError,
+                        'Tidak berjaya mengemaskini e-mel.',
+                        'verification_token',
+                    ),
+                );
+
+                return false;
+            } finally {
+                setContactSaving(false);
+            }
+        },
+        [
+            account,
+            contactSaving,
+            emailChangeToken,
+            onAccountUpdated,
         ],
     );
 
@@ -295,10 +590,24 @@ export function useCustomerProfile({
         passwordSaving,
         passwordError,
         passwordMessage,
+        contactSaving,
+        contactError,
+        contactMessage,
+        phoneChangeVerification,
+        emailChangeVerification,
+        phoneChangeToken,
+        emailChangeToken,
         setProfileName,
         updateProfile,
         uploadProfilePicture,
         changePassword,
+        requestPhoneChange,
+        verifyPhoneChange,
+        completePhoneChange,
+        requestEmailChange,
+        verifyEmailChange,
+        completeEmailChange,
+        clearContactChange,
         clearMessages,
     };
 }
