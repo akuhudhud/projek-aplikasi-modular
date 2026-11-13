@@ -9,6 +9,9 @@ import type { FormEvent } from 'react';
 import type {
     CustomerAccount,
     CustomerTaskRatingPayload,
+    ChangePhonePayload,
+    ChangeEmailPayload,
+    ContactChangeVerifyPayload,
 } from '../api';
 
 import {
@@ -228,6 +231,48 @@ export default function CustomerWorkspace({
         [profile.changePassword],
     );
 
+    const handleRequestPhoneChange = useCallback(
+        async (payload: ChangePhonePayload): Promise<boolean> => {
+            return await profile.requestPhoneChange(payload);
+        },
+        [profile.requestPhoneChange],
+    );
+
+    const handleVerifyPhoneChange = useCallback(
+        async (payload: ContactChangeVerifyPayload): Promise<boolean> => {
+            return await profile.verifyPhoneChange(payload);
+        },
+        [profile.verifyPhoneChange],
+    );
+
+    const handleCompletePhoneChange = useCallback(
+        async (): Promise<boolean> => {
+            return await profile.completePhoneChange();
+        },
+        [profile.completePhoneChange],
+    );
+
+    const handleRequestEmailChange = useCallback(
+        async (payload: ChangeEmailPayload): Promise<boolean> => {
+            return await profile.requestEmailChange(payload);
+        },
+        [profile.requestEmailChange],
+    );
+
+    const handleVerifyEmailChange = useCallback(
+        async (payload: ContactChangeVerifyPayload): Promise<boolean> => {
+            return await profile.verifyEmailChange(payload);
+        },
+        [profile.verifyEmailChange],
+    );
+
+    const handleCompleteEmailChange = useCallback(
+        async (): Promise<boolean> => {
+            return await profile.completeEmailChange();
+        },
+        [profile.completeEmailChange],
+    );
+
     const handleReturnToLogin = useCallback(() => {
         window.dispatchEvent(
             new Event(CUSTOMER_SESSION_EXPIRED_EVENT),
@@ -440,10 +485,32 @@ export default function CustomerWorkspace({
                         passwordSaving={profile.passwordSaving}
                         passwordError={profile.passwordError}
                         passwordMessage={profile.passwordMessage}
+
+                        contactSaving={profile.contactSaving}
+                        contactError={profile.contactError}
+                        contactMessage={profile.contactMessage}
+                        phoneChangeVerificationId={
+                            profile.phoneChangeVerification?.verification_id ?? null
+                        }
+                        phoneChangeVerified={Boolean(profile.phoneChangeToken)}
+                        emailChangeVerificationId={
+                            profile.emailChangeVerification?.verification_id ?? null
+                        }
+                        emailChangeVerified={Boolean(profile.emailChangeToken)}
+
                         onNameChange={handleProfileNameChange}
                         onSubmit={handleProfileSubmit}
                         onPictureSelect={handleProfilePictureSelect}
                         onChangePassword={handleChangePassword}
+
+                        onRequestPhoneChange={handleRequestPhoneChange}
+                        onVerifyPhoneChange={handleVerifyPhoneChange}
+                        onCompletePhoneChange={handleCompletePhoneChange}
+
+                        onRequestEmailChange={handleRequestEmailChange}
+                        onVerifyEmailChange={handleVerifyEmailChange}
+                        onCompleteEmailChange={handleCompleteEmailChange}
+
                         onReturnToLogin={handleReturnToLogin}
                     />
                 );
