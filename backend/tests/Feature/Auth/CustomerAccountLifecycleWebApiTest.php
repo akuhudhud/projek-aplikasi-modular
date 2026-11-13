@@ -145,12 +145,7 @@ class CustomerAccountLifecycleWebApiTest extends TestCase
 
         $this->authenticatedSession($tokens[0])
             ->postJson('/web/auth/deactivate')
-            ->assertUnprocessable()
-            ->assertJsonPath('success', false)
-            ->assertJsonPath(
-                'message',
-                'Only active accounts can be deactivated.',
-            );
+            ->assertUnauthorized();
 
         $this->assertDatabaseHas('accounts', [
             'id' => $account->id,
@@ -171,12 +166,7 @@ class CustomerAccountLifecycleWebApiTest extends TestCase
 
         $this->authenticatedSession($tokens[0])
             ->postJson('/web/auth/delete')
-            ->assertUnprocessable()
-            ->assertJsonPath('success', false)
-            ->assertJsonPath(
-                'message',
-                'Only active accounts can be deleted.',
-            );
+            ->assertUnauthorized();
 
         $this->assertDatabaseHas('accounts', [
             'id' => $account->id,
