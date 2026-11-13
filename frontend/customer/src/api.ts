@@ -182,6 +182,12 @@ interface LoginPayload {
     password: string;
 }
 
+export interface ChangePasswordPayload {
+    current_password: string;
+    new_password: string;
+    new_password_confirmation: string;
+}
+
 interface AccountData {
     account: CustomerAccount;
 }
@@ -273,6 +279,7 @@ function isProtectedCustomerEndpoint(
         path === '/web/auth/me' ||
         path === '/web/auth/profile' ||
         path === '/web/auth/profile-picture' ||
+        path === '/web/auth/change-password' ||
         path === '/web/auth/logout' ||
         path.startsWith('/web/customer/')
     );
@@ -376,6 +383,15 @@ export const customerApi = {
         );
 
         return response.data.data.account;
+    },
+
+    async changePassword(
+        payload: ChangePasswordPayload,
+    ): Promise<void> {
+        await api.post<ApiResponse<null>>(
+            '/web/auth/change-password',
+            payload,
+        );
     },
 
     async logout(): Promise<void> {
