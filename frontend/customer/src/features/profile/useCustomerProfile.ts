@@ -29,7 +29,6 @@ type CustomerProfileState = {
     passwordSaving: boolean;
     passwordError: string;
     passwordMessage: string;
-
     contactSaving: boolean;
     contactError: string;
     contactMessage: string;
@@ -44,15 +43,12 @@ type CustomerProfileActions = {
     updateProfile: () => Promise<boolean>;
     uploadProfilePicture: (file: File) => Promise<boolean>;
     changePassword: (payload: ChangePasswordPayload) => Promise<boolean>;
-
     requestPhoneChange: (payload: ChangePhonePayload) => Promise<boolean>;
     verifyPhoneChange: (payload: ContactChangeVerifyPayload) => Promise<boolean>;
     completePhoneChange: () => Promise<boolean>;
-
     requestEmailChange: (payload: ChangeEmailPayload) => Promise<boolean>;
     verifyEmailChange: (payload: ContactChangeVerifyPayload) => Promise<boolean>;
     completeEmailChange: () => Promise<boolean>;
-
     clearContactChange: () => void;
     clearMessages: () => void;
 };
@@ -82,9 +78,12 @@ function getRequestError(
         return fallback;
     }
 
+    const errors = requestError.response?.data?.errors;
+
     const validationMessage = field
-        ? requestError.response?.data?.errors?.[field]?.[0]
-        : undefined;
+        ? errors?.[field]?.[0] ??
+          Object.values(errors ?? {}).flat()[0]
+        : Object.values(errors ?? {}).flat()[0];
 
     return (
         validationMessage ??
@@ -306,7 +305,6 @@ export function useCustomerProfile({
                     getRequestError(
                         requestError,
                         'Tidak berjaya menukar kata laluan. Sila cuba semula.',
-                        'current_password',
                     ),
                 );
 
