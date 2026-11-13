@@ -95,6 +95,7 @@ export default function CustomerWorkspace({
 
             if (page !== 'profile') {
                 setProfileSuccessMessage('');
+                profile.clearMessages();
             }
 
             if (page !== 'requests') {
@@ -110,6 +111,7 @@ export default function CustomerWorkspace({
             navigation,
             requests.clearActionMessages,
             createRequest.clearMessages,
+            profile.clearMessages,
         ],
     );
 
@@ -200,6 +202,14 @@ export default function CustomerWorkspace({
             profile.setProfileName(value);
         },
         [profile.setProfileName],
+    );
+
+    const handleProfilePictureSelect = useCallback(
+        (file: File) => {
+            setProfileSuccessMessage('');
+            void profile.uploadProfilePicture(file);
+        },
+        [profile.uploadProfilePicture],
     );
 
     async function handleProfileSubmit(
@@ -402,8 +412,12 @@ export default function CustomerWorkspace({
                             profileSuccessMessage ||
                             profile.message
                         }
+                        pictureUploading={profile.pictureUploading}
+                        pictureError={profile.pictureError}
+                        pictureMessage={profile.pictureMessage}
                         onNameChange={handleProfileNameChange}
                         onSubmit={handleProfileSubmit}
+                        onPictureSelect={handleProfilePictureSelect}
                     />
                 );
         }
