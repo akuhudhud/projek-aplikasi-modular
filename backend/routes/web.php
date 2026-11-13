@@ -1,11 +1,12 @@
 <?php
 
+use App\Http\Controllers\Api\AuthController as ApiAuthController;
+use App\Http\Controllers\Api\ProfilePictureController;
+use App\Http\Controllers\Api\RunnerTaskRatingController;
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\RegistrationController;
 use App\Http\Controllers\Web\CustomerMarketplaceRequestController;
 use App\Http\Controllers\Web\CustomerTaskController;
-use App\Http\Controllers\Api\ProfilePictureController;
-use App\Http\Controllers\Api\RunnerTaskRatingController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('web/auth')
@@ -47,6 +48,11 @@ Route::prefix('web/auth')
                 '/profile-picture',
                 [ProfilePictureController::class, 'update']
             )->name('profile-picture.update');
+
+            Route::post(
+                '/change-password',
+                [ApiAuthController::class, 'changePassword']
+            )->name('change-password');
 
             Route::post('/logout', [AuthController::class, 'logout'])
                 ->name('logout');
