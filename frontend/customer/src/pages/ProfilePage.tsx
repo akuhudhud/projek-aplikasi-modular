@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import type { CustomerAccount } from '../api';
+import type { CustomerAccount, ChangePasswordPayload } from '../api';
 
 type ProfilePageProps = {
     account: CustomerAccount;
@@ -11,9 +11,14 @@ type ProfilePageProps = {
     pictureUploading: boolean;
     pictureError: string;
     pictureMessage: string;
+    passwordSaving: boolean;
+    passwordError: string;
+    passwordMessage: string;
     onNameChange: (value: string) => void;
     onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
     onPictureSelect: (file: File) => Promise<boolean>;
+    onChangePassword: (payload: ChangePasswordPayload) => Promise<boolean>;
+    onReturnToLogin: () => void;
 };
 
 export default function ProfilePage({
@@ -25,12 +30,22 @@ export default function ProfilePage({
     pictureUploading,
     pictureError,
     pictureMessage,
+    passwordSaving,
+    passwordError,
+    passwordMessage,
     onNameChange,
     onSubmit,
     onPictureSelect,
+    onChangePassword,
+    onReturnToLogin,
 }: ProfilePageProps) {
     const [selectedPicture, setSelectedPicture] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [newPasswordConfirmation, setNewPasswordConfirmation] = useState('');
+    const [passwordChanged, setPasswordChanged] = useState(false);
 
     const avatarLetter =
         account.profile_name?.trim().charAt(0).toUpperCase() || '?';
@@ -76,6 +91,27 @@ export default function ProfilePage({
 
         if (success) {
             setSelectedPicture(null);
+        }
+    }
+
+    async function handlePasswordSubmit(
+        event: React.FormEvent<HTMLFormElement>,
+    ) {
+        event.preventDefault();
+
+        if (passwordSaving || passwordChanged) return;
+
+        const success = await onChangePassword({
+            current_password: currentPassword,
+            new_password: newPassword,
+            new_password_confirmation: newPasswordConfirmation,
+        });
+
+        if (success) {
+            setCurrentPassword('');
+            setNewPassword('');
+            setNewPasswordConfirmation('');
+            setPasswordChanged(true);
         }
     }
 
@@ -195,6 +231,110 @@ export default function ProfilePage({
                         {profileSaving ? 'Sedang menyimpan...' : 'Simpan Perubahan'}
                     </button>
                 </form>
+            </section>
+
+            <section className="customer-panel">
+                <div className="customer-section-heading">
+                    <div>
+                        <h2>Tukar Kata Laluan</h2>
+                        <p>Kemas kini kata laluan akaun untuk keselamatan.</p>
+                    </div>
+                </div>
+
+                {passwordChanged ? (
+                    <div>
+                        <p role="status">
+                            Kata laluan berjaya ditukar. Semua sesi akaun telah ditamatkan.
+                            Sila log masuk semula menggunakan kata laluan baharu.
+                        </p>
+
+                        <button
+                            type="button"
+                            onClick={onReturnToLogin}
+                        >
+                            Kembali ke Log Masuk
+                        </button>
+                    </div>
+                ) : (
+                    <form onSubmit={handlePasswordSubmit}>
+                        <div>
+                            <label htmlFor="current-password">
+                                Kata Laluan Semasa
+                            </label>
+                            <input
+                                id="current-password"
+                                type="password"
+                                autoComplete="current-password"
+                                value={currentPassword}
+                                onChange={(event) => setCurrentPassword(event.target.value)}
+                                required
+                                disabled={passwordSaving}
+                            />
+                        </div>
+
+                        <div>
+                            <label htmlFor="new-password">
+                                Kata Laluan Baharu
+                            </label>
+                            <input
+                                id="new-password"
+                                type="password"
+                                autoComplete="new-password"
+                                value={newPassword}
+                                onChange={(event) => setNewPassword(event.target.value)}
+                                minLength={8}
+                                maxLength={12}
+                                required
+                                disabled={passwordSaving}
+                            />
+                        </div>
+
+                        <div>
+                            <label htmlFor="new-password-confirmation">
+                                Sahkan Kata Laluan Baharu
+                            </label>
+                            <input
+                                id="new-password-confirmation"
+                                type="password"
+                                autoComplete="new-password"
+                                value={newPasswordConfirmation}
+                                onChange={(event) => setNewPasswordConfirmation(event.target.value)}
+                                minLength={8}
+                                maxLength={12}
+                                required
+                                disabled={passwordSaving}
+                            />
+                        </div>
+
+                        <small>
+                            8 hingga 12 aksara, mesti mengandungi huruf besar,
+                            huruf kecil dan nombor. Kata laluan baharu mesti
+                            berbeza daripada kata laluan semasa.
+                        </small>
+
+                        {passwordError && (
+                            <p role="alert">{passwordError}</p>
+                        )}
+
+                        {passwordMessage && (
+                            <p role="status">{passwordMessage}</p>
+                        )}
+
+                        <button
+                            type="submit"
+                            disabled={
+                                passwordSaving ||
+                                !currentPassword ||
+                                !newPassword ||
+                                !newPasswordConfirmation
+                            }
+                        >
+                            {passwordSaving
+                                ? 'Sedang menukar kata laluan...'
+                                : 'Tukar Kata Laluan'}
+                        </button>
+                    </form>
+                )}
             </section>
         </div>
     );
