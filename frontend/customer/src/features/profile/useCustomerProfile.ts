@@ -63,7 +63,7 @@ export type CustomerProfile = CustomerProfileState &
 type UseCustomerProfileOptions = {
     account: CustomerAccount | null;
     onAccountUpdated: (account: CustomerAccount) => void;
-    onAccountTerminated: () => void;
+    onAccountTerminated?: () => void;
 };
 
 const ALLOWED_PROFILE_PICTURE_TYPES = [
@@ -600,7 +600,7 @@ export function useCustomerProfile({
 
             try {
                 await customerApi.deactivateAccount();
-                onAccountTerminated();
+                onAccountTerminated?.();
                 return true;
             } catch (requestError) {
                 setAccountActionError(
@@ -632,7 +632,7 @@ export function useCustomerProfile({
 
             try {
                 await customerApi.deleteAccount();
-                onAccountTerminated();
+                onAccountTerminated?.();
                 return true;
             } catch (requestError) {
                 setAccountActionError(
