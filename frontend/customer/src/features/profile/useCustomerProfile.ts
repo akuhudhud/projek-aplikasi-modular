@@ -36,6 +36,8 @@ type CustomerProfileState = {
     emailChangeVerification: ContactChangeRequestResult | null;
     phoneChangeToken: ContactChangeVerifyResult | null;
     emailChangeToken: ContactChangeVerifyResult | null;
+    accountActionSaving: boolean;
+    accountActionError: string;
 };
 
 type CustomerProfileActions = {
@@ -49,6 +51,8 @@ type CustomerProfileActions = {
     requestEmailChange: (payload: ChangeEmailPayload) => Promise<boolean>;
     verifyEmailChange: (payload: ContactChangeVerifyPayload) => Promise<boolean>;
     completeEmailChange: () => Promise<boolean>;
+    deactivateAccount: () => Promise<boolean>;
+    deleteAccount: () => Promise<boolean>;
     clearContactChange: () => void;
     clearMessages: () => void;
 };
@@ -59,6 +63,7 @@ export type CustomerProfile = CustomerProfileState &
 type UseCustomerProfileOptions = {
     account: CustomerAccount | null;
     onAccountUpdated: (account: CustomerAccount) => void;
+    onAccountTerminated: () => void;
 };
 
 const ALLOWED_PROFILE_PICTURE_TYPES = [
@@ -95,6 +100,7 @@ function getRequestError(
 export function useCustomerProfile({
     account,
     onAccountUpdated,
+    onAccountTerminated,
 }: UseCustomerProfileOptions): CustomerProfile {
     const [profileName, setProfileNameState] = useState('');
     const [saving, setSaving] = useState(false);
@@ -124,6 +130,11 @@ export function useCustomerProfile({
     const [emailChangeToken, setEmailChangeToken] =
         useState<ContactChangeVerifyResult | null>(null);
 
+    const [accountActionSaving, setAccountActionSaving] =
+        useState(false);
+    const [accountActionError, setAccountActionError] =
+        useState('');
+
     useEffect(() => {
         setProfileNameState(account?.profile_name ?? '');
     }, [account?.id, account?.profile_name]);
@@ -152,6 +163,7 @@ export function useCustomerProfile({
         setPasswordMessage('');
         setContactError('');
         setContactMessage('');
+        setAccountActionError('');
     }, []);
 
     const updateProfile = useCallback(async (): Promise<boolean> => {
@@ -577,6 +589,70 @@ export function useCustomerProfile({
         ],
     );
 
+    const deactivateAccount = useCallback(
+        async (): Promise<boolean> => {
+            if (!account || accountActionSaving) {
+                return false;
+            }
+
+            setAccountActionSaving(true);
+            setAccountActionError('');
+
+            try {
+                await customerApi.deactivateAccount();
+                onAccountTerminated();
+                return true;
+            } catch (requestError) {
+                setAccountActionError(
+                    getRequestError(
+                        requestError,
+                        'Tidak berjaya menyahaktifkan akaun. Sila cuba semula.',
+                    ),
+                );
+                return false;
+            } finally {
+                setAccountActionSaving(false);
+            }
+        },
+        [
+            account,
+            accountActionSaving,
+            onAccountTerminated,
+        ],
+    );
+
+    const deleteAccount = useCallback(
+        async (): Promise<boolean> => {
+            if (!account || accountActionSaving) {
+                return false;
+            }
+
+            setAccountActionSaving(true);
+            setAccountActionError('');
+
+            try {
+                await customerApi.deleteAccount();
+                onAccountTerminated();
+                return true;
+            } catch (requestError) {
+                setAccountActionError(
+                    getRequestError(
+                        requestError,
+                        'Tidak berjaya memadam akaun. Sila cuba semula.',
+                    ),
+                );
+                return false;
+            } finally {
+                setAccountActionSaving(false);
+            }
+        },
+        [
+            account,
+            accountActionSaving,
+            onAccountTerminated,
+        ],
+    );
+
     return {
         profileName,
         saving,
@@ -595,6 +671,8 @@ export function useCustomerProfile({
         emailChangeVerification,
         phoneChangeToken,
         emailChangeToken,
+        accountActionSaving,
+        accountActionError,
         setProfileName,
         updateProfile,
         uploadProfilePicture,
@@ -605,6 +683,8 @@ export function useCustomerProfile({
         requestEmailChange,
         verifyEmailChange,
         completeEmailChange,
+        deactivateAccount,
+        deleteAccount,
         clearContactChange,
         clearMessages,
     };
