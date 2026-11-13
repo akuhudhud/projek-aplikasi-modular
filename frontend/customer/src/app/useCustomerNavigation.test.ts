@@ -7,16 +7,14 @@ import {
 } from 'vitest';
 
 import {
+    act,
     cleanup,
     renderHook,
-    act,
 } from '@testing-library/react';
 
 import { useCustomerNavigation } from './useCustomerNavigation';
 
 describe('useCustomerNavigation', () => {
-    const originalLocation = window.location;
-
     afterEach(() => {
         cleanup();
 
@@ -28,11 +26,7 @@ describe('useCustomerNavigation', () => {
     });
 
     it('starts at dashboard when no runner parameter exists', () => {
-        window.history.replaceState(
-            {},
-            '',
-            '/',
-        );
+        window.history.replaceState({}, '', '/');
 
         const { result } = renderHook(() =>
             useCustomerNavigation(),
@@ -106,11 +100,7 @@ describe('useCustomerNavigation', () => {
     });
 
     it('navigates to the selected customer page', () => {
-        window.history.replaceState(
-            {},
-            '',
-            '/',
-        );
+        window.history.replaceState({}, '', '/');
 
         const { result } = renderHook(() =>
             useCustomerNavigation(),
@@ -124,11 +114,7 @@ describe('useCustomerNavigation', () => {
     });
 
     it('opens the create page through openRunnerRequest', () => {
-        window.history.replaceState(
-            {},
-            '',
-            '/',
-        );
+        window.history.replaceState({}, '', '/');
 
         const { result } = renderHook(() =>
             useCustomerNavigation(),
@@ -142,11 +128,7 @@ describe('useCustomerNavigation', () => {
     });
 
     it('returns to dashboard through returnHome', () => {
-        window.history.replaceState(
-            {},
-            '',
-            '/',
-        );
+        window.history.replaceState({}, '', '/');
 
         const { result } = renderHook(() =>
             useCustomerNavigation(),
