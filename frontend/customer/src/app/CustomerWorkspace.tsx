@@ -1,4 +1,3 @@
-
 import {
     useCallback,
     useEffect,
@@ -58,6 +57,12 @@ export default function CustomerWorkspace({
     const [ratingError, setRatingError] = useState('');
     const [ratingMessage, setRatingMessage] = useState('');
 
+    const handleReturnToLogin = useCallback(() => {
+        window.dispatchEvent(
+            new Event(CUSTOMER_SESSION_EXPIRED_EVENT),
+        );
+    }, []);
+
     const tasks = useCustomerTasks({
         enabled:
             navigation.activePage === 'dashboard' ||
@@ -83,6 +88,7 @@ export default function CustomerWorkspace({
     const profile = useCustomerProfile({
         account,
         onAccountUpdated,
+        onAccountTerminated: handleReturnToLogin,
     });
 
     useEffect(() => {
@@ -273,11 +279,19 @@ export default function CustomerWorkspace({
         [profile.completeEmailChange],
     );
 
-    const handleReturnToLogin = useCallback(() => {
-        window.dispatchEvent(
-            new Event(CUSTOMER_SESSION_EXPIRED_EVENT),
-        );
-    }, []);
+    const handleDeactivateAccount = useCallback(
+        async (): Promise<boolean> => {
+            return await profile.deactivateAccount();
+        },
+        [profile.deactivateAccount],
+    );
+
+    const handleDeleteAccount = useCallback(
+        async (): Promise<boolean> => {
+            return await profile.deleteAccount();
+        },
+        [profile.deleteAccount],
+    );
 
     async function handleProfileSubmit(
         event: FormEvent<HTMLFormElement>,
@@ -485,7 +499,6 @@ export default function CustomerWorkspace({
                         passwordSaving={profile.passwordSaving}
                         passwordError={profile.passwordError}
                         passwordMessage={profile.passwordMessage}
-
                         contactSaving={profile.contactSaving}
                         contactError={profile.contactError}
                         contactMessage={profile.contactMessage}
@@ -497,20 +510,20 @@ export default function CustomerWorkspace({
                             profile.emailChangeVerification?.verification_id ?? null
                         }
                         emailChangeVerified={Boolean(profile.emailChangeToken)}
-
+                        accountActionSaving={profile.accountActionSaving}
+                        accountActionError={profile.accountActionError}
                         onNameChange={handleProfileNameChange}
                         onSubmit={handleProfileSubmit}
                         onPictureSelect={handleProfilePictureSelect}
                         onChangePassword={handleChangePassword}
-
                         onRequestPhoneChange={handleRequestPhoneChange}
                         onVerifyPhoneChange={handleVerifyPhoneChange}
                         onCompletePhoneChange={handleCompletePhoneChange}
-
                         onRequestEmailChange={handleRequestEmailChange}
                         onVerifyEmailChange={handleVerifyEmailChange}
                         onCompleteEmailChange={handleCompleteEmailChange}
-
+                        onDeactivateAccount={handleDeactivateAccount}
+                        onDeleteAccount={handleDeleteAccount}
                         onReturnToLogin={handleReturnToLogin}
                     />
                 );
