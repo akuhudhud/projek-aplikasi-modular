@@ -84,9 +84,9 @@ describe('ProfilePage - pertukaran nombor telefon', () => {
             target: { value: '60123456789' },
         });
 
-        fireEvent.click(screen.getByRole('button', {
-            name: 'Hantar Kod Pengesahan',
-        }));
+        fireEvent.submit(
+            screen.getByLabelText('Nombor Telefon Baharu').closest('form')!,
+        );
 
         await waitFor(() => {
             expect(props.onRequestPhoneChange).toHaveBeenCalledWith({
@@ -112,9 +112,9 @@ describe('ProfilePage - pertukaran nombor telefon', () => {
             target: { value: '123456' },
         });
 
-        fireEvent.click(screen.getByRole('button', {
-            name: 'Sahkan Kod',
-        }));
+        fireEvent.submit(
+            screen.getByLabelText('Kod Pengesahan Telefon').closest('form')!,
+        );
 
         await waitFor(() => {
             expect(props.onVerifyPhoneChange).toHaveBeenCalledWith({
@@ -181,9 +181,9 @@ describe('ProfilePage - pertukaran e-mel', () => {
             target: { value: 'new@example.com' },
         });
 
-        fireEvent.click(screen.getByRole('button', {
-            name: 'Hantar Kod Pengesahan',
-        }).closest('form')!.querySelector('button')!);
+        fireEvent.submit(
+            screen.getByLabelText('E-mel Baharu').closest('form')!,
+        );
 
         await waitFor(() => {
             expect(props.onRequestEmailChange).toHaveBeenCalledWith({
@@ -209,9 +209,9 @@ describe('ProfilePage - pertukaran e-mel', () => {
             target: { value: '654321' },
         });
 
-        fireEvent.click(screen.getByRole('button', {
-            name: 'Sahkan Kod',
-        }).closest('form')!.querySelector('button')!);
+        fireEvent.submit(
+            screen.getByLabelText('Kod Pengesahan E-mel').closest('form')!,
+        );
 
         await waitFor(() => {
             expect(props.onVerifyEmailChange).toHaveBeenCalledWith({
