@@ -4,6 +4,7 @@ use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\RegistrationController;
 use App\Http\Controllers\Web\CustomerMarketplaceRequestController;
 use App\Http\Controllers\Web\CustomerTaskController;
+use App\Http\Controllers\Api\ProfilePictureController;
 use App\Http\Controllers\Api\RunnerTaskRatingController;
 use Illuminate\Support\Facades\Route;
 
@@ -41,6 +42,11 @@ Route::prefix('web/auth')
 
             Route::patch('/profile', [AuthController::class, 'updateProfile'])
                 ->name('profile.update');
+
+            Route::post(
+                '/profile-picture',
+                [ProfilePictureController::class, 'update']
+            )->name('profile-picture.update');
 
             Route::post('/logout', [AuthController::class, 'logout'])
                 ->name('logout');
