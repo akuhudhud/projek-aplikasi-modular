@@ -25,9 +25,9 @@ type ProfilePageProps = {
     contactSaving?: boolean;
     contactError?: string;
     contactMessage?: string;
-    phoneChangeRequested?: boolean;
+    phoneChangeVerificationId?: string | null;
     phoneChangeVerified?: boolean;
-    emailChangeRequested?: boolean;
+    emailChangeVerificationId?: string | null;
     emailChangeVerified?: boolean;
 
     onNameChange: (value: string) => void;
@@ -62,9 +62,9 @@ export default function ProfilePage({
     contactSaving = false,
     contactError = '',
     contactMessage = '',
-    phoneChangeRequested = false,
+    phoneChangeVerificationId = null,
     phoneChangeVerified = false,
-    emailChangeRequested = false,
+    emailChangeVerificationId = null,
     emailChangeVerified = false,
 
     onNameChange,
@@ -92,7 +92,6 @@ export default function ProfilePage({
 
     const [newPhone, setNewPhone] = useState('');
     const [phoneOtp, setPhoneOtp] = useState('');
-
     const [newEmail, setNewEmail] = useState('');
     const [emailOtp, setEmailOtp] = useState('');
 
@@ -178,9 +177,7 @@ export default function ProfilePage({
             phone: newPhone.trim(),
         });
 
-        if (success) {
-            setPhoneOtp('');
-        }
+        if (success) setPhoneOtp('');
     }
 
     async function handlePhoneVerify(
@@ -188,10 +185,14 @@ export default function ProfilePage({
     ) {
         event.preventDefault();
 
-        if (contactSaving || !phoneOtp.trim()) return;
+        if (
+            contactSaving ||
+            !phoneChangeVerificationId ||
+            phoneOtp.length !== 6
+        ) return;
 
         await onVerifyPhoneChange({
-            verification_id: '',
+            verification_id: phoneChangeVerificationId,
             otp: phoneOtp.trim(),
         });
     }
@@ -219,9 +220,7 @@ export default function ProfilePage({
             email: newEmail.trim(),
         });
 
-        if (success) {
-            setEmailOtp('');
-        }
+        if (success) setEmailOtp('');
     }
 
     async function handleEmailVerify(
@@ -229,10 +228,14 @@ export default function ProfilePage({
     ) {
         event.preventDefault();
 
-        if (contactSaving || !emailOtp.trim()) return;
+        if (
+            contactSaving ||
+            !emailChangeVerificationId ||
+            emailOtp.length !== 6
+        ) return;
 
         await onVerifyEmailChange({
-            verification_id: '',
+            verification_id: emailChangeVerificationId,
             otp: emailOtp.trim(),
         });
     }
@@ -296,7 +299,6 @@ export default function ProfilePage({
                         {selectedPicture && (
                             <div className="customer-profile-picture-preview">
                                 <p>{selectedPicture.name}</p>
-
                                 <button
                                     type="button"
                                     onClick={() => void handlePictureUpload()}
@@ -304,7 +306,6 @@ export default function ProfilePage({
                                 >
                                     Gunakan Gambar Ini
                                 </button>
-
                                 <button
                                     type="button"
                                     onClick={() => setSelectedPicture(null)}
@@ -318,7 +319,6 @@ export default function ProfilePage({
                         {pictureUploading && (
                             <p role="status">Sedang memuat naik gambar...</p>
                         )}
-
                         {pictureError && <p role="alert">{pictureError}</p>}
                         {pictureMessage && <p role="status">{pictureMessage}</p>}
                     </div>
@@ -368,29 +368,23 @@ export default function ProfilePage({
             </section>
 
             <section className="customer-panel">
-                <div className="customer-section-heading">
-                    <div>
-                        <h2>Tukar Nombor Telefon</h2>
-                        <p>Nombor baharu perlu disahkan sebelum dikemaskini.</p>
-                    </div>
-                </div>
+                <h2>Tukar Nombor Telefon</h2>
+                <p>Nombor baharu perlu disahkan sebelum dikemaskini.</p>
 
                 {phoneChanged ? (
                     <p role="status">Nombor telefon berjaya dikemaskini.</p>
                 ) : phoneChangeVerified ? (
                     <div>
-                        <p role="status">
-                            Nombor telefon baharu telah disahkan.
-                        </p>
+                        <p role="status">Nombor telefon baharu telah disahkan.</p>
                         <button
                             type="button"
                             onClick={() => void handlePhoneComplete()}
                             disabled={contactSaving}
                         >
-                            {contactSaving ? 'Sedang mengemaskini...' : 'Sahkan Nombor Baharu'}
+                            Sahkan Nombor Baharu
                         </button>
                     </div>
-                ) : phoneChangeRequested ? (
+                ) : phoneChangeVerificationId ? (
                     <form onSubmit={handlePhoneVerify}>
                         <label htmlFor="phone-change-otp">Kod Pengesahan Telefon</label>
                         <input
@@ -406,7 +400,10 @@ export default function ProfilePage({
                             required
                             disabled={contactSaving}
                         />
-                        <button type="submit" disabled={contactSaving || phoneOtp.length !== 6}>
+                        <button
+                            type="submit"
+                            disabled={contactSaving || phoneOtp.length !== 6}
+                        >
                             Sahkan Kod
                         </button>
                     </form>
@@ -424,7 +421,10 @@ export default function ProfilePage({
                             required
                             disabled={contactSaving}
                         />
-                        <button type="submit" disabled={contactSaving || !newPhone.trim()}>
+                        <button
+                            type="submit"
+                            disabled={contactSaving || !newPhone.trim()}
+                        >
                             Hantar Kod Pengesahan
                         </button>
                     </form>
@@ -432,29 +432,23 @@ export default function ProfilePage({
             </section>
 
             <section className="customer-panel">
-                <div className="customer-section-heading">
-                    <div>
-                        <h2>Tukar E-mel</h2>
-                        <p>E-mel baharu perlu disahkan sebelum dikemaskini.</p>
-                    </div>
-                </div>
+                <h2>Tukar E-mel</h2>
+                <p>E-mel baharu perlu disahkan sebelum dikemaskini.</p>
 
                 {emailChanged ? (
                     <p role="status">E-mel berjaya dikemaskini.</p>
                 ) : emailChangeVerified ? (
                     <div>
-                        <p role="status">
-                            E-mel baharu telah disahkan.
-                        </p>
+                        <p role="status">E-mel baharu telah disahkan.</p>
                         <button
                             type="button"
                             onClick={() => void handleEmailComplete()}
                             disabled={contactSaving}
                         >
-                            {contactSaving ? 'Sedang mengemaskini...' : 'Sahkan E-mel Baharu'}
+                            Sahkan E-mel Baharu
                         </button>
                     </div>
-                ) : emailChangeRequested ? (
+                ) : emailChangeVerificationId ? (
                     <form onSubmit={handleEmailVerify}>
                         <label htmlFor="email-change-otp">Kod Pengesahan E-mel</label>
                         <input
@@ -470,7 +464,10 @@ export default function ProfilePage({
                             required
                             disabled={contactSaving}
                         />
-                        <button type="submit" disabled={contactSaving || emailOtp.length !== 6}>
+                        <button
+                            type="submit"
+                            disabled={contactSaving || emailOtp.length !== 6}
+                        >
                             Sahkan Kod
                         </button>
                     </form>
@@ -487,7 +484,10 @@ export default function ProfilePage({
                             required
                             disabled={contactSaving}
                         />
-                        <button type="submit" disabled={contactSaving || !newEmail.trim()}>
+                        <button
+                            type="submit"
+                            disabled={contactSaving || !newEmail.trim()}
+                        >
                             Hantar Kod Pengesahan
                         </button>
                     </form>
@@ -497,7 +497,6 @@ export default function ProfilePage({
             {contactSaving && (
                 <p role="status">Sedang memproses pengesahan maklumat hubungan...</p>
             )}
-
             {contactError && <p role="alert">{contactError}</p>}
             {contactMessage && <p role="status">{contactMessage}</p>}
 
@@ -515,20 +514,14 @@ export default function ProfilePage({
                             Kata laluan berjaya ditukar. Semua sesi akaun telah ditamatkan.
                             Sila log masuk semula menggunakan kata laluan baharu.
                         </p>
-
-                        <button
-                            type="button"
-                            onClick={onReturnToLogin}
-                        >
+                        <button type="button" onClick={onReturnToLogin}>
                             Kembali ke Log Masuk
                         </button>
                     </div>
                 ) : (
                     <form onSubmit={handlePasswordSubmit}>
                         <div>
-                            <label htmlFor="current-password">
-                                Kata Laluan Semasa
-                            </label>
+                            <label htmlFor="current-password">Kata Laluan Semasa</label>
                             <input
                                 id="current-password"
                                 type="password"
@@ -541,9 +534,7 @@ export default function ProfilePage({
                         </div>
 
                         <div>
-                            <label htmlFor="new-password">
-                                Kata Laluan Baharu
-                            </label>
+                            <label htmlFor="new-password">Kata Laluan Baharu</label>
                             <input
                                 id="new-password"
                                 type="password"
@@ -580,13 +571,8 @@ export default function ProfilePage({
                             berbeza daripada kata laluan semasa.
                         </small>
 
-                        {passwordError && (
-                            <p role="alert">{passwordError}</p>
-                        )}
-
-                        {passwordMessage && (
-                            <p role="status">{passwordMessage}</p>
-                        )}
+                        {passwordError && <p role="alert">{passwordError}</p>}
+                        {passwordMessage && <p role="status">{passwordMessage}</p>}
 
                         <button
                             type="submit"
