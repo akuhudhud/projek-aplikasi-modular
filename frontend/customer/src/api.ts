@@ -309,6 +309,8 @@ function isProtectedCustomerEndpoint(
         path === '/web/auth/change-password' ||
         path.startsWith('/web/auth/change-phone/') ||
         path.startsWith('/web/auth/change-email/') ||
+        path === '/web/auth/deactivate' ||
+        path === '/web/auth/delete' ||
         path === '/web/auth/logout' ||
         path.startsWith('/web/customer/')
     );
@@ -495,6 +497,18 @@ export const customerApi = {
         );
 
         return response.data.data.account;
+    },
+
+    async deactivateAccount(): Promise<void> {
+        await api.post<ApiResponse<null>>(
+            '/web/auth/deactivate',
+        );
+    },
+
+    async deleteAccount(): Promise<void> {
+        await api.post<ApiResponse<null>>(
+            '/web/auth/delete',
+        );
     },
 
     async logout(): Promise<void> {
