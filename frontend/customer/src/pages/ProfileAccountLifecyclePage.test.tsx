@@ -1,3 +1,4 @@
+
 import {
     afterEach,
     describe,
@@ -250,13 +251,20 @@ describe('ProfilePage account lifecycle', () => {
     });
 
     it('displays processing state during confirmation', () => {
-        renderProfilePage({
-            accountActionSaving: true,
-        });
+        const { props, rerender } = renderProfilePage();
 
         fireEvent.click(screen.getByRole('button', {
             name: 'Padam Akaun',
         }));
+
+        expect(screen.getByRole('dialog')).toBeTruthy();
+
+        rerender(
+            <ProfilePage
+                {...props}
+                accountActionSaving={true}
+            />,
+        );
 
         expect(screen.getByRole('button', {
             name: 'Sedang diproses...',
