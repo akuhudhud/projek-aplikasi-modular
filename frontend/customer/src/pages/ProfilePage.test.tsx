@@ -39,8 +39,12 @@ function renderProfilePage(
         profileSaving: false,
         profileError: '',
         profileMessage: '',
+        pictureUploading: false,
+        pictureError: '',
+        pictureMessage: '',
         onNameChange: vi.fn(),
         onSubmit: vi.fn((event) => event.preventDefault()),
+        onPictureSelect: vi.fn(),
         ...overrides,
     };
 
@@ -114,6 +118,24 @@ describe('ProfilePage', () => {
         ).toHaveTextContent('?');
     });
 
+    it('displays uploaded profile picture', () => {
+        renderProfilePage({
+            account: {
+                ...account,
+                profile_picture: 'profile-pictures/customer-001/profile.jpg',
+            },
+        });
+
+        const image = screen.getByRole('img', {
+            name: 'Gambar profil Nazim',
+        });
+
+        expect(image).toHaveAttribute(
+            'src',
+            `${window.location.origin}/storage/profile-pictures/customer-001/profile.jpg`,
+        );
+    });
+
     it('calls name change callback when input changes', () => {
         const { props } = renderProfilePage();
 
@@ -128,6 +150,108 @@ describe('ProfilePage', () => {
 
         expect(props.onNameChange).toHaveBeenCalledWith(
             'Nazim Baru',
+        );
+    });
+
+    it('accepts supported profile picture formats', () => {
+        renderProfilePage();
+
+        expect(
+            screen.getByLabelText('Gambar Profil'),
+        ).toHaveAttribute(
+            'accept',
+            'image/jpeg,image/png,image/webp',
+        );
+    });
+
+    it('calls picture selection callback when an image is selected', () => {
+        const { props } = renderProfilePage();
+
+        const file = new File(
+            ['profile-image'],
+            'profile.png',
+            {
+                type: 'image/png',
+            },
+        );
+
+        fireEvent.change(
+            screen.getByLabelText('Gambar Profil'),
+            {
+                target: {
+                    files: [file],
+                },
+            },
+        );
+
+        expect(props.onPictureSelect).toHaveBeenCalledWith(file);
+    });
+
+    it('clears file input after selecting an image', () => {
+        renderProfilePage();
+
+        const input = screen.getByLabelText(
+            'Gambar Profil',
+        ) as HTMLInputElement;
+
+        const file = new File(
+            ['profile-image'],
+            'profile.png',
+            {
+                type: 'image/png',
+            },
+        );
+
+        fireEvent.change(input, {
+            target: {
+                files: [file],
+            },
+        });
+
+        expect(input.value).toBe('');
+    });
+
+    it('disables picture input while uploading', () => {
+        renderProfilePage({
+            pictureUploading: true,
+        });
+
+        expect(
+            screen.getByLabelText('Gambar Profil'),
+        ).toBeDisabled();
+    });
+
+    it('displays picture uploading state', () => {
+        renderProfilePage({
+            pictureUploading: true,
+        });
+
+        expect(
+            screen.getByRole('status'),
+        ).toHaveTextContent(
+            'Sedang memuat naik gambar...',
+        );
+    });
+
+    it('displays picture upload error', () => {
+        renderProfilePage({
+            pictureError: 'Format gambar tidak sah.',
+        });
+
+        expect(
+            screen.getByRole('alert'),
+        ).toHaveTextContent('Format gambar tidak sah.');
+    });
+
+    it('displays picture upload success message', () => {
+        renderProfilePage({
+            pictureMessage: 'Gambar profil berjaya dikemaskini.',
+        });
+
+        expect(
+            screen.getByRole('status'),
+        ).toHaveTextContent(
+            'Gambar profil berjaya dikemaskini.',
         );
     });
 
