@@ -162,11 +162,11 @@ describe('HomePage', () => {
     it('navigates to all tasks', () => {
         const { props } = renderHomePage();
 
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'Lihat Semua',
-            }),
-        );
+        const buttons = screen.getAllByRole('button', {
+            name: 'Lihat Semua',
+        });
+
+        fireEvent.click(buttons[0]);
 
         expect(props.onNavigateTasks).toHaveBeenCalledTimes(1);
     });
