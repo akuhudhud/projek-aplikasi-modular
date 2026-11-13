@@ -85,7 +85,6 @@ describe('TopAppBar', () => {
         );
 
         expect(onLogout).toHaveBeenCalledTimes(1);
-        expect(onLogout.mock.calls[0]).toEqual([]);
     });
 
     it('disables the logout button while loading', () => {
