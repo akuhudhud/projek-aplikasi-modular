@@ -90,9 +90,8 @@ describe('BottomNavigation', () => {
             screen.getByRole('button', { name: 'Permintaan' }),
         );
 
-        expect(onNavigate).toHaveBeenCalledExactlyOnceWith(
-            'requests',
-        );
+        expect(onNavigate).toHaveBeenCalledTimes(1);
+        expect(onNavigate).toHaveBeenCalledWith('requests');
     });
 
     it('calls onNavigate when the create button is clicked', () => {
@@ -109,9 +108,8 @@ describe('BottomNavigation', () => {
             screen.getByRole('button', { name: 'Cipta' }),
         );
 
-        expect(onNavigate).toHaveBeenCalledExactlyOnceWith(
-            'create',
-        );
+        expect(onNavigate).toHaveBeenCalledTimes(1);
+        expect(onNavigate).toHaveBeenCalledWith('create');
     });
 
     it('provides descriptions through button titles', () => {
