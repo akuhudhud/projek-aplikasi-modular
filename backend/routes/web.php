@@ -85,6 +85,16 @@ Route::prefix('web/auth')
                 [ContactChangeController::class, 'completeEmail']
             )->name('change-email.complete');
 
+            Route::post(
+                '/deactivate',
+                [ApiAuthController::class, 'deactivate']
+            )->name('deactivate');
+
+            Route::post(
+                '/delete',
+                [ApiAuthController::class, 'delete']
+            )->name('delete');
+
             Route::post('/logout', [AuthController::class, 'logout'])
                 ->name('logout');
         });
