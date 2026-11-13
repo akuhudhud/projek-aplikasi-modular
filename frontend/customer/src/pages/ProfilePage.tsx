@@ -11,14 +11,14 @@ type ProfilePageProps = {
     pictureUploading: boolean;
     pictureError: string;
     pictureMessage: string;
-    passwordSaving: boolean;
-    passwordError: string;
-    passwordMessage: string;
+    passwordSaving?: boolean;
+    passwordError?: string;
+    passwordMessage?: string;
     onNameChange: (value: string) => void;
     onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
     onPictureSelect: (file: File) => Promise<boolean>;
-    onChangePassword: (payload: ChangePasswordPayload) => Promise<boolean>;
-    onReturnToLogin: () => void;
+    onChangePassword?: (payload: ChangePasswordPayload) => Promise<boolean>;
+    onReturnToLogin?: () => void;
 };
 
 export default function ProfilePage({
@@ -30,14 +30,14 @@ export default function ProfilePage({
     pictureUploading,
     pictureError,
     pictureMessage,
-    passwordSaving,
-    passwordError,
-    passwordMessage,
+    passwordSaving = false,
+    passwordError = '',
+    passwordMessage = '',
     onNameChange,
     onSubmit,
     onPictureSelect,
-    onChangePassword,
-    onReturnToLogin,
+    onChangePassword = async () => false,
+    onReturnToLogin = () => undefined,
 }: ProfilePageProps) {
     const [selectedPicture, setSelectedPicture] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
