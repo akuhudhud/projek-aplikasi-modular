@@ -6,6 +6,8 @@ use App\Http\Middleware\AuthenticateWebSession;
 use App\Models\Account;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -109,5 +111,100 @@ class CustomerProfileWebApiTest extends TestCase
             'id' => $account->id,
             'profile_name' => 'Original Customer',
         ]);
+    }
+
+    public function test_authenticated_customer_can_upload_profile_picture(): void
+    {
+        Storage::fake('public');
+
+        $account = $this->createAccount();
+
+        $file = UploadedFile::fake()->image('profile.jpg');
+
+        $response = $this->authenticatedRequest($account)
+            ->post('/web/auth/profile-picture', [
+                'profile_picture' => $file,
+            ], [
+                'Accept' => 'application/json',
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $path = $account->fresh()->profile_picture;
+
+        $this->assertNotNull($path);
+
+        $response->assertJsonPath(
+            'data.account.profile_picture',
+            $path
+        );
+
+        Storage::disk('public')->assertExists($path);
+    }
+
+    public function test_profile_picture_upload_requires_web_authentication(): void
+    {
+        Storage::fake('public');
+
+        $file = UploadedFile::fake()->image('profile.jpg');
+
+        $response = $this->post('/web/auth/profile-picture', [
+            'profile_picture' => $file,
+        ], [
+            'Accept' => 'application/json',
+        ]);
+
+        $response->assertUnauthorized();
+    }
+
+    public function test_profile_picture_upload_rejects_invalid_file(): void
+    {
+        Storage::fake('public');
+
+        $account = $this->createAccount();
+
+        $file = UploadedFile::fake()->create(
+            'document.pdf',
+            100,
+            'application/pdf'
+        );
+
+        $response = $this->authenticatedRequest($account)
+            ->post('/web/auth/profile-picture', [
+                'profile_picture' => $file,
+            ], [
+                'Accept' => 'application/json',
+            ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['profile_picture']);
+
+        $this->assertNull($account->fresh()->profile_picture);
+    }
+
+    public function test_profile_picture_upload_rejects_file_over_5_mb(): void
+    {
+        Storage::fake('public');
+
+        $account = $this->createAccount();
+
+        $file = UploadedFile::fake()->image('profile.jpg')
+            ->size(5121);
+
+        $response = $this->authenticatedRequest($account)
+            ->post('/web/auth/profile-picture', [
+                'profile_picture' => $file,
+            ], [
+                'Accept' => 'application/json',
+            ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['profile_picture']);
+
+        $this->assertNull($account->fresh()->profile_picture);
     }
 }
