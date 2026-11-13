@@ -1,6 +1,8 @@
+
 <?php
 
 use App\Http\Controllers\Api\AuthController as ApiAuthController;
+use App\Http\Controllers\Api\ContactChangeController;
 use App\Http\Controllers\Api\ProfilePictureController;
 use App\Http\Controllers\Api\RunnerTaskRatingController;
 use App\Http\Controllers\Web\AuthController;
@@ -53,6 +55,36 @@ Route::prefix('web/auth')
                 '/change-password',
                 [ApiAuthController::class, 'changePassword']
             )->name('change-password');
+
+            Route::post(
+                '/change-phone/request',
+                [ContactChangeController::class, 'requestPhone']
+            )->name('change-phone.request');
+
+            Route::post(
+                '/change-phone/verify',
+                [ContactChangeController::class, 'verifyPhone']
+            )->name('change-phone.verify');
+
+            Route::post(
+                '/change-phone/complete',
+                [ContactChangeController::class, 'completePhone']
+            )->name('change-phone.complete');
+
+            Route::post(
+                '/change-email/request',
+                [ContactChangeController::class, 'requestEmail']
+            )->name('change-email.request');
+
+            Route::post(
+                '/change-email/verify',
+                [ContactChangeController::class, 'verifyEmail']
+            )->name('change-email.verify');
+
+            Route::post(
+                '/change-email/complete',
+                [ContactChangeController::class, 'completeEmail']
+            )->name('change-email.complete');
 
             Route::post('/logout', [AuthController::class, 'logout'])
                 ->name('logout');
