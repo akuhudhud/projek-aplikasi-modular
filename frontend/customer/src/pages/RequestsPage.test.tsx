@@ -410,7 +410,7 @@ describe('RequestsPage', () => {
         ).toBeDisabled();
     });
 
-    it('disables pagination buttons while loading', () => {
+    it('hides pagination while requests are loading', () => {
         renderRequestsPage({
             requests: [createRequest('request-016')],
             currentPage: 2,
@@ -419,15 +419,19 @@ describe('RequestsPage', () => {
         });
 
         expect(
-            screen.getByRole('button', {
-                name: 'Sebelum',
-            }),
-        ).toBeDisabled();
+            screen.getByText('Memuatkan senarai permintaan...'),
+        ).toBeTruthy();
 
         expect(
-            screen.getByRole('button', {
+            screen.queryByRole('button', {
+                name: 'Sebelum',
+            }),
+        ).toBeNull();
+
+        expect(
+            screen.queryByRole('button', {
                 name: 'Seterusnya',
             }),
-        ).toBeDisabled();
+        ).toBeNull();
     });
 });
