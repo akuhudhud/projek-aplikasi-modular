@@ -1,6 +1,7 @@
 
 import {
     afterEach,
+    beforeEach,
     describe,
     expect,
     it,
@@ -55,33 +56,50 @@ function renderProfilePage(
 }
 
 describe('ProfilePage', () => {
+    beforeEach(() => {
+        Object.assign(URL, {
+            createObjectURL: vi.fn(() => 'blob:profile-preview'),
+            revokeObjectURL: vi.fn(),
+        });
+    });
+
     afterEach(() => {
         cleanup();
         vi.restoreAllMocks();
     });
 
+    function createImageFile() {
+        return new File(
+            ['profile-image'],
+            'profile.png',
+            { type: 'image/png' },
+        );
+    }
+
+    function selectImage(file = createImageFile()) {
+        fireEvent.change(screen.getByLabelText('Gambar Profil'), {
+            target: { files: [file] },
+        });
+
+        return file;
+    }
+
     it('displays the profile heading and description', () => {
         renderProfilePage();
 
-        expect(
-            screen.getByRole('heading', {
-                name: 'Profil Saya',
-            }),
-        ).toBeTruthy();
+        expect(screen.getByRole('heading', {
+            name: 'Profil Saya',
+        })).toBeTruthy();
 
-        expect(
-            screen.getByText(
-                'Maklumat akaun pelanggan Super Runner.',
-            ),
-        ).toBeTruthy();
+        expect(screen.getByText(
+            'Maklumat akaun pelanggan Super Runner.',
+        )).toBeTruthy();
     });
 
     it('displays the customer profile name', () => {
         renderProfilePage();
 
-        expect(
-            screen.getByLabelText('Nama'),
-        ).toHaveValue('Nazim');
+        expect(screen.getByLabelText('Nama')).toHaveValue('Nazim');
     });
 
     it('displays the first letter of the profile name as avatar', () => {
@@ -94,10 +112,7 @@ describe('ProfilePage', () => {
 
     it('displays avatar letter in uppercase', () => {
         renderProfilePage({
-            account: {
-                ...account,
-                profile_name: 'ali',
-            },
+            account: { ...account, profile_name: 'ali' },
         });
 
         expect(
@@ -107,10 +122,7 @@ describe('ProfilePage', () => {
 
     it('displays question mark when profile name is empty', () => {
         renderProfilePage({
-            account: {
-                ...account,
-                profile_name: '',
-            },
+            account: { ...account, profile_name: '' },
         });
 
         expect(
@@ -126,11 +138,9 @@ describe('ProfilePage', () => {
             },
         });
 
-        const image = screen.getByRole('img', {
+        expect(screen.getByRole('img', {
             name: 'Gambar profil Nazim',
-        });
-
-        expect(image).toHaveAttribute(
+        })).toHaveAttribute(
             'src',
             `${window.location.origin}/storage/profile-pictures/customer-001/profile.jpg`,
         );
@@ -139,52 +149,69 @@ describe('ProfilePage', () => {
     it('calls name change callback when input changes', () => {
         const { props } = renderProfilePage();
 
-        fireEvent.change(
-            screen.getByLabelText('Nama'),
-            {
-                target: {
-                    value: 'Nazim Baru',
-                },
-            },
-        );
+        fireEvent.change(screen.getByLabelText('Nama'), {
+            target: { value: 'Nazim Baru' },
+        });
 
-        expect(props.onNameChange).toHaveBeenCalledWith(
-            'Nazim Baru',
-        );
+        expect(props.onNameChange).toHaveBeenCalledWith('Nazim Baru');
     });
 
     it('accepts supported profile picture formats', () => {
         renderProfilePage();
 
-        expect(
-            screen.getByLabelText('Gambar Profil'),
-        ).toHaveAttribute(
+        expect(screen.getByLabelText('Gambar Profil')).toHaveAttribute(
             'accept',
             'image/jpeg,image/png,image/webp',
         );
     });
 
-    it('calls picture selection callback when an image is selected', () => {
+    it('shows image preview after selecting a picture', () => {
+        renderProfilePage();
+
+        selectImage();
+
+        expect(screen.getByRole('img', {
+            name: 'Pratonton gambar profil',
+        })).toHaveAttribute('src', 'blob:profile-preview');
+
+        expect(screen.getByText('profile.png')).toBeTruthy();
+        expect(screen.getByRole('button', {
+            name: 'Gunakan Gambar Ini',
+        })).toBeTruthy();
+    });
+
+    it('does not upload before user confirms the preview', () => {
         const { props } = renderProfilePage();
 
-        const file = new File(
-            ['profile-image'],
-            'profile.png',
-            {
-                type: 'image/png',
-            },
-        );
+        selectImage();
 
-        fireEvent.change(
-            screen.getByLabelText('Gambar Profil'),
-            {
-                target: {
-                    files: [file],
-                },
-            },
-        );
+        expect(props.onPictureSelect).not.toHaveBeenCalled();
+    });
+
+    it('uploads selected image after confirmation', () => {
+        const { props } = renderProfilePage();
+        const file = selectImage();
+
+        fireEvent.click(screen.getByRole('button', {
+            name: 'Gunakan Gambar Ini',
+        }));
 
         expect(props.onPictureSelect).toHaveBeenCalledWith(file);
+    });
+
+    it('allows user to cancel selected image', () => {
+        const { props } = renderProfilePage();
+
+        selectImage();
+
+        fireEvent.click(screen.getByRole('button', {
+            name: 'Batal',
+        }));
+
+        expect(props.onPictureSelect).not.toHaveBeenCalled();
+        expect(screen.queryByRole('img', {
+            name: 'Pratonton gambar profil',
+        })).toBeNull();
     });
 
     it('clears file input after selecting an image', () => {
@@ -194,19 +221,7 @@ describe('ProfilePage', () => {
             'Gambar Profil',
         ) as HTMLInputElement;
 
-        const file = new File(
-            ['profile-image'],
-            'profile.png',
-            {
-                type: 'image/png',
-            },
-        );
-
-        fireEvent.change(input, {
-            target: {
-                files: [file],
-            },
-        });
+        selectImage();
 
         expect(input.value).toBe('');
     });
@@ -226,9 +241,7 @@ describe('ProfilePage', () => {
             pictureUploading: true,
         });
 
-        expect(
-            screen.getByRole('status'),
-        ).toHaveTextContent(
+        expect(screen.getByRole('status')).toHaveTextContent(
             'Sedang memuat naik gambar...',
         );
     });
@@ -238,9 +251,9 @@ describe('ProfilePage', () => {
             pictureError: 'Format gambar tidak sah.',
         });
 
-        expect(
-            screen.getByRole('alert'),
-        ).toHaveTextContent('Format gambar tidak sah.');
+        expect(screen.getByRole('alert')).toHaveTextContent(
+            'Format gambar tidak sah.',
+        );
     });
 
     it('displays picture upload success message', () => {
@@ -248,9 +261,7 @@ describe('ProfilePage', () => {
             pictureMessage: 'Gambar profil berjaya dikemaskini.',
         });
 
-        expect(
-            screen.getByRole('status'),
-        ).toHaveTextContent(
+        expect(screen.getByRole('status')).toHaveTextContent(
             'Gambar profil berjaya dikemaskini.',
         );
     });
@@ -258,17 +269,13 @@ describe('ProfilePage', () => {
     it('displays customer phone number', () => {
         renderProfilePage();
 
-        expect(
-            screen.getByText('0123456789'),
-        ).toBeTruthy();
+        expect(screen.getByText('0123456789')).toBeTruthy();
     });
 
     it('displays customer email', () => {
         renderProfilePage();
 
-        expect(
-            screen.getByText('nazim@example.com'),
-        ).toBeTruthy();
+        expect(screen.getByText('nazim@example.com')).toBeTruthy();
     });
 
     it('displays account role and status', () => {
@@ -280,10 +287,7 @@ describe('ProfilePage', () => {
 
     it('uses fallback when phone number is missing', () => {
         renderProfilePage({
-            account: {
-                ...account,
-                phone: null,
-            },
+            account: { ...account, phone: null },
         });
 
         expect(
@@ -293,10 +297,7 @@ describe('ProfilePage', () => {
 
     it('uses fallback when email is missing', () => {
         renderProfilePage({
-            account: {
-                ...account,
-                email: null,
-            },
+            account: { ...account, email: null },
         });
 
         expect(
@@ -321,11 +322,9 @@ describe('ProfilePage', () => {
             profileSaving: true,
         });
 
-        expect(
-            screen.getByRole('button', {
-                name: 'Sedang menyimpan...',
-            }),
-        ).toBeDisabled();
+        expect(screen.getByRole('button', {
+            name: 'Sedang menyimpan...',
+        })).toBeDisabled();
     });
 
     it('disables name input while saving', () => {
@@ -333,9 +332,7 @@ describe('ProfilePage', () => {
             profileSaving: true,
         });
 
-        expect(
-            screen.getByLabelText('Nama'),
-        ).toBeDisabled();
+        expect(screen.getByLabelText('Nama')).toBeDisabled();
     });
 
     it('displays profile error message', () => {
@@ -343,9 +340,9 @@ describe('ProfilePage', () => {
             profileError: 'Gagal menyimpan profil.',
         });
 
-        expect(
-            screen.getByRole('alert'),
-        ).toHaveTextContent('Gagal menyimpan profil.');
+        expect(screen.getByRole('alert')).toHaveTextContent(
+            'Gagal menyimpan profil.',
+        );
     });
 
     it('displays profile success message', () => {
@@ -353,16 +350,17 @@ describe('ProfilePage', () => {
             profileMessage: 'Profil berjaya dikemas kini.',
         });
 
-        expect(
-            screen.getByRole('status'),
-        ).toHaveTextContent('Profil berjaya dikemas kini.');
+        expect(screen.getByRole('status')).toHaveTextContent(
+            'Profil berjaya dikemas kini.',
+        );
     });
 
     it('limits name input to 255 characters', () => {
         renderProfilePage();
 
-        expect(
-            screen.getByLabelText('Nama'),
-        ).toHaveAttribute('maxLength', '255');
+        expect(screen.getByLabelText('Nama')).toHaveAttribute(
+            'maxLength',
+            '255',
+        );
     });
 });
