@@ -11,7 +11,10 @@ import type {
     CustomerTaskRatingPayload,
 } from '../api';
 
-import { customerApi } from '../api';
+import {
+    customerApi,
+    CUSTOMER_SESSION_EXPIRED_EVENT,
+} from '../api';
 
 import AppShell from './AppShell';
 import { useCustomerNavigation } from './useCustomerNavigation';
@@ -211,6 +214,25 @@ export default function CustomerWorkspace({
         },
         [profile.uploadProfilePicture],
     );
+
+    const handleChangePassword = useCallback(
+        async (
+            payload: {
+                current_password: string;
+                new_password: string;
+                new_password_confirmation: string;
+            },
+        ): Promise<boolean> => {
+            return await profile.changePassword(payload);
+        },
+        [profile.changePassword],
+    );
+
+    const handleReturnToLogin = useCallback(() => {
+        window.dispatchEvent(
+            new Event(CUSTOMER_SESSION_EXPIRED_EVENT),
+        );
+    }, []);
 
     async function handleProfileSubmit(
         event: FormEvent<HTMLFormElement>,
@@ -415,9 +437,14 @@ export default function CustomerWorkspace({
                         pictureUploading={profile.pictureUploading}
                         pictureError={profile.pictureError}
                         pictureMessage={profile.pictureMessage}
+                        passwordSaving={profile.passwordSaving}
+                        passwordError={profile.passwordError}
+                        passwordMessage={profile.passwordMessage}
                         onNameChange={handleProfileNameChange}
                         onSubmit={handleProfileSubmit}
                         onPictureSelect={handleProfilePictureSelect}
+                        onChangePassword={handleChangePassword}
+                        onReturnToLogin={handleReturnToLogin}
                     />
                 );
         }
