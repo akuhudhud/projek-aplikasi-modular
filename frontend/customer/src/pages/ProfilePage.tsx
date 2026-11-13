@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { CustomerAccount } from '../api';
 
 type ProfilePageProps = {
@@ -29,6 +29,9 @@ export default function ProfilePage({
     onSubmit,
     onPictureSelect,
 }: ProfilePageProps) {
+    const [selectedPicture, setSelectedPicture] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
     const avatarLetter =
         account.profile_name?.trim().charAt(0).toUpperCase() || '?';
 
@@ -42,16 +45,37 @@ export default function ProfilePage({
         ).toString()
         : null;
 
+    useEffect(() => {
+        if (!selectedPicture) {
+            setPreviewUrl(null);
+            return;
+        }
+
+        const url = URL.createObjectURL(selectedPicture);
+        setPreviewUrl(url);
+
+        return () => URL.revokeObjectURL(url);
+    }, [selectedPicture]);
+
     function handlePictureChange(
         event: React.ChangeEvent<HTMLInputElement>,
     ) {
         const file = event.target.files?.[0];
 
         if (file) {
-            onPictureSelect(file);
+            setSelectedPicture(file);
         }
 
         event.target.value = '';
+    }
+
+    function handlePictureUpload() {
+        if (!selectedPicture || pictureUploading) {
+            return;
+        }
+
+        onPictureSelect(selectedPicture);
+        setSelectedPicture(null);
     }
 
     return (
@@ -66,7 +90,13 @@ export default function ProfilePage({
 
                 <div className="customer-profile-picture-section">
                     <div className="customer-profile-avatar">
-                        {profilePictureUrl ? (
+                        {previewUrl ? (
+                            <img
+                                className="customer-profile-avatar-image"
+                                src={previewUrl}
+                                alt="Pratonton gambar profil"
+                            />
+                        ) : profilePictureUrl ? (
                             <img
                                 className="customer-profile-avatar-image"
                                 src={profilePictureUrl}
@@ -79,7 +109,9 @@ export default function ProfilePage({
 
                     <div className="customer-profile-picture-actions">
                         <label htmlFor="profile-picture">
-                            Gambar Profil
+                            {selectedPicture
+                                ? 'Pratonton Gambar Profil'
+                                : 'Gambar Profil'}
                         </label>
 
                         <input
@@ -93,6 +125,28 @@ export default function ProfilePage({
                         <small>
                             JPG, PNG atau WebP. Saiz maksimum 5 MB.
                         </small>
+
+                        {selectedPicture && (
+                            <div className="customer-profile-picture-preview">
+                                <p>{selectedPicture.name}</p>
+
+                                <button
+                                    type="button"
+                                    onClick={handlePictureUpload}
+                                    disabled={pictureUploading}
+                                >
+                                    Gunakan Gambar Ini
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedPicture(null)}
+                                    disabled={pictureUploading}
+                                >
+                                    Batal
+                                </button>
+                            </div>
+                        )}
 
                         {pictureUploading && (
                             <p role="status">
@@ -112,9 +166,7 @@ export default function ProfilePage({
 
                 <form onSubmit={onSubmit}>
                     <div>
-                        <label htmlFor="profile-name">
-                            Nama
-                        </label>
+                        <label htmlFor="profile-name">Nama</label>
 
                         <input
                             id="profile-name"
@@ -133,16 +185,12 @@ export default function ProfilePage({
                     <dl className="customer-detail-list">
                         <div>
                             <dt>Nombor Telefon</dt>
-                            <dd>
-                                {account.phone || 'Belum ditetapkan'}
-                            </dd>
+                            <dd>{account.phone || 'Belum ditetapkan'}</dd>
                         </div>
 
                         <div>
                             <dt>E-mel</dt>
-                            <dd>
-                                {account.email || 'Belum ditetapkan'}
-                            </dd>
+                            <dd>{account.email || 'Belum ditetapkan'}</dd>
                         </div>
 
                         <div>
@@ -164,10 +212,7 @@ export default function ProfilePage({
                         <p role="status">{profileMessage}</p>
                     )}
 
-                    <button
-                        type="submit"
-                        disabled={profileSaving}
-                    >
+                    <button type="submit" disabled={profileSaving}>
                         {profileSaving
                             ? 'Sedang menyimpan...'
                             : 'Simpan Perubahan'}
