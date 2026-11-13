@@ -1,6 +1,13 @@
 
 import React, { useEffect, useState } from 'react';
-import type { CustomerAccount, ChangePasswordPayload } from '../api';
+
+import type {
+    CustomerAccount,
+    ChangePasswordPayload,
+    ChangePhonePayload,
+    ChangeEmailPayload,
+    ContactChangeVerifyPayload,
+} from '../api';
 
 type ProfilePageProps = {
     account: CustomerAccount;
@@ -14,10 +21,28 @@ type ProfilePageProps = {
     passwordSaving?: boolean;
     passwordError?: string;
     passwordMessage?: string;
+
+    contactSaving?: boolean;
+    contactError?: string;
+    contactMessage?: string;
+    phoneChangeRequested?: boolean;
+    phoneChangeVerified?: boolean;
+    emailChangeRequested?: boolean;
+    emailChangeVerified?: boolean;
+
     onNameChange: (value: string) => void;
     onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
     onPictureSelect: (file: File) => Promise<boolean>;
     onChangePassword?: (payload: ChangePasswordPayload) => Promise<boolean>;
+
+    onRequestPhoneChange?: (payload: ChangePhonePayload) => Promise<boolean>;
+    onVerifyPhoneChange?: (payload: ContactChangeVerifyPayload) => Promise<boolean>;
+    onCompletePhoneChange?: () => Promise<boolean>;
+
+    onRequestEmailChange?: (payload: ChangeEmailPayload) => Promise<boolean>;
+    onVerifyEmailChange?: (payload: ContactChangeVerifyPayload) => Promise<boolean>;
+    onCompleteEmailChange?: () => Promise<boolean>;
+
     onReturnToLogin?: () => void;
 };
 
@@ -33,10 +58,28 @@ export default function ProfilePage({
     passwordSaving = false,
     passwordError = '',
     passwordMessage = '',
+
+    contactSaving = false,
+    contactError = '',
+    contactMessage = '',
+    phoneChangeRequested = false,
+    phoneChangeVerified = false,
+    emailChangeRequested = false,
+    emailChangeVerified = false,
+
     onNameChange,
     onSubmit,
     onPictureSelect,
     onChangePassword = async () => false,
+
+    onRequestPhoneChange = async () => false,
+    onVerifyPhoneChange = async () => false,
+    onCompletePhoneChange = async () => false,
+
+    onRequestEmailChange = async () => false,
+    onVerifyEmailChange = async () => false,
+    onCompleteEmailChange = async () => false,
+
     onReturnToLogin = () => undefined,
 }: ProfilePageProps) {
     const [selectedPicture, setSelectedPicture] = useState<File | null>(null);
@@ -46,6 +89,15 @@ export default function ProfilePage({
     const [newPassword, setNewPassword] = useState('');
     const [newPasswordConfirmation, setNewPasswordConfirmation] = useState('');
     const [passwordChanged, setPasswordChanged] = useState(false);
+
+    const [newPhone, setNewPhone] = useState('');
+    const [phoneOtp, setPhoneOtp] = useState('');
+
+    const [newEmail, setNewEmail] = useState('');
+    const [emailOtp, setEmailOtp] = useState('');
+
+    const [phoneChanged, setPhoneChanged] = useState(false);
+    const [emailChanged, setEmailChanged] = useState(false);
 
     const avatarLetter =
         account.profile_name?.trim().charAt(0).toUpperCase() || '?';
@@ -112,6 +164,88 @@ export default function ProfilePage({
             setNewPassword('');
             setNewPasswordConfirmation('');
             setPasswordChanged(true);
+        }
+    }
+
+    async function handlePhoneRequest(
+        event: React.FormEvent<HTMLFormElement>,
+    ) {
+        event.preventDefault();
+
+        if (contactSaving || !newPhone.trim()) return;
+
+        const success = await onRequestPhoneChange({
+            phone: newPhone.trim(),
+        });
+
+        if (success) {
+            setPhoneOtp('');
+        }
+    }
+
+    async function handlePhoneVerify(
+        event: React.FormEvent<HTMLFormElement>,
+    ) {
+        event.preventDefault();
+
+        if (contactSaving || !phoneOtp.trim()) return;
+
+        await onVerifyPhoneChange({
+            verification_id: '',
+            otp: phoneOtp.trim(),
+        });
+    }
+
+    async function handlePhoneComplete() {
+        if (contactSaving || !phoneChangeVerified) return;
+
+        const success = await onCompletePhoneChange();
+
+        if (success) {
+            setPhoneChanged(true);
+            setNewPhone('');
+            setPhoneOtp('');
+        }
+    }
+
+    async function handleEmailRequest(
+        event: React.FormEvent<HTMLFormElement>,
+    ) {
+        event.preventDefault();
+
+        if (contactSaving || !newEmail.trim()) return;
+
+        const success = await onRequestEmailChange({
+            email: newEmail.trim(),
+        });
+
+        if (success) {
+            setEmailOtp('');
+        }
+    }
+
+    async function handleEmailVerify(
+        event: React.FormEvent<HTMLFormElement>,
+    ) {
+        event.preventDefault();
+
+        if (contactSaving || !emailOtp.trim()) return;
+
+        await onVerifyEmailChange({
+            verification_id: '',
+            otp: emailOtp.trim(),
+        });
+    }
+
+    async function handleEmailComplete() {
+        if (contactSaving || !emailChangeVerified) return;
+
+        const success = await onCompleteEmailChange();
+
+        if (success) {
+            setEmailChanged(true);
+            setNewEmail('');
+            setEmailOtp('');
         }
     }
 
@@ -232,6 +366,140 @@ export default function ProfilePage({
                     </button>
                 </form>
             </section>
+
+            <section className="customer-panel">
+                <div className="customer-section-heading">
+                    <div>
+                        <h2>Tukar Nombor Telefon</h2>
+                        <p>Nombor baharu perlu disahkan sebelum dikemaskini.</p>
+                    </div>
+                </div>
+
+                {phoneChanged ? (
+                    <p role="status">Nombor telefon berjaya dikemaskini.</p>
+                ) : phoneChangeVerified ? (
+                    <div>
+                        <p role="status">
+                            Nombor telefon baharu telah disahkan.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => void handlePhoneComplete()}
+                            disabled={contactSaving}
+                        >
+                            {contactSaving ? 'Sedang mengemaskini...' : 'Sahkan Nombor Baharu'}
+                        </button>
+                    </div>
+                ) : phoneChangeRequested ? (
+                    <form onSubmit={handlePhoneVerify}>
+                        <label htmlFor="phone-change-otp">Kod Pengesahan Telefon</label>
+                        <input
+                            id="phone-change-otp"
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            value={phoneOtp}
+                            onChange={(event) => setPhoneOtp(event.target.value)}
+                            minLength={6}
+                            maxLength={6}
+                            pattern="[0-9]{6}"
+                            required
+                            disabled={contactSaving}
+                        />
+                        <button type="submit" disabled={contactSaving || phoneOtp.length !== 6}>
+                            Sahkan Kod
+                        </button>
+                    </form>
+                ) : (
+                    <form onSubmit={handlePhoneRequest}>
+                        <label htmlFor="new-phone">Nombor Telefon Baharu</label>
+                        <input
+                            id="new-phone"
+                            type="tel"
+                            autoComplete="tel"
+                            value={newPhone}
+                            onChange={(event) => setNewPhone(event.target.value)}
+                            placeholder="Contoh: 60123456789"
+                            maxLength={20}
+                            required
+                            disabled={contactSaving}
+                        />
+                        <button type="submit" disabled={contactSaving || !newPhone.trim()}>
+                            Hantar Kod Pengesahan
+                        </button>
+                    </form>
+                )}
+            </section>
+
+            <section className="customer-panel">
+                <div className="customer-section-heading">
+                    <div>
+                        <h2>Tukar E-mel</h2>
+                        <p>E-mel baharu perlu disahkan sebelum dikemaskini.</p>
+                    </div>
+                </div>
+
+                {emailChanged ? (
+                    <p role="status">E-mel berjaya dikemaskini.</p>
+                ) : emailChangeVerified ? (
+                    <div>
+                        <p role="status">
+                            E-mel baharu telah disahkan.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => void handleEmailComplete()}
+                            disabled={contactSaving}
+                        >
+                            {contactSaving ? 'Sedang mengemaskini...' : 'Sahkan E-mel Baharu'}
+                        </button>
+                    </div>
+                ) : emailChangeRequested ? (
+                    <form onSubmit={handleEmailVerify}>
+                        <label htmlFor="email-change-otp">Kod Pengesahan E-mel</label>
+                        <input
+                            id="email-change-otp"
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            value={emailOtp}
+                            onChange={(event) => setEmailOtp(event.target.value)}
+                            minLength={6}
+                            maxLength={6}
+                            pattern="[0-9]{6}"
+                            required
+                            disabled={contactSaving}
+                        />
+                        <button type="submit" disabled={contactSaving || emailOtp.length !== 6}>
+                            Sahkan Kod
+                        </button>
+                    </form>
+                ) : (
+                    <form onSubmit={handleEmailRequest}>
+                        <label htmlFor="new-email">E-mel Baharu</label>
+                        <input
+                            id="new-email"
+                            type="email"
+                            autoComplete="email"
+                            value={newEmail}
+                            onChange={(event) => setNewEmail(event.target.value)}
+                            maxLength={255}
+                            required
+                            disabled={contactSaving}
+                        />
+                        <button type="submit" disabled={contactSaving || !newEmail.trim()}>
+                            Hantar Kod Pengesahan
+                        </button>
+                    </form>
+                )}
+            </section>
+
+            {contactSaving && (
+                <p role="status">Sedang memproses pengesahan maklumat hubungan...</p>
+            )}
+
+            {contactError && <p role="alert">{contactError}</p>}
+            {contactMessage && <p role="status">{contactMessage}</p>}
 
             <section className="customer-panel">
                 <div className="customer-section-heading">
