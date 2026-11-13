@@ -13,12 +13,10 @@ import {
     fireEvent,
     render,
     screen,
+    waitFor,
 } from '@testing-library/react';
 
-import type {
-    CustomerAccount,
-} from '../api';
-
+import type { CustomerAccount } from '../api';
 import ProfilePage from './ProfilePage';
 
 const account: CustomerAccount = {
@@ -45,7 +43,7 @@ function renderProfilePage(
         pictureMessage: '',
         onNameChange: vi.fn(),
         onSubmit: vi.fn((event) => event.preventDefault()),
-        onPictureSelect: vi.fn(),
+        onPictureSelect: vi.fn().mockResolvedValue(true),
         ...overrides,
     };
 
@@ -188,7 +186,7 @@ describe('ProfilePage', () => {
         expect(props.onPictureSelect).not.toHaveBeenCalled();
     });
 
-    it('uploads selected image after confirmation', () => {
+    it('uploads selected image after confirmation', async () => {
         const { props } = renderProfilePage();
         const file = selectImage();
 
@@ -197,6 +195,32 @@ describe('ProfilePage', () => {
         }));
 
         expect(props.onPictureSelect).toHaveBeenCalledWith(file);
+
+        await waitFor(() => {
+            expect(screen.queryByRole('img', {
+                name: 'Pratonton gambar profil',
+            })).toBeNull();
+        });
+    });
+
+    it('keeps preview when upload fails', async () => {
+        const { props } = renderProfilePage({
+            onPictureSelect: vi.fn().mockResolvedValue(false),
+        });
+
+        selectImage();
+
+        fireEvent.click(screen.getByRole('button', {
+            name: 'Gunakan Gambar Ini',
+        }));
+
+        await waitFor(() => {
+            expect(props.onPictureSelect).toHaveBeenCalledTimes(1);
+        });
+
+        expect(screen.getByRole('img', {
+            name: 'Pratonton gambar profil',
+        })).toBeTruthy();
     });
 
     it('allows user to cancel selected image', () => {
