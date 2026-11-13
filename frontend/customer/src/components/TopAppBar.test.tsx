@@ -84,7 +84,8 @@ describe('TopAppBar', () => {
             screen.getByRole('button', { name: 'Keluar' }),
         );
 
-        expect(onLogout).toHaveBeenCalledExactlyOnceWith();
+        expect(onLogout).toHaveBeenCalledTimes(1);
+        expect(onLogout).toHaveBeenCalledWith();
     });
 
     it('disables the logout button while loading', () => {
