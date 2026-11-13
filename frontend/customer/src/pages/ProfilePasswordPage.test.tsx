@@ -1,5 +1,18 @@
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+    afterEach,
+    describe,
+    expect,
+    it,
+    vi,
+} from 'vitest';
+
+import {
+    cleanup,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+} from '@testing-library/react';
 
 import type { CustomerAccount } from '../api';
 import ProfilePage from './ProfilePage';
@@ -42,6 +55,11 @@ function renderPage(
         props,
     };
 }
+
+afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+});
 
 describe('ProfilePage - Tukar Kata Laluan', () => {
     it('memaparkan borang tukar kata laluan', () => {
