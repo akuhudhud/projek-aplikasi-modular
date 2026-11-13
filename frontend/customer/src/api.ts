@@ -9,6 +9,8 @@ export interface CustomerAccount {
     profile_name: string;
     phone: string | null;
     email: string | null;
+    phone_verified_at?: string | null;
+    email_verified_at?: string | null;
     profile_picture: string | null;
     role: string;
     status: string;
@@ -138,8 +140,6 @@ export interface CustomerMarketplaceQuotation {
     accepted_at: string | null;
     withdrawn_at: string | null;
     created_at: string;
-
-    // null jika profil belum diterbitkan atau Runner tidak layak.
     runner_profile: CustomerRunnerPublicProfile | null;
 }
 
@@ -186,6 +186,33 @@ export interface ChangePasswordPayload {
     current_password: string;
     new_password: string;
     new_password_confirmation: string;
+}
+
+export interface ContactChangeRequestResult {
+    verification_id: string;
+    expires_at: string;
+}
+
+export interface ContactChangeVerifyPayload {
+    verification_id: string;
+    otp: string;
+}
+
+export interface ContactChangeVerifyResult {
+    verification_token: string;
+    expires_at: string;
+}
+
+export interface ContactChangeCompletePayload {
+    verification_token: string;
+}
+
+export interface ChangePhonePayload {
+    phone: string;
+}
+
+export interface ChangeEmailPayload {
+    email: string;
 }
 
 interface AccountData {
@@ -280,6 +307,8 @@ function isProtectedCustomerEndpoint(
         path === '/web/auth/profile' ||
         path === '/web/auth/profile-picture' ||
         path === '/web/auth/change-password' ||
+        path.startsWith('/web/auth/change-phone/') ||
+        path.startsWith('/web/auth/change-email/') ||
         path === '/web/auth/logout' ||
         path.startsWith('/web/customer/')
     );
@@ -392,6 +421,80 @@ export const customerApi = {
             '/web/auth/change-password',
             payload,
         );
+    },
+
+    async requestPhoneChangeOtp(
+        payload: ChangePhonePayload,
+    ): Promise<ContactChangeRequestResult> {
+        const response = await api.post<
+            ApiResponse<ContactChangeRequestResult>
+        >(
+            '/web/auth/change-phone/request',
+            payload,
+        );
+
+        return response.data.data;
+    },
+
+    async verifyPhoneChangeOtp(
+        payload: ContactChangeVerifyPayload,
+    ): Promise<ContactChangeVerifyResult> {
+        const response = await api.post<
+            ApiResponse<ContactChangeVerifyResult>
+        >(
+            '/web/auth/change-phone/verify',
+            payload,
+        );
+
+        return response.data.data;
+    },
+
+    async completePhoneChange(
+        payload: ContactChangeCompletePayload,
+    ): Promise<CustomerAccount> {
+        const response = await api.post<ApiResponse<AccountData>>(
+            '/web/auth/change-phone/complete',
+            payload,
+        );
+
+        return response.data.data.account;
+    },
+
+    async requestEmailChangeOtp(
+        payload: ChangeEmailPayload,
+    ): Promise<ContactChangeRequestResult> {
+        const response = await api.post<
+            ApiResponse<ContactChangeRequestResult>
+        >(
+            '/web/auth/change-email/request',
+            payload,
+        );
+
+        return response.data.data;
+    },
+
+    async verifyEmailChangeOtp(
+        payload: ContactChangeVerifyPayload,
+    ): Promise<ContactChangeVerifyResult> {
+        const response = await api.post<
+            ApiResponse<ContactChangeVerifyResult>
+        >(
+            '/web/auth/change-email/verify',
+            payload,
+        );
+
+        return response.data.data;
+    },
+
+    async completeEmailChange(
+        payload: ContactChangeCompletePayload,
+    ): Promise<CustomerAccount> {
+        const response = await api.post<ApiResponse<AccountData>>(
+            '/web/auth/change-email/complete',
+            payload,
+        );
+
+        return response.data.data.account;
     },
 
     async logout(): Promise<void> {
