@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 
 import type {
@@ -21,7 +20,6 @@ type ProfilePageProps = {
     passwordSaving?: boolean;
     passwordError?: string;
     passwordMessage?: string;
-
     contactSaving?: boolean;
     contactError?: string;
     contactMessage?: string;
@@ -29,20 +27,20 @@ type ProfilePageProps = {
     phoneChangeVerified?: boolean;
     emailChangeVerificationId?: string | null;
     emailChangeVerified?: boolean;
-
+    accountActionSaving?: boolean;
+    accountActionError?: string;
     onNameChange: (value: string) => void;
     onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
     onPictureSelect: (file: File) => Promise<boolean>;
     onChangePassword?: (payload: ChangePasswordPayload) => Promise<boolean>;
-
     onRequestPhoneChange?: (payload: ChangePhonePayload) => Promise<boolean>;
     onVerifyPhoneChange?: (payload: ContactChangeVerifyPayload) => Promise<boolean>;
     onCompletePhoneChange?: () => Promise<boolean>;
-
     onRequestEmailChange?: (payload: ChangeEmailPayload) => Promise<boolean>;
     onVerifyEmailChange?: (payload: ContactChangeVerifyPayload) => Promise<boolean>;
     onCompleteEmailChange?: () => Promise<boolean>;
-
+    onDeactivateAccount?: () => Promise<boolean>;
+    onDeleteAccount?: () => Promise<boolean>;
     onReturnToLogin?: () => void;
 };
 
@@ -58,7 +56,6 @@ export default function ProfilePage({
     passwordSaving = false,
     passwordError = '',
     passwordMessage = '',
-
     contactSaving = false,
     contactError = '',
     contactMessage = '',
@@ -66,20 +63,20 @@ export default function ProfilePage({
     phoneChangeVerified = false,
     emailChangeVerificationId = null,
     emailChangeVerified = false,
-
+    accountActionSaving = false,
+    accountActionError = '',
     onNameChange,
     onSubmit,
     onPictureSelect,
     onChangePassword = async () => false,
-
     onRequestPhoneChange = async () => false,
     onVerifyPhoneChange = async () => false,
     onCompletePhoneChange = async () => false,
-
     onRequestEmailChange = async () => false,
     onVerifyEmailChange = async () => false,
     onCompleteEmailChange = async () => false,
-
+    onDeactivateAccount = async () => false,
+    onDeleteAccount = async () => false,
     onReturnToLogin = () => undefined,
 }: ProfilePageProps) {
     const [selectedPicture, setSelectedPicture] = useState<File | null>(null);
@@ -97,6 +94,9 @@ export default function ProfilePage({
 
     const [phoneChanged, setPhoneChanged] = useState(false);
     const [emailChanged, setEmailChanged] = useState(false);
+
+    const [accountAction, setAccountAction] =
+        useState<'deactivate' | 'delete' | null>(null);
 
     const avatarLetter =
         account.profile_name?.trim().charAt(0).toUpperCase() || '?';
@@ -249,6 +249,18 @@ export default function ProfilePage({
             setEmailChanged(true);
             setNewEmail('');
             setEmailOtp('');
+        }
+    }
+
+    async function handleAccountAction() {
+        if (!accountAction || accountActionSaving) return;
+
+        const success = accountAction === 'deactivate'
+            ? await onDeactivateAccount()
+            : await onDeleteAccount();
+
+        if (success) {
+            setAccountAction(null);
         }
     }
 
@@ -590,6 +602,95 @@ export default function ProfilePage({
                     </form>
                 )}
             </section>
+
+            <section className="customer-panel">
+                <h2>Urus Akaun</h2>
+                <p>
+                    Pilihan untuk menyahaktifkan atau memadam akaun Super Runner.
+                    Tindakan ini akan menamatkan sesi log masuk akaun.
+                </p>
+
+                <div>
+                    <h3>Nyahaktifkan Akaun</h3>
+                    <p>
+                        Akaun akan dinyahaktifkan dan anda akan log keluar.
+                        Anda tidak boleh menggunakan akaun sehingga ia diaktifkan
+                        semula oleh pihak pentadbir.
+                    </p>
+                    <button
+                        type="button"
+                        disabled={accountActionSaving}
+                        onClick={() => setAccountAction('deactivate')}
+                    >
+                        Nyahaktifkan Akaun
+                    </button>
+                </div>
+
+                <hr />
+
+                <div>
+                    <h3>Padam Akaun</h3>
+                    <p>
+                        Status akaun akan ditukar kepada dipadam. Akaun tidak lagi
+                        boleh digunakan untuk log masuk. Rekod akaun tidak dipadam
+                        secara fizikal daripada pangkalan data.
+                    </p>
+                    <button
+                        type="button"
+                        disabled={accountActionSaving}
+                        onClick={() => setAccountAction('delete')}
+                    >
+                        Padam Akaun
+                    </button>
+                </div>
+
+                {accountActionError && (
+                    <p role="alert">{accountActionError}</p>
+                )}
+            </section>
+
+            {accountAction && (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="account-action-title"
+                    className="customer-account-confirmation"
+                >
+                    <section className="customer-panel">
+                        <h2 id="account-action-title">
+                            {accountAction === 'deactivate'
+                                ? 'Sahkan Penyahaktifan Akaun'
+                                : 'Sahkan Pemadaman Akaun'}
+                        </h2>
+
+                        <p>
+                            {accountAction === 'deactivate'
+                                ? 'Adakah anda pasti mahu menyahaktifkan akaun? Anda akan dilog keluar dan tidak dapat menggunakan akaun sehingga diaktifkan semula oleh pentadbir.'
+                                : 'Adakah anda pasti mahu memadam akaun? Status akaun akan menjadi DELETED dan anda tidak lagi boleh log masuk.'}
+                        </p>
+
+                        <p>Tindakan ini akan menamatkan semua sesi akaun.</p>
+
+                        <button
+                            type="button"
+                            onClick={() => void handleAccountAction()}
+                            disabled={accountActionSaving}
+                        >
+                            {accountActionSaving
+                                ? 'Sedang diproses...'
+                                : 'Ya, Teruskan'}
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setAccountAction(null)}
+                            disabled={accountActionSaving}
+                        >
+                            Batal
+                        </button>
+                    </section>
+                </div>
+            )}
         </div>
     );
 }
