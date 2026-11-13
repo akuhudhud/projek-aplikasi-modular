@@ -38,7 +38,6 @@ function createTask(
             cancelled_at: null,
             created_at: '2026-11-12T08:00:00.000Z',
             updated_at: '2026-11-12T08:00:00.000Z',
-            
         },
         request: {
             request_id: `request-${id}`,
@@ -296,7 +295,7 @@ describe('TasksPage', () => {
         ).toBeDisabled();
     });
 
-    it('disables pagination while tasks are loading', () => {
+    it('hides pagination while tasks are loading', () => {
         renderTasksPage({
             tasks: [createTask('task-015')],
             tasksLoading: true,
@@ -305,15 +304,19 @@ describe('TasksPage', () => {
         });
 
         expect(
-            screen.getByRole('button', {
-                name: 'Sebelum',
-            }),
-        ).toBeDisabled();
+            screen.getByText('Memuatkan tugasan...'),
+        ).toBeTruthy();
 
         expect(
-            screen.getByRole('button', {
+            screen.queryByRole('button', {
+                name: 'Sebelum',
+            }),
+        ).toBeNull();
+
+        expect(
+            screen.queryByRole('button', {
                 name: 'Seterusnya',
             }),
-        ).toBeDisabled();
+        ).toBeNull();
     });
 });
