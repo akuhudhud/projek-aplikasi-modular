@@ -10,6 +10,7 @@ import axios from 'axios';
 import {
     customerApi,
     type CustomerAccount,
+    type ChangePasswordPayload,
 } from '../../api';
 
 type CustomerProfileState = {
@@ -20,12 +21,16 @@ type CustomerProfileState = {
     pictureUploading: boolean;
     pictureError: string;
     pictureMessage: string;
+    passwordSaving: boolean;
+    passwordError: string;
+    passwordMessage: string;
 };
 
 type CustomerProfileActions = {
     setProfileName: (value: string) => void;
     updateProfile: () => Promise<boolean>;
     uploadProfilePicture: (file: File) => Promise<boolean>;
+    changePassword: (payload: ChangePasswordPayload) => Promise<boolean>;
     clearMessages: () => void;
 };
 
@@ -59,6 +64,10 @@ export function useCustomerProfile({
     const [pictureError, setPictureError] = useState('');
     const [pictureMessage, setPictureMessage] = useState('');
 
+    const [passwordSaving, setPasswordSaving] = useState(false);
+    const [passwordError, setPasswordError] = useState('');
+    const [passwordMessage, setPasswordMessage] = useState('');
+
     useEffect(() => {
         setProfileNameState(account?.profile_name ?? '');
     }, [account?.id, account?.profile_name]);
@@ -74,6 +83,8 @@ export function useCustomerProfile({
         setMessage('');
         setPictureError('');
         setPictureMessage('');
+        setPasswordError('');
+        setPasswordMessage('');
     }, []);
 
     const updateProfile = useCallback(async (): Promise<boolean> => {
@@ -200,6 +211,79 @@ export function useCustomerProfile({
         ],
     );
 
+    const changePassword = useCallback(
+        async (
+            payload: ChangePasswordPayload,
+        ): Promise<boolean> => {
+            if (!account || passwordSaving) {
+                return false;
+            }
+
+            setPasswordError('');
+            setPasswordMessage('');
+
+            if (
+                payload.new_password !==
+                payload.new_password_confirmation
+            ) {
+                setPasswordError(
+                    'Pengesahan kata laluan baharu tidak sepadan.',
+                );
+                return false;
+            }
+
+            if (
+                payload.new_password.length < 8 ||
+                payload.new_password.length > 12
+            ) {
+                setPasswordError(
+                    'Kata laluan baharu mesti antara 8 hingga 12 aksara.',
+                );
+                return false;
+            }
+
+            setPasswordSaving(true);
+
+            try {
+                await customerApi.changePassword(payload);
+
+                setPasswordMessage(
+                    'Kata laluan berjaya ditukar. Sila log masuk semula.',
+                );
+
+                return true;
+            } catch (requestError) {
+                if (axios.isAxiosError(requestError)) {
+                    const validationErrors =
+                        requestError.response?.data?.errors;
+
+                    const validationMessage =
+                        validationErrors?.current_password?.[0] ??
+                        validationErrors?.new_password?.[0] ??
+                        validationErrors?.new_password_confirmation?.[0];
+
+                    setPasswordError(
+                        validationMessage ??
+                            requestError.response?.data?.message ??
+                            'Tidak berjaya menukar kata laluan. Sila cuba semula.',
+                    );
+                } else {
+                    setPasswordError(
+                        'Tidak berjaya menukar kata laluan. Sila cuba semula.',
+                    );
+                }
+
+                return false;
+            } finally {
+                setPasswordSaving(false);
+            }
+        },
+        [
+            account,
+            passwordSaving,
+        ],
+    );
+
     return {
         profileName,
         saving,
@@ -208,9 +292,13 @@ export function useCustomerProfile({
         pictureUploading,
         pictureError,
         pictureMessage,
+        passwordSaving,
+        passwordError,
+        passwordMessage,
         setProfileName,
         updateProfile,
         uploadProfilePicture,
+        changePassword,
         clearMessages,
     };
 }
