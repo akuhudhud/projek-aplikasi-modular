@@ -24,6 +24,7 @@ const {
     loginMock,
     getTasksMock,
     getRequestsMock,
+    getNotificationsMock,
     createRequestMock,
     cancelRequestMock,
     getTaskMock,
@@ -34,6 +35,7 @@ const {
     loginMock: vi.fn(),
     getTasksMock: vi.fn(),
     getRequestsMock: vi.fn(),
+    getNotificationsMock: vi.fn(),
     createRequestMock: vi.fn(),
     cancelRequestMock: vi.fn(),
     getTaskMock: vi.fn(),
@@ -54,6 +56,10 @@ vi.mock('./api', () => ({
         login: loginMock,
         getTasks: getTasksMock,
         getRequests: getRequestsMock,
+        getNotifications: getNotificationsMock,
+        markNotificationAsRead: vi.fn(),
+        deleteNotification: vi.fn(),
+        deleteAllNotifications: vi.fn(),
         createRequest: createRequestMock,
         getTask: getTaskMock,
         updateProfile: updateProfileMock,
@@ -101,6 +107,19 @@ function mockSuccessfulLogin() {
 
     getRequestsMock.mockResolvedValue({
         requests: [],
+        pagination: {
+            current_page: 1,
+            per_page: 10,
+            total: 0,
+            last_page: 1,
+        },
+    });
+
+    getNotificationsMock.mockResolvedValue({
+        notifications: [],
+        summary: {
+            unread_total: 0,
+        },
         pagination: {
             current_page: 1,
             per_page: 10,
