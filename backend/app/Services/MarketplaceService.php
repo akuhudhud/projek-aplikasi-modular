@@ -39,23 +39,21 @@ class MarketplaceService
                 ->lockForUpdate()
                 ->get();
 
-            $requestIds = $expiredRequests
-                ->pluck('request_id')
-                ->all();
-
             foreach ($expiredRequests as $request) {
                 $request->forceFill([
                     'status' => MarketplaceRequest::STATUS_EXPIRED,
                 ])->save();
-            }
 
-            if ($requestIds !== []) {
+                $this->notifyRequestParticipants(
+                    $request,
+                    'marketplace.request_expired',
+                    'Permintaan telah tamat tempoh',
+                    'Permintaan ini telah tamat tempoh dan tidak lagi menerima sebutharga.'
+                );
+
                 MarketplaceQuotation::query()
-                    ->whereIn('request_id', $requestIds)
-                    ->where(
-                        'status',
-                        MarketplaceQuotation::STATUS_SUBMITTED
-                    )
+                    ->where('request_id', $request->request_id)
+                    ->where('status', MarketplaceQuotation::STATUS_SUBMITTED)
                     ->update([
                         'status' => MarketplaceQuotation::STATUS_EXPIRED,
                         'updated_at' => $now,
@@ -63,10 +61,7 @@ class MarketplaceService
             }
 
             MarketplaceQuotation::query()
-                ->where(
-                    'status',
-                    MarketplaceQuotation::STATUS_SUBMITTED
-                )
+                ->where('status', MarketplaceQuotation::STATUS_SUBMITTED)
                 ->whereNotNull('expires_at')
                 ->where('expires_at', '<=', $now)
                 ->update([
@@ -331,6 +326,13 @@ class MarketplaceService
                 'status' => MarketplaceRequest::STATUS_CANCELLED,
                 'cancelled_at' => $now,
             ])->save();
+
+            $this->notifyRequestRunners(
+                $request,
+                'marketplace.request_cancelled',
+                'Permintaan dibatalkan pelanggan',
+                'Pelanggan telah membatalkan permintaan ini.'
+            );
 
             MarketplaceQuotation::query()
                 ->where('request_id', $request->request_id)
@@ -788,6 +790,71 @@ class MarketplaceService
             ]);
 
         return true;
+    }
+
+    private function notifyRequestParticipants(
+        MarketplaceRequest $request,
+        string $event,
+        string $title,
+        string $message
+    ): void {
+        $customer = Account::query()
+            ->whereKey($request->customer_account_id)
+            ->first();
+
+        if ($customer) {
+            $customer->notify(
+                new MarketplaceEventNotification(
+                    event: $event,
+                    title: $title,
+                    message: $message,
+                    requestId: $request->request_id,
+                )
+            );
+        }
+
+        $this->notifyRequestRunners(
+            $request,
+            $event,
+            $title,
+            $message
+        );
+    }
+
+    private function notifyRequestRunners(
+        MarketplaceRequest $request,
+        string $event,
+        string $title,
+        string $message
+    ): void {
+        $runnerIds = MarketplaceQuotation::query()
+            ->where('request_id', $request->request_id)
+            ->whereIn('status', [
+                MarketplaceQuotation::STATUS_SUBMITTED,
+                MarketplaceQuotation::STATUS_NOT_SELECTED,
+                MarketplaceQuotation::STATUS_EXPIRED,
+            ])
+            ->pluck('runner_account_id')
+            ->unique();
+
+        foreach ($runnerIds as $runnerId) {
+            $runner = Account::query()
+                ->whereKey($runnerId)
+                ->first();
+
+            if (!$runner) {
+                continue;
+            }
+
+            $runner->notify(
+                new MarketplaceEventNotification(
+                    event: $event,
+                    title: $title,
+                    message: $message,
+                    requestId: $request->request_id,
+                )
+            );
+        }
     }
 
     private function isEligibleRunner(Account $account): bool
