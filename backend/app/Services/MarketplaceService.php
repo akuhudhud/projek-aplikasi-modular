@@ -789,6 +789,13 @@ class MarketplaceService
                 'updated_at' => $now,
             ]);
 
+        $this->notifyRequestParticipants(
+            $request,
+            'marketplace.request_expired',
+            'Permintaan telah tamat tempoh',
+            'Permintaan ini telah tamat tempoh dan tidak lagi menerima sebutharga.'
+        );
+
         return true;
     }
 
