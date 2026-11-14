@@ -1,3 +1,4 @@
+
 import {
     useCallback,
     useEffect,
@@ -32,6 +33,7 @@ import { useCustomerRequests } from '../features/requests/useCustomerRequests';
 import { useCreateCustomerRequest } from '../features/requests/useCreateCustomerRequest';
 import { useCustomerTasks } from '../features/tasks/useCustomerTasks';
 import { useCustomerProfile } from '../features/profile/useCustomerProfile';
+import { useCustomerNotifications } from '../features/notifications/useCustomerNotifications';
 
 type CustomerWorkspaceProps = {
     account: CustomerAccount;
@@ -56,6 +58,10 @@ export default function CustomerWorkspace({
     const [ratingSaving, setRatingSaving] = useState(false);
     const [ratingError, setRatingError] = useState('');
     const [ratingMessage, setRatingMessage] = useState('');
+
+    const notifications = useCustomerNotifications({
+        enabled: true,
+    });
 
     const handleReturnToLogin = useCallback(() => {
         window.dispatchEvent(
@@ -537,6 +543,7 @@ export default function CustomerWorkspace({
             onNavigate={handleNavigate}
             onLogout={onLogout}
             loading={logoutLoading}
+            notifications={notifications}
         >
             {logoutError && (
                 <p role="alert">{logoutError}</p>
