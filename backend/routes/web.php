@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\RunnerTaskRatingController;
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\RegistrationController;
 use App\Http\Controllers\Web\CustomerMarketplaceRequestController;
+use App\Http\Controllers\Web\CustomerNotificationController;
 use App\Http\Controllers\Web\CustomerTaskController;
 use Illuminate\Support\Facades\Route;
 
@@ -104,6 +105,7 @@ Route::prefix('web/customer')
     ->name('web.customer.')
     ->middleware('web.auth')
     ->group(function (): void {
+        // Customer tasks.
         Route::get('/tasks', [CustomerTaskController::class, 'index'])
             ->name('tasks.index');
 
@@ -120,6 +122,7 @@ Route::prefix('web/customer')
             [RunnerTaskRatingController::class, 'storeOrUpdate']
         )->name('tasks.rating.update');
 
+        // Customer marketplace requests.
         Route::get('/requests', [CustomerMarketplaceRequestController::class, 'index'])
             ->name('requests.index');
 
@@ -140,4 +143,25 @@ Route::prefix('web/customer')
             '/requests/{requestId}/cancel',
             [CustomerMarketplaceRequestController::class, 'cancel']
         )->name('requests.cancel');
+
+        // Customer notifications.
+        Route::get(
+            '/notifications',
+            [CustomerNotificationController::class, 'index']
+        )->name('notifications.index');
+
+        Route::patch(
+            '/notifications/{notificationId}/read',
+            [CustomerNotificationController::class, 'markAsRead']
+        )->name('notifications.read');
+
+        Route::delete(
+            '/notifications/{notificationId}',
+            [CustomerNotificationController::class, 'destroy']
+        )->name('notifications.destroy');
+
+        Route::delete(
+            '/notifications',
+            [CustomerNotificationController::class, 'destroyAll']
+        )->name('notifications.destroy-all');
     });
