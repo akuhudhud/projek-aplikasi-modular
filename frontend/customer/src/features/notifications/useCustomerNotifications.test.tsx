@@ -427,11 +427,20 @@ describe('useCustomerNotifications', () => {
             makeNotification('notification-2'),
         ];
 
-        getNotificationsMock.mockResolvedValue({
-            ...makeNotificationsResult(notifications),
-            summary: {
-                unread_total: 2,
-            },
+        let resolvePageTwo:
+            | ((value: ReturnType<typeof makeNotificationsResult>) => void)
+            | undefined;
+
+        getNotificationsMock.mockImplementation((page: number) => {
+            if (page === 2) {
+                return new Promise((resolve) => {
+                    resolvePageTwo = resolve;
+                });
+            }
+
+            return Promise.resolve(
+                makeNotificationsResult(notifications),
+            );
         });
 
         const { result } = renderHook(() =>
@@ -449,7 +458,15 @@ describe('useCustomerNotifications', () => {
         });
 
         await waitFor(() => {
-            expect(result.current.currentPage).toBe(2);
+            expect(getNotificationsMock).toHaveBeenCalledWith(2);
+            expect(result.current.loading).toBe(true);
+            expect(resolvePageTwo).toBeDefined();
+        });
+
+        await act(async () => {
+            resolvePageTwo?.(
+                makeNotificationsResult(notifications),
+            );
         });
 
         await waitFor(() => {
@@ -458,22 +475,18 @@ describe('useCustomerNotifications', () => {
 
         await act(async () => {
             const success = await result.current.deleteAll();
-
             expect(success).toBe(true);
         });
 
         expect(deleteAllNotificationsMock).toHaveBeenCalledTimes(1);
-
         expect(result.current.notifications).toEqual([]);
         expect(result.current.unreadTotal).toBe(0);
         expect(result.current.total).toBe(0);
         expect(result.current.currentPage).toBe(1);
         expect(result.current.lastPage).toBe(1);
-
         expect(result.current.actionMessage).toBe(
             'Semua notifikasi berjaya dipadam.',
         );
-
         expect(result.current.deletingAll).toBe(false);
     });
 
