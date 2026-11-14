@@ -10,10 +10,16 @@ class Kernel extends ConsoleKernel
 {
     protected function schedule(Schedule $schedule): void
     {
+        // Marketplace: luputkan item yang sudah tamat.
         $schedule->call(function (): void {
             app(MarketplaceService::class)->expireDueItems();
         })
             ->everyMinute()
+            ->withoutOverlapping();
+
+        // Notifications: padam notifikasi melebihi 90 hari.
+        $schedule->command('notifications:prune')
+            ->dailyAt('02:00')
             ->withoutOverlapping();
     }
 
