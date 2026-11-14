@@ -452,6 +452,10 @@ describe('useCustomerNotifications', () => {
             expect(result.current.currentPage).toBe(2);
         });
 
+        await waitFor(() => {
+            expect(result.current.loading).toBe(false);
+        });
+
         await act(async () => {
             const success = await result.current.deleteAll();
 
