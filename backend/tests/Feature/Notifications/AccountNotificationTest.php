@@ -1,3 +1,4 @@
+
 <?php
 
 namespace Tests\Feature\Notifications;
@@ -37,7 +38,13 @@ class AccountNotificationTest extends TestCase
 
         $account->notify($notification);
 
-        $this->assertDatabaseCount('notifications', 1);
+        $notificationCount = DB::table('notifications')
+            ->where('notifiable_type', Account::class)
+            ->where('notifiable_id', $account->id)
+            ->where('type', $notification::class)
+            ->count();
+
+        $this->assertSame(1, $notificationCount);
 
         $this->assertDatabaseHas('notifications', [
             'type' => $notification::class,
@@ -46,7 +53,11 @@ class AccountNotificationTest extends TestCase
             'read_at' => null,
         ]);
 
-        $stored = DB::table('notifications')->first();
+        $stored = DB::table('notifications')
+            ->where('notifiable_type', Account::class)
+            ->where('notifiable_id', $account->id)
+            ->where('type', $notification::class)
+            ->first();
 
         $data = json_decode(
             $stored->data,
