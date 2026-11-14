@@ -38,6 +38,7 @@ function createServiceWorkerHarness() {
         keys: vi.fn().mockResolvedValue([
             'super-runner-customer-v2',
             'super-runner-customer-v3',
+            'super-runner-customer-v4',
             'another-application-cache',
         ]),
         delete: vi.fn().mockResolvedValue(true),
@@ -107,7 +108,7 @@ describe('Customer Service Worker', () => {
         expect(worker.listeners.has('fetch')).toBe(true);
     });
 
-    it('precaches the application shell and build assets during installation', async () => {
+    it('precaches application shell, icon and build assets', async () => {
         const worker = createServiceWorkerHarness();
 
         worker.fetchMock.mockImplementation(
@@ -136,8 +137,6 @@ describe('Customer Service Worker', () => {
 
         const installHandler = worker.listeners.get('install');
 
-        expect(installHandler).toBeDefined();
-
         let installation: Promise<unknown> | undefined;
 
         installHandler?.({
@@ -158,6 +157,7 @@ describe('Customer Service Worker', () => {
             '/',
             '/manifest.webmanifest',
             '/manifest.json',
+            '/icons/icon.svg',
         ]);
 
         expect(worker.cache.addAll).toHaveBeenNthCalledWith(2, [
@@ -199,7 +199,7 @@ describe('Customer Service Worker', () => {
         );
     });
 
-    it('deletes old application caches but preserves unrelated caches', async () => {
+    it('deletes old application caches and preserves the current cache', async () => {
         const worker = createServiceWorkerHarness();
 
         const activateHandler = worker.listeners.get('activate');
@@ -220,14 +220,18 @@ describe('Customer Service Worker', () => {
 
         await activation;
 
-        expect(worker.cachesMock.delete).toHaveBeenCalledTimes(1);
+        expect(worker.cachesMock.delete).toHaveBeenCalledTimes(2);
 
         expect(worker.cachesMock.delete).toHaveBeenCalledWith(
             'super-runner-customer-v2',
         );
 
-        expect(worker.cachesMock.delete).not.toHaveBeenCalledWith(
+        expect(worker.cachesMock.delete).toHaveBeenCalledWith(
             'super-runner-customer-v3',
+        );
+
+        expect(worker.cachesMock.delete).not.toHaveBeenCalledWith(
+            'super-runner-customer-v4',
         );
 
         expect(worker.cachesMock.delete).not.toHaveBeenCalledWith(
@@ -241,8 +245,6 @@ describe('Customer Service Worker', () => {
         const worker = createServiceWorkerHarness();
 
         const fetchHandler = worker.listeners.get('fetch');
-
-        expect(fetchHandler).toBeDefined();
 
         const excludedPaths = [
             '/api/tasks',
@@ -300,7 +302,7 @@ describe('Customer Service Worker', () => {
         expect(respondWith).not.toHaveBeenCalled();
     });
 
-    it('does not intercept page navigation requests', () => {
+    it('uses the network for page navigation when online', async () => {
         const worker = createServiceWorkerHarness();
 
         const respondWith = vi.fn();
@@ -314,11 +316,109 @@ describe('Customer Service Worker', () => {
             respondWith,
         });
 
-        expect(respondWith).not.toHaveBeenCalled();
-        expect(worker.cachesMock.open).not.toHaveBeenCalled();
+        expect(respondWith).toHaveBeenCalledTimes(1);
+
+        const response = await respondWith.mock.calls[0][0];
+
+        expect(response.status).toBe(200);
+        expect(worker.fetchMock).toHaveBeenCalledTimes(1);
+        expect(worker.cache.put).toHaveBeenCalledWith(
+            '/',
+            expect.any(Response),
+        );
     });
 
-    it('does not cache non-asset same-origin resources', () => {
+    it('uses the cached app shell when navigation fails offline', async () => {
+        const worker = createServiceWorkerHarness();
+
+        worker.fetchMock.mockRejectedValue(
+            new Error('Network unavailable'),
+        );
+
+        worker.cache.match.mockImplementation(
+            async (request: RequestInfo | URL) => {
+                if (String(request) === '/') {
+                    return new Response('cached application shell', {
+                        status: 200,
+                    });
+                }
+
+                return undefined;
+            },
+        );
+
+        let navigationResponse: Promise<Response> | undefined;
+
+        worker.listeners.get('fetch')?.({
+            request: {
+                method: 'GET',
+                url: 'https://app.test/customer/tasks',
+                mode: 'navigate',
+            },
+            respondWith(promise) {
+                navigationResponse = promise;
+            },
+        });
+
+        expect(navigationResponse).toBeDefined();
+
+        if (!navigationResponse) {
+            throw new Error('Navigation response was not registered.');
+        }
+
+        const response = await navigationResponse;
+
+        expect(response.status).toBe(200);
+        expect(await response.text()).toBe(
+            'cached application shell',
+        );
+
+        expect(worker.cache.match).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: 'https://app.test/customer/tasks',
+            }),
+        );
+
+        expect(worker.cache.match).toHaveBeenCalledWith('/');
+    });
+
+    it('returns an offline response when no app shell is cached', async () => {
+        const worker = createServiceWorkerHarness();
+
+        worker.fetchMock.mockRejectedValue(
+            new Error('Network unavailable'),
+        );
+
+        worker.cache.match.mockResolvedValue(undefined);
+
+        let navigationResponse: Promise<Response> | undefined;
+
+        worker.listeners.get('fetch')?.({
+            request: {
+                method: 'GET',
+                url: 'https://app.test/customer/tasks',
+                mode: 'navigate',
+            },
+            respondWith(promise) {
+                navigationResponse = promise;
+            },
+        });
+
+        expect(navigationResponse).toBeDefined();
+
+        if (!navigationResponse) {
+            throw new Error('Navigation response was not registered.');
+        }
+
+        const response = await navigationResponse;
+
+        expect(response.status).toBe(503);
+        expect(await response.text()).toContain(
+            'Anda sedang di luar talian.',
+        );
+    });
+
+    it('does not cache non-static same-origin resources', () => {
         const worker = createServiceWorkerHarness();
 
         const excludedPaths = [
@@ -422,5 +522,45 @@ describe('Customer Service Worker', () => {
         expect(worker.fetchMock).toHaveBeenCalledTimes(1);
         expect(worker.cache.put).toHaveBeenCalledTimes(1);
         expect(worker.cache.put.mock.calls[0][0]).toBe(request);
+    });
+
+    it('caches SVG icons for offline use', async () => {
+        const worker = createServiceWorkerHarness();
+
+        worker.cache.match.mockResolvedValue(undefined);
+
+        const iconResponse = new Response('<svg></svg>', {
+            status: 200,
+        });
+
+        Object.defineProperty(iconResponse, 'type', {
+            value: 'basic',
+        });
+
+        worker.fetchMock.mockResolvedValue(iconResponse);
+
+        let iconResult: Promise<Response> | undefined;
+
+        worker.listeners.get('fetch')?.({
+            request: {
+                method: 'GET',
+                url: 'https://app.test/icons/icon.svg',
+                mode: 'cors',
+            },
+            respondWith(promise) {
+                iconResult = promise;
+            },
+        });
+
+        expect(iconResult).toBeDefined();
+
+        if (!iconResult) {
+            throw new Error('Icon response was not registered.');
+        }
+
+        const response = await iconResult;
+
+        expect(response.status).toBe(200);
+        expect(worker.cache.put).toHaveBeenCalledTimes(1);
     });
 });
