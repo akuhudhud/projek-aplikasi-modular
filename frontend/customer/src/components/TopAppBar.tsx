@@ -7,6 +7,8 @@ type TopAppBarProps = {
     accountName: string;
     onLogout: () => void;
     loading?: boolean;
+    unreadNotificationTotal: number;
+    onOpenNotifications: () => void;
 };
 
 export default function TopAppBar({
@@ -14,6 +16,8 @@ export default function TopAppBar({
     accountName,
     onLogout,
     loading = false,
+    unreadNotificationTotal,
+    onOpenNotifications,
 }: TopAppBarProps) {
     return (
         <header className="sr-top-app-bar">
@@ -33,6 +37,27 @@ export default function TopAppBar({
             </div>
 
             <div className="sr-top-app-bar__account">
+                <button
+                    type="button"
+                    className="sr-top-app-bar__notifications"
+                    onClick={onOpenNotifications}
+                    aria-label={
+                        unreadNotificationTotal > 0
+                            ? `Notifikasi, ${unreadNotificationTotal} belum dibaca`
+                            : 'Notifikasi'
+                    }
+                >
+                    <span aria-hidden="true">♢</span>
+
+                    {unreadNotificationTotal > 0 && (
+                        <span className="sr-top-app-bar__notification-count">
+                            {unreadNotificationTotal > 99
+                                ? '99+'
+                                : unreadNotificationTotal}
+                        </span>
+                    )}
+                </button>
+
                 <div className="sr-top-app-bar__account-info">
                     <span className="sr-top-app-bar__greeting">
                         Akaun
