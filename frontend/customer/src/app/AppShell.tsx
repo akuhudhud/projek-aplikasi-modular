@@ -7,6 +7,8 @@ import type { CustomerPage } from './navigation';
 import TopAppBar from '../components/TopAppBar';
 import BottomNavigation from '../components/BottomNavigation';
 import CustomerNotifications from '../features/notifications/CustomerNotifications';
+import ConnectionStatus from '../features/connectivity/ConnectionStatus';
+
 import type { CustomerNotifications as CustomerNotificationsState } from '../features/notifications/useCustomerNotifications';
 
 type AppShellProps = {
@@ -32,6 +34,8 @@ export default function AppShell({
 
     return (
         <div className="sr-app-shell">
+            <ConnectionStatus />
+
             <TopAppBar
                 activePage={activePage}
                 accountName={accountName}
