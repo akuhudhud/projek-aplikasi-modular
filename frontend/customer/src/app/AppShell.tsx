@@ -1,9 +1,13 @@
+
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 
 import type { CustomerPage } from './navigation';
 
 import TopAppBar from '../components/TopAppBar';
 import BottomNavigation from '../components/BottomNavigation';
+import CustomerNotifications from '../features/notifications/CustomerNotifications';
+import type { CustomerNotifications as CustomerNotificationsState } from '../features/notifications/useCustomerNotifications';
 
 type AppShellProps = {
     activePage: CustomerPage;
@@ -11,6 +15,7 @@ type AppShellProps = {
     onNavigate: (page: CustomerPage) => void;
     onLogout: () => void;
     loading?: boolean;
+    notifications: CustomerNotificationsState;
     children: ReactNode;
 };
 
@@ -20,8 +25,11 @@ export default function AppShell({
     onNavigate,
     onLogout,
     loading = false,
+    notifications,
     children,
 }: AppShellProps) {
+    const [showNotifications, setShowNotifications] = useState(false);
+
     return (
         <div className="sr-app-shell">
             <TopAppBar
@@ -29,15 +37,27 @@ export default function AppShell({
                 accountName={accountName}
                 onLogout={onLogout}
                 loading={loading}
+                unreadNotificationTotal={notifications.unreadTotal}
+                onOpenNotifications={() => {
+                    setShowNotifications((current) => !current);
+                    notifications.refresh();
+                }}
             />
 
             <main className="sr-app-shell__content">
-                {children}
+                {showNotifications ? (
+                    <CustomerNotifications state={notifications} />
+                ) : (
+                    children
+                )}
             </main>
 
             <BottomNavigation
                 activePage={activePage}
-                onNavigate={onNavigate}
+                onNavigate={(page) => {
+                    setShowNotifications(false);
+                    onNavigate(page);
+                }}
             />
         </div>
     );
