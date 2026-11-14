@@ -21,14 +21,27 @@ describe('TopAppBar', () => {
         cleanup();
     });
 
-    it('renders the Super Runner customer branding', () => {
-        render(
+    const renderTopAppBar = (
+        props: Partial<React.ComponentProps<typeof TopAppBar>> = {},
+    ) => {
+        const defaultProps: React.ComponentProps<typeof TopAppBar> = {
+            activePage: 'dashboard',
+            accountName: 'Nazim',
+            onLogout: vi.fn(),
+            unreadNotificationTotal: 0,
+            onOpenNotifications: vi.fn(),
+        };
+
+        return render(
             <TopAppBar
-                activePage="dashboard"
-                accountName="Nazim"
-                onLogout={vi.fn()}
+                {...defaultProps}
+                {...props}
             />,
         );
+    };
+
+    it('renders the Super Runner customer branding', () => {
+        renderTopAppBar();
 
         expect(screen.getByText('SR')).toBeInTheDocument();
         expect(screen.getByText('Super Runner')).toBeInTheDocument();
@@ -36,13 +49,9 @@ describe('TopAppBar', () => {
     });
 
     it('displays the active page label', () => {
-        render(
-            <TopAppBar
-                activePage="requests"
-                accountName="Nazim"
-                onLogout={vi.fn()}
-            />,
-        );
+        renderTopAppBar({
+            activePage: 'requests',
+        });
 
         expect(
             screen.getByText('Senarai Permintaan'),
@@ -50,13 +59,9 @@ describe('TopAppBar', () => {
     });
 
     it('displays the customer account name', () => {
-        render(
-            <TopAppBar
-                activePage="dashboard"
-                accountName="Nazim Hud"
-                onLogout={vi.fn()}
-            />,
-        );
+        renderTopAppBar({
+            accountName: 'Nazim Hud',
+        });
 
         expect(screen.getByText('Akaun')).toBeInTheDocument();
 
@@ -72,13 +77,9 @@ describe('TopAppBar', () => {
     it('calls onLogout when the logout button is clicked', () => {
         const onLogout = vi.fn();
 
-        render(
-            <TopAppBar
-                activePage="dashboard"
-                accountName="Nazim"
-                onLogout={onLogout}
-            />,
-        );
+        renderTopAppBar({
+            onLogout,
+        });
 
         fireEvent.click(
             screen.getByRole('button', { name: 'Keluar' }),
@@ -88,14 +89,9 @@ describe('TopAppBar', () => {
     });
 
     it('disables the logout button while loading', () => {
-        render(
-            <TopAppBar
-                activePage="dashboard"
-                accountName="Nazim"
-                onLogout={vi.fn()}
-                loading
-            />,
-        );
+        renderTopAppBar({
+            loading: true,
+        });
 
         expect(
             screen.getByRole('button', { name: 'Keluar' }),
@@ -107,14 +103,10 @@ describe('TopAppBar', () => {
     });
 
     it('keeps the logout button enabled when not loading', () => {
-        render(
-            <TopAppBar
-                activePage="profile"
-                accountName="Nazim"
-                onLogout={vi.fn()}
-                loading={false}
-            />,
-        );
+        renderTopAppBar({
+            activePage: 'profile',
+            loading: false,
+        });
 
         expect(
             screen.getByRole('button', { name: 'Keluar' }),
@@ -123,5 +115,71 @@ describe('TopAppBar', () => {
         expect(
             screen.getByRole('button', { name: 'Keluar' }),
         ).toHaveTextContent('Keluar');
+    });
+
+    it('calls onOpenNotifications when notification button is clicked', () => {
+        const onOpenNotifications = vi.fn();
+
+        renderTopAppBar({
+            onOpenNotifications,
+        });
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Notifikasi',
+            }),
+        );
+
+        expect(
+            onOpenNotifications,
+        ).toHaveBeenCalledTimes(1);
+    });
+
+    it('displays unread notification total', () => {
+        renderTopAppBar({
+            unreadNotificationTotal: 5,
+        });
+
+        expect(
+            screen.getByRole('button', {
+                name: 'Notifikasi, 5 belum dibaca',
+            }),
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByText('5'),
+        ).toBeInTheDocument();
+    });
+
+    it('does not display notification count when there are no unread notifications', () => {
+        renderTopAppBar({
+            unreadNotificationTotal: 0,
+        });
+
+        expect(
+            screen.getByRole('button', {
+                name: 'Notifikasi',
+            }),
+        ).toBeInTheDocument();
+
+        expect(
+            screen.queryByText('0'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('displays 99+ when unread notification total exceeds 99', () => {
+        renderTopAppBar({
+            unreadNotificationTotal: 120,
+        });
+
+        expect(
+            screen.getByRole('button', {
+                name: 'Notifikasi, 120 belum dibaca',
+            }),
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByText('99+'),
+        ).toBeInTheDocument();
     });
 });
