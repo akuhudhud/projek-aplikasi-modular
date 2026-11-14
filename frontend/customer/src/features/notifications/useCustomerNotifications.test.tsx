@@ -427,6 +427,8 @@ describe('useCustomerNotifications', () => {
             makeNotification('notification-2'),
         ];
 
+        let allNotificationsDeleted = false;
+
         let resolvePageTwo:
             | ((value: ReturnType<typeof makeNotificationsResult>) => void)
             | undefined;
@@ -438,9 +440,23 @@ describe('useCustomerNotifications', () => {
                 });
             }
 
+            if (allNotificationsDeleted) {
+                return Promise.resolve(
+                    makeNotificationsResult([]),
+                );
+            }
+
             return Promise.resolve(
                 makeNotificationsResult(notifications),
             );
+        });
+
+        deleteAllNotificationsMock.mockImplementation(async () => {
+            allNotificationsDeleted = true;
+
+            return {
+                deleted_total: 2,
+            };
         });
 
         const { result } = renderHook(() =>
@@ -475,11 +491,16 @@ describe('useCustomerNotifications', () => {
 
         await act(async () => {
             const success = await result.current.deleteAll();
+
             expect(success).toBe(true);
         });
 
+        await waitFor(() => {
+            expect(result.current.notifications).toEqual([]);
+            expect(result.current.loading).toBe(false);
+        });
+
         expect(deleteAllNotificationsMock).toHaveBeenCalledTimes(1);
-        expect(result.current.notifications).toEqual([]);
         expect(result.current.unreadTotal).toBe(0);
         expect(result.current.total).toBe(0);
         expect(result.current.currentPage).toBe(1);
