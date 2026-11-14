@@ -1,3 +1,4 @@
+
 // @vitest-environment jsdom
 
 import {
@@ -22,11 +23,13 @@ const {
     loginMock,
     getTasksMock,
     getRequestsMock,
+    getNotificationsMock,
 } = vi.hoisted(() => ({
     meMock: vi.fn(),
     loginMock: vi.fn(),
     getTasksMock: vi.fn(),
     getRequestsMock: vi.fn(),
+    getNotificationsMock: vi.fn(),
 }));
 
 vi.mock('axios', () => ({
@@ -42,6 +45,10 @@ vi.mock('./api', () => ({
         login: loginMock,
         getTasks: getTasksMock,
         getRequests: getRequestsMock,
+        getNotifications: getNotificationsMock,
+        markNotificationAsRead: vi.fn(),
+        deleteNotification: vi.fn(),
+        deleteAllNotifications: vi.fn(),
         createRequest: vi.fn(),
         cancelRequest: vi.fn(),
         getTask: vi.fn(),
@@ -92,6 +99,19 @@ function configureSuccessfulLogin() {
 
     getRequestsMock.mockResolvedValue({
         requests: [],
+        pagination: {
+            current_page: 1,
+            per_page: 10,
+            total: 0,
+            last_page: 1,
+        },
+    });
+
+    getNotificationsMock.mockResolvedValue({
+        notifications: [],
+        summary: {
+            unread_total: 0,
+        },
         pagination: {
             current_page: 1,
             per_page: 10,
