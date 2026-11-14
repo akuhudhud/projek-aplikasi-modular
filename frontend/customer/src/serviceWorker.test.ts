@@ -39,6 +39,7 @@ function createServiceWorkerHarness() {
             'super-runner-customer-v2',
             'super-runner-customer-v3',
             'super-runner-customer-v4',
+            'super-runner-customer-v5',
             'another-application-cache',
         ]),
         delete: vi.fn().mockResolvedValue(true),
@@ -108,7 +109,7 @@ describe('Customer Service Worker', () => {
         expect(worker.listeners.has('fetch')).toBe(true);
     });
 
-    it('precaches application shell, icon and build assets', async () => {
+    it('precaches application shell, all PWA icons and build assets', async () => {
         const worker = createServiceWorkerHarness();
 
         worker.fetchMock.mockImplementation(
@@ -158,6 +159,9 @@ describe('Customer Service Worker', () => {
             '/manifest.webmanifest',
             '/manifest.json',
             '/icons/icon.svg',
+            '/icons/icon-192.png',
+            '/icons/icon-512.png',
+            '/icons/apple-touch-icon.png',
         ]);
 
         expect(worker.cache.addAll).toHaveBeenNthCalledWith(2, [
@@ -199,7 +203,7 @@ describe('Customer Service Worker', () => {
         );
     });
 
-    it('deletes old application caches and preserves the current cache', async () => {
+    it('deletes old application caches and preserves v5', async () => {
         const worker = createServiceWorkerHarness();
 
         const activateHandler = worker.listeners.get('activate');
@@ -220,7 +224,7 @@ describe('Customer Service Worker', () => {
 
         await activation;
 
-        expect(worker.cachesMock.delete).toHaveBeenCalledTimes(2);
+        expect(worker.cachesMock.delete).toHaveBeenCalledTimes(3);
 
         expect(worker.cachesMock.delete).toHaveBeenCalledWith(
             'super-runner-customer-v2',
@@ -230,8 +234,12 @@ describe('Customer Service Worker', () => {
             'super-runner-customer-v3',
         );
 
-        expect(worker.cachesMock.delete).not.toHaveBeenCalledWith(
+        expect(worker.cachesMock.delete).toHaveBeenCalledWith(
             'super-runner-customer-v4',
+        );
+
+        expect(worker.cachesMock.delete).not.toHaveBeenCalledWith(
+            'super-runner-customer-v5',
         );
 
         expect(worker.cachesMock.delete).not.toHaveBeenCalledWith(
@@ -524,43 +532,52 @@ describe('Customer Service Worker', () => {
         expect(worker.cache.put.mock.calls[0][0]).toBe(request);
     });
 
-    it('caches SVG icons for offline use', async () => {
-        const worker = createServiceWorkerHarness();
+    it('caches SVG and PNG icons for offline use', async () => {
+        const iconPaths = [
+            '/icons/icon.svg',
+            '/icons/icon-192.png',
+            '/icons/icon-512.png',
+            '/icons/apple-touch-icon.png',
+        ];
 
-        worker.cache.match.mockResolvedValue(undefined);
+        for (const iconPath of iconPaths) {
+            const worker = createServiceWorkerHarness();
 
-        const iconResponse = new Response('<svg></svg>', {
-            status: 200,
-        });
+            worker.cache.match.mockResolvedValue(undefined);
 
-        Object.defineProperty(iconResponse, 'type', {
-            value: 'basic',
-        });
+            const iconResponse = new Response('icon asset', {
+                status: 200,
+            });
 
-        worker.fetchMock.mockResolvedValue(iconResponse);
+            Object.defineProperty(iconResponse, 'type', {
+                value: 'basic',
+            });
 
-        let iconResult: Promise<Response> | undefined;
+            worker.fetchMock.mockResolvedValue(iconResponse);
 
-        worker.listeners.get('fetch')?.({
-            request: {
-                method: 'GET',
-                url: 'https://app.test/icons/icon.svg',
-                mode: 'cors',
-            },
-            respondWith(promise) {
-                iconResult = promise;
-            },
-        });
+            let iconResult: Promise<Response> | undefined;
 
-        expect(iconResult).toBeDefined();
+            worker.listeners.get('fetch')?.({
+                request: {
+                    method: 'GET',
+                    url: `https://app.test${iconPath}`,
+                    mode: 'cors',
+                },
+                respondWith(promise) {
+                    iconResult = promise;
+                },
+            });
 
-        if (!iconResult) {
-            throw new Error('Icon response was not registered.');
+            expect(iconResult).toBeDefined();
+
+            if (!iconResult) {
+                throw new Error(`Icon response was not registered: ${iconPath}`);
+            }
+
+            const response = await iconResult;
+
+            expect(response.status).toBe(200);
+            expect(worker.cache.put).toHaveBeenCalledTimes(1);
         }
-
-        const response = await iconResult;
-
-        expect(response.status).toBe(200);
-        expect(worker.cache.put).toHaveBeenCalledTimes(1);
     });
 });
