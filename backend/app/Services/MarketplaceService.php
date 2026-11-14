@@ -9,6 +9,7 @@ use App\Models\CoreTask;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
 use App\Models\RunnerPublicProfile;
+use App\Notifications\MarketplaceEventNotification;
 use DomainException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
@@ -443,7 +444,7 @@ class MarketplaceService
                 );
             }
 
-            return MarketplaceQuotation::query()->create([
+            $quotation = MarketplaceQuotation::query()->create([
                 'quotation_id' => (string) Str::uuid(),
                 'request_id' => $request->request_id,
                 'runner_account_id' => $lockedRunner->id,
@@ -452,6 +453,25 @@ class MarketplaceService
                 'message' => $message,
                 'status' => MarketplaceQuotation::STATUS_SUBMITTED,
             ]);
+
+            // Notifikasi pelanggan apabila Runner menghantar sebutharga.
+            $customerAccount = Account::query()
+                ->whereKey($request->customer_account_id)
+                ->first();
+
+            if ($customerAccount) {
+                $customerAccount->notify(
+                    new MarketplaceEventNotification(
+                        event: 'marketplace.quotation_received',
+                        title: 'Sebutharga baharu diterima',
+                        message: 'Runner telah menghantar sebutharga untuk permintaan anda.',
+                        requestId: $request->request_id,
+                        quotationId: $quotation->quotation_id,
+                    )
+                );
+            }
+
+            return $quotation;
         });
 
         if (!$result) {
@@ -711,6 +731,17 @@ class MarketplaceService
                     'status' => MarketplaceQuotation::STATUS_NOT_SELECTED,
                     'updated_at' => $now,
                 ]);
+
+            // Notifikasi Runner apabila sebutharganya dipilih pelanggan.
+            $runner->notify(
+                new MarketplaceEventNotification(
+                    event: 'marketplace.quotation_accepted',
+                    title: 'Sebutharga anda dipilih',
+                    message: 'Pelanggan telah memilih sebutharga anda. Tugasan baharu telah diwujudkan.',
+                    requestId: $request->request_id,
+                    quotationId: $quotation->quotation_id,
+                )
+            );
 
             return $task->refresh();
         });
