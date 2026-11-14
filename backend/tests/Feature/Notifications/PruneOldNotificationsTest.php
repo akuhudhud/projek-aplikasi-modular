@@ -4,6 +4,7 @@ namespace Tests\Feature\Notifications;
 
 use App\Models\Account;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -71,18 +72,26 @@ class PruneOldNotificationsTest extends TestCase
 
     public function test_command_keeps_notifications_within_90_days(): void
     {
-        $recentNotification = $this->createNotification(30);
-        $boundaryNotification = $this->createNotification(90);
+        $fixedNow = now();
 
-        $this->artisan('notifications:prune')
-            ->assertExitCode(0);
+        Carbon::setTestNow($fixedNow);
 
-        $this->assertDatabaseHas('notifications', [
-            'id' => $recentNotification,
-        ]);
+        try {
+            $recentNotification = $this->createNotification(30);
+            $boundaryNotification = $this->createNotification(90);
 
-        $this->assertDatabaseHas('notifications', [
-            'id' => $boundaryNotification,
-        ]);
+            $this->artisan('notifications:prune')
+                ->assertExitCode(0);
+
+            $this->assertDatabaseHas('notifications', [
+                'id' => $recentNotification,
+            ]);
+
+            $this->assertDatabaseHas('notifications', [
+                'id' => $boundaryNotification,
+            ]);
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 }
