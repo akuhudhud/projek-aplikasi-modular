@@ -441,9 +441,15 @@ describe('useCustomerNotifications', () => {
             }
 
             if (allNotificationsDeleted) {
-                return Promise.resolve(
-                    makeNotificationsResult([]),
-                );
+                return Promise.resolve({
+                    ...makeNotificationsResult([]),
+                    pagination: {
+                        current_page: 1,
+                        per_page: 25,
+                        total: 0,
+                        last_page: 1,
+                    },
+                });
             }
 
             return Promise.resolve(
