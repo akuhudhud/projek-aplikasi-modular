@@ -1,11 +1,12 @@
 
 const CACHE_PREFIX = 'super-runner-customer-';
-const CACHE_NAME = `${CACHE_PREFIX}v3`;
+const CACHE_NAME = `${CACHE_PREFIX}v4`;
 
 const APP_SHELL = [
     '/',
     '/manifest.webmanifest',
     '/manifest.json',
+    '/icons/icon.svg',
 ];
 
 function isApiPath(pathname) {
@@ -13,6 +14,13 @@ function isApiPath(pathname) {
         (prefix) =>
             pathname === prefix ||
             pathname.startsWith(`${prefix}/`),
+    );
+}
+
+function isStaticAsset(pathname) {
+    return (
+        pathname.startsWith('/assets/') ||
+        pathname.startsWith('/icons/')
     );
 }
 
@@ -61,6 +69,58 @@ async function precacheAppShell(cache) {
     }
 }
 
+async function handleNavigationRequest(request, cache) {
+    try {
+        const response = await fetch(request);
+
+        if (response.ok && response.type === 'basic') {
+            await cache.put('/', response.clone());
+        }
+
+        return response;
+    } catch {
+        const requestedPage = await cache.match(request);
+
+        if (requestedPage) {
+            return requestedPage;
+        }
+
+        const appShell = await cache.match('/');
+
+        if (appShell) {
+            return appShell;
+        }
+
+        return new Response(
+            'Anda sedang di luar talian. Sambungan internet diperlukan untuk memuatkan aplikasi.',
+            {
+                status: 503,
+                statusText: 'Service Unavailable',
+                headers: {
+                    'Content-Type': 'text/plain; charset=utf-8',
+                    'Cache-Control': 'no-store',
+                },
+            },
+        );
+    }
+}
+
+async function handleStaticAsset(request, cache) {
+    const cached = await cache.match(request);
+
+    if (cached) {
+        return cached;
+    }
+
+    const response = await fetch(request);
+
+    if (response.ok && response.type === 'basic') {
+        await cache.put(request, response.clone());
+    }
+
+    return response;
+}
+
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(precacheAppShell),
@@ -99,27 +159,28 @@ self.addEventListener('fetch', (event) => {
 
     if (
         url.origin !== self.location.origin ||
-        isApiPath(url.pathname) ||
-        !url.pathname.startsWith('/assets/')
+        isApiPath(url.pathname)
     ) {
         return;
     }
 
+    if (request.mode === 'navigate') {
+        event.respondWith(
+            caches.open(CACHE_NAME).then((cache) =>
+                handleNavigationRequest(request, cache),
+            ),
+        );
+
+        return;
+    }
+
+    if (!isStaticAsset(url.pathname)) {
+        return;
+    }
+
     event.respondWith(
-        caches.open(CACHE_NAME).then(async (cache) => {
-            const cached = await cache.match(request);
-
-            if (cached) {
-                return cached;
-            }
-
-            const response = await fetch(request);
-
-            if (response.ok && response.type === 'basic') {
-                await cache.put(request, response.clone());
-            }
-
-            return response;
-        }),
+        caches.open(CACHE_NAME).then((cache) =>
+            handleStaticAsset(request, cache),
+        ),
     );
 });
