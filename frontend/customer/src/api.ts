@@ -16,6 +16,29 @@ export interface CustomerAccount {
     status: string;
 }
 
+export interface CustomerNotification {
+    id: string;
+    type: string;
+    data: Record<string, unknown>;
+    read_at: string | null;
+    created_at: string;
+}
+
+export interface CustomerNotificationPagination {
+    current_page: number;
+    per_page: number;
+    total: number;
+    last_page: number;
+}
+
+export interface CustomerNotificationsResult {
+    notifications: CustomerNotification[];
+    summary: {
+        unread_total: number;
+    };
+    pagination: CustomerNotificationPagination;
+}
+
 export interface CustomerTask {
     task_id: string;
     module_key: string;
@@ -665,5 +688,50 @@ export const customerApi = {
         );
 
         return response.data.data.request;
+    },
+
+    async getNotifications(
+        page = 1,
+    ): Promise<CustomerNotificationsResult> {
+        const response = await api.get<
+            ApiResponse<CustomerNotificationsResult>
+        >(
+            '/web/customer/notifications',
+            {
+                params: { page },
+            },
+        );
+
+        return response.data.data;
+    },
+
+    async markNotificationAsRead(
+        notificationId: string,
+    ): Promise<{ id: string; read_at: string }> {
+        const response = await api.patch<
+            ApiResponse<{ id: string; read_at: string }>
+        >(
+            `/web/customer/notifications/${encodeURIComponent(notificationId)}/read`,
+        );
+
+        return response.data.data;
+    },
+
+    async deleteNotification(
+        notificationId: string,
+    ): Promise<void> {
+        await api.delete(
+            `/web/customer/notifications/${encodeURIComponent(notificationId)}`,
+        );
+    },
+
+    async deleteAllNotifications(): Promise<number> {
+        const response = await api.delete<
+            ApiResponse<{ deleted_total: number }>
+        >(
+            '/web/customer/notifications',
+        );
+
+        return response.data.data.deleted_total;
     },
 };
