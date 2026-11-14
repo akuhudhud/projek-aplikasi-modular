@@ -13,7 +13,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
 
             // Jenis notifikasi.
-            $table->string('type', 100);
+            $table->string('type', 255);
 
             // Penerima notifikasi menggunakan UUID Account.
             $table->uuidMorphs('notifiable');
