@@ -22,6 +22,29 @@ import { useState } from 'react';
 import AppShell from './app/AppShell';
 
 import type { CustomerPage } from './app/navigation';
+import type { CustomerNotifications } from './features/notifications/useCustomerNotifications';
+
+function createNotifications(): CustomerNotifications {
+    return {
+        notifications: [],
+        unreadTotal: 0,
+        currentPage: 1,
+        lastPage: 1,
+        total: 0,
+        loading: false,
+        error: '',
+        actionLoadingId: null,
+        deletingAll: false,
+        actionMessage: '',
+        actionError: '',
+        setCurrentPage: vi.fn(),
+        refresh: vi.fn(),
+        markAsRead: vi.fn().mockResolvedValue(true),
+        deleteNotification: vi.fn().mockResolvedValue(true),
+        deleteAll: vi.fn().mockResolvedValue(true),
+        clearActionMessages: vi.fn(),
+    };
+}
 
 type AppShellHarnessProps = {
     onLogout: () => void;
@@ -33,12 +56,15 @@ function AppShellHarness({
     const [activePage, setActivePage] =
         useState<CustomerPage>('dashboard');
 
+    const notifications = createNotifications();
+
     return (
         <AppShell
             activePage={activePage}
             accountName="Customer Test"
             onNavigate={setActivePage}
             onLogout={onLogout}
+            notifications={notifications}
         >
             <section>
                 <h1>Kandungan Ruang Kerja</h1>
@@ -202,6 +228,7 @@ describe('Integrasi AppShell Pelanggan', () => {
                     onNavigate={vi.fn()}
                     onLogout={onLogout}
                     loading
+                    notifications={createNotifications()}
                 >
                     <p>Kandungan Ruang Kerja</p>
                 </AppShell>,
