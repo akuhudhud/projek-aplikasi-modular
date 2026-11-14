@@ -5,6 +5,8 @@ namespace Tests\Feature\Core;
 use App\Contracts\CoreTaskLifecycle;
 use App\Models\Account;
 use App\Models\CoreTask;
+use App\Models\MarketplaceRequest;
+use App\Notifications\MarketplaceEventNotification;
 use App\Services\CoreTaskLifecycleService;
 use DomainException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -60,6 +62,44 @@ class CoreTaskLifecycleServiceTest extends TestCase
             'assigned_account_id' => $assignedAccountId,
             'generic_status' => $status,
             'assigned_at' => $assignedAccountId !== null ? now() : null,
+            'started_at' => $started ? now() : null,
+        ]);
+    }
+
+    private function createMarketplaceTask(
+        Account $customer,
+        Account $runner,
+        string $status,
+        bool $started = false
+    ): CoreTask {
+        $request = MarketplaceRequest::query()->create([
+            'request_id' => (string) Str::uuid(),
+            'customer_account_id' => $customer->id,
+            'target_runner_account_id' => null,
+            'source_type' => MarketplaceRequest::SOURCE_MARKETPLACE,
+            'task_class' => MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY,
+            'description' => 'Ujian notifikasi lifecycle.',
+            'pickup_location_snapshot' => [
+                'address' => 'Lokasi pengambilan',
+            ],
+            'delivery_location_snapshot' => [
+                'address' => 'Lokasi penghantaran',
+            ],
+            'task_location_snapshot' => null,
+            'status' => MarketplaceRequest::STATUS_AWARDED,
+            'expires_at' => now()->addHours(2),
+            'awarded_at' => now(),
+        ]);
+
+        return CoreTask::query()->create([
+            'task_id' => (string) Str::uuid(),
+            'module_key' => 'Marketplace',
+            'task_type' => 'MARKETPLACE_SERVICE_REQUEST',
+            'source_type' => 'marketplace_request',
+            'source_id' => $request->request_id,
+            'assigned_account_id' => $runner->id,
+            'generic_status' => $status,
+            'assigned_at' => now(),
             'started_at' => $started ? now() : null,
         ]);
     }
@@ -127,6 +167,109 @@ class CoreTaskLifecycleServiceTest extends TestCase
             'task_id' => $task->task_id,
             'generic_status' => CoreTask::STATUS_COMPLETED,
         ]);
+    }
+
+    public function test_starting_marketplace_task_notifies_customer(): void
+    {
+        $customer = $this->createAccount();
+        $runner = $this->createAccount();
+
+        $task = $this->createMarketplaceTask(
+            $customer,
+            $runner,
+            CoreTask::STATUS_ASSIGNED
+        );
+
+        $this->lifecycle->start(
+            $task->task_id,
+            $runner->id
+        );
+
+        $notification = $customer->notifications()
+            ->where('type', MarketplaceEventNotification::class)
+            ->latest()
+            ->first();
+
+        $this->assertNotNull($notification);
+
+        $this->assertSame(
+            'marketplace.task_started',
+            $notification->data['event']
+        );
+
+        $this->assertSame(
+            'Runner telah memulakan tugasan',
+            $notification->data['title']
+        );
+
+        $this->assertSame(
+            'Runner telah memulakan tugasan anda.',
+            $notification->data['message']
+        );
+
+        $this->assertSame(
+            $task->source_id,
+            $notification->data['request_id']
+        );
+
+        $this->assertSame(
+            1,
+            $customer->notifications()
+                ->where('type', MarketplaceEventNotification::class)
+                ->count()
+        );
+    }
+
+    public function test_completing_marketplace_task_notifies_customer(): void
+    {
+        $customer = $this->createAccount();
+        $runner = $this->createAccount();
+
+        $task = $this->createMarketplaceTask(
+            $customer,
+            $runner,
+            CoreTask::STATUS_IN_PROGRESS,
+            true
+        );
+
+        $this->lifecycle->complete(
+            $task->task_id,
+            $runner->id
+        );
+
+        $notification = $customer->notifications()
+            ->where('type', MarketplaceEventNotification::class)
+            ->latest()
+            ->first();
+
+        $this->assertNotNull($notification);
+
+        $this->assertSame(
+            'marketplace.task_completed',
+            $notification->data['event']
+        );
+
+        $this->assertSame(
+            'Tugasan telah selesai',
+            $notification->data['title']
+        );
+
+        $this->assertSame(
+            'Runner telah menyelesaikan tugasan anda.',
+            $notification->data['message']
+        );
+
+        $this->assertSame(
+            $task->source_id,
+            $notification->data['request_id']
+        );
+
+        $this->assertSame(
+            1,
+            $customer->notifications()
+                ->where('type', MarketplaceEventNotification::class)
+                ->count()
+        );
     }
 
     public function test_pending_runner_cannot_start_assigned_task(): void
