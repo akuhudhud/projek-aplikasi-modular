@@ -1,0 +1,121 @@
+
+.sr-notifications {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.sr-notifications__header,
+.sr-notifications__toolbar,
+.sr-notifications__item-heading,
+.sr-notifications__pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.sr-notifications__header h1 {
+    margin: 0;
+}
+
+.sr-notifications__header p,
+.sr-notifications__item p {
+    margin: 5px 0 0;
+}
+
+.sr-notifications__toolbar {
+    font-size: 13px;
+}
+
+.sr-notifications__list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sr-notifications__item {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    background: var(--surface-color, #fff);
+}
+
+.sr-notifications__item.is-unread {
+    border-left: 4px solid #eab308;
+    background: var(--surface-muted, #fffdf5);
+}
+
+.sr-notifications__item-content {
+    min-width: 0;
+    flex: 1;
+}
+
+.sr-notifications__item-heading span {
+    color: #a16207;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.sr-notifications__item time {
+    display: block;
+    margin-top: 9px;
+    color: #777;
+    font-size: 12px;
+}
+
+.sr-notifications__actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.sr-notifications button {
+    cursor: pointer;
+}
+
+.sr-notifications button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.sr-notifications__empty {
+    padding: 32px 16px;
+    text-align: center;
+}
+
+.sr-notifications__empty p {
+    color: #777;
+}
+
+.sr-notifications__error {
+    color: #b91c1c;
+}
+
+.sr-notifications__success {
+    color: #15803d;
+}
+
+.sr-notifications__pagination {
+    padding-top: 12px;
+}
+
+@media (max-width: 600px) {
+    .sr-notifications__item {
+        flex-direction: column;
+    }
+
+    .sr-notifications__actions {
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-end;
+    }
+
+    .sr-notifications__header {
+        align-items: flex-start;
+    }
+}
