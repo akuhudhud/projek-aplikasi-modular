@@ -1,4 +1,6 @@
 
+// @vitest-environment jsdom
+
 import {
     describe,
     expect,
@@ -28,7 +30,9 @@ function createServiceWorkerHarness() {
     const cache = {
         addAll: vi.fn().mockResolvedValue(undefined),
         match: vi.fn(
-            async (): Promise<Response | undefined> => undefined,
+            async (
+                _request: RequestInfo | URL,
+            ): Promise<Response | undefined> => undefined,
         ),
         put: vi.fn().mockResolvedValue(undefined),
     };
