@@ -24,6 +24,19 @@ type WorkerEvent = {
 
 type WorkerListener = (event: WorkerEvent) => void;
 
+function createBasicResponse(
+    body: BodyInit | null = 'network response',
+    init?: ResponseInit,
+): Response {
+    const response = new Response(body, init);
+
+    Object.defineProperty(response, 'type', {
+        value: 'basic',
+    });
+
+    return response;
+}
+
 function createServiceWorkerHarness() {
     const listeners = new Map<string, WorkerListener>();
 
@@ -66,7 +79,7 @@ function createServiceWorkerHarness() {
 
     const fetchMock = vi.fn(
         async (_input: RequestInfo | URL) => {
-            return new Response('network response', {
+            return createBasicResponse('network response', {
                 status: 200,
             });
         },
@@ -136,7 +149,7 @@ describe('Customer Service Worker', () => {
                     );
                 }
 
-                return new Response('network response');
+                return createBasicResponse('network response');
             },
         );
 
@@ -497,12 +510,8 @@ describe('Customer Service Worker', () => {
 
         worker.cache.match.mockResolvedValue(undefined);
 
-        const networkResponse = new Response('network asset', {
+        const networkResponse = createBasicResponse('network asset', {
             status: 200,
-        });
-
-        Object.defineProperty(networkResponse, 'type', {
-            value: 'basic',
         });
 
         worker.fetchMock.mockResolvedValue(networkResponse);
@@ -549,12 +558,8 @@ describe('Customer Service Worker', () => {
 
             worker.cache.match.mockResolvedValue(undefined);
 
-            const iconResponse = new Response('icon asset', {
+            const iconResponse = createBasicResponse('icon asset', {
                 status: 200,
-            });
-
-            Object.defineProperty(iconResponse, 'type', {
-                value: 'basic',
             });
 
             worker.fetchMock.mockResolvedValue(iconResponse);
