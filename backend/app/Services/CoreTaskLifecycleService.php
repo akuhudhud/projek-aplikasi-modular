@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Contracts\CoreTaskLifecycle;
 use App\Models\Account;
 use App\Models\CoreTask;
+use App\Models\MarketplaceRequest;
+use App\Notifications\MarketplaceEventNotification;
 use DomainException;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -49,6 +51,13 @@ class CoreTaskLifecycleService implements CoreTaskLifecycle
             $task->generic_status = CoreTask::STATUS_IN_PROGRESS;
             $task->save();
 
+            $this->notifyMarketplaceCustomer(
+                $task,
+                'marketplace.task_started',
+                'Runner telah memulakan tugasan',
+                'Runner telah memulakan tugasan anda.'
+            );
+
             return $task->refresh();
         });
     }
@@ -91,8 +100,55 @@ class CoreTaskLifecycleService implements CoreTaskLifecycle
             $task->generic_status = CoreTask::STATUS_COMPLETED;
             $task->save();
 
+            $this->notifyMarketplaceCustomer(
+                $task,
+                'marketplace.task_completed',
+                'Tugasan telah selesai',
+                'Runner telah menyelesaikan tugasan anda.'
+            );
+
             return $task->refresh();
         });
+    }
+
+    private function notifyMarketplaceCustomer(
+        CoreTask $task,
+        string $event,
+        string $title,
+        string $message
+    ): void {
+        if (
+            $task->module_key !== 'Marketplace'
+            || $task->source_type !== 'marketplace_request'
+            || !$task->source_id
+        ) {
+            return;
+        }
+
+        $request = MarketplaceRequest::query()
+            ->where('request_id', $task->source_id)
+            ->first();
+
+        if (!$request) {
+            return;
+        }
+
+        $customer = Account::query()
+            ->whereKey($request->customer_account_id)
+            ->first();
+
+        if (!$customer) {
+            return;
+        }
+
+        $customer->notify(
+            new MarketplaceEventNotification(
+                event: $event,
+                title: $title,
+                message: $message,
+                requestId: $request->request_id,
+            )
+        );
     }
 
     private function validateIdentifiers(
