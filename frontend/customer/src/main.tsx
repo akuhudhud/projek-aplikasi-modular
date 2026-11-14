@@ -10,6 +10,8 @@ import '../styles/customer.css';
 import '../styles/app-shell.css';
 import '../styles/app-shell-integration.css';
 
+import './features/notifications/CustomerNotifications.css';
+
 export { default as CustomerApp } from './app/CustomerApp';
 
 const rootElement = document.getElementById('customer-app');
