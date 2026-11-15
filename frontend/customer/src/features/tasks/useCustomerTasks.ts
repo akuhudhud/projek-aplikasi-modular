@@ -1,4 +1,3 @@
-
 import {
     useCallback,
     useEffect,
@@ -34,6 +33,7 @@ type CustomerTasksActions = {
     refresh: () => void;
     refreshSelectedTask: () => void;
     openTask: (item: CustomerTaskItem) => void;
+    openTaskById: (taskId: string) => void;
     closeTask: () => void;
 };
 
@@ -166,11 +166,21 @@ export function useCustomerTasks({
         }
     }, [selectedTaskId]);
 
-    const openTask = useCallback((item: CustomerTaskItem) => {
+    const openTaskById = useCallback((taskId: string) => {
+        const normalizedId = taskId.trim();
+
+        if (!normalizedId) {
+            return;
+        }
+
         setSelectedTask(null);
         setDetailError('');
-        setSelectedTaskId(item.task.task_id);
+        setSelectedTaskId(normalizedId);
     }, []);
+
+    const openTask = useCallback((item: CustomerTaskItem) => {
+        openTaskById(item.task.task_id);
+    }, [openTaskById]);
 
     const closeTask = useCallback(() => {
         setSelectedTaskId(null);
@@ -195,6 +205,7 @@ export function useCustomerTasks({
         refresh,
         refreshSelectedTask,
         openTask,
+        openTaskById,
         closeTask,
     };
 }
