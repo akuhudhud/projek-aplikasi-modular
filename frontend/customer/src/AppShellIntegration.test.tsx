@@ -21,6 +21,7 @@ import { useState } from 'react';
 
 import AppShell from './app/AppShell';
 
+import type { CustomerNotification } from './api';
 import type { CustomerPage } from './app/navigation';
 import type { CustomerNotifications } from './features/notifications/useCustomerNotifications';
 
@@ -48,10 +49,12 @@ function createNotifications(): CustomerNotifications {
 
 type AppShellHarnessProps = {
     onLogout: () => void;
+    onOpenNotification?: (notification: CustomerNotification) => void;
 };
 
 function AppShellHarness({
     onLogout,
+    onOpenNotification = vi.fn(),
 }: AppShellHarnessProps) {
     const [activePage, setActivePage] =
         useState<CustomerPage>('dashboard');
@@ -64,6 +67,7 @@ function AppShellHarness({
             accountName="Customer Test"
             onNavigate={setActivePage}
             onLogout={onLogout}
+            onOpenNotification={onOpenNotification}
             notifications={notifications}
         >
             <section>
@@ -227,6 +231,7 @@ describe('Integrasi AppShell Pelanggan', () => {
                     accountName="Customer Test"
                     onNavigate={vi.fn()}
                     onLogout={onLogout}
+                    onOpenNotification={vi.fn()}
                     loading
                     notifications={createNotifications()}
                 >
