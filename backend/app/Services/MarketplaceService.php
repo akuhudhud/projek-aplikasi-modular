@@ -60,14 +60,32 @@ class MarketplaceService
                     ]);
             }
 
-            MarketplaceQuotation::query()
+            $expiredQuotations = MarketplaceQuotation::query()
                 ->where('status', MarketplaceQuotation::STATUS_SUBMITTED)
                 ->whereNotNull('expires_at')
                 ->where('expires_at', '<=', $now)
-                ->update([
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($expiredQuotations as $quotation) {
+                $quotation->forceFill([
                     'status' => MarketplaceQuotation::STATUS_EXPIRED,
-                    'updated_at' => $now,
-                ]);
+                ])->save();
+
+                $request = MarketplaceRequest::query()
+                    ->where('request_id', $quotation->request_id)
+                    ->first();
+
+                if ($request) {
+                    $this->notifyRequestCustomer(
+                        $request,
+                        'marketplace.quotation_expired',
+                        'Sebutharga telah tamat tempoh',
+                        'Sebutharga untuk permintaan anda telah tamat tempoh.',
+                        $quotation->quotation_id
+                    );
+                }
+            }
         });
     }
 
@@ -554,6 +572,14 @@ class MarketplaceService
                     'status' => MarketplaceQuotation::STATUS_EXPIRED,
                 ])->save();
 
+                $this->notifyRequestCustomer(
+                    $request,
+                    'marketplace.quotation_expired',
+                    'Sebutharga telah tamat tempoh',
+                    'Sebutharga untuk permintaan anda telah tamat tempoh.',
+                    $quotation->quotation_id
+                );
+
                 return $quotation->refresh();
             }
 
@@ -561,6 +587,14 @@ class MarketplaceService
                 'status' => MarketplaceQuotation::STATUS_WITHDRAWN,
                 'withdrawn_at' => now(),
             ])->save();
+
+            $this->notifyRequestCustomer(
+                $request,
+                'marketplace.quotation_withdrawn',
+                'Runner menarik balik sebutharga',
+                'Runner telah menarik balik sebutharga untuk permintaan anda.',
+                $quotation->quotation_id
+            );
 
             return $quotation->refresh();
         });
@@ -675,6 +709,14 @@ class MarketplaceService
                 $quotation->forceFill([
                     'status' => MarketplaceQuotation::STATUS_EXPIRED,
                 ])->save();
+
+                $this->notifyRequestCustomer(
+                    $request,
+                    'marketplace.quotation_expired',
+                    'Sebutharga telah tamat tempoh',
+                    'Sebutharga yang anda pilih telah tamat tempoh. Sila pilih sebutharga lain.',
+                    $quotation->quotation_id
+                );
 
                 return 'quotation_expired';
             }
@@ -797,6 +839,32 @@ class MarketplaceService
         );
 
         return true;
+    }
+
+    private function notifyRequestCustomer(
+        MarketplaceRequest $request,
+        string $event,
+        string $title,
+        string $message,
+        ?string $quotationId = null
+    ): void {
+        $customer = Account::query()
+            ->whereKey($request->customer_account_id)
+            ->first();
+
+        if (!$customer) {
+            return;
+        }
+
+        $customer->notify(
+            new MarketplaceEventNotification(
+                event: $event,
+                title: $title,
+                message: $message,
+                requestId: $request->request_id,
+                quotationId: $quotationId,
+            )
+        );
     }
 
     private function notifyRequestParticipants(
