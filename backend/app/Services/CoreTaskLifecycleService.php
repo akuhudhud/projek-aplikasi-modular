@@ -147,6 +147,7 @@ class CoreTaskLifecycleService implements CoreTaskLifecycle
                 title: $title,
                 message: $message,
                 requestId: $request->request_id,
+                taskId: $task->task_id,
             )
         );
     }
