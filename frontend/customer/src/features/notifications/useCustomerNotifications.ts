@@ -1,3 +1,4 @@
+
 import {
     useCallback,
     useEffect,
@@ -15,6 +16,7 @@ type CustomerNotificationsState = {
     currentPage: number;
     lastPage: number;
     total: number;
+    perPage: number;
     loading: boolean;
     error: string;
     actionLoadingId: string | null;
@@ -48,6 +50,7 @@ export function useCustomerNotifications({
     const [currentPage, setCurrentPageState] = useState(1);
     const [lastPage, setLastPage] = useState(1);
     const [total, setTotal] = useState(0);
+    const [perPage, setPerPage] = useState(25);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [refreshKey, setRefreshKey] = useState(0);
@@ -75,6 +78,7 @@ export function useCustomerNotifications({
                 setNotifications(result.notifications);
                 setUnreadTotal(result.summary.unread_total);
                 setTotal(result.pagination.total);
+                setPerPage(result.pagination.per_page);
                 setLastPage(result.pagination.last_page);
             })
             .catch(() => {
@@ -201,14 +205,29 @@ export function useCustomerNotifications({
             try {
                 await customerApi.deleteNotification(notificationId);
 
+                const nextTotal = Math.max(0, total - 1);
+                const nextLastPage = Math.max(
+                    1,
+                    Math.ceil(nextTotal / Math.max(1, perPage)),
+                );
+
                 setNotifications((current) =>
                     current.filter((item) => item.id !== notificationId),
                 );
 
-                setTotal((current) => Math.max(0, current - 1));
+                setTotal(nextTotal);
+                setLastPage(nextLastPage);
 
                 if (notification.read_at === null) {
                     setUnreadTotal((current) => Math.max(0, current - 1));
+                }
+
+                if (currentPage > nextLastPage) {
+                    setCurrentPageState(nextLastPage);
+                } else {
+                    // Muat semula halaman supaya rekod dari halaman seterusnya
+                    // mengisi ruang yang kosong selepas pemadaman.
+                    setRefreshKey((current) => current + 1);
                 }
 
                 setActionMessage('Notifikasi berjaya dipadam.');
@@ -220,7 +239,14 @@ export function useCustomerNotifications({
                 setActionLoadingId(null);
             }
         },
-        [actionLoadingId, deletingAll, notifications],
+        [
+            actionLoadingId,
+            currentPage,
+            deletingAll,
+            notifications,
+            perPage,
+            total,
+        ],
     );
 
     const deleteAll = useCallback(
@@ -260,6 +286,7 @@ export function useCustomerNotifications({
         currentPage,
         lastPage,
         total,
+        perPage,
         loading,
         error,
         actionLoadingId,
