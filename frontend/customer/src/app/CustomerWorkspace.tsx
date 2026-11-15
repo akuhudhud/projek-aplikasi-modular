@@ -1,13 +1,16 @@
+
 import {
     useCallback,
     useEffect,
     useState,
+    useRef,
 } from 'react';
 
 import type { FormEvent } from 'react';
 import type {
     CustomerAccount,
     CustomerNotification,
+    CustomerOwnMarketplaceRequest,
     CustomerTaskRatingPayload,
     ChangePhonePayload,
     ChangeEmailPayload,
@@ -58,6 +61,13 @@ export default function CustomerWorkspace({
     const [ratingSaving, setRatingSaving] = useState(false);
     const [ratingError, setRatingError] = useState('');
     const [ratingMessage, setRatingMessage] = useState('');
+
+    const [focusedRequest, setFocusedRequest] =
+        useState<CustomerOwnMarketplaceRequest | null>(null);
+    const [focusedRequestLoading, setFocusedRequestLoading] =
+        useState(false);
+    const [focusedRequestError, setFocusedRequestError] = useState('');
+    const focusedRequestLoadIdRef = useRef<string | null>(null);
 
     const notifications = useCustomerNotifications({
         enabled: true,
@@ -118,6 +128,10 @@ export default function CustomerWorkspace({
 
             if (page !== 'requests') {
                 requests.clearActionMessages();
+                focusedRequestLoadIdRef.current = null;
+                setFocusedRequest(null);
+                setFocusedRequestLoading(false);
+                setFocusedRequestError('');
             }
 
             if (page === 'create') {
@@ -152,6 +166,10 @@ export default function CustomerWorkspace({
             const requestId = notification.data.request_id;
 
             if (typeof taskId === 'string' && taskId.trim() !== '') {
+                focusedRequestLoadIdRef.current = null;
+                setFocusedRequest(null);
+                setFocusedRequestLoading(false);
+                setFocusedRequestError('');
                 setRatingError('');
                 setRatingMessage('');
                 handleNavigate('tasks');
@@ -160,9 +178,34 @@ export default function CustomerWorkspace({
             }
 
             if (typeof requestId === 'string' && requestId.trim() !== '') {
+                const targetRequestId = requestId.trim();
+
+                focusedRequestLoadIdRef.current = targetRequestId;
+                setFocusedRequest(null);
+                setFocusedRequestLoading(true);
+                setFocusedRequestError('');
+
                 handleNavigate('requests');
                 requests.setCurrentPage(1);
                 requests.refresh();
+
+                try {
+                    const detail = await customerApi.getRequest(targetRequestId);
+
+                    if (focusedRequestLoadIdRef.current === targetRequestId) {
+                        setFocusedRequest(detail.request);
+                    }
+                } catch {
+                    if (focusedRequestLoadIdRef.current === targetRequestId) {
+                        setFocusedRequestError(
+                            'Tidak berjaya memuatkan permintaan daripada notifikasi. Sila cuba semula melalui senarai permintaan.',
+                        );
+                    }
+                } finally {
+                    if (focusedRequestLoadIdRef.current === targetRequestId) {
+                        setFocusedRequestLoading(false);
+                    }
+                }
             }
         },
         [
@@ -429,6 +472,9 @@ export default function CustomerWorkspace({
                 return (
                     <RequestsPage
                         requests={requests.requests}
+                        focusedRequest={focusedRequest}
+                        focusedRequestLoading={focusedRequestLoading}
+                        focusedRequestError={focusedRequestError}
                         currentPage={requests.currentPage}
                         lastPage={requests.lastPage}
                         total={requests.total}
