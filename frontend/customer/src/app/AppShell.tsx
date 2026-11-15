@@ -1,7 +1,9 @@
-
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 
+import type {
+    CustomerNotification,
+} from '../api';
 import type { CustomerPage } from './navigation';
 
 import TopAppBar from '../components/TopAppBar';
@@ -16,6 +18,7 @@ type AppShellProps = {
     accountName: string;
     onNavigate: (page: CustomerPage) => void;
     onLogout: () => void;
+    onOpenNotification: (notification: CustomerNotification) => void;
     loading?: boolean;
     notifications: CustomerNotificationsState;
     children: ReactNode;
@@ -26,6 +29,7 @@ export default function AppShell({
     accountName,
     onNavigate,
     onLogout,
+    onOpenNotification,
     loading = false,
     notifications,
     children,
@@ -50,7 +54,13 @@ export default function AppShell({
 
             <main className="sr-app-shell__content">
                 {showNotifications ? (
-                    <CustomerNotifications state={notifications} />
+                    <CustomerNotifications
+                        state={notifications}
+                        onOpenNotification={(notification) => {
+                            setShowNotifications(false);
+                            onOpenNotification(notification);
+                        }}
+                    />
                 ) : (
                     children
                 )}
