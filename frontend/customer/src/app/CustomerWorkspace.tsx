@@ -1,4 +1,3 @@
-
 import {
     useCallback,
     useEffect,
@@ -8,6 +7,7 @@ import {
 import type { FormEvent } from 'react';
 import type {
     CustomerAccount,
+    CustomerNotification,
     CustomerTaskRatingPayload,
     ChangePhonePayload,
     ChangeEmailPayload,
@@ -140,6 +140,38 @@ export default function CustomerWorkspace({
             tasks.openTask(item);
         },
         [tasks.openTask],
+    );
+
+    const handleOpenNotification = useCallback(
+        async (notification: CustomerNotification) => {
+            if (notification.read_at === null) {
+                await notifications.markAsRead(notification.id);
+            }
+
+            const taskId = notification.data.task_id;
+            const requestId = notification.data.request_id;
+
+            if (typeof taskId === 'string' && taskId.trim() !== '') {
+                setRatingError('');
+                setRatingMessage('');
+                handleNavigate('tasks');
+                tasks.openTaskById(taskId);
+                return;
+            }
+
+            if (typeof requestId === 'string' && requestId.trim() !== '') {
+                handleNavigate('requests');
+                requests.setCurrentPage(1);
+                requests.refresh();
+            }
+        },
+        [
+            notifications.markAsRead,
+            handleNavigate,
+            tasks.openTaskById,
+            requests.setCurrentPage,
+            requests.refresh,
+        ],
     );
 
     const handleSubmitTaskRating = useCallback(
@@ -542,6 +574,7 @@ export default function CustomerWorkspace({
             accountName={account.profile_name}
             onNavigate={handleNavigate}
             onLogout={onLogout}
+            onOpenNotification={handleOpenNotification}
             loading={logoutLoading}
             notifications={notifications}
         >
