@@ -12,6 +12,9 @@ import {
 
 type RequestsPageProps = {
     requests: CustomerOwnMarketplaceRequest[];
+    focusedRequest?: CustomerOwnMarketplaceRequest | null;
+    focusedRequestLoading?: boolean;
+    focusedRequestError?: string;
     currentPage: number;
     lastPage: number;
     total: number;
@@ -36,6 +39,9 @@ function taskClassLabel(taskClass: string): string {
 
 export default function RequestsPage({
     requests,
+    focusedRequest = null,
+    focusedRequestLoading = false,
+    focusedRequestError = '',
     currentPage,
     lastPage,
     total,
@@ -48,6 +54,15 @@ export default function RequestsPage({
     onPageChange,
     onQuotationAwarded,
 }: RequestsPageProps) {
+    const visibleRequests = focusedRequest
+        ? [
+            focusedRequest,
+            ...requests.filter(
+                (request) => request.request_id !== focusedRequest.request_id,
+            ),
+        ]
+        : requests;
+
     return (
         <div className="sr-requests-page">
             <section className="customer-panel">
@@ -57,6 +72,16 @@ export default function RequestsPage({
                         <p>Jumlah permintaan: {total}</p>
                     </div>
                 </div>
+
+                {focusedRequestLoading && (
+                    <p role="status">
+                        Memuatkan permintaan daripada notifikasi...
+                    </p>
+                )}
+
+                {focusedRequestError && (
+                    <p role="alert">{focusedRequestError}</p>
+                )}
 
                 {actionMessage && (
                     <p
@@ -71,11 +96,11 @@ export default function RequestsPage({
                     <p role="alert">{actionError}</p>
                 )}
 
-                {loading ? (
+                {loading && !focusedRequest ? (
                     <p>Memuatkan senarai permintaan...</p>
-                ) : error ? (
+                ) : error && !focusedRequest ? (
                     <p role="alert">{error}</p>
-                ) : requests.length === 0 ? (
+                ) : visibleRequests.length === 0 ? (
                     <section className="customer-empty">
                         <h3>Belum ada permintaan</h3>
                         <p>
@@ -85,9 +110,13 @@ export default function RequestsPage({
                 ) : (
                     <>
                         <div className="customer-task-list">
-                            {requests.map((request) => (
+                            {visibleRequests.map((request) => (
                                 <article
-                                    className="customer-task-card"
+                                    className={
+                                        focusedRequest?.request_id === request.request_id
+                                            ? 'customer-task-card customer-task-card-notification-target'
+                                            : 'customer-task-card'
+                                    }
                                     key={request.request_id}
                                 >
                                     <span className="customer-task-card-top">
@@ -166,6 +195,10 @@ export default function RequestsPage({
                                         <CustomerRequestQuotations
                                             requestId={request.request_id}
                                             requestStatus={request.status}
+                                            autoExpand={
+                                                focusedRequest?.request_id ===
+                                                request.request_id
+                                            }
                                             onAwarded={onQuotationAwarded}
                                         />
                                     )}
