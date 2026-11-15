@@ -302,6 +302,112 @@ describe('CustomerNotifications', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('calls onOpenNotification when task notification is opened', () => {
+        const taskNotification: CustomerNotification = {
+            ...notification,
+            data: {
+                ...notification.data,
+                task_id: 'task-001',
+            },
+        };
+
+        const onOpenNotification = vi.fn();
+
+        render(
+            <CustomerNotifications
+                state={createState({
+                    notifications: [taskNotification],
+                })}
+                onOpenNotification={onOpenNotification}
+            />,
+        );
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Lihat',
+            }),
+        );
+
+        expect(onOpenNotification).toHaveBeenCalledTimes(1);
+        expect(onOpenNotification).toHaveBeenCalledWith(
+            taskNotification,
+        );
+    });
+
+    it('calls onOpenNotification when request notification is opened', () => {
+        const requestNotification: CustomerNotification = {
+            ...notification,
+            data: {
+                ...notification.data,
+                request_id: 'request-001',
+            },
+        };
+
+        const onOpenNotification = vi.fn();
+
+        render(
+            <CustomerNotifications
+                state={createState({
+                    notifications: [requestNotification],
+                })}
+                onOpenNotification={onOpenNotification}
+            />,
+        );
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Lihat',
+            }),
+        );
+
+        expect(onOpenNotification).toHaveBeenCalledWith(
+            requestNotification,
+        );
+    });
+
+    it('does not display open action when notification has no destination', () => {
+        const onOpenNotification = vi.fn();
+
+        render(
+            <CustomerNotifications
+                state={createState()}
+                onOpenNotification={onOpenNotification}
+            />,
+        );
+
+        expect(
+            screen.queryByRole('button', {
+                name: 'Lihat',
+            }),
+        ).not.toBeInTheDocument();
+
+        expect(onOpenNotification).not.toHaveBeenCalled();
+    });
+
+    it('does not display open action when callback is not provided', () => {
+        const taskNotification: CustomerNotification = {
+            ...notification,
+            data: {
+                ...notification.data,
+                task_id: 'task-001',
+            },
+        };
+
+        render(
+            <CustomerNotifications
+                state={createState({
+                    notifications: [taskNotification],
+                })}
+            />,
+        );
+
+        expect(
+            screen.queryByRole('button', {
+                name: 'Lihat',
+            }),
+        ).not.toBeInTheDocument();
+    });
+
     it('calls deleteNotification when delete button is clicked', () => {
         const deleteNotification = vi.fn().mockResolvedValue(true);
 
