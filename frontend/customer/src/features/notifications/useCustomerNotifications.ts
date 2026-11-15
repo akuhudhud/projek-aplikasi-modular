@@ -16,7 +16,7 @@ type CustomerNotificationsState = {
     currentPage: number;
     lastPage: number;
     total: number;
-    perPage: number;
+    perPage?: number;
     loading: boolean;
     error: string;
     actionLoadingId: string | null;
@@ -225,8 +225,6 @@ export function useCustomerNotifications({
                 if (currentPage > nextLastPage) {
                     setCurrentPageState(nextLastPage);
                 } else {
-                    // Muat semula halaman supaya rekod dari halaman seterusnya
-                    // mengisi ruang yang kosong selepas pemadaman.
                     setRefreshKey((current) => current + 1);
                 }
 
