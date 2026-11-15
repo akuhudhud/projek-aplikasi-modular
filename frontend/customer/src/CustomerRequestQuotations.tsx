@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import {
@@ -10,6 +11,7 @@ import './CustomerRequestQuotations.css';
 interface CustomerRequestQuotationsProps {
     requestId: string;
     requestStatus: string;
+    autoExpand?: boolean;
     onAwarded: (
         requestId: string,
         result: Awaited<ReturnType<typeof customerApi.awardQuotation>>,
@@ -95,6 +97,7 @@ function formatRunnerRating(
 export default function CustomerRequestQuotations({
     requestId,
     requestStatus,
+    autoExpand = false,
     onAwarded,
 }: CustomerRequestQuotationsProps) {
     const requestIdRef = useRef(requestId);
@@ -158,6 +161,12 @@ export default function CustomerRequestQuotations({
             }
         }
     }
+
+    useEffect(() => {
+        if (autoExpand) {
+            void loadQuotations();
+        }
+    }, [autoExpand, requestId]);
 
     async function handleAwardQuotation(
         quotation: CustomerMarketplaceQuotation,
