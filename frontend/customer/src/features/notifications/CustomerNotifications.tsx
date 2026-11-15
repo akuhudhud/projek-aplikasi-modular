@@ -1,9 +1,9 @@
-
 import type { CustomerNotification } from '../../api';
 import type { CustomerNotifications as CustomerNotificationsState } from './useCustomerNotifications';
 
 type CustomerNotificationsProps = {
     state: CustomerNotificationsState;
+    onOpenNotification?: (notification: CustomerNotification) => void;
 };
 
 function getNotificationTitle(notification: CustomerNotification): string {
@@ -15,9 +15,9 @@ function getNotificationTitle(notification: CustomerNotification): string {
 
     const titles: Record<string, string> = {
         'App\\Notifications\\CustomerRequestNotification': 'Kemaskini tempahan',
-        'request': 'Kemaskini tempahan',
-        'quotation': 'Sebutharga diterima',
-        'task': 'Kemaskini tugasan',
+        request: 'Kemaskini tempahan',
+        quotation: 'Sebutharga diterima',
+        task: 'Kemaskini tugasan',
     };
 
     return titles[notification.type] ?? 'Notifikasi Super Runner';
@@ -37,6 +37,15 @@ function getNotificationMessage(notification: CustomerNotification): string {
     return 'Anda mempunyai kemaskini baharu.';
 }
 
+function hasDestination(notification: CustomerNotification): boolean {
+    const data = notification.data;
+
+    return (
+        (typeof data.task_id === 'string' && data.task_id.trim() !== '') ||
+        (typeof data.request_id === 'string' && data.request_id.trim() !== '')
+    );
+}
+
 function formatDate(value: string): string {
     const date = new Date(value);
 
@@ -52,6 +61,7 @@ function formatDate(value: string): string {
 
 export default function CustomerNotifications({
     state,
+    onOpenNotification,
 }: CustomerNotificationsProps) {
     return (
         <section className="customer-panel sr-notifications">
@@ -108,9 +118,7 @@ export default function CustomerNotifications({
                         }}
                         disabled={state.deletingAll || state.loading}
                     >
-                        {state.deletingAll
-                            ? 'Memadam...'
-                            : 'Padam semua'}
+                        {state.deletingAll ? 'Memadam...' : 'Padam semua'}
                     </button>
                 </div>
             )}
@@ -131,14 +139,16 @@ export default function CustomerNotifications({
                             state.actionLoadingId === notification.id ||
                             state.deletingAll;
 
+                        const canOpen =
+                            Boolean(onOpenNotification) &&
+                            hasDestination(notification);
+
                         return (
                             <article
                                 key={notification.id}
                                 className={[
                                     'sr-notifications__item',
-                                    notification.read_at === null
-                                        ? 'is-unread'
-                                        : '',
+                                    notification.read_at === null ? 'is-unread' : '',
                                 ].filter(Boolean).join(' ')}
                             >
                                 <div className="sr-notifications__item-content">
@@ -152,9 +162,7 @@ export default function CustomerNotifications({
                                         )}
                                     </div>
 
-                                    <p>
-                                        {getNotificationMessage(notification)}
-                                    </p>
+                                    <p>{getNotificationMessage(notification)}</p>
 
                                     <time dateTime={notification.created_at}>
                                         {formatDate(notification.created_at)}
@@ -162,6 +170,16 @@ export default function CustomerNotifications({
                                 </div>
 
                                 <div className="sr-notifications__actions">
+                                    {canOpen && (
+                                        <button
+                                            type="button"
+                                            onClick={() => onOpenNotification?.(notification)}
+                                            disabled={busy}
+                                        >
+                                            Lihat
+                                        </button>
+                                    )}
+
                                     {notification.read_at === null && (
                                         <button
                                             type="button"
