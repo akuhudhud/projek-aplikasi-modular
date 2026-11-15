@@ -1,5 +1,4 @@
-
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import {
     customerApi,
@@ -127,7 +126,7 @@ export default function CustomerRequestQuotations({
         setSuccessMessage('');
     }, [requestId]);
 
-    async function loadQuotations() {
+    const loadQuotations = useCallback(async () => {
         const targetRequestId = requestId;
 
         setLoading(true);
@@ -160,13 +159,13 @@ export default function CustomerRequestQuotations({
                 setLoading(false);
             }
         }
-    }
+    }, [requestId]);
 
     useEffect(() => {
         if (autoExpand) {
             void loadQuotations();
         }
-    }, [autoExpand, requestId]);
+    }, [autoExpand, loadQuotations]);
 
     async function handleAwardQuotation(
         quotation: CustomerMarketplaceQuotation,
