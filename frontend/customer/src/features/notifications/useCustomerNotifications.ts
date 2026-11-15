@@ -27,9 +27,7 @@ type CustomerNotificationsActions = {
     setCurrentPage: (page: number) => void;
     refresh: () => void;
     markAsRead: (notificationId: string) => Promise<boolean>;
-    deleteNotification: (
-        notificationId: string,
-    ) => Promise<boolean>;
+    deleteNotification: (notificationId: string) => Promise<boolean>;
     deleteAll: () => Promise<boolean>;
     clearActionMessages: () => void;
 };
@@ -45,25 +43,16 @@ type UseCustomerNotificationsOptions = {
 export function useCustomerNotifications({
     enabled,
 }: UseCustomerNotificationsOptions): CustomerNotifications {
-    const [notifications, setNotifications] = useState<
-        CustomerNotification[]
-    >([]);
-
+    const [notifications, setNotifications] = useState<CustomerNotification[]>([]);
     const [unreadTotal, setUnreadTotal] = useState(0);
     const [currentPage, setCurrentPageState] = useState(1);
     const [lastPage, setLastPage] = useState(1);
     const [total, setTotal] = useState(0);
-
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-
     const [refreshKey, setRefreshKey] = useState(0);
-
-    const [actionLoadingId, setActionLoadingId] =
-        useState<string | null>(null);
-
+    const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
     const [deletingAll, setDeletingAll] = useState(false);
-
     const [actionMessage, setActionMessage] = useState('');
     const [actionError, setActionError] = useState('');
 
@@ -89,13 +78,11 @@ export function useCustomerNotifications({
                 setLastPage(result.pagination.last_page);
             })
             .catch(() => {
-                if (!mounted) {
-                    return;
+                if (mounted) {
+                    setError(
+                        'Tidak berjaya memuatkan notifikasi. Sila cuba semula.',
+                    );
                 }
-
-                setError(
-                    'Tidak berjaya memuatkan notifikasi. Sila cuba semula.',
-                );
             })
             .finally(() => {
                 if (mounted) {
@@ -107,6 +94,33 @@ export function useCustomerNotifications({
             mounted = false;
         };
     }, [enabled, currentPage, refreshKey]);
+
+    useEffect(() => {
+        if (!enabled) {
+            return;
+        }
+
+        const intervalId = window.setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                setRefreshKey((current) => current + 1);
+            }
+        }, 60_000);
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                setRefreshKey((current) => current + 1);
+            }
+        };
+
+        window.addEventListener('focus', handleVisibilityChange);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', handleVisibilityChange);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [enabled]);
 
     const setCurrentPage = useCallback((page: number) => {
         setCurrentPageState(Math.max(1, page));
@@ -123,10 +137,7 @@ export function useCustomerNotifications({
 
     const markAsRead = useCallback(
         async (notificationId: string): Promise<boolean> => {
-            if (
-                actionLoadingId !== null ||
-                deletingAll
-            ) {
+            if (actionLoadingId !== null || deletingAll) {
                 return false;
             }
 
@@ -143,54 +154,35 @@ export function useCustomerNotifications({
             setActionError('');
 
             try {
-                const result =
-                    await customerApi.markNotificationAsRead(
-                        notificationId,
-                    );
+                const result = await customerApi.markNotificationAsRead(
+                    notificationId,
+                );
 
                 setNotifications((current) =>
                     current.map((item) =>
                         item.id === notificationId
-                            ? {
-                                ...item,
-                                read_at: result.read_at,
-                            }
+                            ? { ...item, read_at: result.read_at }
                             : item,
                     ),
                 );
 
-                setUnreadTotal((current) =>
-                    Math.max(0, current - 1),
-                );
-
-                setActionMessage(
-                    'Notifikasi ditandakan sebagai dibaca.',
-                );
+                setUnreadTotal((current) => Math.max(0, current - 1));
+                setActionMessage('Notifikasi ditandakan sebagai dibaca.');
 
                 return true;
             } catch {
-                setActionError(
-                    'Tidak berjaya mengemaskini notifikasi.',
-                );
-
+                setActionError('Tidak berjaya mengemaskini notifikasi.');
                 return false;
             } finally {
                 setActionLoadingId(null);
             }
         },
-        [
-            actionLoadingId,
-            deletingAll,
-            notifications,
-        ],
+        [actionLoadingId, deletingAll, notifications],
     );
 
     const deleteNotification = useCallback(
         async (notificationId: string): Promise<boolean> => {
-            if (
-                actionLoadingId !== null ||
-                deletingAll
-            ) {
+            if (actionLoadingId !== null || deletingAll) {
                 return false;
             }
 
@@ -207,55 +199,33 @@ export function useCustomerNotifications({
             setActionError('');
 
             try {
-                await customerApi.deleteNotification(
-                    notificationId,
-                );
+                await customerApi.deleteNotification(notificationId);
 
                 setNotifications((current) =>
-                    current.filter(
-                        (item) => item.id !== notificationId,
-                    ),
+                    current.filter((item) => item.id !== notificationId),
                 );
 
-                setTotal((current) =>
-                    Math.max(0, current - 1),
-                );
+                setTotal((current) => Math.max(0, current - 1));
 
                 if (notification.read_at === null) {
-                    setUnreadTotal((current) =>
-                        Math.max(0, current - 1),
-                    );
+                    setUnreadTotal((current) => Math.max(0, current - 1));
                 }
 
-                setActionMessage(
-                    'Notifikasi berjaya dipadam.',
-                );
-
+                setActionMessage('Notifikasi berjaya dipadam.');
                 return true;
             } catch {
-                setActionError(
-                    'Tidak berjaya memadam notifikasi.',
-                );
-
+                setActionError('Tidak berjaya memadam notifikasi.');
                 return false;
             } finally {
                 setActionLoadingId(null);
             }
         },
-        [
-            actionLoadingId,
-            deletingAll,
-            notifications,
-        ],
+        [actionLoadingId, deletingAll, notifications],
     );
 
     const deleteAll = useCallback(
         async (): Promise<boolean> => {
-            if (
-                actionLoadingId !== null ||
-                deletingAll ||
-                total === 0
-            ) {
+            if (actionLoadingId !== null || deletingAll || total === 0) {
                 return false;
             }
 
@@ -272,26 +242,16 @@ export function useCustomerNotifications({
                 setLastPage(1);
                 setCurrentPageState(1);
 
-                setActionMessage(
-                    'Semua notifikasi berjaya dipadam.',
-                );
-
+                setActionMessage('Semua notifikasi berjaya dipadam.');
                 return true;
             } catch {
-                setActionError(
-                    'Tidak berjaya memadam semua notifikasi.',
-                );
-
+                setActionError('Tidak berjaya memadam semua notifikasi.');
                 return false;
             } finally {
                 setDeletingAll(false);
             }
         },
-        [
-            actionLoadingId,
-            deletingAll,
-            total,
-        ],
+        [actionLoadingId, deletingAll, total],
     );
 
     return {
