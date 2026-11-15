@@ -251,6 +251,106 @@ class MarketplaceNotificationApiTest extends TestCase
         ]);
     }
 
+    public function test_withdrawn_quotation_notifies_customer(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $request = $this->makeRequest($customer);
+        $quotation = $this->makeQuotation($request, $runner);
+
+        $withdrawn = app(MarketplaceService::class)->withdrawQuotation(
+            $runner,
+            $request->request_id,
+            $quotation->quotation_id
+        );
+
+        $this->assertSame(
+            MarketplaceQuotation::STATUS_WITHDRAWN,
+            $withdrawn->status
+        );
+
+        $notification = $customer->notifications()
+            ->where('type', MarketplaceEventNotification::class)
+            ->latest()
+            ->first();
+
+        $this->assertNotNull($notification);
+
+        $this->assertSame(
+            'marketplace.quotation_withdrawn',
+            $notification->data['event']
+        );
+
+        $this->assertSame(
+            $request->request_id,
+            $notification->data['request_id']
+        );
+
+        $this->assertSame(
+            $quotation->quotation_id,
+            $notification->data['quotation_id']
+        );
+
+        $this->assertSame(
+            1,
+            $customer->notifications()
+                ->where('type', MarketplaceEventNotification::class)
+                ->count()
+        );
+    }
+
+    public function test_expired_quotation_notifies_customer_only_once(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $request = $this->makeRequest($customer);
+
+        $quotation = $this->makeQuotation(
+            $request,
+            $runner,
+            now()->subMinute()
+        );
+
+        $service = app(MarketplaceService::class);
+
+        $service->expireDueItems();
+        $service->expireDueItems();
+
+        $notification = $customer->notifications()
+            ->where('type', MarketplaceEventNotification::class)
+            ->latest()
+            ->first();
+
+        $this->assertNotNull($notification);
+
+        $this->assertSame(
+            'marketplace.quotation_expired',
+            $notification->data['event']
+        );
+
+        $this->assertSame(
+            $request->request_id,
+            $notification->data['request_id']
+        );
+
+        $this->assertSame(
+            $quotation->quotation_id,
+            $notification->data['quotation_id']
+        );
+
+        $this->assertSame(
+            1,
+            $customer->notifications()
+                ->where('type', MarketplaceEventNotification::class)
+                ->count()
+        );
+
+        $this->assertDatabaseHas('marketplace_quotations', [
+            'quotation_id' => $quotation->quotation_id,
+            'status' => MarketplaceQuotation::STATUS_EXPIRED,
+        ]);
+    }
+
     private function makeAccount(
         string $runnerStatus = Account::RUNNER_STATUS_NOT_RUNNER
     ): Account {
@@ -296,7 +396,8 @@ class MarketplaceNotificationApiTest extends TestCase
 
     private function makeQuotation(
         MarketplaceRequest $request,
-        Account $runner
+        Account $runner,
+        $expiresAt = null
     ): MarketplaceQuotation {
         return MarketplaceQuotation::query()->create([
             'quotation_id' => (string) Str::uuid(),
@@ -306,6 +407,7 @@ class MarketplaceNotificationApiTest extends TestCase
             'currency' => 'MYR',
             'message' => 'Saya boleh melaksanakan tugasan ini.',
             'status' => MarketplaceQuotation::STATUS_SUBMITTED,
+            'expires_at' => $expiresAt,
         ]);
     }
 
