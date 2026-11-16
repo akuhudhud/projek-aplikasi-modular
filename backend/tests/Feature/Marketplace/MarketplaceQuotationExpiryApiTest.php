@@ -15,12 +15,10 @@ class MarketplaceQuotationExpiryApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_customer_cannot_award_expired_quotation_through_api(): void
+    public function test_customer_can_award_quotation_with_past_legacy_expiry_through_api(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $customerToken = $this->createSessionToken($customer);
         $runnerToken = $this->createSessionToken($runner);
@@ -28,7 +26,7 @@ class MarketplaceQuotationExpiryApiTest extends TestCase
         $created = $this->withToken($customerToken)
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
-                'description' => 'Request with an expired quotation.',
+                'description' => 'Request with a legacy quotation expiry.',
                 'expires_at' => now()->addHours(2)->toISOString(),
                 'pickup_location_snapshot' => [
                     'address' => 'Pickup location',
@@ -61,32 +59,31 @@ class MarketplaceQuotationExpiryApiTest extends TestCase
                 '/api/marketplace/requests/'.$requestId.'/award',
                 ['quotation_id' => $quotationId]
             )
-            ->assertUnprocessable()
-            ->assertJsonPath('success', false)
+            ->assertOk()
+            ->assertJsonPath('success', true)
             ->assertJsonPath(
-                'message',
-                'This quotation has expired.'
+                'data.task.assigned_account_id',
+                $runner->id
             );
 
         $this->assertDatabaseHas('marketplace_requests', [
             'request_id' => $requestId,
-            'status' => MarketplaceRequest::STATUS_OPEN,
+            'status' => MarketplaceRequest::STATUS_AWARDED,
+            'winning_quotation_id' => $quotationId,
         ]);
 
         $this->assertDatabaseHas('marketplace_quotations', [
             'quotation_id' => $quotationId,
-            'status' => MarketplaceQuotation::STATUS_EXPIRED,
+            'status' => MarketplaceQuotation::STATUS_ACCEPTED,
         ]);
 
-        $this->assertDatabaseCount('core_tasks', 0);
+        $this->assertDatabaseCount('core_tasks', 1);
     }
 
-    public function test_runner_cannot_withdraw_expired_quotation_through_api(): void
+    public function test_runner_can_withdraw_quotation_with_past_legacy_expiry_through_api(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $customerToken = $this->createSessionToken($customer);
         $runnerToken = $this->createSessionToken($runner);
@@ -94,7 +91,7 @@ class MarketplaceQuotationExpiryApiTest extends TestCase
         $created = $this->withToken($customerToken)
             ->postJson('/api/marketplace/requests', [
                 'task_class' => 'PICKUP_DELIVERY',
-                'description' => 'Request with an expired quotation.',
+                'description' => 'Request with a legacy quotation expiry.',
                 'expires_at' => now()->addHours(2)->toISOString(),
                 'pickup_location_snapshot' => [
                     'address' => 'Pickup location',
@@ -130,12 +127,8 @@ class MarketplaceQuotationExpiryApiTest extends TestCase
                 .$quotationId
                 .'/withdraw'
             )
-            ->assertUnprocessable()
-            ->assertJsonPath('success', false)
-            ->assertJsonPath(
-                'message',
-                'This quotation has expired.'
-            );
+            ->assertOk()
+            ->assertJsonPath('success', true);
 
         $this->assertDatabaseHas('marketplace_requests', [
             'request_id' => $requestId,
@@ -144,7 +137,7 @@ class MarketplaceQuotationExpiryApiTest extends TestCase
 
         $this->assertDatabaseHas('marketplace_quotations', [
             'quotation_id' => $quotationId,
-            'status' => MarketplaceQuotation::STATUS_EXPIRED,
+            'status' => MarketplaceQuotation::STATUS_WITHDRAWN,
         ]);
 
         $this->assertDatabaseCount('core_tasks', 0);
