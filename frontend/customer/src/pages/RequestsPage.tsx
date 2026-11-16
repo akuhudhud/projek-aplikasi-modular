@@ -8,6 +8,7 @@ import CustomerRequestQuotations from '../CustomerRequestQuotations';
 import {
     LocationSnapshotPanel,
     formatCustomerDate,
+    formatCustomerRequestStatus,
 } from '../customerPresentation';
 
 type RequestsPageProps = {
@@ -125,7 +126,12 @@ export default function RequestsPage({
 
                                     <strong>{request.description}</strong>
 
-                                    <span>Status: {request.status}</span>
+                                    <span>
+                                        Status:{' '}
+                                        {formatCustomerRequestStatus(
+                                            request.status,
+                                        )}
+                                    </span>
 
                                     <span>
                                         Tarikh luput:{' '}
