@@ -231,7 +231,7 @@ describe('RequestsPage', () => {
         ).toBeTruthy();
 
         expect(
-            screen.getByText('Status: OPEN'),
+            screen.getByText('Status: Menunggu sebut harga'),
         ).toBeTruthy();
     });
 
