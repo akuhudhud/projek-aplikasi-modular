@@ -511,7 +511,7 @@ describe(
                 );
 
                 expect(
-                    screen.getByText('Status: CANCELLED'),
+                    screen.getByText('Status: Dibatalkan'),
                 ).toBeTruthy();
 
                 expect(
@@ -563,7 +563,7 @@ describe(
                 expect(cancelRequestMock).not.toHaveBeenCalled();
 
                 expect(
-                    screen.getByText('Status: OPEN'),
+                    screen.getByText('Status: Menunggu sebut harga'),
                 ).toBeTruthy();
             },
         );
@@ -648,7 +648,7 @@ describe(
                 ).toBeTruthy();
 
                 expect(
-                    screen.getByText('ASSIGNED'),
+                    screen.getByText('Runner ditugaskan'),
                 ).toBeTruthy();
             },
         );
