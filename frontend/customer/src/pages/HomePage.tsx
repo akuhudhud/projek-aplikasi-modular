@@ -1,10 +1,15 @@
+
 import type {
     CustomerAccount,
     CustomerTaskItem,
     CustomerOwnMarketplaceRequest,
 } from '../api';
 
-import { formatCustomerDate } from '../customerPresentation';
+import {
+    formatCustomerDate,
+    formatCustomerRequestStatus,
+    formatCustomerTaskStatus,
+} from '../customerPresentation';
 
 type HomePageProps = {
     account: CustomerAccount;
@@ -142,7 +147,10 @@ export default function HomePage({
                                 </strong>
 
                                 <span>
-                                    Status: {item.task.generic_status}
+                                    Status:{' '}
+                                    {formatCustomerTaskStatus(
+                                        item.task.generic_status,
+                                    )}
                                 </span>
 
                                 <span>
@@ -202,7 +210,10 @@ export default function HomePage({
                                 </strong>
 
                                 <span>
-                                    Status: {request.status}
+                                    Status:{' '}
+                                    {formatCustomerRequestStatus(
+                                        request.status,
+                                    )}
                                 </span>
 
                                 <span>
