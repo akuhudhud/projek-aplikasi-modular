@@ -224,7 +224,10 @@ export function useCustomerNotifications({
 
                 if (currentPage > nextLastPage) {
                     setCurrentPageState(nextLastPage);
-                } else {
+                } else if (
+                    notifications.length >= perPage &&
+                    nextTotal >= currentPage * perPage
+                ) {
                     setRefreshKey((current) => current + 1);
                 }
 
