@@ -1,7 +1,10 @@
 
 import type { CustomerTaskItem } from '../api';
 
-import { formatCustomerDate } from '../customerPresentation';
+import {
+    formatCustomerDate,
+    formatCustomerTaskStatus,
+} from '../customerPresentation';
 
 type TasksPageProps = {
     tasks: CustomerTaskItem[];
@@ -82,7 +85,10 @@ export default function TasksPage({
                                     </strong>
 
                                     <span>
-                                        Status: {item.task.generic_status}
+                                        Status:{' '}
+                                        {formatCustomerTaskStatus(
+                                            item.task.generic_status,
+                                        )}
                                     </span>
 
                                     <span>
