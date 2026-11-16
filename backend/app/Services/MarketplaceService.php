@@ -59,33 +59,6 @@ class MarketplaceService
                         'updated_at' => $now,
                     ]);
             }
-
-            $expiredQuotations = MarketplaceQuotation::query()
-                ->where('status', MarketplaceQuotation::STATUS_SUBMITTED)
-                ->whereNotNull('expires_at')
-                ->where('expires_at', '<=', $now)
-                ->lockForUpdate()
-                ->get();
-
-            foreach ($expiredQuotations as $quotation) {
-                $quotation->forceFill([
-                    'status' => MarketplaceQuotation::STATUS_EXPIRED,
-                ])->save();
-
-                $request = MarketplaceRequest::query()
-                    ->where('request_id', $quotation->request_id)
-                    ->first();
-
-                if ($request) {
-                    $this->notifyRequestCustomer(
-                        $request,
-                        'marketplace.quotation_expired',
-                        'Sebutharga telah tamat tempoh',
-                        'Sebutharga untuk permintaan anda telah tamat tempoh.',
-                        $quotation->quotation_id
-                    );
-                }
-            }
         });
     }
 
@@ -564,25 +537,6 @@ class MarketplaceService
                 );
             }
 
-            if (
-                $quotation->expires_at
-                && $quotation->expires_at->lessThanOrEqualTo(now())
-            ) {
-                $quotation->forceFill([
-                    'status' => MarketplaceQuotation::STATUS_EXPIRED,
-                ])->save();
-
-                $this->notifyRequestCustomer(
-                    $request,
-                    'marketplace.quotation_expired',
-                    'Sebutharga telah tamat tempoh',
-                    'Sebutharga untuk permintaan anda telah tamat tempoh.',
-                    $quotation->quotation_id
-                );
-
-                return $quotation->refresh();
-            }
-
             $quotation->forceFill([
                 'status' => MarketplaceQuotation::STATUS_WITHDRAWN,
                 'withdrawn_at' => now(),
@@ -621,7 +575,7 @@ class MarketplaceService
             $customer,
             $requestId,
             $quotationId
-        ): CoreTask|string|null {
+        ): CoreTask|null {
             $request = MarketplaceRequest::query()
                 ->whereKey($requestId)
                 ->lockForUpdate()
@@ -702,25 +656,6 @@ class MarketplaceService
                 );
             }
 
-            if (
-                $quotation->expires_at
-                && $quotation->expires_at->lessThanOrEqualTo(now())
-            ) {
-                $quotation->forceFill([
-                    'status' => MarketplaceQuotation::STATUS_EXPIRED,
-                ])->save();
-
-                $this->notifyRequestCustomer(
-                    $request,
-                    'marketplace.quotation_expired',
-                    'Sebutharga telah tamat tempoh',
-                    'Sebutharga yang anda pilih telah tamat tempoh. Sila pilih sebutharga lain.',
-                    $quotation->quotation_id
-                );
-
-                return 'quotation_expired';
-            }
-
             $runner = Account::query()
                 ->whereKey($quotation->runner_account_id)
                 ->lockForUpdate()
@@ -792,10 +727,6 @@ class MarketplaceService
 
         if ($result === null) {
             throw new DomainException('This request has expired.');
-        }
-
-        if ($result === 'quotation_expired') {
-            throw new DomainException('This quotation has expired.');
         }
 
         return $result;
