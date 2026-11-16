@@ -169,7 +169,7 @@ describe('TasksPage', () => {
         ).toBeTruthy();
     });
 
-    it('displays task description and status', () => {
+    it('displays task description and localized status', () => {
         renderTasksPage({
             tasks: [
                 createTask('task-005'),
@@ -181,7 +181,7 @@ describe('TasksPage', () => {
         ).toBeTruthy();
 
         expect(
-            screen.getByText('Status: IN_PROGRESS'),
+            screen.getByText('Status: Sedang dilaksanakan'),
         ).toBeTruthy();
     });
 
