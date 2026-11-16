@@ -1,3 +1,4 @@
+
 import type { CustomerNotification } from '../../api';
 import type { CustomerNotifications as CustomerNotificationsState } from './useCustomerNotifications';
 
@@ -14,9 +15,9 @@ function getNotificationTitle(notification: CustomerNotification): string {
     }
 
     const titles: Record<string, string> = {
-        'App\\Notifications\\CustomerRequestNotification': 'Kemaskini tempahan',
-        request: 'Kemaskini tempahan',
-        quotation: 'Sebutharga diterima',
+        'App\\Notifications\\CustomerRequestNotification': 'Kemaskini permintaan',
+        request: 'Kemaskini permintaan',
+        quotation: 'Sebut harga diterima',
         task: 'Kemaskini tugasan',
     };
 
