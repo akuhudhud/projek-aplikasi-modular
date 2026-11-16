@@ -6,7 +6,6 @@ use App\Models\Account;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
 use App\Services\MarketplaceService;
-use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -28,19 +27,13 @@ class MarketplaceExpiryServiceTest extends TestCase
     public function test_expired_request_and_submitted_quotes_transition_to_expired(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Request that has passed its deadline.',
-            'pickup_location_snapshot' => [
-                'address' => 'Pickup location',
-            ],
-            'delivery_location_snapshot' => [
-                'address' => 'Delivery location',
-            ],
+            'pickup_location_snapshot' => ['address' => 'Pickup location'],
+            'delivery_location_snapshot' => ['address' => 'Delivery location'],
             'expires_at' => now()->addHours(2),
         ]);
 
@@ -69,22 +62,16 @@ class MarketplaceExpiryServiceTest extends TestCase
         $this->assertDatabaseCount('core_tasks', 0);
     }
 
-    public function test_expired_quotation_transitions_to_expired_while_request_remains_open(): void
+    public function test_quotation_does_not_expire_independently_while_request_remains_open(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
-            'description' => 'Request with an expired quotation.',
-            'pickup_location_snapshot' => [
-                'address' => 'Pickup location',
-            ],
-            'delivery_location_snapshot' => [
-                'address' => 'Delivery location',
-            ],
+            'description' => 'Quotation expiry must follow parent request.',
+            'pickup_location_snapshot' => ['address' => 'Pickup location'],
+            'delivery_location_snapshot' => ['address' => 'Delivery location'],
             'expires_at' => now()->addHours(2),
         ]);
 
@@ -106,29 +93,23 @@ class MarketplaceExpiryServiceTest extends TestCase
         );
 
         $this->assertSame(
-            MarketplaceQuotation::STATUS_EXPIRED,
+            MarketplaceQuotation::STATUS_SUBMITTED,
             $quotation->fresh()->status
         );
 
         $this->assertDatabaseCount('core_tasks', 0);
     }
 
-    public function test_expired_quotation_cannot_be_awarded(): void
+    public function test_quotation_with_past_legacy_expiry_can_be_awarded(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
-            'description' => 'An expired quotation must not be awarded.',
-            'pickup_location_snapshot' => [
-                'address' => 'Pickup location',
-            ],
-            'delivery_location_snapshot' => [
-                'address' => 'Delivery location',
-            ],
+            'description' => 'Legacy quotation expiry does not block award.',
+            'pickup_location_snapshot' => ['address' => 'Pickup location'],
+            'delivery_location_snapshot' => ['address' => 'Delivery location'],
             'expires_at' => now()->addHours(2),
         ]);
 
@@ -142,146 +123,64 @@ class MarketplaceExpiryServiceTest extends TestCase
             'expires_at' => now()->subMinute(),
         ])->save();
 
-        try {
-            $this->marketplace->awardQuotation(
-                $customer,
-                $request->request_id,
-                $quotation->quotation_id
-            );
+        $task = $this->marketplace->awardQuotation(
+            $customer,
+            $request->request_id,
+            $quotation->quotation_id
+        );
 
-            $this->fail(
-                'An expired quotation must not be awarded.'
-            );
-        } catch (DomainException $exception) {
-            $this->assertSame(
-                'This quotation has expired.',
-                $exception->getMessage()
-            );
-        }
+        $this->assertNotNull($task);
 
         $this->assertSame(
-            MarketplaceRequest::STATUS_OPEN,
+            MarketplaceRequest::STATUS_AWARDED,
             $request->fresh()->status
         );
 
         $this->assertSame(
-            MarketplaceQuotation::STATUS_EXPIRED,
+            MarketplaceQuotation::STATUS_ACCEPTED,
             $quotation->fresh()->status
         );
 
-        $this->assertDatabaseCount('core_tasks', 0);
+        $this->assertDatabaseCount('core_tasks', 1);
     }
 
-    public function test_quotation_expiry_is_inclusive_for_award_and_withdrawal(): void
+    public function test_quotation_with_past_legacy_expiry_can_be_withdrawn(): void
     {
         $customer = $this->makeAccount();
-        $awardRunner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
-        $withdrawRunner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
-        $awardRequest = $this->marketplace->createRequest($customer, [
+        $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
-            'description' => 'Quotation expiry boundary for award.',
-            'pickup_location_snapshot' => [
-                'address' => 'Pickup location',
-            ],
-            'delivery_location_snapshot' => [
-                'address' => 'Delivery location',
-            ],
+            'description' => 'Legacy quotation expiry does not block withdrawal.',
+            'pickup_location_snapshot' => ['address' => 'Pickup location'],
+            'delivery_location_snapshot' => ['address' => 'Delivery location'],
             'expires_at' => now()->addHours(2),
         ]);
 
-        $withdrawRequest = $this->marketplace->createRequest($customer, [
-            'task_class' => 'PICKUP_DELIVERY',
-            'description' => 'Quotation expiry boundary for withdrawal.',
-            'pickup_location_snapshot' => [
-                'address' => 'Pickup location',
-            ],
-            'delivery_location_snapshot' => [
-                'address' => 'Delivery location',
-            ],
-            'expires_at' => now()->addHours(2),
-        ]);
-
-        $awardQuotation = $this->marketplace->submitQuotation(
-            $awardRunner,
-            $awardRequest->request_id,
-            24.00
-        );
-
-        $withdrawQuotation = $this->marketplace->submitQuotation(
-            $withdrawRunner,
-            $withdrawRequest->request_id,
+        $quotation = $this->marketplace->submitQuotation(
+            $runner,
+            $request->request_id,
             17.00
         );
 
-        $expiresAt = now()->addMinute();
-
-        $awardQuotation->forceFill([
-            'expires_at' => $expiresAt,
+        $quotation->forceFill([
+            'expires_at' => now()->subMinute(),
         ])->save();
 
-        $withdrawQuotation->forceFill([
-            'expires_at' => $expiresAt,
-        ])->save();
-
-        $this->travelTo($expiresAt);
-
-        try {
-            $this->marketplace->awardQuotation(
-                $customer,
-                $awardRequest->request_id,
-                $awardQuotation->quotation_id
-            );
-
-            $this->fail(
-                'A quotation must not be awarded at its expiry time.'
-            );
-        } catch (DomainException $exception) {
-            $this->assertSame(
-                'This quotation has expired.',
-                $exception->getMessage()
-            );
-        }
-
-        try {
-            $this->marketplace->withdrawQuotation(
-                $withdrawRunner,
-                $withdrawRequest->request_id,
-                $withdrawQuotation->quotation_id
-            );
-
-            $this->fail(
-                'A quotation must not be withdrawn at its expiry time.'
-            );
-        } catch (DomainException $exception) {
-            $this->assertSame(
-                'This quotation has expired.',
-                $exception->getMessage()
-            );
-        }
+        $withdrawn = $this->marketplace->withdrawQuotation(
+            $runner,
+            $request->request_id,
+            $quotation->quotation_id
+        );
 
         $this->assertSame(
-            MarketplaceRequest::STATUS_OPEN,
-            $awardRequest->fresh()->status
+            MarketplaceQuotation::STATUS_WITHDRAWN,
+            $withdrawn->status
         );
 
         $this->assertSame(
             MarketplaceRequest::STATUS_OPEN,
-            $withdrawRequest->fresh()->status
-        );
-
-        $this->assertSame(
-            MarketplaceQuotation::STATUS_EXPIRED,
-            $awardQuotation->fresh()->status
-        );
-
-        $this->assertSame(
-            MarketplaceQuotation::STATUS_EXPIRED,
-            $withdrawQuotation->fresh()->status
+            $request->fresh()->status
         );
 
         $this->assertDatabaseCount('core_tasks', 0);
@@ -290,19 +189,13 @@ class MarketplaceExpiryServiceTest extends TestCase
     public function test_expired_request_cannot_be_awarded(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Expired request cannot be awarded.',
-            'pickup_location_snapshot' => [
-                'address' => 'Pickup location',
-            ],
-            'delivery_location_snapshot' => [
-                'address' => 'Delivery location',
-            ],
+            'pickup_location_snapshot' => ['address' => 'Pickup location'],
+            'delivery_location_snapshot' => ['address' => 'Delivery location'],
             'expires_at' => now()->addHours(2),
         ]);
 
@@ -323,10 +216,8 @@ class MarketplaceExpiryServiceTest extends TestCase
                 $quotation->quotation_id
             );
 
-            $this->fail(
-                'An expired request must not be awarded.'
-            );
-        } catch (DomainException $exception) {
+            $this->fail('An expired request must not be awarded.');
+        } catch (\DomainException $exception) {
             $this->assertStringContainsString(
                 'cannot be awarded',
                 $exception->getMessage()
@@ -349,19 +240,13 @@ class MarketplaceExpiryServiceTest extends TestCase
     public function test_expired_request_cannot_accept_new_quotations(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Expired request cannot accept quotes.',
-            'pickup_location_snapshot' => [
-                'address' => 'Pickup location',
-            ],
-            'delivery_location_snapshot' => [
-                'address' => 'Delivery location',
-            ],
+            'pickup_location_snapshot' => ['address' => 'Pickup location'],
+            'delivery_location_snapshot' => ['address' => 'Delivery location'],
             'expires_at' => now()->addHours(2),
         ]);
 
@@ -376,10 +261,8 @@ class MarketplaceExpiryServiceTest extends TestCase
                 15.00
             );
 
-            $this->fail(
-                'An expired request must not accept quotations.'
-            );
-        } catch (DomainException $exception) {
+            $this->fail('An expired request must not accept quotations.');
+        } catch (\DomainException $exception) {
             $this->assertStringContainsString(
                 'no longer accepting quotations',
                 $exception->getMessage()
@@ -398,19 +281,13 @@ class MarketplaceExpiryServiceTest extends TestCase
     public function test_open_request_without_expiry_is_expired_and_submitted_quotations_are_expired(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Legacy request without an expiry.',
-            'pickup_location_snapshot' => [
-                'address' => 'Pickup location',
-            ],
-            'delivery_location_snapshot' => [
-                'address' => 'Delivery location',
-            ],
+            'pickup_location_snapshot' => ['address' => 'Pickup location'],
+            'delivery_location_snapshot' => ['address' => 'Delivery location'],
             'expires_at' => now()->addHours(2),
         ]);
 
@@ -442,19 +319,13 @@ class MarketplaceExpiryServiceTest extends TestCase
     public function test_request_without_expiry_cannot_accept_new_quotations(): void
     {
         $customer = $this->makeAccount();
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         $request = $this->marketplace->createRequest($customer, [
             'task_class' => 'PICKUP_DELIVERY',
             'description' => 'Legacy request cannot accept quotations.',
-            'pickup_location_snapshot' => [
-                'address' => 'Pickup location',
-            ],
-            'delivery_location_snapshot' => [
-                'address' => 'Delivery location',
-            ],
+            'pickup_location_snapshot' => ['address' => 'Pickup location'],
+            'delivery_location_snapshot' => ['address' => 'Delivery location'],
             'expires_at' => now()->addHours(2),
         ]);
 
@@ -472,7 +343,7 @@ class MarketplaceExpiryServiceTest extends TestCase
             $this->fail(
                 'A request without an expiry must not accept quotations.'
             );
-        } catch (DomainException $exception) {
+        } catch (\DomainException $exception) {
             $this->assertStringContainsString(
                 'no longer accepting quotations',
                 $exception->getMessage()
