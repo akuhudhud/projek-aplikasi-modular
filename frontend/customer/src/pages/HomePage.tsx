@@ -98,11 +98,6 @@ export default function HomePage({
                     <span>Jumlah Permintaan</span>
                     <strong>{ownRequestTotal}</strong>
                 </article>
-
-                <article className="customer-summary-card">
-                    <span>Status Akaun</span>
-                    <strong>{account.status}</strong>
-                </article>
             </section>
 
             <section className="customer-panel">
