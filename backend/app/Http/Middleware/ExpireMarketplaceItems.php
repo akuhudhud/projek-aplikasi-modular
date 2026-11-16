@@ -18,7 +18,9 @@ class ExpireMarketplaceItems
         Request $request,
         Closure $next
     ): Response {
-        $this->marketplaceService->expireDueItems();
+        if ($request->isMethod('GET')) {
+            $this->marketplaceService->expireDueItems();
+        }
 
         return $next($request);
     }
