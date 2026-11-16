@@ -14,7 +14,11 @@ import type {
     CustomerTaskDetailItem,
 } from '../features/tasks/useCustomerTasks';
 
-import { LocationSnapshotPanel } from '../customerPresentation';
+import {
+    LocationSnapshotPanel,
+    formatCustomerRequestStatus,
+    formatCustomerTaskStatus,
+} from '../customerPresentation';
 
 type TaskDetailPageProps = {
     item: CustomerTaskDetailItem;
@@ -132,12 +136,20 @@ export default function TaskDetailPage({
 
                     <div>
                         <dt>Status Tugasan</dt>
-                        <dd>{task.generic_status}</dd>
+                        <dd>
+                            {formatCustomerTaskStatus(
+                                task.generic_status,
+                            )}
+                        </dd>
                     </div>
 
                     <div>
                         <dt>Status Permintaan</dt>
-                        <dd>{request.status}</dd>
+                        <dd>
+                            {formatCustomerRequestStatus(
+                                request.status,
+                            )}
+                        </dd>
                     </div>
 
                     <div>
