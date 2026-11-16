@@ -1,6 +1,9 @@
+
 import { describe, expect, it } from 'vitest';
 
 import {
+    formatCustomerRequestStatus,
+    formatCustomerTaskStatus,
     getLocationSnapshotFields,
     isRequestExpiryValid,
 } from './customerPresentation';
@@ -93,5 +96,34 @@ describe('isRequestExpiryValid', () => {
 
     it('rejects an invalid date value', () => {
         expect(isRequestExpiryValid('not-a-date', now)).toBe(false);
+    });
+});
+
+describe('customer status labels', () => {
+    it('formats known task statuses in Bahasa Malaysia', () => {
+        expect(formatCustomerTaskStatus('OPEN')).toBe('Menunggu Runner');
+        expect(formatCustomerTaskStatus('ASSIGNED')).toBe('Runner ditugaskan');
+        expect(formatCustomerTaskStatus('IN_PROGRESS')).toBe('Sedang dilaksanakan');
+        expect(formatCustomerTaskStatus('COMPLETED')).toBe('Selesai');
+        expect(formatCustomerTaskStatus('CANCELLED')).toBe('Dibatalkan');
+    });
+
+    it('uses a safe fallback for unknown task statuses', () => {
+        expect(formatCustomerTaskStatus('FUTURE_STATUS')).toBe(
+            'Status tugasan dikemas kini',
+        );
+    });
+
+    it('formats known request statuses in Bahasa Malaysia', () => {
+        expect(formatCustomerRequestStatus('OPEN')).toBe('Menunggu sebut harga');
+        expect(formatCustomerRequestStatus('AWARDED')).toBe('Sebut harga dipilih');
+        expect(formatCustomerRequestStatus('CANCELLED')).toBe('Dibatalkan');
+        expect(formatCustomerRequestStatus('EXPIRED')).toBe('Tamat tempoh');
+    });
+
+    it('uses a safe fallback for unknown request statuses', () => {
+        expect(formatCustomerRequestStatus('FUTURE_STATUS')).toBe(
+            'Status permintaan dikemas kini',
+        );
     });
 });
