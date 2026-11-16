@@ -133,18 +133,19 @@ describe('HomePage', () => {
         ).toBeTruthy();
     });
 
-    it('displays the account summary values', () => {
+    it('displays customer task and request summary values without account status', () => {
         renderHomePage();
 
         expect(screen.getByText('Jumlah Tugasan')).toBeTruthy();
         expect(screen.getByText('Tugasan Aktif')).toBeTruthy();
         expect(screen.getByText('Jumlah Permintaan')).toBeTruthy();
-        expect(screen.getByText('Status Akaun')).toBeTruthy();
 
         expect(screen.getByText('5')).toBeTruthy();
         expect(screen.getByText('2')).toBeTruthy();
         expect(screen.getByText('3')).toBeTruthy();
-        expect(screen.getByText('ACTIVE')).toBeTruthy();
+
+        expect(screen.queryByText('Status Akaun')).toBeNull();
+        expect(screen.queryByText('ACTIVE')).toBeNull();
     });
 
     it('navigates to create request when quick action is clicked', () => {
