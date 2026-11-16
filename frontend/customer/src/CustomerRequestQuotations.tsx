@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import {
@@ -91,6 +92,18 @@ function formatRunnerRating(
         `★ ${profile.rating_average.toFixed(1)} / 5 ` +
         `(${profile.rating_count} penilaian)`
     );
+}
+
+function formatQuotationStatus(status: string): string {
+    const labels: Record<string, string> = {
+        SUBMITTED: 'Dihantar',
+        ACCEPTED: 'Diterima',
+        NOT_SELECTED: 'Tidak dipilih',
+        WITHDRAWN: 'Ditarik balik',
+        EXPIRED: 'Tamat tempoh',
+    };
+
+    return labels[status] ?? 'Status tidak diketahui';
 }
 
 export default function CustomerRequestQuotations({
@@ -403,13 +416,7 @@ export default function CustomerRequestQuotations({
                                                 `status-${quotation.status.toLowerCase()}`
                                             }
                                         >
-                                            {quotation.status === 'SUBMITTED'
-                                                ? 'Dihantar'
-                                                : quotation.status === 'ACCEPTED'
-                                                    ? 'Diterima'
-                                                    : quotation.status === 'NOT_SELECTED'
-                                                        ? 'Tidak Dipilih'
-                                                        : quotation.status}
+                                            {formatQuotationStatus(quotation.status)}
                                         </span>
                                     </div>
 
