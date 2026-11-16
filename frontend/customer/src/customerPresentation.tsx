@@ -1,6 +1,29 @@
 
 import './customerPresentation.css';
 
+const TASK_STATUS_LABELS: Record<string, string> = {
+    OPEN: 'Menunggu Runner',
+    ASSIGNED: 'Runner ditugaskan',
+    IN_PROGRESS: 'Sedang dilaksanakan',
+    COMPLETED: 'Selesai',
+    CANCELLED: 'Dibatalkan',
+};
+
+const REQUEST_STATUS_LABELS: Record<string, string> = {
+    OPEN: 'Menunggu sebut harga',
+    AWARDED: 'Sebut harga dipilih',
+    CANCELLED: 'Dibatalkan',
+    EXPIRED: 'Tamat tempoh',
+};
+
+export function formatCustomerTaskStatus(status: string): string {
+    return TASK_STATUS_LABELS[status] ?? 'Status tugasan dikemas kini';
+}
+
+export function formatCustomerRequestStatus(status: string): string {
+    return REQUEST_STATUS_LABELS[status] ?? 'Status permintaan dikemas kini';
+}
+
 export interface LocationSnapshot {
     address?: unknown;
     contact_name?: unknown;
