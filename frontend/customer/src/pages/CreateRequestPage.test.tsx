@@ -74,7 +74,7 @@ describe('CreateRequestPage', () => {
 
         expect(
             screen.getByRole('heading', {
-                name: 'Cipta Permintaan Terbuka',
+                name: 'Cipta Tugasan Baharu',
             }),
         ).toBeTruthy();
     });
