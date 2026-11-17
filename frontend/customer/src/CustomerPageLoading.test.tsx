@@ -24,12 +24,14 @@ const {
     getTasksMock,
     getRequestsMock,
     getNotificationsMock,
+    getRequestMock,
 } = vi.hoisted(() => ({
     meMock: vi.fn(),
     loginMock: vi.fn(),
     getTasksMock: vi.fn(),
     getRequestsMock: vi.fn(),
     getNotificationsMock: vi.fn(),
+    getRequestMock: vi.fn(),
 }));
 
 vi.mock('axios', () => ({
@@ -52,7 +54,7 @@ vi.mock('./api', () => ({
         createRequest: vi.fn(),
         cancelRequest: vi.fn(),
         getTask: vi.fn(),
-        getRequest: vi.fn(),
+        getRequest: getRequestMock,
         awardQuotation: vi.fn(),
         updateProfile: vi.fn(),
         logout: vi.fn(),
@@ -288,5 +290,102 @@ describe('Customer page-specific data loading', () => {
         const alert = await screen.findByRole('alert');
 
         expect(alert.textContent).toContain(taskLoadingError);
+    });
+
+    it('opens the exact request from a notification and keeps it visible after navigation', async () => {
+        const targetRequest = {
+            request_id: 'request-from-notification-001',
+            task_class: 'NON_DELIVERY' as const,
+            description: 'Permintaan sasaran daripada notifikasi',
+            pickup_location_snapshot: null,
+            delivery_location_snapshot: null,
+            task_location_snapshot: {
+                address: 'Kampung Tambalang, Tuaran',
+            },
+            status: 'CANCELLED',
+            expires_at: '2026-12-01T10:00:00Z',
+            awarded_at: null,
+            cancelled_at: '2026-11-16T10:00:00Z',
+            created_at: '2026-11-15T10:00:00Z',
+            updated_at: '2026-11-16T10:00:00Z',
+        };
+
+        getNotificationsMock.mockResolvedValue({
+            notifications: [
+                {
+                    id: 'notification-001',
+                    type: 'request',
+                    data: {
+                        title: 'Permintaan dikemaskini',
+                        message: 'Permintaan anda telah dikemaskini.',
+                        request_id: targetRequest.request_id,
+                    },
+                    read_at: '2026-11-16T10:00:00Z',
+                    created_at: '2026-11-16T10:00:00Z',
+                },
+            ],
+            summary: {
+                unread_total: 0,
+            },
+            pagination: {
+                current_page: 1,
+                per_page: 10,
+                total: 1,
+                last_page: 1,
+            },
+        });
+
+        getRequestMock.mockResolvedValue({
+            request: targetRequest,
+            quotations: [],
+        });
+
+        await loginAt('/?runner=Test-Runner');
+
+        await screen.findByRole('heading', {
+            name: 'Cipta Permintaan Terbuka',
+        });
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Notifikasi',
+            }),
+        );
+
+        await screen.findByRole('heading', {
+            name: 'Notifikasi',
+        });
+
+        fireEvent.click(
+            await screen.findByRole('button', {
+                name: 'Lihat',
+            }),
+        );
+
+        await screen.findByRole('heading', {
+            name: 'Permintaan Saya',
+        });
+
+        await waitFor(() => {
+            expect(getRequestMock).toHaveBeenCalledWith(
+                targetRequest.request_id,
+            );
+        });
+
+        expect(
+            await screen.findByText(
+                targetRequest.description,
+            ),
+        ).toBeTruthy();
+
+        const targetCard = screen
+            .getByText(targetRequest.description)
+            .closest('article');
+
+        expect(targetCard).not.toBeNull();
+
+        expect(
+            targetCard?.className,
+        ).toContain('customer-task-card-notification-target');
     });
 });
