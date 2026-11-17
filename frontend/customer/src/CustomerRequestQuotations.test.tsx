@@ -178,7 +178,7 @@ async function loginThroughRunnerProfile() {
     );
 
     await screen.findByRole('heading', {
-        name: 'Cipta Permintaan Terbuka',
+        name: 'Cipta Tugasan Baharu',
     });
 }
 
