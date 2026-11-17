@@ -57,20 +57,35 @@ const api = axios.create({
     },
 });
 
+function isProtectedSessionEndpoint(
+    url?: string,
+): boolean {
+    if (!url) {
+        return false;
+    }
+
+    const pathname = url.split('?')[0].replace(/\/+$/, '');
+
+    return (
+        pathname === '/web/auth/me' ||
+        pathname === '/web/auth/logout'
+    );
+}
+
 api.interceptors.response.use(
     (response) => response,
     (error: unknown) => {
-        if (axios.isAxiosError(error)) {
-            const status = error.response?.status;
-
-            if (
-                status === 401 &&
-                typeof window !== 'undefined'
-            ) {
-                window.dispatchEvent(
-                    new Event(RUNNER_SESSION_EXPIRED_EVENT),
-                );
-            }
+        if (
+            axios.isAxiosError(error) &&
+            error.response?.status === 401 &&
+            isProtectedSessionEndpoint(
+                error.config?.url,
+            ) &&
+            typeof window !== 'undefined'
+        ) {
+            window.dispatchEvent(
+                new Event(RUNNER_SESSION_EXPIRED_EVENT),
+            );
         }
 
         return Promise.reject(error);
@@ -78,7 +93,9 @@ api.interceptors.response.use(
 );
 
 export const runnerApi = {
-    async login(payload: LoginPayload): Promise<RunnerAccount> {
+    async login(
+        payload: LoginPayload,
+    ): Promise<RunnerAccount> {
         const response = await api.post<
             ApiResponse<AccountData>
         >('/web/auth/login', payload);
