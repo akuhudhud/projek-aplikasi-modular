@@ -37,7 +37,7 @@ describe('BottomNavigation', () => {
 
         expect(screen.getByRole('button', { name: 'Utama' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Permintaan' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Cipta' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Cipta Tugasan' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Tugasan' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Profil' })).toBeInTheDocument();
     });
@@ -72,7 +72,7 @@ describe('BottomNavigation', () => {
         );
 
         expect(
-            screen.getByRole('button', { name: 'Cipta' }),
+            screen.getByRole('button', { name: 'Cipta Tugasan' }),
         ).toHaveClass('is-primary');
     });
 
@@ -105,7 +105,7 @@ describe('BottomNavigation', () => {
         );
 
         fireEvent.click(
-            screen.getByRole('button', { name: 'Cipta' }),
+            screen.getByRole('button', { name: 'Cipta Tugasan' }),
         );
 
         expect(onNavigate).toHaveBeenCalledTimes(1);
@@ -126,10 +126,10 @@ describe('BottomNavigation', () => {
 
         expect(
             screen.getByRole('button', { name: 'Permintaan' }),
-        ).toHaveAttribute('title', 'Senarai Open Request anda');
+        ).toHaveAttribute('title', 'Senarai permintaan tugasan anda');
 
         expect(
-            screen.getByRole('button', { name: 'Cipta' }),
-        ).toHaveAttribute('title', 'Cipta Open Request baharu');
+            screen.getByRole('button', { name: 'Cipta Tugasan' }),
+        ).toHaveAttribute('title', 'Cipta tugasan baharu');
     });
 });
