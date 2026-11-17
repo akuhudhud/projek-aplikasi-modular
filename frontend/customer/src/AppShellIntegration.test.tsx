@@ -145,8 +145,8 @@ describe('Integrasi AppShell Pelanggan', () => {
                 },
                 {
                     page: 'create',
-                    accessibleLabel: 'Cipta',
-                    pageTitle: 'Cipta Permintaan',
+                    accessibleLabel: 'Cipta Tugasan',
+                    pageTitle: 'Cipta Tugasan',
                 },
                 {
                     page: 'tasks',
