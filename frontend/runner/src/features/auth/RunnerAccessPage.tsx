@@ -4,11 +4,11 @@ import type {
 } from '../../api';
 
 export type RunnerAccessReason =
-    | 'ACCOUNT_UNAVAILABLE'
+    | 'ACCOUNT_INACTIVE'
     | 'IDENTITY_NOT_SUBMITTED'
     | 'IDENTITY_PENDING'
     | 'IDENTITY_REJECTED'
-    | 'RUNNER_NOT_APPLIED'
+    | 'RUNNER_NOT_REGISTERED'
     | 'RUNNER_PENDING'
     | 'RUNNER_REJECTED'
     | 'RUNNER_SUSPENDED';
@@ -16,23 +16,25 @@ export type RunnerAccessReason =
 type RunnerAccessPageProps = {
     account: RunnerAccount;
     reason: RunnerAccessReason;
-    onLogout: () => void;
+    logout: () => Promise<boolean>;
     logoutLoading: boolean;
     logoutError: string;
 };
 
+type AccessContent = {
+    title: string;
+    description: string;
+    instruction: string;
+};
+
 const ACCESS_CONTENT: Record<
     RunnerAccessReason,
-    {
-        title: string;
-        description: string;
-        instruction: string;
-    }
+    AccessContent
 > = {
-    ACCOUNT_UNAVAILABLE: {
+    ACCOUNT_INACTIVE: {
         title: 'Akaun Tidak Aktif',
         description:
-            'Akaun anda tidak dapat digunakan buat masa ini.',
+            'Akaun anda tidak berada dalam keadaan aktif.',
         instruction:
             'Sila hubungi pihak Super Runner untuk mendapatkan bantuan.',
     },
@@ -40,41 +42,41 @@ const ACCESS_CONTENT: Record<
     IDENTITY_NOT_SUBMITTED: {
         title: 'Pengesahan Identiti Diperlukan',
         description:
-            'Anda perlu melengkapkan pengesahan identiti sebelum memohon menjadi Runner.',
+            'Identiti anda belum dihantar untuk pengesahan.',
         instruction:
-            'Sediakan dokumen pengenalan diri untuk proses pengesahan.',
+            'Lengkapkan proses pengesahan identiti sebelum memohon sebagai Runner. Proses penghantaran melalui aplikasi ini belum tersedia.',
     },
 
     IDENTITY_PENDING: {
-        title: 'Identiti Sedang Disemak',
+        title: 'Pengesahan Sedang Diproses',
         description:
-            'Maklumat identiti anda telah diterima dan sedang melalui proses semakan.',
+            'Maklumat identiti anda sedang disemak oleh pihak pentadbir.',
         instruction:
-            'Sila tunggu keputusan pengesahan daripada pihak Super Runner.',
+            'Sila tunggu keputusan pengesahan. Anda belum boleh menggunakan fungsi Runner.',
     },
 
     IDENTITY_REJECTED: {
-        title: 'Pengesahan Identiti Ditolak',
+        title: 'Pengesahan Identiti Tidak Berjaya',
         description:
             'Pengesahan identiti anda tidak diluluskan.',
         instruction:
             'Sila hubungi pihak Super Runner untuk mengetahui tindakan seterusnya.',
     },
 
-    RUNNER_NOT_APPLIED: {
-        title: 'Sertai Sebagai Runner',
+    RUNNER_NOT_REGISTERED: {
+        title: 'Permohonan Runner Diperlukan',
         description:
-            'Identiti anda telah disahkan. Anda kini boleh meneruskan proses permohonan Runner.',
+            'Akaun anda belum mempunyai permohonan Runner.',
         instruction:
-            'Permohonan Runner perlu dilengkapkan sebelum anda boleh menerima tugasan.',
+            'Anda perlu menghantar permohonan Runner dan mendapatkan kelulusan sebelum mengakses platform Runner. Pendaftaran melalui aplikasi ini belum tersedia.',
     },
 
     RUNNER_PENDING: {
-        title: 'Permohonan Sedang Disemak',
+        title: 'Permohonan Dalam Semakan',
         description:
-            'Permohonan Runner anda telah diterima dan sedang menunggu kelulusan.',
+            'Permohonan Runner anda sedang disemak.',
         instruction:
-            'Anda akan mendapat akses Runner selepas permohonan diluluskan.',
+            'Sila tunggu keputusan pihak pentadbir. Anda akan mendapat akses selepas permohonan diluluskan.',
     },
 
     RUNNER_REJECTED: {
@@ -88,58 +90,68 @@ const ACCESS_CONTENT: Record<
     RUNNER_SUSPENDED: {
         title: 'Akses Runner Digantung',
         description:
-            'Akses Runner anda digantung buat sementara waktu.',
+            'Akses Runner untuk akaun anda telah digantung.',
         instruction:
-            'Sila hubungi pihak Super Runner untuk mendapatkan penjelasan.',
+            'Sila hubungi pihak Super Runner untuk mendapatkan bantuan lanjut.',
     },
 };
 
 export default function RunnerAccessPage({
     account,
     reason,
-    onLogout,
+    logout,
     logoutLoading,
     logoutError,
 }: RunnerAccessPageProps) {
     const content = ACCESS_CONTENT[reason];
 
+    async function handleLogout() {
+        await logout();
+    }
+
     return (
         <main className="runner-access">
-            <section className="runner-access__panel">
+            <section
+                className="runner-access__panel"
+                aria-labelledby="runner-access-heading"
+            >
                 <div className="runner-access__brand">
-                    <span className="runner-access__brand-mark">
+                    <div
+                        className="runner-access__brand-mark"
+                        aria-hidden="true"
+                    >
                         SR
-                    </span>
+                    </div>
 
-                    <span>SUPER RUNNER</span>
+                    <div>
+                        <h1>SUPER RUNNER</h1>
+                        <p>Runner Platform</p>
+                    </div>
                 </div>
 
                 <div className="runner-access__status">
-                    <span className="runner-access__status-icon">
+                    <div
+                        className="runner-access__status-icon"
+                        aria-hidden="true"
+                    >
                         !
-                    </span>
+                    </div>
 
-                    <h1>{content.title}</h1>
+                    <h2 id="runner-access-heading">
+                        {content.title}
+                    </h2>
 
-                    <p>
-                        {content.description}
-                    </p>
+                    <p>{content.description}</p>
                 </div>
 
                 <div className="runner-access__account">
                     <span>AKAUN</span>
-
-                    <strong>
-                        {account.profile_name}
-                    </strong>
+                    <strong>{account.profile_name}</strong>
                 </div>
 
                 <div className="runner-access__instruction">
-                    <strong>Apakah langkah seterusnya?</strong>
-
-                    <p>
-                        {content.instruction}
-                    </p>
+                    <h3>Apakah tindakan seterusnya?</h3>
+                    <p>{content.instruction}</p>
                 </div>
 
                 {logoutError && (
@@ -152,13 +164,13 @@ export default function RunnerAccessPage({
                 )}
 
                 <button
-                    type="button"
                     className="runner-access__logout"
-                    onClick={onLogout}
+                    type="button"
+                    onClick={handleLogout}
                     disabled={logoutLoading}
                 >
                     {logoutLoading
-                        ? 'SEDANG LOG KELUAR...'
+                        ? 'Sedang log keluar...'
                         : 'LOG KELUAR'}
                 </button>
             </section>
