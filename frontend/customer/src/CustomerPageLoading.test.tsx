@@ -191,7 +191,7 @@ describe('Customer page-specific data loading', () => {
         await loginAt('/?runner=Test-Runner');
 
         await screen.findByRole('heading', {
-            name: 'Cipta Permintaan Terbuka',
+            name: 'Cipta Tugasan Baharu',
         });
 
         expect(getTasksMock).not.toHaveBeenCalled();
@@ -235,7 +235,7 @@ describe('Customer page-specific data loading', () => {
         await loginAt('/?runner=Test-Runner');
 
         await screen.findByRole('heading', {
-            name: 'Cipta Permintaan Terbuka',
+            name: 'Cipta Tugasan Baharu',
         });
 
         fireEvent.click(
@@ -274,7 +274,7 @@ describe('Customer page-specific data loading', () => {
         await loginAt('/?runner=Test-Runner');
 
         await screen.findByRole('heading', {
-            name: 'Cipta Permintaan Terbuka',
+            name: 'Cipta Tugasan Baharu',
         });
 
         fireEvent.click(
@@ -343,7 +343,7 @@ describe('Customer page-specific data loading', () => {
         await loginAt('/?runner=Test-Runner');
 
         await screen.findByRole('heading', {
-            name: 'Cipta Permintaan Terbuka',
+            name: 'Cipta Tugasan Baharu',
         });
 
         fireEvent.click(
