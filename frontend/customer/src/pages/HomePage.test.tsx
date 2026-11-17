@@ -148,12 +148,12 @@ describe('HomePage', () => {
         expect(screen.queryByText('ACTIVE')).toBeNull();
     });
 
-    it('navigates to create request when quick action is clicked', () => {
+    it('navigates to create task when quick action is clicked', () => {
         const { props } = renderHomePage();
 
         fireEvent.click(
             screen.getByRole('button', {
-                name: '+ Cipta Permintaan',
+                name: '+ Cipta Tugasan',
             }),
         );
 
