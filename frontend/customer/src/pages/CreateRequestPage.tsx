@@ -180,7 +180,7 @@ export default function CreateRequestPage({
             <section className="customer-panel">
                 <div className="customer-section-heading">
                     <div>
-                        <h2>Cipta Permintaan Terbuka</h2>
+                        <h2>Cipta Tugasan Baharu</h2>
 
                         <p>
                             {runnerSlug && !hasInvalidRunnerSlug
