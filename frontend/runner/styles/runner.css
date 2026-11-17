@@ -178,6 +178,32 @@ button:disabled {
     box-shadow: 0 0 0 3px rgba(255, 212, 0, 0.2);
 }
 
+.runner-auth__password {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.runner-auth__password input {
+    flex: 1;
+    min-width: 0;
+}
+
+.runner-auth__password button {
+    flex-shrink: 0;
+    padding: 0 12px;
+    border: 1px solid var(--runner-border);
+    border-radius: 10px;
+    background: #fafafa;
+    color: var(--runner-black);
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.runner-auth__password button:hover:not(:disabled) {
+    background: #eeeeee;
+}
+
 .runner-auth__submit {
     min-height: 52px;
     margin-top: 4px;
@@ -205,6 +231,10 @@ button:disabled {
     font-size: 12px;
     line-height: 1.6;
     text-align: center;
+}
+
+.runner-auth__footer p {
+    margin: 4px 0;
 }
 
 .runner-auth__error,
@@ -249,7 +279,7 @@ button:disabled {
     font-weight: 900;
 }
 
-.runner-access__status h1 {
+.runner-access__status h2 {
     margin: 0 0 12px;
     color: var(--runner-black);
     font-size: 23px;
@@ -295,9 +325,11 @@ button:disabled {
     text-align: left;
 }
 
-.runner-access__instruction strong {
+.runner-access__instruction h3 {
+    margin: 0;
     color: var(--runner-black);
     font-size: 13px;
+    font-weight: 850;
 }
 
 .runner-access__instruction p {
@@ -441,7 +473,7 @@ button:disabled {
         font-size: 24px;
     }
 
-    .runner-access__status h1 {
+    .runner-access__status h2 {
         font-size: 21px;
     }
 
