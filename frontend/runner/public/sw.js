@@ -1,15 +1,12 @@
 
 const CACHE_PREFIX = 'super-runner-runner-';
-const CACHE_NAME = `${CACHE_PREFIX}v1`;
+const CACHE_NAME = `${CACHE_PREFIX}v2`;
 
 const APP_SHELL = [
     '/',
     '/manifest.webmanifest',
     '/manifest.json',
     '/icons/icon.svg',
-    '/icons/icon-192.png',
-    '/icons/icon-512.png',
-    '/icons/apple-touch-icon.png',
 ];
 
 function isApiPath(pathname) {
@@ -35,7 +32,9 @@ async function precacheAppShell(cache) {
     });
 
     if (!response.ok) {
-        throw new Error('Unable to load the Vite build manifest.');
+        throw new Error(
+            'Unable to load the Vite build manifest.',
+        );
     }
 
     const manifest = await response.json();
@@ -47,13 +46,17 @@ async function precacheAppShell(cache) {
         }
 
         if (typeof entry.file === 'string') {
-            assets.add(`/${entry.file.replace(/^\/+/, '')}`);
+            assets.add(
+                `/${entry.file.replace(/^\/+/, '')}`,
+            );
         }
 
         if (Array.isArray(entry.css)) {
             entry.css.forEach((file) => {
                 if (typeof file === 'string') {
-                    assets.add(`/${file.replace(/^\/+/, '')}`);
+                    assets.add(
+                        `/${file.replace(/^\/+/, '')}`,
+                    );
                 }
             });
         }
@@ -61,7 +64,9 @@ async function precacheAppShell(cache) {
         if (Array.isArray(entry.assets)) {
             entry.assets.forEach((file) => {
                 if (typeof file === 'string') {
-                    assets.add(`/${file.replace(/^\/+/, '')}`);
+                    assets.add(
+                        `/${file.replace(/^\/+/, '')}`,
+                    );
                 }
             });
         }
@@ -143,7 +148,9 @@ self.addEventListener('activate', (event) => {
                                 cacheName.startsWith(CACHE_PREFIX) &&
                                 cacheName !== CACHE_NAME,
                         )
-                        .map((cacheName) => caches.delete(cacheName)),
+                        .map((cacheName) =>
+                            caches.delete(cacheName),
+                        ),
                 ),
             ),
             self.clients.claim(),
