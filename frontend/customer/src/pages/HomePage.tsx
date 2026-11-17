@@ -76,7 +76,7 @@ export default function HomePage({
                     type="button"
                     onClick={onNavigateCreate}
                 >
-                    + Cipta Permintaan
+                    + Cipta Tugasan
                 </button>
             </section>
 
