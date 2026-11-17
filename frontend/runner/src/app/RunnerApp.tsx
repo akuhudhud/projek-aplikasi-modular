@@ -17,7 +17,7 @@ function getRunnerAccessReason(
     account: RunnerAccount,
 ): RunnerAccessReason | null {
     if (account.status !== 'ACTIVE') {
-        return 'ACCOUNT_UNAVAILABLE';
+        return 'ACCOUNT_INACTIVE';
     }
 
     switch (account.identity_verification_status) {
@@ -39,7 +39,7 @@ function getRunnerAccessReason(
 
     switch (account.runner_status) {
         case 'NOT_RUNNER':
-            return 'RUNNER_NOT_APPLIED';
+            return 'RUNNER_NOT_REGISTERED';
 
         case 'PENDING':
             return 'RUNNER_PENDING';
@@ -54,7 +54,7 @@ function getRunnerAccessReason(
             return null;
 
         default:
-            return 'RUNNER_NOT_APPLIED';
+            return 'RUNNER_NOT_REGISTERED';
     }
 }
 
@@ -94,9 +94,7 @@ function RunnerDashboardPlaceholder({
             <section className="runner-dashboard__welcome">
                 <p>SELAMAT DATANG</p>
 
-                <h1>
-                    {account.profile_name}
-                </h1>
+                <h1>{account.profile_name}</h1>
 
                 <p>
                     Akaun Runner anda telah diluluskan.
@@ -104,9 +102,7 @@ function RunnerDashboardPlaceholder({
             </section>
 
             {logoutError && (
-                <p role="alert">
-                    {logoutError}
-                </p>
+                <p role="alert">{logoutError}</p>
             )}
 
             <section className="runner-dashboard__content">
@@ -153,9 +149,7 @@ export default function RunnerApp() {
             <RunnerAccessPage
                 account={session.account}
                 reason={accessReason}
-                onLogout={() => {
-                    void session.logout();
-                }}
+                logout={session.logout}
                 logoutLoading={session.logoutLoading}
                 logoutError={session.logoutError}
             />
