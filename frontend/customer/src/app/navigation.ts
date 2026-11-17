@@ -25,13 +25,13 @@ export const CUSTOMER_NAVIGATION: CustomerNavigationItem[] = [
         id: 'requests',
         label: 'Permintaan',
         icon: 'clipboard-list',
-        description: 'Senarai Open Request anda',
+        description: 'Senarai permintaan tugasan anda',
     },
     {
         id: 'create',
-        label: 'Cipta',
+        label: 'Cipta Tugasan',
         icon: 'plus-circle',
-        description: 'Cipta Open Request baharu',
+        description: 'Cipta tugasan baharu',
         primary: true,
     },
     {
@@ -51,7 +51,7 @@ export const CUSTOMER_NAVIGATION: CustomerNavigationItem[] = [
 export const CUSTOMER_PAGE_LABELS: Record<CustomerPage, string> = {
     dashboard: 'Utama',
     requests: 'Senarai Permintaan',
-    create: 'Cipta Permintaan',
+    create: 'Cipta Tugasan',
     tasks: 'Tugasan Saya',
     profile: 'Profil Saya',
 };
