@@ -7,6 +7,7 @@ use App\Http\Middleware\AuthenticateWebSession;
 use App\Http\Requests\Account\UpdateProfileRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\Account;
+use App\Models\IdentityVerification;
 use App\Services\Auth\AuthenticationService;
 use App\Services\Session\SessionService;
 use Illuminate\Http\JsonResponse;
@@ -112,6 +113,10 @@ class AuthController extends Controller
 
     private function accountPayload(Account $account): array
     {
+        $identityStatus = IdentityVerification::query()
+            ->where('account_id', $account->id)
+            ->value('status');
+
         return [
             'id' => $account->id,
             'profile_name' => $account->profile_name,
@@ -120,6 +125,9 @@ class AuthController extends Controller
             'profile_picture' => $account->profile_picture,
             'role' => $account->role,
             'status' => $account->status,
+            'runner_status' => $account->runner_status,
+            'identity_verification_status' => $identityStatus
+                ?? IdentityVerification::STATUS_NOT_SUBMITTED,
         ];
     }
 }
