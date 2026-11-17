@@ -4,6 +4,19 @@ import axios from 'axios';
 export const RUNNER_SESSION_EXPIRED_EVENT =
     'runner-session-expired';
 
+export type RunnerStatus =
+    | 'NOT_RUNNER'
+    | 'PENDING'
+    | 'APPROVED'
+    | 'REJECTED'
+    | 'SUSPENDED';
+
+export type IdentityVerificationStatus =
+    | 'NOT_SUBMITTED'
+    | 'PENDING'
+    | 'VERIFIED'
+    | 'REJECTED';
+
 export interface RunnerAccount {
     id: number | string;
     profile_name: string;
@@ -14,14 +27,24 @@ export interface RunnerAccount {
     profile_picture: string | null;
     role: string;
     status: string;
+    runner_status: RunnerStatus;
+    identity_verification_status: IdentityVerificationStatus;
 }
 
 interface ApiResponse<T> {
+    success: boolean;
+    message?: string;
     data: T;
 }
 
 interface AccountData {
     account: RunnerAccount;
+}
+
+interface LoginPayload {
+    phone?: string;
+    email?: string;
+    password: string;
 }
 
 const api = axios.create({
@@ -40,7 +63,10 @@ api.interceptors.response.use(
         if (axios.isAxiosError(error)) {
             const status = error.response?.status;
 
-            if (status === 401) {
+            if (
+                status === 401 &&
+                typeof window !== 'undefined'
+            ) {
                 window.dispatchEvent(
                     new Event(RUNNER_SESSION_EXPIRED_EVENT),
                 );
@@ -52,6 +78,14 @@ api.interceptors.response.use(
 );
 
 export const runnerApi = {
+    async login(payload: LoginPayload): Promise<RunnerAccount> {
+        const response = await api.post<
+            ApiResponse<AccountData>
+        >('/web/auth/login', payload);
+
+        return response.data.data.account;
+    },
+
     async me(): Promise<RunnerAccount> {
         const response = await api.get<
             ApiResponse<AccountData>
