@@ -13,6 +13,7 @@ type RunnerAuthPageProps = {
 
 function getApiErrorMessage(
     error: unknown,
+    fallback: string,
 ): string {
     if (!axios.isAxiosError(error)) {
         return 'Ralat berlaku. Sila cuba semula.';
@@ -36,12 +37,9 @@ function getApiErrorMessage(
 
     const message = responseData?.message;
 
-    return (
-        typeof message === 'string' &&
-        message.trim() !== ''
-    )
+    return typeof message === 'string' && message.trim() !== ''
         ? message
-        : 'Log masuk gagal. Sila semak maklumat akaun anda.';
+        : fallback;
 }
 
 export default function RunnerAuthPage({
@@ -49,6 +47,7 @@ export default function RunnerAuthPage({
 }: RunnerAuthPageProps) {
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -57,12 +56,27 @@ export default function RunnerAuthPage({
     ) {
         event.preventDefault();
 
+        if (loading) {
+            return;
+        }
+
         setError('');
+
+        const value = identifier.trim();
+
+        if (!value) {
+            setError('Masukkan nombor telefon atau e-mel.');
+            return;
+        }
+
+        if (!password) {
+            setError('Masukkan kata laluan.');
+            return;
+        }
+
         setLoading(true);
 
         try {
-            const value = identifier.trim();
-
             const account = await runnerApi.login({
                 ...(value.includes('@')
                     ? { email: value }
@@ -74,7 +88,10 @@ export default function RunnerAuthPage({
             onAuthenticated(account);
         } catch (requestError) {
             setError(
-                getApiErrorMessage(requestError),
+                getApiErrorMessage(
+                    requestError,
+                    'Log masuk gagal. Sila semak maklumat akaun anda.',
+                ),
             );
         } finally {
             setLoading(false);
@@ -83,24 +100,32 @@ export default function RunnerAuthPage({
 
     return (
         <main className="runner-auth">
-            <section className="runner-auth__panel">
+            <section
+                className="runner-auth__panel"
+                aria-labelledby="runner-auth-heading"
+            >
                 <div className="runner-auth__brand">
-                    <span className="runner-auth__brand-mark">
+                    <div
+                        className="runner-auth__brand-mark"
+                        aria-hidden="true"
+                    >
                         SR
-                    </span>
+                    </div>
 
                     <div>
                         <h1>SUPER RUNNER</h1>
-                        <p>RUNNER APPLICATION</p>
+                        <p>Runner Platform</p>
                     </div>
                 </div>
 
                 <div className="runner-auth__heading">
-                    <h2>Selamat Kembali</h2>
+                    <h2 id="runner-auth-heading">
+                        Log Masuk Runner
+                    </h2>
 
                     <p>
-                        Log masuk menggunakan akaun
-                        Super Runner anda.
+                        Log masuk menggunakan akaun Super Runner
+                        anda untuk meneruskan.
                     </p>
                 </div>
 
@@ -133,19 +158,40 @@ export default function RunnerAuthPage({
                             Kata Laluan
                         </label>
 
-                        <input
-                            id="runner-password"
-                            type="password"
-                            autoComplete="current-password"
-                            value={password}
-                            onChange={(event) => {
-                                setPassword(event.target.value);
-                                setError('');
-                            }}
-                            placeholder="Masukkan kata laluan"
-                            required
-                            disabled={loading}
-                        />
+                        <div className="runner-auth__password">
+                            <input
+                                id="runner-password"
+                                type={
+                                    showPassword
+                                        ? 'text'
+                                        : 'password'
+                                }
+                                autoComplete="current-password"
+                                value={password}
+                                onChange={(event) => {
+                                    setPassword(event.target.value);
+                                    setError('');
+                                }}
+                                placeholder="Masukkan kata laluan"
+                                required
+                                disabled={loading}
+                            />
+
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setShowPassword((current) => !current)
+                                }
+                                disabled={loading}
+                                aria-label={
+                                    showPassword
+                                        ? 'Sembunyikan kata laluan'
+                                        : 'Paparkan kata laluan'
+                                }
+                            >
+                                {showPassword ? 'Sembunyi' : 'Papar'}
+                            </button>
+                        </div>
                     </div>
 
                     {error && (
@@ -163,15 +209,21 @@ export default function RunnerAuthPage({
                         disabled={loading}
                     >
                         {loading
-                            ? 'SEDANG LOG MASUK...'
+                            ? 'Sedang log masuk...'
                             : 'LOG MASUK'}
                     </button>
                 </form>
 
-                <p className="runner-auth__footer">
-                    Akaun Super Runner diperlukan
-                    untuk menggunakan aplikasi ini.
-                </p>
+                <div className="runner-auth__footer">
+                    <p>
+                        Belum mempunyai akaun?
+                    </p>
+
+                    <p>
+                        Daftar akaun melalui platform
+                        Super Runner Customer terlebih dahulu.
+                    </p>
+                </div>
             </section>
         </main>
     );
