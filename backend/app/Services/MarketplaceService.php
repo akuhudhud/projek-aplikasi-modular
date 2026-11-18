@@ -6,6 +6,7 @@ use App\Contracts\CoreTaskAssigner;
 use App\Contracts\CoreTaskRegistry;
 use App\Models\Account;
 use App\Models\CoreTask;
+use App\Models\IdentityVerification;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
 use App\Models\RunnerPublicProfile;
@@ -220,7 +221,7 @@ class MarketplaceService
                     || !$this->isEligibleRunner($targetRunner)
                 ) {
                     throw new DomainException(
-                        'The selected runner is unavailable or not approved.'
+                        'The selected runner is unavailable, not approved, or identity is not verified.'
                     );
                 }
 
@@ -406,7 +407,7 @@ class MarketplaceService
                 || !$this->isEligibleRunner($lockedRunner)
             ) {
                 throw new DomainException(
-                    'Only active and approved runners may submit quotations.'
+                    'Only active, approved, and identity-verified runners may submit quotations.'
                 );
             }
 
@@ -663,7 +664,7 @@ class MarketplaceService
 
             if (!$runner || !$this->isEligibleRunner($runner)) {
                 throw new DomainException(
-                    'The quoted runner is no longer active and approved.'
+                    'The quoted runner is no longer active, approved, and identity-verified.'
                 );
             }
 
@@ -865,7 +866,15 @@ class MarketplaceService
 
     private function isEligibleRunner(Account $account): bool
     {
-        return $account->status === 'ACTIVE'
-            && $account->runner_status === Account::RUNNER_STATUS_APPROVED;
+        if (
+            $account->status !== 'ACTIVE'
+            || $account->runner_status !== Account::RUNNER_STATUS_APPROVED
+        ) {
+            return false;
+        }
+
+        return $account->identityVerification()
+            ->where('status', IdentityVerification::STATUS_VERIFIED)
+            ->exists();
     }
 }
