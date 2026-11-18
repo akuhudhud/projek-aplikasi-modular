@@ -11,8 +11,16 @@ interface CoreTaskLifecycle
         string $actorAccountId
     ): CoreTask;
 
+    public function arrive(
+        string $taskId,
+        string $actorAccountId,
+        float $latitude,
+        float $longitude
+    ): CoreTask;
+
     public function complete(
         string $taskId,
-        string $actorAccountId
+        string $actorAccountId,
+        ?string $completionProofPath = null
     ): CoreTask;
 }
