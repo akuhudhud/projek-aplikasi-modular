@@ -178,7 +178,8 @@ function isProtectedSessionEndpoint(
 
     return (
         pathname === '/web/auth/me' ||
-        pathname === '/web/auth/logout'
+        pathname === '/web/auth/logout' ||
+        pathname.startsWith('/web/runner/')
     );
 }
 
