@@ -1,4 +1,3 @@
-
 import {
     fireEvent,
     render,
@@ -225,7 +224,7 @@ describe('RunnerApp dashboard', () => {
 
         expect(
             await screen.findByText(
-                'SEBUT HARGA DIHANTAR',
+                /SEBUT HARGA DIHANTAR/,
             ),
         ).toBeInTheDocument();
 
