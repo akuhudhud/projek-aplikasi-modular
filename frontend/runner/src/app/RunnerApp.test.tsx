@@ -1,3 +1,4 @@
+
 import {
     fireEvent,
     render,
@@ -20,6 +21,8 @@ import {
     type RunnerAccount,
     type RunnerMarketplaceRequest,
     type RunnerQuotation,
+    type RunnerTask,
+    type RunnerNotification,
 } from '../api';
 
 import {
@@ -32,8 +35,12 @@ vi.mock('../api', () => ({
         login: vi.fn(),
         logout: vi.fn(),
         getTasks: vi.fn(),
+        getTaskHistory: vi.fn(),
         startTask: vi.fn(),
+        arriveTask: vi.fn(),
         completeTask: vi.fn(),
+        getNotifications: vi.fn(),
+        markNotificationAsRead: vi.fn(),
         getAvailableRequests: vi.fn(),
         getRequest: vi.fn(),
         submitQuotation: vi.fn(),
@@ -75,6 +82,40 @@ const mockRequest: RunnerMarketplaceRequest = {
     created_at: '2026-11-18T10:00:00Z',
 };
 
+const mockTask: RunnerTask = {
+    task_id: 'task-12345678',
+    module_key: 'Marketplace',
+    task_type: 'MARKETPLACE_SERVICE_REQUEST',
+    source_type: 'marketplace_request',
+    source_id: 'request-12345678',
+    assigned_account_id: 1,
+    generic_status: 'ASSIGNED',
+    assigned_at: '2026-11-18T10:00:00Z',
+    started_at: null,
+    arrived_at: null,
+    arrival_latitude: null,
+    arrival_longitude: null,
+    completed_at: null,
+    completion_proof_path: null,
+    cancelled_at: null,
+    created_at: '2026-11-18T10:00:00Z',
+    updated_at: '2026-11-18T10:00:00Z',
+};
+
+const mockNotification: RunnerNotification = {
+    id: 'notification-001',
+    type: 'App\\Notifications\\MarketplaceEventNotification',
+    data: {
+        event: 'marketplace.task_started',
+        title: 'Runner telah memulakan tugasan',
+        message: 'Runner telah memulakan tugasan anda.',
+        request_id: 'request-12345678',
+        task_id: 'task-12345678',
+    },
+    read_at: null,
+    created_at: '2026-11-18T10:30:00Z',
+};
+
 const submittedQuotation: RunnerQuotation = {
     quotation_id: 'quotation-001',
     amount: 25,
@@ -107,15 +148,19 @@ function mockSession() {
     });
 }
 
+function emptyPagination() {
+    return {
+        current_page: 1,
+        per_page: 15,
+        total: 0,
+        last_page: 1,
+    };
+}
+
 function mockEmptyRequests() {
     vi.mocked(runnerApi.getAvailableRequests).mockResolvedValue({
         requests: [],
-        pagination: {
-            current_page: 1,
-            per_page: 15,
-            total: 0,
-            last_page: 1,
-        },
+        pagination: emptyPagination(),
     });
 }
 
@@ -135,13 +180,49 @@ describe('RunnerApp dashboard', () => {
 
         vi.mocked(runnerApi.getTasks).mockResolvedValue({
             tasks: [],
-            pagination: {
-                current_page: 1,
-                per_page: 15,
-                total: 0,
-                last_page: 1,
-            },
+            pagination: emptyPagination(),
         });
+
+        vi.mocked(runnerApi.getTaskHistory).mockResolvedValue({
+            tasks: [],
+            pagination: emptyPagination(),
+        });
+
+        vi.mocked(runnerApi.getNotifications).mockResolvedValue({
+            notifications: [],
+            summary: {
+                unread_total: 0,
+            },
+            pagination: emptyPagination(),
+        });
+
+        vi.mocked(runnerApi.markNotificationAsRead)
+            .mockResolvedValue(undefined);
+
+        vi.mocked(runnerApi.startTask)
+            .mockResolvedValue({
+                ...mockTask,
+                generic_status: 'IN_PROGRESS',
+                started_at: '2026-11-18T10:15:00Z',
+            });
+
+        vi.mocked(runnerApi.arriveTask)
+            .mockResolvedValue({
+                ...mockTask,
+                generic_status: 'IN_PROGRESS',
+                started_at: '2026-11-18T10:15:00Z',
+                arrived_at: '2026-11-18T10:20:00Z',
+                arrival_latitude: 5.95,
+                arrival_longitude: 116.07,
+            });
+
+        vi.mocked(runnerApi.completeTask)
+            .mockResolvedValue({
+                ...mockTask,
+                generic_status: 'COMPLETED',
+                completed_at: '2026-11-18T10:30:00Z',
+                completion_proof_path: 'runner-task-proofs/proof.jpg',
+            });
 
         mockEmptyRequests();
     });
@@ -164,16 +245,106 @@ describe('RunnerApp dashboard', () => {
         });
     });
 
+    it('loads task history when the history tab is opened', async () => {
+        vi.mocked(runnerApi.getTaskHistory).mockResolvedValue({
+            tasks: [
+                {
+                    ...mockTask,
+                    generic_status: 'COMPLETED',
+                    completed_at: '2026-11-18T11:00:00Z',
+                },
+            ],
+            pagination: {
+                ...emptyPagination(),
+                total: 1,
+            },
+        });
+
+        render(<RunnerApp />);
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'SEJARAH',
+            }),
+        );
+
+        expect(
+            await screen.findByText('SELESAI'),
+        ).toBeInTheDocument();
+
+        expect(runnerApi.getTaskHistory).toHaveBeenCalled();
+    });
+
+    it('loads notifications when the notification tab is opened', async () => {
+        vi.mocked(runnerApi.getNotifications).mockResolvedValue({
+            notifications: [mockNotification],
+            summary: {
+                unread_total: 1,
+            },
+            pagination: {
+                ...emptyPagination(),
+                total: 1,
+            },
+        });
+
+        render(<RunnerApp />);
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: /NOTIFIKASI/,
+            }),
+        );
+
+        expect(
+            await screen.findByText(
+                'Runner telah memulakan tugasan',
+            ),
+        ).toBeInTheDocument();
+
+        expect(runnerApi.getNotifications).toHaveBeenCalled();
+    });
+
+    it('marks an unread notification as read', async () => {
+        vi.mocked(runnerApi.getNotifications).mockResolvedValue({
+            notifications: [mockNotification],
+            summary: {
+                unread_total: 1,
+            },
+            pagination: {
+                ...emptyPagination(),
+                total: 1,
+            },
+        });
+
+        render(<RunnerApp />);
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: /NOTIFIKASI/,
+            }),
+        );
+
+        fireEvent.click(
+            await screen.findByRole('button', {
+                name: 'TANDA SUDAH DIBACA',
+            }),
+        );
+
+        await waitFor(() => {
+            expect(
+                runnerApi.markNotificationAsRead,
+            ).toHaveBeenCalledWith('notification-001');
+        });
+    });
+
     it('loads available Open Requests when the tab is opened', async () => {
         vi.mocked(
             runnerApi.getAvailableRequests,
         ).mockResolvedValue({
             requests: [mockRequest],
             pagination: {
-                current_page: 1,
-                per_page: 15,
+                ...emptyPagination(),
                 total: 1,
-                last_page: 1,
             },
         });
 
@@ -198,10 +369,8 @@ describe('RunnerApp dashboard', () => {
         ).mockResolvedValue({
             requests: [mockRequest],
             pagination: {
-                current_page: 1,
-                per_page: 15,
+                ...emptyPagination(),
                 total: 1,
-                last_page: 1,
             },
         });
 
@@ -229,7 +398,9 @@ describe('RunnerApp dashboard', () => {
         ).toBeInTheDocument();
 
         expect(
-            screen.getByText(/masih aktif dan sedang menunggu keputusan pelanggan/i),
+            screen.getByText(
+                /masih aktif dan sedang menunggu keputusan pelanggan/i,
+            ),
         ).toBeInTheDocument();
 
         expect(
@@ -249,10 +420,8 @@ describe('RunnerApp dashboard', () => {
         ).mockResolvedValue({
             requests: [mockRequest],
             pagination: {
-                current_page: 1,
-                per_page: 15,
+                ...emptyPagination(),
                 total: 1,
-                last_page: 1,
             },
         });
 
