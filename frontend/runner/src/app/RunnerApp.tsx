@@ -1,11 +1,17 @@
-
-import { useCallback, useEffect, useState } from 'react';
+                  
+import {
+    useCallback,
+    useEffect,
+    useState,
+    type FormEvent,
+} from 'react';
 
 import {
     runnerApi,
     type RunnerAccount,
     type RunnerTask,
     type RunnerMarketplaceRequest,
+    type RunnerQuotation,
 } from '../api';
 
 import {
@@ -73,6 +79,16 @@ function formatDate(value: string | null): string {
     }).format(date);
 }
 
+function formatAmount(
+    amount: number,
+    currency: string,
+): string {
+    return new Intl.NumberFormat('ms-MY', {
+        style: 'currency',
+        currency,
+    }).format(amount);
+}
+
 function taskStatusLabel(status: string): string {
     const labels: Record<string, string> = {
         ASSIGNED: 'DITUGASKAN',
@@ -94,6 +110,32 @@ function requestStatusLabel(status: string): string {
     };
 
     return labels[status] ?? status;
+}
+
+function quotationStatusLabel(status: string): string {
+    const labels: Record<string, string> = {
+        SUBMITTED: 'SEBUT HARGA DIHANTAR',
+        ACCEPTED: 'SEBUT HARGA DITERIMA',
+        NOT_SELECTED: 'TIDAK DIPILIH',
+        WITHDRAWN: 'DITARIK BALIK',
+        EXPIRED: 'TAMAT TEMPOH',
+    };
+
+    return labels[status] ?? status;
+}
+
+function getLatestQuotation(
+    quotations: RunnerQuotation[],
+): RunnerQuotation | null {
+    if (quotations.length === 0) {
+        return null;
+    }
+
+    return [...quotations].sort(
+        (a, b) =>
+            new Date(b.created_at).getTime()
+            - new Date(a.created_at).getTime(),
+    )[0];
 }
 
 function RunnerDashboard({
@@ -132,6 +174,12 @@ function RunnerDashboard({
 
     const [quotationLoading, setQuotationLoading] =
         useState(false);
+
+    const [quotationDetailLoading, setQuotationDetailLoading] =
+        useState('');
+
+    const [existingQuotation, setExistingQuotation] =
+        useState<RunnerQuotation | null>(null);
 
     const loadTasks = useCallback(async () => {
         setTasksLoading(true);
@@ -206,8 +254,45 @@ function RunnerDashboard({
         }
     }
 
+    async function handleOpenQuotation(
+        requestId: string,
+    ) {
+        if (quotationDetailLoading) {
+            return;
+        }
+
+        setQuotationDetailLoading(requestId);
+        setActionError('');
+        setActionSuccess('');
+        setExistingQuotation(null);
+        setQuotationAmount('');
+        setQuotationMessage('');
+
+        try {
+            const detail = await runnerApi.getRequest(requestId);
+            const latest = getLatestQuotation(
+                detail.my_quotations ?? [],
+            );
+
+            setExistingQuotation(latest);
+
+            if (latest?.status === 'SUBMITTED') {
+                setQuotationRequestId(null);
+            } else {
+                setQuotationRequestId(requestId);
+            }
+        } catch {
+            setActionError(
+                'Tidak berjaya mendapatkan status sebut harga. Sila cuba semula.',
+            );
+            setQuotationRequestId(null);
+        } finally {
+            setQuotationDetailLoading('');
+        }
+    }
+
     async function handleSubmitQuotation(
-        event: React.FormEvent<HTMLFormElement>,
+        event: FormEvent<HTMLFormElement>,
     ) {
         event.preventDefault();
 
@@ -247,7 +332,7 @@ function RunnerDashboard({
             await loadRequests();
         } catch {
             setActionError(
-                'Sebutharga tidak berjaya dihantar. Permintaan mungkin telah tamat tempoh atau tidak lagi tersedia.',
+                'Sebutharga tidak berjaya dihantar. Permintaan mungkin telah tamat tempoh atau anda sudah mempunyai sebut harga aktif.',
             );
         } finally {
             setQuotationLoading(false);
@@ -276,7 +361,8 @@ function RunnerDashboard({
                 .join(' → ');
         }
 
-        return request.task_location_snapshot?.address ?? 'Lokasi tidak dinyatakan';
+        return request.task_location_snapshot?.address
+            ?? 'Lokasi tidak dinyatakan';
     }
 
     return (
@@ -320,7 +406,9 @@ function RunnerDashboard({
 
                     <article className="runner-dashboard__summary-card">
                         <span>OPEN REQUEST</span>
-                        <strong>{requests.length}</strong>
+                        <strong>
+                            {requestsLoading ? '…' : requests.length}
+                        </strong>
                     </article>
                 </div>
 
@@ -420,9 +508,7 @@ function RunnerDashboard({
                                         </span>
                                     </div>
 
-                                    <p>
-                                        Rujukan: {task.source_id}
-                                    </p>
+                                    <p>Rujukan: {task.source_id}</p>
 
                                     <small>
                                         Dicipta: {formatDate(task.created_at)}
@@ -508,52 +594,212 @@ function RunnerDashboard({
                             )}
 
                         <div className="runner-dashboard__list">
-                            {requests.map((request) => (
-                                <article
-                                    className="runner-dashboard__item"
-                                    key={request.request_id}
-                                >
-                                    <div className="runner-dashboard__item-top">
-                                        <strong>
-                                            {request.task_class === 'PICKUP_DELIVERY'
-                                                ? 'PICKUP & DELIVERY'
-                                                : 'NON-DELIVERY'}
-                                        </strong>
+                            {requests.map((request) => {
+                                const isQuotationOpen =
+                                    quotationRequestId === request.request_id;
 
-                                        <span className="runner-dashboard__status runner-dashboard__status--open">
-                                            {requestStatusLabel(request.status)}
-                                        </span>
-                                    </div>
+                                const isCheckingQuotation =
+                                    quotationDetailLoading === request.request_id;
 
-                                    <p>{request.description}</p>
+                                const hasSubmittedQuotation =
+                                    existingQuotation?.status === 'SUBMITTED'
+                                    && isQuotationOpen === false
+                                    && quotationRequestId === null;
 
-                                    <div className="runner-dashboard__request-location">
-                                        <strong>Lokasi</strong>
-                                        <span>{getRequestLocation(request)}</span>
-                                    </div>
-
-                                    <small>
-                                        Tamat: {formatDate(request.expires_at)}
-                                    </small>
-
-                                    <button
-                                        type="button"
-                                        className="runner-dashboard__primary-action"
-                                        onClick={() => {
-                                            setQuotationRequestId(request.request_id);
-                                            setQuotationAmount('');
-                                            setQuotationMessage('');
-                                            setActionError('');
-                                        }}
+                                return (
+                                    <article
+                                        className="runner-dashboard__item"
+                                        key={request.request_id}
                                     >
-                                        HANTAR SEBUT HARGA
-                                    </button>
+                                        <div className="runner-dashboard__item-top">
+                                            <strong>
+                                                {request.task_class === 'PICKUP_DELIVERY'
+                                                    ? 'PICKUP & DELIVERY'
+                                                    : 'NON-DELIVERY'}
+                                            </strong>
 
-                                    {quotationRequestId === request.request_id && (
-                                        <form
-                                            className="runner-dashboard__quotation-form"
-                                            onSubmit={handleSubmitQuotation}
+                                            <span className="runner-dashboard__status runner-dashboard__status--open">
+                                                {requestStatusLabel(request.status)}
+                                            </span>
+                                        </div>
+
+                                        <p>{request.description}</p>
+
+                                        <div className="runner-dashboard__request-location">
+                                            <strong>Lokasi</strong>
+                                            <span>{getRequestLocation(request)}</span>
+                                        </div>
+
+                                        <small>
+                                            Tamat: {formatDate(request.expires_at)}
+                                        </small>
+
+                                        <button
+                                            type="button"
+                                            className="runner-dashboard__primary-action"
+                                            onClick={() =>
+                                                void handleOpenQuotation(request.request_id)
+                                            }
+                                            disabled={
+                                                Boolean(quotationDetailLoading)
+                                                || quotationLoading
+                                            }
                                         >
+                                            {isCheckingQuotation
+                                                ? 'MENYEMAK SEBUT HARGA...'
+                                                : isQuotationOpen
+                                                    ? 'TUTUP BORANG'
+                                                    : 'SEMAK / HANTAR SEBUT HARGA'}
+                                        </button>
+
+                                        {isQuotationOpen && existingQuotation && (
+                                            <div
+                                                className="runner-dashboard__notice"
+                                                role="status"
+                                            >
+                                                **Sebut harga terdahulu:**{' '}
+                                                {quotationStatusLabel(existingQuotation.status)}
+                                                <p>
+                                                    Nilai: {formatAmount(
+                                                        Number(existingQuotation.amount),
+                                                        existingQuotation.currency,
+                                                    )}
+                                                </p>
+                                                <small>
+                                                    Dihantar: {formatDate(existingQuotation.created_at)}
+                                                </small>
+                                            </div>
+                                        )}
+
+                                        {isQuotationOpen && (
+                                            <>
+                                                {existingQuotation?.status === 'SUBMITTED' ? (
+                                                    <p
+                                                        className="runner-dashboard__notice"
+                                                        role="status"
+                                                    >
+                                                        Sebut harga anda masih aktif dan sedang menunggu keputusan pelanggan. Anda tidak perlu menghantar sebut harga sekali lagi.
+                                                    </p>
+                                                ) : (
+                                                    <form
+                                                        className="runner-dashboard__quotation-form"
+                                                        onSubmit={handleSubmitQuotation}
+                                                    >
+                                                        {existingQuotation && (
+                                                            <p className="runner-dashboard__notice">
+                                                                Sebut harga terdahulu: {quotationStatusLabel(existingQuotation.status)}. Anda boleh menghantar sebut harga baharu.
+                                                            </p>
+                                                        )}
+
+                                                        <label>
+                                                            Jumlah sebut harga (RM)
+                                                            <input
+                                                                type="number"
+                                                                min="0.01"
+                                                                step="0.01"
+                                                                required
+                                                                value={quotationAmount}
+                                                                onChange={(event) =>
+                                                                    setQuotationAmount(event.target.value)
+                                                                }
+                                                                placeholder="Contoh: 15.00"
+                                                            />
+                                                        </label>
+
+                                                        <label>
+                                                            Mesej kepada pelanggan (pilihan)
+                                                            <textarea
+                                                                rows={3}
+                                                                value={quotationMessage}
+                                                                onChange={(event) =>
+                                                                    setQuotationMessage(event.target.value)
+                                                                }
+                                                                placeholder="Maklumat tambahan..."
+                                                            />
+                                                        </label>
+
+                                                        <div className="runner-dashboard__quotation-actions">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setQuotationRequestId(null);
+                                                                    setExistingQuotation(null);
+                                                                }}
+                                                                disabled={quotationLoading}
+                                                            >
+                                                                BATAL
+                                                            </button>
+
+                                                            <button
+                                                                type="submit"
+                                                                disabled={quotationLoading}
+                                                            >
+                                                                {quotationLoading
+                                                                    ? 'MENGHANTAR...'
+                                                                    : 'HANTAR SEBUT HARGA'}
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                )}
+                                            </>
+                                        )}
+                                    </article>
+                                );
+                            })}
+                        </div>
+                    </section>
+                )}
+            </section>
+        </main>
+    );
+}
+
+export default function RunnerApp() {
+    const session = useRunnerSession();
+
+    if (session.checkingSession) {
+        return (
+            <main className="runner-loading">
+                <div className="runner-loading__brand">SR</div>
+                <p>Memeriksa sesi akaun...</p>
+            </main>
+        );
+    }
+
+    if (!session.account) {
+        return (
+            <RunnerAuthPage
+                onAuthenticated={session.setAccount}
+            />
+        );
+    }
+
+    const accessReason = getRunnerAccessReason(session.account);
+
+    if (accessReason !== null) {
+        return (
+            <RunnerAccessPage
+                account={session.account}
+                reason={accessReason}
+                logout={session.logout}
+                logoutLoading={session.logoutLoading}
+                logoutError={session.logoutError}
+            />
+        );
+    }
+
+    return (
+        <RunnerDashboard
+            account={session.account}
+            onLogout={() => {
+                void session.logout();
+            }}
+            logoutLoading={session.logoutLoading}
+            logoutError={session.logoutError}
+        />
+    );
+}
+                  >
                                             <label>
                                                 Jumlah sebut harga (RM)
                                                 <input
