@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Account;
-use App\Models\IdentityVerification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -19,24 +18,16 @@ class RunnerNotificationController extends Controller
 
     private function isEligibleRunner(Account $account): bool
     {
-        if (
-            $account->status !== 'ACTIVE'
-            || $account->runner_status !== Account::RUNNER_STATUS_APPROVED
-        ) {
-            return false;
-        }
-
-        return IdentityVerification::query()
-            ->where('account_id', $account->id)
-            ->where('status', IdentityVerification::STATUS_VERIFIED)
-            ->exists();
+        return $account->status === 'ACTIVE'
+            && $account->runner_status
+                === Account::RUNNER_STATUS_APPROVED;
     }
 
     private function accessDenied(): JsonResponse
     {
         return response()->json([
             'success' => false,
-            'message' => 'Runner access is not approved or identity is not verified.',
+            'message' => 'Runner access is not approved.',
         ], 403);
     }
 
