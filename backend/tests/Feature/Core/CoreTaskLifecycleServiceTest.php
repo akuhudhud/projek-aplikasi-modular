@@ -5,6 +5,7 @@ namespace Tests\Feature\Core;
 use App\Contracts\CoreTaskLifecycle;
 use App\Models\Account;
 use App\Models\CoreTask;
+use App\Models\IdentityVerification;
 use App\Models\MarketplaceRequest;
 use App\Notifications\MarketplaceEventNotification;
 use App\Services\CoreTaskLifecycleService;
@@ -30,7 +31,8 @@ class CoreTaskLifecycleServiceTest extends TestCase
 
     private function createAccount(
         string $status = 'ACTIVE',
-        string $runnerStatus = Account::RUNNER_STATUS_APPROVED
+        string $runnerStatus = Account::RUNNER_STATUS_APPROVED,
+        bool $identityVerified = true
     ): Account {
         $account = Account::create([
             'id' => (string) Str::uuid(),
@@ -44,6 +46,20 @@ class CoreTaskLifecycleServiceTest extends TestCase
 
         $account->runner_status = $runnerStatus;
         $account->save();
+
+        if ($identityVerified) {
+            IdentityVerification::query()->create([
+                'id' => (string) Str::uuid(),
+                'account_id' => $account->id,
+                'verified_name' => 'Lifecycle Verified Runner',
+                'mykad_number' => '900101145678',
+                'status' => IdentityVerification::STATUS_VERIFIED,
+                'submitted_at' => now(),
+                'reviewed_at' => now(),
+                'reviewer_account_id' => null,
+                'rejection_reason' => null,
+            ]);
+        }
 
         return $account->fresh();
     }
@@ -534,6 +550,55 @@ class CoreTaskLifecycleServiceTest extends TestCase
         $this->lifecycle->start(
             $task->task_id,
             (string) Str::uuid()
+        );
+    }
+
+    public function test_runner_without_verified_identity_cannot_start_task(): void
+    {
+        $account = $this->createAccount(
+            'ACTIVE',
+            Account::RUNNER_STATUS_APPROVED,
+            false
+        );
+
+        $task = $this->createTask(
+            CoreTask::STATUS_ASSIGNED,
+            $account->id
+        );
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage(
+            'Verified identity is required to perform task actions.'
+        );
+
+        $this->lifecycle->start(
+            $task->task_id,
+            $account->id
+        );
+    }
+
+    public function test_runner_without_verified_identity_cannot_complete_task(): void
+    {
+        $account = $this->createAccount(
+            'ACTIVE',
+            Account::RUNNER_STATUS_APPROVED,
+            false
+        );
+
+        $task = $this->createTask(
+            CoreTask::STATUS_IN_PROGRESS,
+            $account->id,
+            true
+        );
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage(
+            'Verified identity is required to perform task actions.'
+        );
+
+        $this->lifecycle->complete(
+            $task->task_id,
+            $account->id
         );
     }
 
