@@ -12,6 +12,7 @@ use App\Http\Controllers\Web\RegistrationController;
 use App\Http\Controllers\Web\CustomerMarketplaceRequestController;
 use App\Http\Controllers\Web\CustomerNotificationController;
 use App\Http\Controllers\Web\CustomerTaskController;
+use App\Http\Controllers\Web\RunnerNotificationController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Middleware\ExpireMarketplaceItems;
 
@@ -115,27 +116,42 @@ Route::prefix('web/runner')
     ->name('web.runner.')
     ->middleware('web.auth')
     ->group(function (): void {
-        /*
-         * Assigned Runner tasks.
-         */
         Route::get('/tasks', [
             CoreTaskController::class,
-            'index',
+            'runnerIndex',
         ])->name('tasks.index');
+
+        Route::get('/tasks/history', [
+            CoreTaskController::class,
+            'runnerIndex',
+        ])->defaults('view', 'history')
+            ->name('tasks.history');
 
         Route::post('/tasks/{taskId}/start', [
             CoreTaskController::class,
             'start',
         ])->name('tasks.start');
 
+        Route::post('/tasks/{taskId}/arrive', [
+            CoreTaskController::class,
+            'arrive',
+        ])->name('tasks.arrive');
+
         Route::post('/tasks/{taskId}/complete', [
             CoreTaskController::class,
-            'complete',
+            'runnerComplete',
         ])->name('tasks.complete');
 
-        /*
-         * Open Marketplace requests and Runner quotations.
-         */
+        Route::get('/notifications', [
+            RunnerNotificationController::class,
+            'index',
+        ])->name('notifications.index');
+
+        Route::patch('/notifications/{notificationId}/read', [
+            RunnerNotificationController::class,
+            'markAsRead',
+        ])->name('notifications.read');
+
         Route::middleware(ExpireMarketplaceItems::class)
             ->prefix('requests')
             ->name('requests.')
@@ -156,9 +172,6 @@ Route::prefix('web/runner')
                 ])->name('quotations.store');
             });
 
-        /*
-         * Runner public profile management and analytics.
-         */
         Route::post('/profile', [
             RunnerPublicProfileController::class,
             'save',
@@ -170,16 +183,25 @@ Route::prefix('web/runner')
         ])->name('profile.analytics');
     });
 
+/*
+|--------------------------------------------------------------------------
+| Customer PWA
+|--------------------------------------------------------------------------
+*/
+
 Route::prefix('web/customer')
     ->name('web.customer.')
     ->middleware('web.auth')
     ->group(function (): void {
-        // Customer tasks.
-        Route::get('/tasks', [CustomerTaskController::class, 'index'])
-            ->name('tasks.index');
+        Route::get('/tasks', [
+            CustomerTaskController::class,
+            'index',
+        ])->name('tasks.index');
 
-        Route::get('/tasks/{taskId}', [CustomerTaskController::class, 'show'])
-            ->name('tasks.show');
+        Route::get('/tasks/{taskId}', [
+            CustomerTaskController::class,
+            'show',
+        ])->name('tasks.show');
 
         Route::post(
             '/tasks/{taskId}/rating',
@@ -191,12 +213,15 @@ Route::prefix('web/customer')
             [RunnerTaskRatingController::class, 'storeOrUpdate']
         )->name('tasks.rating.update');
 
-        // Customer marketplace requests.
-        Route::get('/requests', [CustomerMarketplaceRequestController::class, 'index'])
-            ->name('requests.index');
+        Route::get('/requests', [
+            CustomerMarketplaceRequestController::class,
+            'index',
+        ])->name('requests.index');
 
-        Route::post('/requests', [CustomerMarketplaceRequestController::class, 'store'])
-            ->name('requests.store');
+        Route::post('/requests', [
+            CustomerMarketplaceRequestController::class,
+            'store',
+        ])->name('requests.store');
 
         Route::get(
             '/requests/{requestId}',
@@ -213,7 +238,6 @@ Route::prefix('web/customer')
             [CustomerMarketplaceRequestController::class, 'cancel']
         )->name('requests.cancel');
 
-        // Customer notifications.
         Route::get(
             '/notifications',
             [CustomerNotificationController::class, 'index']
