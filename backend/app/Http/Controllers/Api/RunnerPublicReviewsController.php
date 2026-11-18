@@ -18,7 +18,10 @@ class RunnerPublicReviewsController extends Controller
             ->first();
 
         if ($profile === null) {
-            return $this->error('Runner profile not found.', 404);
+            return $this->error(
+                'Runner profile not found.',
+                404
+            );
         }
 
         $account = $profile->account;
@@ -28,18 +31,18 @@ class RunnerPublicReviewsController extends Controller
             || $account->status !== 'ACTIVE'
             || $account->runner_status !== Account::RUNNER_STATUS_APPROVED
         ) {
-            return $this->error('Runner profile not found.', 404);
+            return $this->error(
+                'Runner profile not found.',
+                404
+            );
         }
 
-        $ratingCount = RunnerTaskRating::query()
+        $ratings = RunnerTaskRating::query()
             ->where('runner_account_id', $account->id)
-            ->whereBetween('rating', [1, 5])
-            ->count();
+            ->whereBetween('rating', [1, 5]);
 
-        $ratingAverage = RunnerTaskRating::query()
-            ->where('runner_account_id', $account->id)
-            ->whereBetween('rating', [1, 5])
-            ->avg('rating');
+        $ratingCount = (clone $ratings)->count();
+        $ratingAverage = (clone $ratings)->avg('rating');
 
         return response()->json([
             'success' => true,
