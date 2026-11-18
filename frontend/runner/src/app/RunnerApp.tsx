@@ -1,4 +1,4 @@
-                  
+
 import {
     useCallback,
     useEffect,
@@ -254,10 +254,16 @@ function RunnerDashboard({
         }
     }
 
-    async function handleOpenQuotation(
-        requestId: string,
-    ) {
-        if (quotationDetailLoading) {
+    async function handleOpenQuotation(requestId: string) {
+        if (quotationDetailLoading || quotationLoading) {
+            return;
+        }
+
+        if (quotationRequestId === requestId) {
+            setQuotationRequestId(null);
+            setExistingQuotation(null);
+            setQuotationAmount('');
+            setQuotationMessage('');
             return;
         }
 
@@ -270,22 +276,23 @@ function RunnerDashboard({
 
         try {
             const detail = await runnerApi.getRequest(requestId);
+
             const latest = getLatestQuotation(
                 detail.my_quotations ?? [],
             );
 
             setExistingQuotation(latest);
 
-            if (latest?.status === 'SUBMITTED') {
-                setQuotationRequestId(null);
-            } else {
-                setQuotationRequestId(requestId);
-            }
+            // Paparkan status sebut harga sama ada masih aktif
+            // atau sudah ditarik balik / tidak dipilih.
+            // Borang hanya akan disembunyikan jika status SUBMITTED.
+            setQuotationRequestId(requestId);
         } catch {
             setActionError(
                 'Tidak berjaya mendapatkan status sebut harga. Sila cuba semula.',
             );
             setQuotationRequestId(null);
+            setExistingQuotation(null);
         } finally {
             setQuotationDetailLoading('');
         }
@@ -307,13 +314,15 @@ function RunnerDashboard({
             return;
         }
 
+        const submittedRequestId = quotationRequestId;
+
         setQuotationLoading(true);
         setActionError('');
         setActionSuccess('');
 
         try {
             await runnerApi.submitQuotation(
-                quotationRequestId,
+                submittedRequestId,
                 {
                     amount,
                     currency: 'MYR',
@@ -321,18 +330,30 @@ function RunnerDashboard({
                 },
             );
 
-            setQuotationRequestId(null);
             setQuotationAmount('');
             setQuotationMessage('');
 
             setActionSuccess(
-                'Sebutharga berjaya dihantar kepada pelanggan.',
+                'Sebut harga berjaya dihantar kepada pelanggan.',
             );
 
             await loadRequests();
+
+            // Muat semula butiran supaya Runner dapat melihat
+            // sebut harga yang baru dihantar dan statusnya.
+            const detail = await runnerApi.getRequest(
+                submittedRequestId,
+            );
+
+            const latest = getLatestQuotation(
+                detail.my_quotations ?? [],
+            );
+
+            setExistingQuotation(latest);
+            setQuotationRequestId(submittedRequestId);
         } catch {
             setActionError(
-                'Sebutharga tidak berjaya dihantar. Permintaan mungkin telah tamat tempoh atau anda sudah mempunyai sebut harga aktif.',
+                'Sebut harga tidak berjaya dihantar. Permintaan mungkin telah tamat tempoh atau anda sudah mempunyai sebut harga aktif.',
             );
         } finally {
             setQuotationLoading(false);
@@ -601,10 +622,9 @@ function RunnerDashboard({
                                 const isCheckingQuotation =
                                     quotationDetailLoading === request.request_id;
 
-                                const hasSubmittedQuotation =
-                                    existingQuotation?.status === 'SUBMITTED'
-                                    && isQuotationOpen === false
-                                    && quotationRequestId === null;
+                                const hasActiveQuotation =
+                                    isQuotationOpen &&
+                                    existingQuotation?.status === 'SUBMITTED';
 
                                 return (
                                     <article
@@ -641,14 +661,14 @@ function RunnerDashboard({
                                                 void handleOpenQuotation(request.request_id)
                                             }
                                             disabled={
-                                                Boolean(quotationDetailLoading)
-                                                || quotationLoading
+                                                Boolean(quotationDetailLoading) ||
+                                                quotationLoading
                                             }
                                         >
                                             {isCheckingQuotation
                                                 ? 'MENYEMAK SEBUT HARGA...'
                                                 : isQuotationOpen
-                                                    ? 'TUTUP BORANG'
+                                                    ? 'TUTUP'
                                                     : 'SEMAK / HANTAR SEBUT HARGA'}
                                         </button>
 
@@ -657,198 +677,124 @@ function RunnerDashboard({
                                                 className="runner-dashboard__notice"
                                                 role="status"
                                             >
-                                                **Sebut harga terdahulu:**{' '}
-                                                {quotationStatusLabel(existingQuotation.status)}
+                                                <strong>
+                                                    Sebut harga terdahulu:
+                                                </strong>
+
                                                 <p>
-                                                    Nilai: {formatAmount(
-                                                        Number(existingQuotation.amount),
-                                                        existingQuotation.currency,
-                                                    )}
+                                                    Status: {
+                                                        quotationStatusLabel(
+                                                            existingQuotation.status,
+                                                        )
+                                                    }
                                                 </p>
+
+                                                <p>
+                                                    Nilai: {
+                                                        formatAmount(
+                                                            Number(existingQuotation.amount),
+                                                            existingQuotation.currency,
+                                                        )
+                                                    }
+                                                </p>
+
                                                 <small>
-                                                    Dihantar: {formatDate(existingQuotation.created_at)}
+                                                    Dihantar: {
+                                                        formatDate(
+                                                            existingQuotation.created_at,
+                                                        )
+                                                    }
                                                 </small>
                                             </div>
                                         )}
 
-                                        {isQuotationOpen && (
-                                            <>
-                                                {existingQuotation?.status === 'SUBMITTED' ? (
-                                                    <p
-                                                        className="runner-dashboard__notice"
-                                                        role="status"
-                                                    >
-                                                        Sebut harga anda masih aktif dan sedang menunggu keputusan pelanggan. Anda tidak perlu menghantar sebut harga sekali lagi.
+                                        {isQuotationOpen && hasActiveQuotation && (
+                                            <p
+                                                className="runner-dashboard__notice"
+                                                role="status"
+                                            >
+                                                Sebut harga anda masih aktif dan
+                                                sedang menunggu keputusan pelanggan.
+                                                Anda tidak perlu menghantar sebut
+                                                harga sekali lagi.
+                                            </p>
+                                        )}
+
+                                        {isQuotationOpen && !hasActiveQuotation && (
+                                            <form
+                                                className="runner-dashboard__quotation-form"
+                                                onSubmit={handleSubmitQuotation}
+                                            >
+                                                {existingQuotation && (
+                                                    <p className="runner-dashboard__notice">
+                                                        Sebut harga terdahulu: {
+                                                            quotationStatusLabel(
+                                                                existingQuotation.status,
+                                                            )
+                                                        }. Anda boleh menghantar
+                                                        sebut harga baharu.
                                                     </p>
-                                                ) : (
-                                                    <form
-                                                        className="runner-dashboard__quotation-form"
-                                                        onSubmit={handleSubmitQuotation}
-                                                    >
-                                                        {existingQuotation && (
-                                                            <p className="runner-dashboard__notice">
-                                                                Sebut harga terdahulu: {quotationStatusLabel(existingQuotation.status)}. Anda boleh menghantar sebut harga baharu.
-                                                            </p>
-                                                        )}
-
-                                                        <label>
-                                                            Jumlah sebut harga (RM)
-                                                            <input
-                                                                type="number"
-                                                                min="0.01"
-                                                                step="0.01"
-                                                                required
-                                                                value={quotationAmount}
-                                                                onChange={(event) =>
-                                                                    setQuotationAmount(event.target.value)
-                                                                }
-                                                                placeholder="Contoh: 15.00"
-                                                            />
-                                                        </label>
-
-                                                        <label>
-                                                            Mesej kepada pelanggan (pilihan)
-                                                            <textarea
-                                                                rows={3}
-                                                                value={quotationMessage}
-                                                                onChange={(event) =>
-                                                                    setQuotationMessage(event.target.value)
-                                                                }
-                                                                placeholder="Maklumat tambahan..."
-                                                            />
-                                                        </label>
-
-                                                        <div className="runner-dashboard__quotation-actions">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    setQuotationRequestId(null);
-                                                                    setExistingQuotation(null);
-                                                                }}
-                                                                disabled={quotationLoading}
-                                                            >
-                                                                BATAL
-                                                            </button>
-
-                                                            <button
-                                                                type="submit"
-                                                                disabled={quotationLoading}
-                                                            >
-                                                                {quotationLoading
-                                                                    ? 'MENGHANTAR...'
-                                                                    : 'HANTAR SEBUT HARGA'}
-                                                            </button>
-                                                        </div>
-                                                    </form>
                                                 )}
-                                            </>
+
+                                                <label>
+                                                    Jumlah sebut harga (RM)
+                                                    <input
+                                                        type="number"
+                                                        min="0.01"
+                                                        step="0.01"
+                                                        required
+                                                        value={quotationAmount}
+                                                        onChange={(event) =>
+                                                            setQuotationAmount(
+                                                                event.target.value,
+                                                            )
+                                                        }
+                                                        placeholder="Contoh: 15.00"
+                                                    />
+                                                </label>
+
+                                                <label>
+                                                    Mesej kepada pelanggan (pilihan)
+                                                    <textarea
+                                                        rows={3}
+                                                        value={quotationMessage}
+                                                        onChange={(event) =>
+                                                            setQuotationMessage(
+                                                                event.target.value,
+                                                            )
+                                                        }
+                                                        placeholder="Maklumat tambahan..."
+                                                    />
+                                                </label>
+
+                                                <div className="runner-dashboard__quotation-actions">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setQuotationRequestId(null);
+                                                            setExistingQuotation(null);
+                                                            setQuotationAmount('');
+                                                            setQuotationMessage('');
+                                                        }}
+                                                        disabled={quotationLoading}
+                                                    >
+                                                        BATAL
+                                                    </button>
+
+                                                    <button
+                                                        type="submit"
+                                                        disabled={quotationLoading}
+                                                    >
+                                                        {quotationLoading
+                                                            ? 'MENGHANTAR...'
+                                                            : 'HANTAR SEBUT HARGA'}
+                                                    </button>
+                                                </div>
+                                            </form>
                                         )}
                                     </article>
                                 );
                             })}
-                        </div>
-                    </section>
-                )}
-            </section>
-        </main>
-    );
-}
-
-export default function RunnerApp() {
-    const session = useRunnerSession();
-
-    if (session.checkingSession) {
-        return (
-            <main className="runner-loading">
-                <div className="runner-loading__brand">SR</div>
-                <p>Memeriksa sesi akaun...</p>
-            </main>
-        );
-    }
-
-    if (!session.account) {
-        return (
-            <RunnerAuthPage
-                onAuthenticated={session.setAccount}
-            />
-        );
-    }
-
-    const accessReason = getRunnerAccessReason(session.account);
-
-    if (accessReason !== null) {
-        return (
-            <RunnerAccessPage
-                account={session.account}
-                reason={accessReason}
-                logout={session.logout}
-                logoutLoading={session.logoutLoading}
-                logoutError={session.logoutError}
-            />
-        );
-    }
-
-    return (
-        <RunnerDashboard
-            account={session.account}
-            onLogout={() => {
-                void session.logout();
-            }}
-            logoutLoading={session.logoutLoading}
-            logoutError={session.logoutError}
-        />
-    );
-}
-                  >
-                                            <label>
-                                                Jumlah sebut harga (RM)
-                                                <input
-                                                    type="number"
-                                                    min="0.01"
-                                                    step="0.01"
-                                                    required
-                                                    value={quotationAmount}
-                                                    onChange={(event) =>
-                                                        setQuotationAmount(event.target.value)
-                                                    }
-                                                    placeholder="Contoh: 15.00"
-                                                />
-                                            </label>
-
-                                            <label>
-                                                Mesej kepada pelanggan (pilihan)
-                                                <textarea
-                                                    rows={3}
-                                                    value={quotationMessage}
-                                                    onChange={(event) =>
-                                                        setQuotationMessage(event.target.value)
-                                                    }
-                                                    placeholder="Maklumat tambahan..."
-                                                />
-                                            </label>
-
-                                            <div className="runner-dashboard__quotation-actions">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setQuotationRequestId(null)}
-                                                    disabled={quotationLoading}
-                                                >
-                                                    BATAL
-                                                </button>
-
-                                                <button
-                                                    type="submit"
-                                                    disabled={quotationLoading}
-                                                >
-                                                    {quotationLoading
-                                                        ? 'MENGHANTAR...'
-                                                        : 'HANTAR SEBUT HARGA'}
-                                                </button>
-                                            </div>
-                                        </form>
-                                    )}
-                                </article>
-                            ))}
                         </div>
                     </section>
                 )}
