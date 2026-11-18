@@ -195,7 +195,7 @@ class RunnerPublicRatingReviewTest extends TestCase
         $this->assertFalse($response->getData(true)['success']);
     }
 
-    public function test_public_reviews_show_written_reviews_without_reviewer_identity(): void
+    public function test_public_reviews_hide_written_reviews_and_reviewer_identity(): void
     {
         $runner = $this->createRunner('runner-reviews-test');
 
@@ -205,7 +205,7 @@ class RunnerPublicRatingReviewTest extends TestCase
             'Penghantaran sangat baik.'
         );
         $this->createRating($runner, 4, null);
-        $this->createRating($runner, 3, '   ');
+        $this->createRating($runner, 3, 'Servis memuaskan.');
 
         $response = $this->getJson(
             '/api/runners/runner-reviews-test/reviews'
@@ -214,37 +214,34 @@ class RunnerPublicRatingReviewTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.pagination.total', 1)
-            ->assertJsonPath('data.reviews.0.rating', 5)
-            ->assertJsonPath(
-                'data.reviews.0.review',
-                'Penghantaran sangat baik.'
-            )
-            ->assertJsonMissingPath(
-                'data.reviews.0.customer_account_id'
-            )
-            ->assertJsonMissingPath(
-                'data.reviews.0.runner_account_id'
-            );
+            ->assertJsonPath('data.rating_summary.rating_average', 4.0)
+            ->assertJsonPath('data.rating_summary.rating_count', 3)
+            ->assertJsonPath('data.reviews', [])
+            ->assertJsonPath('data.pagination.total', 0);
 
-        $review = $response->json('data.reviews.0');
-
-        $this->assertSame(
-            ['rating', 'review', 'created_at'],
-            array_keys($review)
+        $response->assertDontSee('Penghantaran sangat baik.');
+        $response->assertDontSee('Servis memuaskan.');
+        $response->assertJsonMissingPath(
+            'data.reviews.0.customer_account_id'
+        );
+        $response->assertJsonMissingPath(
+            'data.reviews.0.runner_account_id'
         );
     }
 
-    public function test_public_reviews_return_empty_collection_when_no_written_reviews_exist(): void
+    public function test_public_reviews_return_empty_collection_when_no_ratings_exist(): void
     {
         $runner = $this->createRunner('runner-reviews-test');
 
-        $this->createRating($runner, 5, null);
-        $this->createRating($runner, 4, '');
+        $response = $this->getJson(
+            '/api/runners/runner-reviews-test/reviews'
+        );
 
-        $this->getJson('/api/runners/runner-reviews-test/reviews')
+        $response
             ->assertOk()
             ->assertJsonPath('success', true)
+            ->assertJsonPath('data.rating_summary.rating_average', null)
+            ->assertJsonPath('data.rating_summary.rating_count', 0)
             ->assertJsonPath('data.reviews', [])
             ->assertJsonPath('data.pagination.total', 0);
     }
@@ -291,7 +288,7 @@ class RunnerPublicRatingReviewTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
-    public function test_public_reviews_are_paginated_twenty_per_page(): void
+    public function test_public_reviews_never_expose_written_reviews_even_with_many_ratings(): void
     {
         $runner = $this->createRunner('runner-reviews-test');
 
@@ -299,82 +296,21 @@ class RunnerPublicRatingReviewTest extends TestCase
             $this->createRating(
                 $runner,
                 5,
-                'Ulasan nombor '.$index
+                'Ulasan sulit nombor '.$index
             );
         }
 
-        $firstPage = $this->getJson(
-            '/api/runners/runner-reviews-test/reviews'
-        );
-
-        $firstPage
-            ->assertOk()
-            ->assertJsonPath('data.pagination.current_page', 1)
-            ->assertJsonPath('data.pagination.per_page', 20)
-            ->assertJsonPath('data.pagination.last_page', 2)
-            ->assertJsonPath('data.pagination.total', 21);
-
-        $this->assertCount(20, $firstPage->json('data.reviews'));
-
-        $secondPage = $this->getJson(
+        $response = $this->getJson(
             '/api/runners/runner-reviews-test/reviews?page=2'
         );
 
-        $secondPage
+        $response
             ->assertOk()
-            ->assertJsonPath('data.pagination.current_page', 2)
-            ->assertJsonPath('data.pagination.total', 21);
+            ->assertJsonPath('data.rating_summary.rating_average', 5.0)
+            ->assertJsonPath('data.rating_summary.rating_count', 21)
+            ->assertJsonPath('data.reviews', [])
+            ->assertJsonPath('data.pagination.total', 0);
 
-        $this->assertCount(1, $secondPage->json('data.reviews'));
-    }
-
-    public function test_public_reviews_do_not_duplicate_or_skip_records_with_identical_timestamps(): void
-    {
-        $runner = $this->createRunner('runner-reviews-test');
-        $timestamp = now();
-
-        for ($index = 1; $index <= 21; $index++) {
-            $rating = $this->createRating(
-                $runner,
-                5,
-                'Ulasan nombor '.$index
-            );
-
-            $rating->created_at = $timestamp;
-            $rating->updated_at = $timestamp;
-            $rating->save();
-        }
-
-        $firstPage = $this->getJson(
-            '/api/runners/runner-reviews-test/reviews?page=1'
-        )->assertOk();
-
-        $secondPage = $this->getJson(
-            '/api/runners/runner-reviews-test/reviews?page=2'
-        )->assertOk();
-
-        $firstReviews = collect(
-            $firstPage->json('data.reviews')
-        )->pluck('review');
-
-        $secondReviews = collect(
-            $secondPage->json('data.reviews')
-        )->pluck('review');
-
-        $allReviews = $firstReviews->concat($secondReviews);
-
-        $this->assertCount(20, $firstReviews);
-        $this->assertCount(1, $secondReviews);
-        $this->assertCount(21, $allReviews);
-        $this->assertCount(21, $allReviews->unique());
-
-        $this->assertEqualsCanonicalizing(
-            collect(range(1, 21))
-                ->map(
-                    fn (int $number): string => 'Ulasan nombor '.$number
-                )
-                ->all(),
-            $allReviews->all()
-        );
+        $response->assertDontSee('Ulasan sulit nombor');
     }
 }
