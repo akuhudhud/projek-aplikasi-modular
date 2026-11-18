@@ -31,6 +31,83 @@ export interface RunnerAccount {
     identity_verification_status: IdentityVerificationStatus;
 }
 
+export interface RunnerPagination {
+    current_page: number;
+    per_page: number;
+    total: number;
+    last_page: number;
+}
+
+export interface RunnerTask {
+    task_id: string;
+    module_key: string;
+    task_type: string;
+    source_type: string;
+    source_id: string;
+    assigned_account_id: number | string | null;
+    generic_status: string;
+    assigned_at: string | null;
+    started_at: string | null;
+    completed_at: string | null;
+    cancelled_at: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface RunnerMarketplaceLocation {
+    address: string;
+    contact_name?: string | null;
+    phone?: string | null;
+}
+
+export interface RunnerMarketplaceRequest {
+    request_id: string;
+    source_type: string;
+    task_class: 'PICKUP_DELIVERY' | 'NON_DELIVERY';
+    description: string;
+    pickup_location_snapshot: RunnerMarketplaceLocation | null;
+    delivery_location_snapshot: RunnerMarketplaceLocation | null;
+    task_location_snapshot: RunnerMarketplaceLocation | null;
+    status: string;
+    expires_at: string | null;
+    created_at: string;
+    updated_at?: string;
+}
+
+export interface RunnerQuotation {
+    quotation_id: string;
+    amount: number;
+    currency: string;
+    message: string | null;
+    status: string;
+    expires_at: string | null;
+    created_at: string;
+}
+
+export interface RunnerMarketplaceRequestDetail
+    extends RunnerMarketplaceRequest {
+    my_quotations?: RunnerQuotation[];
+}
+
+export interface RunnerPublicProfile {
+    profile_id?: string;
+    public_slug: string;
+    profile_name: string;
+    bio: string | null;
+    base_location: string | null;
+    service_area: string | null;
+    services: string[];
+    is_published: boolean;
+    views_count: number;
+}
+
+export interface RunnerProfileAnalytics {
+    profile_views: number;
+    requests_from_profile: number;
+    quotations_for_profile_requests: number;
+    completed_tasks_from_profile_requests: number;
+}
+
 interface ApiResponse<T> {
     success: boolean;
     message?: string;
@@ -45,6 +122,39 @@ interface LoginPayload {
     phone?: string;
     email?: string;
     password: string;
+}
+
+interface TasksData {
+    tasks: RunnerTask[];
+    pagination: RunnerPagination;
+}
+
+interface MarketplaceRequestsData {
+    requests: RunnerMarketplaceRequest[];
+    pagination: RunnerPagination;
+}
+
+interface MarketplaceRequestData {
+    request: RunnerMarketplaceRequestDetail;
+}
+
+interface QuotationData {
+    quotation: RunnerQuotation & {
+        request_id: string;
+        runner_account_id: number | string;
+    };
+}
+
+interface TaskData {
+    task: RunnerTask;
+}
+
+interface ProfileData {
+    profile: RunnerPublicProfile;
+}
+
+interface AnalyticsData {
+    analytics: RunnerProfileAnalytics;
 }
 
 const api = axios.create({
@@ -78,9 +188,7 @@ api.interceptors.response.use(
         if (
             axios.isAxiosError(error) &&
             error.response?.status === 401 &&
-            isProtectedSessionEndpoint(
-                error.config?.url,
-            ) &&
+            isProtectedSessionEndpoint(error.config?.url) &&
             typeof window !== 'undefined'
         ) {
             window.dispatchEvent(
@@ -113,5 +221,96 @@ export const runnerApi = {
 
     async logout(): Promise<void> {
         await api.post('/web/auth/logout');
+    },
+
+    async getTasks(): Promise<TasksData> {
+        const response = await api.get<
+            ApiResponse<TasksData>
+        >('/web/runner/tasks');
+
+        return response.data.data;
+    },
+
+    async startTask(taskId: string): Promise<RunnerTask> {
+        const response = await api.post<
+            ApiResponse<TaskData>
+        >(`/web/runner/tasks/${encodeURIComponent(taskId)}/start`);
+
+        return response.data.data.task;
+    },
+
+    async completeTask(taskId: string): Promise<RunnerTask> {
+        const response = await api.post<
+            ApiResponse<TaskData>
+        >(`/web/runner/tasks/${encodeURIComponent(taskId)}/complete`);
+
+        return response.data.data.task;
+    },
+
+    async getAvailableRequests(): Promise<MarketplaceRequestsData> {
+        const response = await api.get<
+            ApiResponse<MarketplaceRequestsData>
+        >('/web/runner/requests', {
+            params: {
+                view: 'available',
+            },
+        });
+
+        return response.data.data;
+    },
+
+    async getRequest(
+        requestId: string,
+    ): Promise<RunnerMarketplaceRequestDetail> {
+        const response = await api.get<
+            ApiResponse<MarketplaceRequestData>
+        >(
+            `/web/runner/requests/${encodeURIComponent(requestId)}`,
+        );
+
+        return response.data.data.request;
+    },
+
+    async submitQuotation(
+        requestId: string,
+        payload: {
+            amount: number;
+            currency?: string;
+            message?: string | null;
+        },
+    ): Promise<QuotationData['quotation']> {
+        const response = await api.post<
+            ApiResponse<QuotationData>
+        >(
+            `/web/runner/requests/${encodeURIComponent(requestId)}/quotations`,
+            payload,
+        );
+
+        return response.data.data.quotation;
+    },
+
+    async saveProfile(
+        payload: {
+            public_slug: string;
+            bio?: string | null;
+            base_location?: string | null;
+            service_area?: string | null;
+            services?: string[];
+            is_published?: boolean;
+        },
+    ): Promise<RunnerPublicProfile> {
+        const response = await api.post<
+            ApiResponse<ProfileData>
+        >('/web/runner/profile', payload);
+
+        return response.data.data.profile;
+    },
+
+    async getProfileAnalytics(): Promise<RunnerProfileAnalytics> {
+        const response = await api.get<
+            ApiResponse<AnalyticsData>
+        >('/web/runner/profile/analytics');
+
+        return response.data.data.analytics;
     },
 };
