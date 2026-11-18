@@ -57,7 +57,9 @@ class CoreTaskController extends Controller
         $query = CoreTask::query();
 
         if ($runnerMode) {
-            $view = $request->query('view', 'active');
+            // Route defaults must take precedence over query-string defaults.
+            $view = $request->route('view')
+                ?? $request->query('view', 'active');
 
             if (!in_array($view, ['active', 'history'], true)) {
                 return $this->error('Invalid task view.', 422);
