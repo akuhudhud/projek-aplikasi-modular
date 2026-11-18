@@ -12,6 +12,7 @@ import {
     type RunnerTask,
     type RunnerMarketplaceRequest,
     type RunnerQuotation,
+    type RunnerNotification,
 } from '../api';
 
 import {
@@ -24,7 +25,11 @@ import RunnerAccessPage, {
     type RunnerAccessReason,
 } from '../features/auth/RunnerAccessPage';
 
-type DashboardTab = 'TASKS' | 'REQUESTS';
+type DashboardTab =
+    | 'TASKS'
+    | 'HISTORY'
+    | 'REQUESTS'
+    | 'NOTIFICATIONS';
 
 function getRunnerAccessReason(
     account: RunnerAccount,
@@ -138,6 +143,37 @@ function getLatestQuotation(
     )[0];
 }
 
+function getCurrentCoordinates(): Promise<{
+    latitude: number;
+    longitude: number;
+}> {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject(
+                new Error('Peranti tidak menyokong GPS browser.'),
+            );
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                resolve({
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                });
+            },
+            (error) => {
+                reject(error);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 20000,
+                maximumAge: 0,
+            },
+        );
+    });
+}
+
 function RunnerDashboard({
     account,
     onLogout,
@@ -153,14 +189,25 @@ function RunnerDashboard({
         useState<DashboardTab>('TASKS');
 
     const [tasks, setTasks] = useState<RunnerTask[]>([]);
+    const [history, setHistory] = useState<RunnerTask[]>([]);
     const [requests, setRequests] =
         useState<RunnerMarketplaceRequest[]>([]);
+    const [notifications, setNotifications] =
+        useState<RunnerNotification[]>([]);
+
+    const [unreadTotal, setUnreadTotal] = useState(0);
 
     const [tasksLoading, setTasksLoading] = useState(true);
+    const [historyLoading, setHistoryLoading] = useState(false);
     const [requestsLoading, setRequestsLoading] = useState(false);
+    const [notificationsLoading, setNotificationsLoading] =
+        useState(false);
 
     const [tasksError, setTasksError] = useState('');
+    const [historyError, setHistoryError] = useState('');
     const [requestsError, setRequestsError] = useState('');
+    const [notificationsError, setNotificationsError] =
+        useState('');
 
     const [actionLoading, setActionLoading] = useState('');
     const [actionError, setActionError] = useState('');
@@ -197,6 +244,22 @@ function RunnerDashboard({
         }
     }, []);
 
+    const loadHistory = useCallback(async () => {
+        setHistoryLoading(true);
+        setHistoryError('');
+
+        try {
+            const result = await runnerApi.getTaskHistory();
+            setHistory(result.tasks);
+        } catch {
+            setHistoryError(
+                'Tidak berjaya mendapatkan sejarah tugasan.',
+            );
+        } finally {
+            setHistoryLoading(false);
+        }
+    }, []);
+
     const loadRequests = useCallback(async () => {
         setRequestsLoading(true);
         setRequestsError('');
@@ -213,20 +276,47 @@ function RunnerDashboard({
         }
     }, []);
 
+    const loadNotifications = useCallback(async () => {
+        setNotificationsLoading(true);
+        setNotificationsError('');
+
+        try {
+            const result = await runnerApi.getNotifications();
+            setNotifications(result.notifications);
+            setUnreadTotal(result.summary.unread_total);
+        } catch {
+            setNotificationsError(
+                'Tidak berjaya mendapatkan notifikasi.',
+            );
+        } finally {
+            setNotificationsLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
         void loadTasks();
     }, [loadTasks]);
 
     useEffect(() => {
+        if (activeTab === 'HISTORY') {
+            void loadHistory();
+        }
+
         if (activeTab === 'REQUESTS') {
             void loadRequests();
         }
-    }, [activeTab, loadRequests]);
 
-    async function handleTaskAction(
-        task: RunnerTask,
-        action: 'START' | 'COMPLETE',
-    ) {
+        if (activeTab === 'NOTIFICATIONS') {
+            void loadNotifications();
+        }
+    }, [
+        activeTab,
+        loadHistory,
+        loadRequests,
+        loadNotifications,
+    ]);
+
+    async function handleStartTask(task: RunnerTask) {
         if (actionLoading) {
             return;
         }
@@ -236,21 +326,124 @@ function RunnerDashboard({
         setActionSuccess('');
 
         try {
-            if (action === 'START') {
-                await runnerApi.startTask(task.task_id);
-                setActionSuccess('Tugasan berjaya dimulakan.');
-            } else {
-                await runnerApi.completeTask(task.task_id);
-                setActionSuccess('Tugasan berjaya diselesaikan.');
-            }
-
+            await runnerApi.startTask(task.task_id);
+            setActionSuccess('Tugasan berjaya dimulakan.');
             await loadTasks();
         } catch {
             setActionError(
-                'Tindakan tidak berjaya. Sila semak status tugasan dan cuba semula.',
+                'Tidak berjaya memulakan tugasan. Sila cuba semula.',
             );
         } finally {
             setActionLoading('');
+        }
+    }
+
+    async function handleArriveTask(task: RunnerTask) {
+        if (actionLoading) {
+            return;
+        }
+
+        setActionLoading(task.task_id);
+        setActionError('');
+        setActionSuccess('');
+
+        try {
+            const coordinates = await getCurrentCoordinates();
+
+            await runnerApi.arriveTask(
+                task.task_id,
+                coordinates,
+            );
+
+            setActionSuccess(
+                'Lokasi ketibaan berjaya direkodkan.',
+            );
+
+            await loadTasks();
+        } catch (error) {
+            const message = error instanceof GeolocationPositionError
+                ? 'Tidak berjaya mendapatkan GPS. Benarkan akses lokasi dan cuba semula.'
+                : 'Tidak berjaya merekodkan ketibaan. Sila cuba semula.';
+
+            setActionError(message);
+        } finally {
+            setActionLoading('');
+        }
+    }
+
+    async function handleCompleteTask(
+        task: RunnerTask,
+        file?: File,
+    ) {
+        if (actionLoading) {
+            return;
+        }
+
+        if (!file) {
+            setActionError('Pilih gambar bukti tugasan dahulu.');
+            return;
+        }
+
+        if (!file.type.startsWith('image/')) {
+            setActionError('Fail bukti mestilah gambar.');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            setActionError('Saiz gambar tidak boleh melebihi 5 MB.');
+            return;
+        }
+
+        setActionLoading(task.task_id);
+        setActionError('');
+        setActionSuccess('');
+
+        try {
+            await runnerApi.completeTask(task.task_id, file);
+
+            setActionSuccess(
+                'Tugasan berjaya diselesaikan. Bukti gambar telah dihantar.',
+            );
+
+            await Promise.all([
+                loadTasks(),
+                loadHistory(),
+            ]);
+        } catch {
+            setActionError(
+                'Tidak berjaya menyelesaikan tugasan. Semak sambungan dan cuba semula.',
+            );
+        } finally {
+            setActionLoading('');
+        }
+    }
+
+    async function handleMarkNotificationRead(
+        notification: RunnerNotification,
+    ) {
+        if (notification.read_at) {
+            return;
+        }
+
+        try {
+            await runnerApi.markNotificationAsRead(notification.id);
+
+            setNotifications((current) =>
+                current.map((item) =>
+                    item.id === notification.id
+                        ? {
+                            ...item,
+                            read_at: new Date().toISOString(),
+                        }
+                        : item,
+                ),
+            );
+
+            setUnreadTotal((current) => Math.max(0, current - 1));
+        } catch {
+            setNotificationsError(
+                'Tidak berjaya mengemas kini notifikasi.',
+            );
         }
     }
 
@@ -282,10 +475,6 @@ function RunnerDashboard({
             );
 
             setExistingQuotation(latest);
-
-            // Paparkan status sebut harga sama ada masih aktif
-            // atau sudah ditarik balik / tidak dipilih.
-            // Borang hanya akan disembunyikan jika status SUBMITTED.
             setQuotationRequestId(requestId);
         } catch {
             setActionError(
@@ -339,8 +528,6 @@ function RunnerDashboard({
 
             await loadRequests();
 
-            // Muat semula butiran supaya Runner dapat melihat
-            // sebut harga yang baru dihantar dan statusnya.
             const detail = await runnerApi.getRequest(
                 submittedRequestId,
             );
@@ -360,16 +547,6 @@ function RunnerDashboard({
         }
     }
 
-    const activeTasks = tasks.filter(
-        (task) =>
-            task.generic_status === 'ASSIGNED' ||
-            task.generic_status === 'IN_PROGRESS',
-    );
-
-    const completedTasks = tasks.filter(
-        (task) => task.generic_status === 'COMPLETED',
-    );
-
     function getRequestLocation(
         request: RunnerMarketplaceRequest,
     ): string {
@@ -385,6 +562,132 @@ function RunnerDashboard({
         return request.task_location_snapshot?.address
             ?? 'Lokasi tidak dinyatakan';
     }
+
+    function renderTask(task: RunnerTask) {
+        const isBusy = actionLoading === task.task_id;
+
+        return (
+            <article
+                className="runner-dashboard__item"
+                key={task.task_id}
+            >
+                <div className="runner-dashboard__item-top">
+                    <strong>
+                        Tugasan #{task.task_id.slice(0, 8)}
+                    </strong>
+
+                    <span className={`runner-dashboard__status runner-dashboard__status--${task.generic_status.toLowerCase()}`}>
+                        {taskStatusLabel(task.generic_status)}
+                    </span>
+                </div>
+
+                <p>Rujukan: {task.source_id}</p>
+
+                <small>
+                    Dicipta: {formatDate(task.created_at)}
+                </small>
+
+                {task.started_at && (
+                    <small>
+                        Mula: {formatDate(task.started_at)}
+                    </small>
+                )}
+
+                {task.arrived_at && (
+                    <small>
+                        Tiba: {formatDate(task.arrived_at)}
+                    </small>
+                )}
+
+                {task.completed_at && (
+                    <small>
+                        Selesai: {formatDate(task.completed_at)}
+                    </small>
+                )}
+
+                {task.generic_status === 'ASSIGNED' && (
+                    <button
+                        type="button"
+                        className="runner-dashboard__primary-action"
+                        onClick={() => void handleStartTask(task)}
+                        disabled={isBusy || Boolean(actionLoading)}
+                    >
+                        {isBusy ? 'SEDANG DIPROSES...' : 'MULA TUGASAN'}
+                    </button>
+                )}
+
+                {task.generic_status === 'IN_PROGRESS'
+                    && !task.arrived_at && (
+                        <div className="runner-dashboard__task-action">
+                            <p>
+                                Tekan tiba apabila anda sudah sampai di
+                                lokasi tugasan. GPS peranti akan direkodkan.
+                            </p>
+
+                            <button
+                                type="button"
+                                className="runner-dashboard__primary-action"
+                                onClick={() => void handleArriveTask(task)}
+                                disabled={isBusy || Boolean(actionLoading)}
+                            >
+                                {isBusy
+                                    ? 'MENDAPATKAN GPS...'
+                                    : 'SAYA SUDAH TIBA'}
+                            </button>
+                        </div>
+                    )}
+
+                {task.generic_status === 'IN_PROGRESS'
+                    && Boolean(task.arrived_at) && (
+                        <div className="runner-dashboard__task-action">
+                            <p>
+                                Muat naik gambar sebagai bukti tugasan
+                                sebelum menandakan tugasan selesai.
+                            </p>
+
+                            <label>
+                                Gambar bukti (maksimum 5 MB)
+                                <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    capture="environment"
+                                    disabled={isBusy || Boolean(actionLoading)}
+                                    onChange={(event) => {
+                                        const file =
+                                            event.currentTarget.files?.[0];
+
+                                        if (file) {
+                                            void handleCompleteTask(task, file);
+                                        }
+
+                                        event.currentTarget.value = '';
+                                    }}
+                                />
+                            </label>
+
+                            {isBusy && (
+                                <p
+                                    className="runner-dashboard__notice"
+                                    role="status"
+                                >
+                                    Sedang memuat naik bukti gambar...
+                                </p>
+                            )}
+                        </div>
+                    )}
+            </article>
+        );
+    }
+
+    const activeTasks = tasks.filter(
+        (task) =>
+            task.generic_status === 'ASSIGNED'
+            || task.generic_status === 'IN_PROGRESS',
+    );
+
+    const completedTasks = history.filter(
+        (task) => task.generic_status === 'COMPLETED',
+    );
 
     return (
         <main className="runner-dashboard">
@@ -426,10 +729,8 @@ function RunnerDashboard({
                     </article>
 
                     <article className="runner-dashboard__summary-card">
-                        <span>OPEN REQUEST</span>
-                        <strong>
-                            {requestsLoading ? '…' : requests.length}
-                        </strong>
+                        <span>NOTIFIKASI BELUM DIBACA</span>
+                        <strong>{unreadTotal}</strong>
                     </article>
                 </div>
 
@@ -447,10 +748,26 @@ function RunnerDashboard({
 
                     <button
                         type="button"
+                        className={activeTab === 'HISTORY' ? 'is-active' : ''}
+                        onClick={() => setActiveTab('HISTORY')}
+                    >
+                        SEJARAH
+                    </button>
+
+                    <button
+                        type="button"
                         className={activeTab === 'REQUESTS' ? 'is-active' : ''}
                         onClick={() => setActiveTab('REQUESTS')}
                     >
                         OPEN REQUEST
+                    </button>
+
+                    <button
+                        type="button"
+                        className={activeTab === 'NOTIFICATIONS' ? 'is-active' : ''}
+                        onClick={() => setActiveTab('NOTIFICATIONS')}
+                    >
+                        NOTIFIKASI{unreadTotal > 0 ? ` (${unreadTotal})` : ''}
                     </button>
                 </nav>
 
@@ -514,54 +831,139 @@ function RunnerDashboard({
                         )}
 
                         <div className="runner-dashboard__list">
-                            {tasks.map((task) => (
+                            {tasks.map(renderTask)}
+                        </div>
+                    </section>
+                )}
+
+                {activeTab === 'HISTORY' && (
+                    <section className="runner-dashboard__section">
+                        <div className="runner-dashboard__section-heading">
+                            <div>
+                                <h2>Sejarah Tugasan</h2>
+                                <p>
+                                    Rekod tugasan yang telah selesai atau
+                                    dibatalkan.
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => void loadHistory()}
+                                disabled={historyLoading}
+                            >
+                                {historyLoading ? 'MEMUAT...' : 'SEGARKAN'}
+                            </button>
+                        </div>
+
+                        {historyLoading && (
+                            <p className="runner-dashboard__notice">
+                                Memuatkan sejarah...
+                            </p>
+                        )}
+
+                        {historyError && (
+                            <p className="runner-dashboard__alert" role="alert">
+                                {historyError}
+                            </p>
+                        )}
+
+                        {!historyLoading && !historyError && history.length === 0 && (
+                            <div className="runner-dashboard__empty">
+                                <h3>Belum Ada Sejarah</h3>
+                                <p>
+                                    Tugasan yang selesai atau dibatalkan
+                                    akan dipaparkan di sini.
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="runner-dashboard__list">
+                            {history.map(renderTask)}
+                        </div>
+                    </section>
+                )}
+
+                {activeTab === 'NOTIFICATIONS' && (
+                    <section className="runner-dashboard__section">
+                        <div className="runner-dashboard__section-heading">
+                            <div>
+                                <h2>Notifikasi</h2>
+                                <p>
+                                    Makluman berkaitan tugasan dan akaun Runner.
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => void loadNotifications()}
+                                disabled={notificationsLoading}
+                            >
+                                {notificationsLoading ? 'MEMUAT...' : 'SEGARKAN'}
+                            </button>
+                        </div>
+
+                        {notificationsLoading && (
+                            <p className="runner-dashboard__notice">
+                                Memuatkan notifikasi...
+                            </p>
+                        )}
+
+                        {notificationsError && (
+                            <p className="runner-dashboard__alert" role="alert">
+                                {notificationsError}
+                            </p>
+                        )}
+
+                        {!notificationsLoading
+                            && !notificationsError
+                            && notifications.length === 0 && (
+                                <div className="runner-dashboard__empty">
+                                    <h3>Tiada Notifikasi</h3>
+                                    <p>
+                                        Notifikasi baharu akan dipaparkan di sini.
+                                    </p>
+                                </div>
+                            )}
+
+                        <div className="runner-dashboard__list">
+                            {notifications.map((notification) => (
                                 <article
                                     className="runner-dashboard__item"
-                                    key={task.task_id}
+                                    key={notification.id}
                                 >
                                     <div className="runner-dashboard__item-top">
                                         <strong>
-                                            Tugasan #{task.task_id.slice(0, 8)}
+                                            {notification.data.title
+                                                ?? 'Notifikasi Super Runner'}
                                         </strong>
 
-                                        <span className={`runner-dashboard__status runner-dashboard__status--${task.generic_status.toLowerCase()}`}>
-                                            {taskStatusLabel(task.generic_status)}
-                                        </span>
+                                        {!notification.read_at && (
+                                            <span className="runner-dashboard__status runner-dashboard__status--open">
+                                                BELUM DIBACA
+                                            </span>
+                                        )}
                                     </div>
 
-                                    <p>Rujukan: {task.source_id}</p>
+                                    <p>
+                                        {notification.data.message
+                                            ?? 'Anda mempunyai notifikasi baharu.'}
+                                    </p>
 
                                     <small>
-                                        Dicipta: {formatDate(task.created_at)}
+                                        {formatDate(notification.created_at)}
                                     </small>
 
-                                    {task.generic_status === 'ASSIGNED' && (
+                                    {!notification.read_at && (
                                         <button
                                             type="button"
-                                            className="runner-dashboard__primary-action"
                                             onClick={() =>
-                                                void handleTaskAction(task, 'START')
+                                                void handleMarkNotificationRead(
+                                                    notification,
+                                                )
                                             }
-                                            disabled={actionLoading === task.task_id}
                                         >
-                                            {actionLoading === task.task_id
-                                                ? 'SEDANG DIPROSES...'
-                                                : 'MULA TUGASAN'}
-                                        </button>
-                                    )}
-
-                                    {task.generic_status === 'IN_PROGRESS' && (
-                                        <button
-                                            type="button"
-                                            className="runner-dashboard__primary-action"
-                                            onClick={() =>
-                                                void handleTaskAction(task, 'COMPLETE')
-                                            }
-                                            disabled={actionLoading === task.task_id}
-                                        >
-                                            {actionLoading === task.task_id
-                                                ? 'SEDANG DIPROSES...'
-                                                : 'TANDA SELESAI'}
+                                            TANDA SUDAH DIBACA
                                         </button>
                                     )}
                                 </article>
@@ -602,9 +1004,9 @@ function RunnerDashboard({
                             </p>
                         )}
 
-                        {!requestsLoading &&
-                            !requestsError &&
-                            requests.length === 0 && (
+                        {!requestsLoading
+                            && !requestsError
+                            && requests.length === 0 && (
                                 <div className="runner-dashboard__empty">
                                     <h3>Tiada Open Request Buat Masa Ini</h3>
                                     <p>
@@ -623,8 +1025,8 @@ function RunnerDashboard({
                                     quotationDetailLoading === request.request_id;
 
                                 const hasActiveQuotation =
-                                    isQuotationOpen &&
-                                    existingQuotation?.status === 'SUBMITTED';
+                                    isQuotationOpen
+                                    && existingQuotation?.status === 'SUBMITTED';
 
                                 return (
                                     <article
@@ -661,8 +1063,8 @@ function RunnerDashboard({
                                                 void handleOpenQuotation(request.request_id)
                                             }
                                             disabled={
-                                                Boolean(quotationDetailLoading) ||
-                                                quotationLoading
+                                                Boolean(quotationDetailLoading)
+                                                || quotationLoading
                                             }
                                         >
                                             {isCheckingQuotation
