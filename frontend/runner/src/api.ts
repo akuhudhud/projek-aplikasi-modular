@@ -48,7 +48,11 @@ export interface RunnerTask {
     generic_status: string;
     assigned_at: string | null;
     started_at: string | null;
+    arrived_at: string | null;
+    arrival_latitude: string | number | null;
+    arrival_longitude: string | number | null;
     completed_at: string | null;
+    completion_proof_path: string | null;
     cancelled_at: string | null;
     created_at: string;
     updated_at: string;
@@ -108,6 +112,22 @@ export interface RunnerProfileAnalytics {
     completed_tasks_from_profile_requests: number;
 }
 
+export interface RunnerNotification {
+    id: string;
+    type: string;
+    data: {
+        event?: string;
+        title?: string;
+        message?: string;
+        request_id?: string | null;
+        quotation_id?: string | null;
+        task_id?: string | null;
+        [key: string]: unknown;
+    };
+    read_at: string | null;
+    created_at: string;
+}
+
 interface ApiResponse<T> {
     success: boolean;
     message?: string;
@@ -157,6 +177,14 @@ interface AnalyticsData {
     analytics: RunnerProfileAnalytics;
 }
 
+interface NotificationsData {
+    notifications: RunnerNotification[];
+    summary: {
+        unread_total: number;
+    };
+    pagination: RunnerPagination;
+}
+
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL ?? '/',
     withCredentials: true,
@@ -167,9 +195,7 @@ const api = axios.create({
     },
 });
 
-function isProtectedSessionEndpoint(
-    url?: string,
-): boolean {
+function isProtectedSessionEndpoint(url?: string): boolean {
     if (!url) {
         return false;
     }
@@ -177,9 +203,9 @@ function isProtectedSessionEndpoint(
     const pathname = url.split('?')[0].replace(/\/+$/, '');
 
     return (
-        pathname === '/web/auth/me' ||
-        pathname === '/web/auth/logout' ||
-        pathname.startsWith('/web/runner/')
+        pathname === '/web/auth/me'
+        || pathname === '/web/auth/logout'
+        || pathname.startsWith('/web/runner/')
     );
 }
 
@@ -187,10 +213,10 @@ api.interceptors.response.use(
     (response) => response,
     (error: unknown) => {
         if (
-            axios.isAxiosError(error) &&
-            error.response?.status === 401 &&
-            isProtectedSessionEndpoint(error.config?.url) &&
-            typeof window !== 'undefined'
+            axios.isAxiosError(error)
+            && error.response?.status === 401
+            && isProtectedSessionEndpoint(error.config?.url)
+            && typeof window !== 'undefined'
         ) {
             window.dispatchEvent(
                 new Event(RUNNER_SESSION_EXPIRED_EVENT),
@@ -202,20 +228,19 @@ api.interceptors.response.use(
 );
 
 export const runnerApi = {
-    async login(
-        payload: LoginPayload,
-    ): Promise<RunnerAccount> {
-        const response = await api.post<
-            ApiResponse<AccountData>
-        >('/web/auth/login', payload);
+    async login(payload: LoginPayload): Promise<RunnerAccount> {
+        const response = await api.post<ApiResponse<AccountData>>(
+            '/web/auth/login',
+            payload,
+        );
 
         return response.data.data.account;
     },
 
     async me(): Promise<RunnerAccount> {
-        const response = await api.get<
-            ApiResponse<AccountData>
-        >('/web/auth/me');
+        const response = await api.get<ApiResponse<AccountData>>(
+            '/web/auth/me',
+        );
 
         return response.data.data.account;
     },
@@ -225,37 +250,94 @@ export const runnerApi = {
     },
 
     async getTasks(): Promise<TasksData> {
-        const response = await api.get<
-            ApiResponse<TasksData>
-        >('/web/runner/tasks');
+        const response = await api.get<ApiResponse<TasksData>>(
+            '/web/runner/tasks',
+        );
+
+        return response.data.data;
+    },
+
+    async getTaskHistory(): Promise<TasksData> {
+        const response = await api.get<ApiResponse<TasksData>>(
+            '/web/runner/tasks/history',
+        );
 
         return response.data.data;
     },
 
     async startTask(taskId: string): Promise<RunnerTask> {
-        const response = await api.post<
-            ApiResponse<TaskData>
-        >(`/web/runner/tasks/${encodeURIComponent(taskId)}/start`);
+        const response = await api.post<ApiResponse<TaskData>>(
+            `/web/runner/tasks/${encodeURIComponent(taskId)}/start`,
+        );
 
         return response.data.data.task;
     },
 
-    async completeTask(taskId: string): Promise<RunnerTask> {
-        const response = await api.post<
-            ApiResponse<TaskData>
-        >(`/web/runner/tasks/${encodeURIComponent(taskId)}/complete`);
+    async arriveTask(
+        taskId: string,
+        coordinates: {
+            latitude: number;
+            longitude: number;
+        },
+    ): Promise<RunnerTask> {
+        const response = await api.post<ApiResponse<TaskData>>(
+            `/web/runner/tasks/${encodeURIComponent(taskId)}/arrive`,
+            coordinates,
+        );
 
         return response.data.data.task;
+    },
+
+    async completeTask(
+        taskId: string,
+        completionProof: File,
+    ): Promise<RunnerTask> {
+        const formData = new FormData();
+
+        formData.append(
+            'completion_proof',
+            completionProof,
+            completionProof.name,
+        );
+
+        const response = await api.post<ApiResponse<TaskData>>(
+            `/web/runner/tasks/${encodeURIComponent(taskId)}/complete`,
+            formData,
+            {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            },
+        );
+
+        return response.data.data.task;
+    },
+
+    async getNotifications(): Promise<NotificationsData> {
+        const response = await api.get<ApiResponse<NotificationsData>>(
+            '/web/runner/notifications',
+        );
+
+        return response.data.data;
+    },
+
+    async markNotificationAsRead(
+        notificationId: string,
+    ): Promise<void> {
+        await api.patch(
+            `/web/runner/notifications/${encodeURIComponent(notificationId)}/read`,
+        );
     },
 
     async getAvailableRequests(): Promise<MarketplaceRequestsData> {
-        const response = await api.get<
-            ApiResponse<MarketplaceRequestsData>
-        >('/web/runner/requests', {
-            params: {
-                view: 'available',
+        const response = await api.get<ApiResponse<MarketplaceRequestsData>>(
+            '/web/runner/requests',
+            {
+                params: {
+                    view: 'available',
+                },
             },
-        });
+        );
 
         return response.data.data;
     },
@@ -263,9 +345,7 @@ export const runnerApi = {
     async getRequest(
         requestId: string,
     ): Promise<RunnerMarketplaceRequestDetail> {
-        const response = await api.get<
-            ApiResponse<MarketplaceRequestData>
-        >(
+        const response = await api.get<ApiResponse<MarketplaceRequestData>>(
             `/web/runner/requests/${encodeURIComponent(requestId)}`,
         );
 
@@ -280,9 +360,7 @@ export const runnerApi = {
             message?: string | null;
         },
     ): Promise<QuotationData['quotation']> {
-        const response = await api.post<
-            ApiResponse<QuotationData>
-        >(
+        const response = await api.post<ApiResponse<QuotationData>>(
             `/web/runner/requests/${encodeURIComponent(requestId)}/quotations`,
             payload,
         );
@@ -300,17 +378,18 @@ export const runnerApi = {
             is_published?: boolean;
         },
     ): Promise<RunnerPublicProfile> {
-        const response = await api.post<
-            ApiResponse<ProfileData>
-        >('/web/runner/profile', payload);
+        const response = await api.post<ApiResponse<ProfileData>>(
+            '/web/runner/profile',
+            payload,
+        );
 
         return response.data.data.profile;
     },
 
     async getProfileAnalytics(): Promise<RunnerProfileAnalytics> {
-        const response = await api.get<
-            ApiResponse<AnalyticsData>
-        >('/web/runner/profile/analytics');
+        const response = await api.get<ApiResponse<AnalyticsData>>(
+            '/web/runner/profile/analytics',
+        );
 
         return response.data.data.analytics;
     },
