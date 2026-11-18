@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Models\IdentityVerification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -14,6 +15,29 @@ class RunnerNotificationController extends Controller
         $account = $request->attributes->get('account');
 
         return $account instanceof Account ? $account : null;
+    }
+
+    private function isEligibleRunner(Account $account): bool
+    {
+        if (
+            $account->status !== 'ACTIVE'
+            || $account->runner_status !== Account::RUNNER_STATUS_APPROVED
+        ) {
+            return false;
+        }
+
+        return IdentityVerification::query()
+            ->where('account_id', $account->id)
+            ->where('status', IdentityVerification::STATUS_VERIFIED)
+            ->exists();
+    }
+
+    private function accessDenied(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'message' => 'Runner access is not approved or identity is not verified.',
+        ], 403);
     }
 
     public function index(Request $request): JsonResponse
@@ -27,14 +51,8 @@ class RunnerNotificationController extends Controller
             ], 401);
         }
 
-        if (
-            $account->status !== 'ACTIVE'
-            || $account->runner_status !== Account::RUNNER_STATUS_APPROVED
-        ) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Runner access is not approved.',
-            ], 403);
+        if (!$this->isEligibleRunner($account)) {
+            return $this->accessDenied();
         }
 
         $notifications = $account->notifications()
@@ -81,6 +99,10 @@ class RunnerNotificationController extends Controller
                 'success' => false,
                 'message' => 'Unauthorized.',
             ], 401);
+        }
+
+        if (!$this->isEligibleRunner($account)) {
+            return $this->accessDenied();
         }
 
         $notification = $account->notifications()
