@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\CoreTask;
-use App\Models\IdentityVerification;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
 use App\Models\RunnerPublicProfile;
@@ -28,7 +27,7 @@ class RunnerPublicProfileController extends Controller
 
         if (!$this->isEligibleRunner($account)) {
             return $this->error(
-                'Only active, approved and identity-verified runners can manage a public profile.',
+                'Only active and approved runners can manage a public profile.',
                 403
             );
         }
@@ -234,7 +233,7 @@ class RunnerPublicProfileController extends Controller
 
         if (!$this->isEligibleRunner($account)) {
             return $this->error(
-                'Only active, approved and identity-verified runners can view profile analytics.',
+                'Only active and approved runners can view profile analytics.',
                 403
             );
         }
@@ -290,17 +289,8 @@ class RunnerPublicProfileController extends Controller
 
     private function isEligibleRunner(Account $account): bool
     {
-        if (
-            $account->status !== 'ACTIVE'
-            || $account->runner_status !== Account::RUNNER_STATUS_APPROVED
-        ) {
-            return false;
-        }
-
-        return IdentityVerification::query()
-            ->where('account_id', $account->id)
-            ->where('status', IdentityVerification::STATUS_VERIFIED)
-            ->exists();
+        return $account->status === 'ACTIVE'
+            && $account->runner_status === Account::RUNNER_STATUS_APPROVED;
     }
 
     private function privatePayload(RunnerPublicProfile $profile): array
