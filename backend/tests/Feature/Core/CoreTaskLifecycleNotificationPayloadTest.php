@@ -4,6 +4,7 @@ namespace Tests\Feature\Core;
 
 use App\Models\Account;
 use App\Models\CoreTask;
+use App\Models\IdentityVerification;
 use App\Models\MarketplaceRequest;
 use App\Notifications\MarketplaceEventNotification;
 use App\Services\CoreTaskLifecycleService;
@@ -65,13 +66,22 @@ class CoreTaskLifecycleNotificationPayloadTest extends TestCase
             true
         );
 
+        $this->lifecycle->arrive(
+            $task->task_id,
+            $runner->id,
+            5.95,
+            116.07
+        );
+
         $this->lifecycle->complete(
             $task->task_id,
-            $runner->id
+            $runner->id,
+            'runner-task-proofs/test-proof.jpg'
         );
 
         $notification = $customer->notifications()
             ->where('type', MarketplaceEventNotification::class)
+            ->where('data->event', 'marketplace.task_completed')
             ->latest()
             ->first();
 
@@ -151,6 +161,18 @@ class CoreTaskLifecycleNotificationPayloadTest extends TestCase
 
         $account->runner_status = Account::RUNNER_STATUS_APPROVED;
         $account->save();
+
+        IdentityVerification::query()->create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $account->id,
+            'verified_name' => 'Verified Lifecycle Runner',
+            'mykad_number' => '900101145678',
+            'status' => IdentityVerification::STATUS_VERIFIED,
+            'submitted_at' => now(),
+            'reviewed_at' => now(),
+            'reviewer_account_id' => null,
+            'rejection_reason' => null,
+        ]);
 
         return $account->fresh();
     }
