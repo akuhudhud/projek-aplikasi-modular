@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Contracts\CoreTaskLifecycle;
 use App\Http\Controllers\Controller;
+use App\Models\Account;
 use App\Models\CoreTask;
+use App\Models\IdentityVerification;
 use DomainException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -18,7 +20,41 @@ class CoreTaskController extends Controller
     ) {
     }
 
+    /**
+     * Generic core task list.
+     * Kekalkan akses asal untuk modul dan akaun lain.
+     */
     public function index(Request $request): JsonResponse
+    {
+        return $this->taskListResponse($request);
+    }
+
+    /**
+     * Runner PWA task list.
+     * Hanya Runner aktif, diluluskan dan identiti disahkan.
+     */
+    public function runnerIndex(Request $request): JsonResponse
+    {
+        $account = $request->attributes->get('account');
+
+        if (!$account) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
+        if (!$this->isEligibleRunner($account)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only active, approved, and identity-verified runners can view assigned tasks.',
+            ], 403);
+        }
+
+        return $this->taskListResponse($request);
+    }
+
+    private function taskListResponse(Request $request): JsonResponse
     {
         $account = $request->attributes->get('account');
 
@@ -156,5 +192,20 @@ class CoreTaskController extends Controller
                 ]),
             ],
         ], 200);
+    }
+
+    private function isEligibleRunner(Account $account): bool
+    {
+        if (
+            $account->status !== 'ACTIVE'
+            || $account->runner_status !== Account::RUNNER_STATUS_APPROVED
+        ) {
+            return false;
+        }
+
+        return IdentityVerification::query()
+            ->where('account_id', $account->id)
+            ->where('status', IdentityVerification::STATUS_VERIFIED)
+            ->exists();
     }
 }
