@@ -35,7 +35,11 @@ class CoreTask extends Model
         'generic_status',
         'assigned_at',
         'started_at',
+        'arrived_at',
+        'arrival_latitude',
+        'arrival_longitude',
         'completed_at',
+        'completion_proof_path',
         'cancelled_at',
     ];
 
@@ -44,6 +48,9 @@ class CoreTask extends Model
         return [
             'assigned_at' => 'datetime',
             'started_at' => 'datetime',
+            'arrived_at' => 'datetime',
+            'arrival_latitude' => 'decimal:7',
+            'arrival_longitude' => 'decimal:7',
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];
