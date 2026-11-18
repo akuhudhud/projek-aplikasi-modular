@@ -17,32 +17,21 @@ class RunnerPublicProfileTest extends TestCase
 
     public function test_approved_runner_can_publish_a_public_profile(): void
     {
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
-
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
         $token = $this->createSessionToken($runner);
 
-        $response = $this->withToken($token)
+        $this->withToken($token)
             ->postJson('/api/me/runner-profile', [
                 'public_slug' => 'runner-sabah-01',
                 'bio' => 'Delivery services in my service area.',
                 'service_area' => 'Tuaran',
                 'services' => ['Parcel delivery', 'Document delivery'],
                 'is_published' => true,
-            ]);
-
-        $response
+            ])
             ->assertCreated()
             ->assertJsonPath('success', true)
-            ->assertJsonPath(
-                'data.profile.public_slug',
-                'runner-sabah-01'
-            )
-            ->assertJsonPath(
-                'data.profile.profile_name',
-                'Runner Profile Test'
-            )
+            ->assertJsonPath('data.profile.public_slug', 'runner-sabah-01')
+            ->assertJsonPath('data.profile.profile_name', 'Runner Profile Test')
             ->assertJsonPath('data.profile.is_published', true);
 
         $this->assertDatabaseHas('runner_public_profiles', [
@@ -54,10 +43,7 @@ class RunnerPublicProfileTest extends TestCase
 
     public function test_unapproved_account_cannot_publish_a_profile(): void
     {
-        $account = $this->makeAccount(
-            Account::RUNNER_STATUS_PENDING
-        );
-
+        $account = $this->makeAccount(Account::RUNNER_STATUS_PENDING);
         $token = $this->createSessionToken($account);
 
         $this->withToken($token)
@@ -70,29 +56,37 @@ class RunnerPublicProfileTest extends TestCase
         $this->assertDatabaseCount('runner_public_profiles', 0);
     }
 
+    public function test_runner_without_verified_identity_cannot_publish_profile(): void
+    {
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+
+        IdentityVerification::query()
+            ->where('account_id', $runner->id)
+            ->update(['status' => IdentityVerification::STATUS_PENDING]);
+
+        $token = $this->createSessionToken($runner);
+
+        $this->withToken($token)
+            ->postJson('/api/me/runner-profile', [
+                'public_slug' => 'unverified-runner',
+                'is_published' => true,
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('runner_public_profiles', [
+            'account_id' => $runner->id,
+        ]);
+    }
+
     public function test_public_profile_returns_only_public_fields_and_counts_views(): void
     {
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
-        RunnerPublicProfile::query()->create([
-            'profile_id' => (string) Str::uuid(),
-            'account_id' => $runner->id,
-            'public_slug' => 'public-runner',
-            'bio' => 'Available for deliveries.',
-            'service_area' => 'Tuaran',
-            'services' => ['Parcel delivery'],
-            'is_published' => true,
-            'views_count' => 0,
-        ]);
+        $this->createPublicProfile($runner, 'public-runner');
 
         $this->getJson('/api/runners/public-runner')
             ->assertOk()
-            ->assertJsonPath(
-                'data.profile.profile_name',
-                'Runner Profile Test'
-            )
+            ->assertJsonPath('data.profile.profile_name', 'Runner Profile Test')
             ->assertJsonPath('data.profile.views_count', 1)
             ->assertJsonMissingPath('data.profile.account_id')
             ->assertJsonMissingPath('data.profile.phone')
@@ -106,11 +100,46 @@ class RunnerPublicProfileTest extends TestCase
         ]);
     }
 
+    public function test_public_profile_is_hidden_when_identity_is_pending(): void
+    {
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+
+        IdentityVerification::query()
+            ->where('account_id', $runner->id)
+            ->update(['status' => IdentityVerification::STATUS_PENDING]);
+
+        $this->createPublicProfile($runner, 'pending-identity-runner');
+
+        $this->getJson('/api/runners/pending-identity-runner')
+            ->assertNotFound();
+    }
+
+    public function test_public_profile_is_hidden_when_identity_is_rejected(): void
+    {
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+
+        IdentityVerification::query()
+            ->where('account_id', $runner->id)
+            ->update(['status' => IdentityVerification::STATUS_REJECTED]);
+
+        $this->createPublicProfile($runner, 'rejected-identity-runner');
+
+        $this->getJson('/api/runners/rejected-identity-runner')
+            ->assertNotFound();
+    }
+
+    public function test_public_profile_is_hidden_without_identity_record(): void
+    {
+        $runner = $this->createApprovedRunner();
+        $this->createPublicProfile($runner, 'no-identity-runner');
+
+        $this->getJson('/api/runners/no-identity-runner')
+            ->assertNotFound();
+    }
+
     public function test_unpublished_profile_is_not_publicly_visible(): void
     {
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         RunnerPublicProfile::query()->create([
             'profile_id' => (string) Str::uuid(),
@@ -125,14 +154,8 @@ class RunnerPublicProfileTest extends TestCase
 
     public function test_public_slug_must_be_unique_between_runners(): void
     {
-        $first = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
-
-        $second = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
-
+        $first = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+        $second = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
         $token = $this->createSessionToken($second);
 
         RunnerPublicProfile::query()->create([
@@ -152,10 +175,7 @@ class RunnerPublicProfileTest extends TestCase
 
     public function test_partial_profile_update_preserves_omitted_fields(): void
     {
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
-
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
         $token = $this->createSessionToken($runner);
 
         RunnerPublicProfile::query()->create([
@@ -173,16 +193,10 @@ class RunnerPublicProfileTest extends TestCase
                 'public_slug' => 'partial-runner',
             ])
             ->assertOk()
-            ->assertJsonPath(
-                'data.profile.profile_name',
-                'Runner Profile Test'
-            )
+            ->assertJsonPath('data.profile.profile_name', 'Runner Profile Test')
             ->assertJsonPath('data.profile.bio', 'Original bio')
             ->assertJsonPath('data.profile.service_area', 'Tuaran')
-            ->assertJsonPath(
-                'data.profile.services.0',
-                'Parcel delivery'
-            )
+            ->assertJsonPath('data.profile.services.0', 'Parcel delivery')
             ->assertJsonPath('data.profile.is_published', true);
 
         $this->assertDatabaseHas('runner_public_profiles', [
@@ -195,10 +209,7 @@ class RunnerPublicProfileTest extends TestCase
 
     public function test_partial_profile_update_changes_provided_values_and_preserves_omitted_fields(): void
     {
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
-
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
         $token = $this->createSessionToken($runner);
 
         RunnerPublicProfile::query()->create([
@@ -217,16 +228,10 @@ class RunnerPublicProfileTest extends TestCase
                 'bio' => 'Updated bio',
             ])
             ->assertOk()
-            ->assertJsonPath(
-                'data.profile.profile_name',
-                'Runner Profile Test'
-            )
+            ->assertJsonPath('data.profile.profile_name', 'Runner Profile Test')
             ->assertJsonPath('data.profile.bio', 'Updated bio')
             ->assertJsonPath('data.profile.service_area', 'Tuaran')
-            ->assertJsonPath(
-                'data.profile.services.0',
-                'Parcel delivery'
-            )
+            ->assertJsonPath('data.profile.services.0', 'Parcel delivery')
             ->assertJsonPath('data.profile.is_published', true);
 
         $this->assertDatabaseHas('runner_public_profiles', [
@@ -239,10 +244,7 @@ class RunnerPublicProfileTest extends TestCase
 
     public function test_partial_profile_update_can_explicitly_clear_nullable_fields(): void
     {
-        $runner = $this->makeAccount(
-            Account::RUNNER_STATUS_APPROVED
-        );
-
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
         $token = $this->createSessionToken($runner);
 
         RunnerPublicProfile::query()->create([
@@ -264,10 +266,7 @@ class RunnerPublicProfileTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.profile.bio', null)
             ->assertJsonPath('data.profile.service_area', null)
-            ->assertJsonPath(
-                'data.profile.services.0',
-                'Parcel delivery'
-            )
+            ->assertJsonPath('data.profile.services.0', 'Parcel delivery')
             ->assertJsonPath('data.profile.is_published', true);
 
         $this->assertDatabaseHas('runner_public_profiles', [
@@ -286,14 +285,11 @@ class RunnerPublicProfileTest extends TestCase
             IdentityVerification::STATUS_VERIFIED
         );
 
-        $this->createPublicProfile($runner);
+        $this->createPublicProfile($runner, 'verified-runner');
 
         $this->getJson('/api/runners/verified-runner')
             ->assertOk()
-            ->assertJsonPath(
-                'data.profile.profile_name',
-                'Nama Akaun Runner'
-            )
+            ->assertJsonPath('data.profile.profile_name', 'Nama Akaun Runner')
             ->assertJsonMissingPath('data.profile.verified_name')
             ->assertJsonMissing([
                 'verified_name' => 'Nama Sebenar Disahkan',
@@ -304,72 +300,16 @@ class RunnerPublicProfileTest extends TestCase
             ->assertJsonMissingPath('data.profile.mykad_number');
     }
 
-    public function test_verified_name_is_not_returned_when_identity_is_pending(): void
-    {
-        $runner = $this->createApprovedRunner();
-
-        $this->createIdentityVerification(
-            $runner,
-            IdentityVerification::STATUS_PENDING
-        );
-
-        $this->createPublicProfile($runner);
-
-        $this->getJson('/api/runners/verified-runner')
-            ->assertOk()
-            ->assertJsonPath(
-                'data.profile.profile_name',
-                'Nama Akaun Runner'
-            )
-            ->assertJsonMissingPath('data.profile.verified_name')
-            ->assertJsonMissing([
-                'verified_name' => 'Nama Sebenar Disahkan',
-            ]);
-    }
-
-    public function test_verified_name_is_not_returned_when_identity_is_rejected(): void
-    {
-        $runner = $this->createApprovedRunner();
-
-        $this->createIdentityVerification(
-            $runner,
-            IdentityVerification::STATUS_REJECTED
-        );
-
-        $this->createPublicProfile($runner);
-
-        $this->getJson('/api/runners/verified-runner')
-            ->assertOk()
-            ->assertJsonPath(
-                'data.profile.profile_name',
-                'Nama Akaun Runner'
-            )
-            ->assertJsonMissingPath('data.profile.verified_name')
-            ->assertJsonMissing([
-                'verified_name' => 'Nama Sebenar Disahkan',
-            ]);
-    }
-
-    public function test_verified_name_is_not_returned_without_identity_record(): void
-    {
-        $runner = $this->createApprovedRunner();
-
-        $this->createPublicProfile($runner);
-
-        $this->getJson('/api/runners/verified-runner')
-            ->assertOk()
-            ->assertJsonPath(
-                'data.profile.profile_name',
-                'Nama Akaun Runner'
-            )
-            ->assertJsonMissingPath('data.profile.verified_name');
-    }
-
     public function test_public_profile_name_uses_current_account_profile_name(): void
     {
         $runner = $this->createApprovedRunner();
 
-        $this->createPublicProfile($runner);
+        $this->createIdentityVerification(
+            $runner,
+            IdentityVerification::STATUS_VERIFIED
+        );
+
+        $this->createPublicProfile($runner, 'verified-runner');
 
         $runner->profile_name = 'Nama Akaun Dikemas Kini';
         $runner->save();
@@ -400,24 +340,16 @@ class RunnerPublicProfileTest extends TestCase
             'updated_at' => $now,
         ]);
 
-        return Account::query()->findOrFail($id);
-    }
+        $account = Account::query()->findOrFail($id);
 
-    private function createSessionToken(Account $account): string
-    {
-        $token = Str::random(64);
+        if ($runnerStatus === Account::RUNNER_STATUS_APPROVED) {
+            $this->createIdentityVerification(
+                $account,
+                IdentityVerification::STATUS_VERIFIED
+            );
+        }
 
-        Session::query()->create([
-            'id' => (string) Str::uuid(),
-            'account_id' => $account->id,
-            'token_hash' => hash('sha256', $token),
-            'created_at' => now(),
-            'last_activity_at' => now(),
-            'ended_at' => null,
-            'end_reason' => null,
-        ]);
-
-        return $token;
+        return $account;
     }
 
     private function createApprovedRunner(): Account
@@ -461,17 +393,36 @@ class RunnerPublicProfileTest extends TestCase
         ]);
     }
 
-    private function createPublicProfile(Account $account): void
-    {
-        RunnerPublicProfile::query()->create([
+    private function createPublicProfile(
+        Account $account,
+        string $slug
+    ): RunnerPublicProfile {
+        return RunnerPublicProfile::query()->create([
             'profile_id' => (string) Str::uuid(),
             'account_id' => $account->id,
-            'public_slug' => 'verified-runner',
+            'public_slug' => $slug,
             'bio' => 'Profil ujian.',
             'service_area' => 'Tuaran',
             'services' => ['Penghantaran'],
             'is_published' => true,
             'views_count' => 0,
         ]);
+    }
+
+    private function createSessionToken(Account $account): string
+    {
+        $token = Str::random(64);
+
+        Session::query()->create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $account->id,
+            'token_hash' => hash('sha256', $token),
+            'created_at' => now(),
+            'last_activity_at' => now(),
+            'ended_at' => null,
+            'end_reason' => null,
+        ]);
+
+        return $token;
     }
 }
