@@ -63,15 +63,93 @@ class CoreTaskLifecycleService implements CoreTaskLifecycle
         });
     }
 
+    public function arrive(
+        string $taskId,
+        string $actorAccountId,
+        float $latitude,
+        float $longitude
+    ): CoreTask {
+        $this->validateIdentifiers($taskId, $actorAccountId);
+
+        if ($latitude < -90 || $latitude > 90) {
+            throw new InvalidArgumentException(
+                'Latitude must be between -90 and 90.'
+            );
+        }
+
+        if ($longitude < -180 || $longitude > 180) {
+            throw new InvalidArgumentException(
+                'Longitude must be between -180 and 180.'
+            );
+        }
+
+        return DB::transaction(function () use (
+            $taskId,
+            $actorAccountId,
+            $latitude,
+            $longitude
+        ): CoreTask {
+            $task = CoreTask::query()
+                ->whereKey($taskId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $account = Account::query()
+                ->whereKey($actorAccountId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $this->assertAssignedApprovedRunner($task, $account);
+
+            if ($task->generic_status !== CoreTask::STATUS_IN_PROGRESS) {
+                throw new DomainException(
+                    'Only in-progress tasks can be marked as arrived.'
+                );
+            }
+
+            if ($task->started_at === null) {
+                throw new DomainException(
+                    'Task must be started before arrival can be recorded.'
+                );
+            }
+
+            if (
+                $task->arrived_at !== null
+                || $task->arrival_latitude !== null
+                || $task->arrival_longitude !== null
+            ) {
+                throw new DomainException(
+                    'Task arrival has already been recorded.'
+                );
+            }
+
+            $task->arrived_at = now();
+            $task->arrival_latitude = $latitude;
+            $task->arrival_longitude = $longitude;
+            $task->save();
+
+            $this->notifyMarketplaceCustomer(
+                $task,
+                'marketplace.task_arrived',
+                'Runner telah tiba',
+                'Runner telah tiba di lokasi tugasan.'
+            );
+
+            return $task->refresh();
+        });
+    }
+
     public function complete(
         string $taskId,
-        string $actorAccountId
+        string $actorAccountId,
+        ?string $completionProofPath = null
     ): CoreTask {
         $this->validateIdentifiers($taskId, $actorAccountId);
 
         return DB::transaction(function () use (
             $taskId,
-            $actorAccountId
+            $actorAccountId,
+            $completionProofPath
         ): CoreTask {
             $task = CoreTask::query()
                 ->whereKey($taskId)
@@ -97,7 +175,38 @@ class CoreTaskLifecycleService implements CoreTaskLifecycle
                 );
             }
 
+            /*
+             * Marketplace tasks are Runner-facing jobs.
+             * They must have arrival GPS and photo proof before completion.
+             * Other Core Task modules retain their existing completion flow.
+             */
+            if ($task->module_key === 'Marketplace') {
+                if (
+                    $task->arrived_at === null
+                    || $task->arrival_latitude === null
+                    || $task->arrival_longitude === null
+                ) {
+                    throw new DomainException(
+                        'Runner must arrive and record GPS before completing the task.'
+                    );
+                }
+
+                if (
+                    $completionProofPath === null
+                    || trim($completionProofPath) === ''
+                ) {
+                    throw new DomainException(
+                        'Completion photo proof is required for Marketplace tasks.'
+                    );
+                }
+            }
+
             $task->completed_at = now();
+
+            if ($completionProofPath !== null) {
+                $task->completion_proof_path = $completionProofPath;
+            }
+
             $task->generic_status = CoreTask::STATUS_COMPLETED;
             $task->save();
 
