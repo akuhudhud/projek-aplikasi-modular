@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Contracts\CoreTaskLifecycle;
 use App\Models\Account;
 use App\Models\CoreTask;
-use App\Models\IdentityVerification;
 use App\Models\MarketplaceRequest;
 use App\Notifications\MarketplaceEventNotification;
 use DomainException;
@@ -175,11 +174,6 @@ class CoreTaskLifecycleService implements CoreTaskLifecycle
                 );
             }
 
-            /*
-             * Marketplace tasks are Runner-facing jobs.
-             * They must have arrival GPS and photo proof before completion.
-             * Other Core Task modules retain their existing completion flow.
-             */
             if ($task->module_key === 'Marketplace') {
                 if (
                     $task->arrived_at === null
@@ -292,17 +286,6 @@ class CoreTaskLifecycleService implements CoreTaskLifecycle
         ) {
             throw new DomainException(
                 'Only approved runners can perform task actions.'
-            );
-        }
-
-        $identityVerified = IdentityVerification::query()
-            ->where('account_id', $account->id)
-            ->where('status', IdentityVerification::STATUS_VERIFIED)
-            ->exists();
-
-        if (!$identityVerified) {
-            throw new DomainException(
-                'Verified identity is required to perform task actions.'
             );
         }
 
