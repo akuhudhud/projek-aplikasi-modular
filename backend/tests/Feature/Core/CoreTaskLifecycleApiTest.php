@@ -4,6 +4,7 @@ namespace Tests\Feature\Core;
 
 use App\Models\Account;
 use App\Models\CoreTask;
+use App\Models\IdentityVerification;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -30,6 +31,23 @@ class CoreTaskLifecycleApiTest extends TestCase
 
         $account->runner_status = $runnerStatus;
         $account->save();
+
+        if (
+            $status === 'ACTIVE'
+            && $runnerStatus === Account::RUNNER_STATUS_APPROVED
+        ) {
+            IdentityVerification::query()->create([
+                'id' => (string) Str::uuid(),
+                'account_id' => $account->id,
+                'verified_name' => 'Verified Lifecycle Runner',
+                'mykad_number' => '900101145678',
+                'status' => IdentityVerification::STATUS_VERIFIED,
+                'submitted_at' => now(),
+                'reviewed_at' => now(),
+                'reviewer_account_id' => null,
+                'rejection_reason' => null,
+            ]);
+        }
 
         return $account->fresh();
     }
