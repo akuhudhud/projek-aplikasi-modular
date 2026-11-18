@@ -3,6 +3,7 @@
 namespace Tests\Feature\Marketplace;
 
 use App\Models\Account;
+use App\Models\IdentityVerification;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
 use App\Models\Session;
@@ -425,8 +426,111 @@ class MarketplaceLifecycleApiTest extends TestCase
         $this->assertDatabaseCount('marketplace_requests', 0);
     }
 
+    public function test_runner_without_verified_identity_cannot_browse_available_requests(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED,
+            IdentityVerification::STATUS_PENDING
+        );
+
+        $customerToken = $this->createSessionToken($customer);
+        $runnerToken = $this->createSessionToken($runner);
+
+        $this->withToken($customerToken)
+            ->postJson('/api/marketplace/requests', [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Open request for eligibility test.',
+                'expires_at' => now()->addHours(2)->toISOString(),
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
+            ])
+            ->assertCreated();
+
+        $this->withToken($runnerToken)
+            ->getJson('/api/marketplace/requests?view=available')
+            ->assertForbidden()
+            ->assertJsonPath('success', false);
+    }
+
+    public function test_runner_without_verified_identity_cannot_view_request_details(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED,
+            IdentityVerification::STATUS_PENDING
+        );
+
+        $customerToken = $this->createSessionToken($customer);
+        $runnerToken = $this->createSessionToken($runner);
+
+        $created = $this->withToken($customerToken)
+            ->postJson('/api/marketplace/requests', [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Request detail eligibility test.',
+                'expires_at' => now()->addHours(2)->toISOString(),
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
+            ])
+            ->assertCreated();
+
+        $requestId = $created->json('data.request.request_id');
+
+        $this->withToken($runnerToken)
+            ->getJson('/api/marketplace/requests/'.$requestId)
+            ->assertNotFound()
+            ->assertJsonPath('success', false);
+    }
+
+    public function test_runner_without_verified_identity_cannot_submit_quotation(): void
+    {
+        $customer = $this->makeAccount();
+        $runner = $this->makeAccount(
+            Account::RUNNER_STATUS_APPROVED,
+            IdentityVerification::STATUS_PENDING
+        );
+
+        $customerToken = $this->createSessionToken($customer);
+        $runnerToken = $this->createSessionToken($runner);
+
+        $created = $this->withToken($customerToken)
+            ->postJson('/api/marketplace/requests', [
+                'task_class' => 'PICKUP_DELIVERY',
+                'description' => 'Request quotation eligibility test.',
+                'expires_at' => now()->addHours(2)->toISOString(),
+                'pickup_location_snapshot' => [
+                    'address' => 'Pickup location',
+                ],
+                'delivery_location_snapshot' => [
+                    'address' => 'Delivery location',
+                ],
+            ])
+            ->assertCreated();
+
+        $requestId = $created->json('data.request.request_id');
+
+        $this->withToken($runnerToken)
+            ->postJson(
+                '/api/marketplace/requests/'.$requestId.'/quotations',
+                ['amount' => '25.00']
+            )
+            ->assertUnprocessable()
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseCount('marketplace_quotations', 0);
+    }
+
     private function makeAccount(
-        string $runnerStatus = Account::RUNNER_STATUS_NOT_RUNNER
+        string $runnerStatus = Account::RUNNER_STATUS_NOT_RUNNER,
+        ?string $identityStatus = null
     ): Account {
         $id = (string) Str::uuid();
         $now = now();
@@ -441,6 +545,25 @@ class MarketplaceLifecycleApiTest extends TestCase
             'created_at' => $now,
             'updated_at' => $now,
         ]);
+
+        if ($runnerStatus === Account::RUNNER_STATUS_APPROVED) {
+            DB::table('identity_verifications')->insert([
+                'id' => (string) Str::uuid(),
+                'account_id' => $id,
+                'verified_name' => 'Marketplace Verified Runner',
+                'mykad_number' => '900101145678',
+                'status' => $identityStatus
+                    ?? IdentityVerification::STATUS_VERIFIED,
+                'submitted_at' => $now,
+                'reviewed_at' => $identityStatus === IdentityVerification::STATUS_PENDING
+                    ? null
+                    : $now,
+                'reviewer_account_id' => null,
+                'rejection_reason' => null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
 
         return Account::query()->findOrFail($id);
     }
