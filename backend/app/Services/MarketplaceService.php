@@ -6,7 +6,6 @@ use App\Contracts\CoreTaskAssigner;
 use App\Contracts\CoreTaskRegistry;
 use App\Models\Account;
 use App\Models\CoreTask;
-use App\Models\IdentityVerification;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
 use App\Models\RunnerPublicProfile;
@@ -150,7 +149,6 @@ class MarketplaceService
             );
         }
 
-        // PICKUP_DELIVERY mesti mempunyai alamat pickup dan delivery yang sah.
         if (
             $taskClass === MarketplaceRequest::TASK_CLASS_PICKUP_DELIVERY
             && (
@@ -171,7 +169,6 @@ class MarketplaceService
             );
         }
 
-        // NON_DELIVERY mesti mempunyai alamat lokasi tugasan yang sah.
         if (
             $taskClass === MarketplaceRequest::TASK_CLASS_NON_DELIVERY
             && (
@@ -221,7 +218,7 @@ class MarketplaceService
                     || !$this->isEligibleRunner($targetRunner)
                 ) {
                     throw new DomainException(
-                        'The selected runner is unavailable, not approved, or identity is not verified.'
+                        'The selected runner is unavailable or not approved.'
                     );
                 }
 
@@ -407,7 +404,7 @@ class MarketplaceService
                 || !$this->isEligibleRunner($lockedRunner)
             ) {
                 throw new DomainException(
-                    'Only active, approved, and identity-verified runners may submit quotations.'
+                    'Only active and approved runners may submit quotations.'
                 );
             }
 
@@ -448,7 +445,6 @@ class MarketplaceService
                 'status' => MarketplaceQuotation::STATUS_SUBMITTED,
             ]);
 
-            // Notifikasi pelanggan apabila Runner menghantar sebutharga.
             $customerAccount = Account::query()
                 ->whereKey($request->customer_account_id)
                 ->first();
@@ -664,7 +660,7 @@ class MarketplaceService
 
             if (!$runner || !$this->isEligibleRunner($runner)) {
                 throw new DomainException(
-                    'The quoted runner is no longer active, approved, and identity-verified.'
+                    'The quoted runner is no longer active and approved.'
                 );
             }
 
@@ -712,7 +708,6 @@ class MarketplaceService
                     'updated_at' => $now,
                 ]);
 
-            // Notifikasi Runner apabila sebutharganya dipilih pelanggan.
             $runner->notify(
                 new MarketplaceEventNotification(
                     event: 'marketplace.quotation_accepted',
@@ -866,15 +861,8 @@ class MarketplaceService
 
     private function isEligibleRunner(Account $account): bool
     {
-        if (
-            $account->status !== 'ACTIVE'
-            || $account->runner_status !== Account::RUNNER_STATUS_APPROVED
-        ) {
-            return false;
-        }
-
-        return $account->identityVerification()
-            ->where('status', IdentityVerification::STATUS_VERIFIED)
-            ->exists();
+        return $account->status === 'ACTIVE'
+            && $account->runner_status
+                === Account::RUNNER_STATUS_APPROVED;
     }
 }
