@@ -248,9 +248,17 @@ class CoreTaskLifecycleServiceTest extends TestCase
             true
         );
 
+        $this->lifecycle->arrive(
+            $task->task_id,
+            $runner->id,
+            5.9500,
+            116.0700
+        );
+
         $this->lifecycle->complete(
             $task->task_id,
-            $runner->id
+            $runner->id,
+            'runner-task-proofs/test-proof.jpg'
         );
 
         $notification = $customer->notifications()
