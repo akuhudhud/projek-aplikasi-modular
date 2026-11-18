@@ -4,6 +4,7 @@ namespace Tests\Feature\Marketplace;
 
 use App\Models\Account;
 use App\Models\CoreTask;
+use App\Models\IdentityVerification;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
 use App\Models\RunnerPublicProfile;
@@ -96,6 +97,32 @@ class RunnerPublicProfileAnalyticsTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
+    public function test_runner_without_verified_identity_cannot_view_profile_analytics(): void
+    {
+        $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
+
+        IdentityVerification::query()
+            ->where('account_id', $runner->id)
+            ->update([
+                'status' => IdentityVerification::STATUS_PENDING,
+            ]);
+
+        RunnerPublicProfile::query()->create([
+            'profile_id' => (string) Str::uuid(),
+            'account_id' => $runner->id,
+            'public_slug' => 'unverified-analytics-runner',
+            'is_published' => true,
+            'views_count' => 5,
+        ]);
+
+        $token = $this->createSessionToken($runner);
+
+        $this->withToken($token)
+            ->getJson('/api/me/runner-profile/analytics')
+            ->assertForbidden()
+            ->assertJsonPath('success', false);
+    }
+
     private function makeAccount(
         string $runnerStatus = Account::RUNNER_STATUS_NOT_RUNNER
     ): Account {
@@ -113,7 +140,21 @@ class RunnerPublicProfileAnalyticsTest extends TestCase
             'updated_at' => $now,
         ]);
 
-        return Account::query()->findOrFail($id);
+        $account = Account::query()->findOrFail($id);
+
+        if ($runnerStatus === Account::RUNNER_STATUS_APPROVED) {
+            IdentityVerification::query()->create([
+                'id' => (string) Str::uuid(),
+                'account_id' => $account->id,
+                'verified_name' => 'Verified Analytics Runner',
+                'mykad_number' => '900101145678',
+                'status' => IdentityVerification::STATUS_VERIFIED,
+                'submitted_at' => now(),
+                'reviewed_at' => now(),
+            ]);
+        }
+
+        return $account;
     }
 
     private function makeRequest(
