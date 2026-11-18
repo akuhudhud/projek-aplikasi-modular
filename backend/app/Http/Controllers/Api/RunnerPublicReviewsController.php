@@ -31,32 +31,34 @@ class RunnerPublicReviewsController extends Controller
             return $this->error('Runner profile not found.', 404);
         }
 
-        $reviews = RunnerTaskRating::query()
+        $ratingCount = RunnerTaskRating::query()
             ->where('runner_account_id', $account->id)
-            ->whereNotNull('review')
-            ->whereRaw("TRIM(review) <> ''")
-            ->orderByDesc('created_at')
-            ->orderByDesc('rating_id')
-            ->paginate(20);
+            ->whereBetween('rating', [1, 5])
+            ->count();
+
+        $ratingAverage = RunnerTaskRating::query()
+            ->where('runner_account_id', $account->id)
+            ->whereBetween('rating', [1, 5])
+            ->avg('rating');
 
         return response()->json([
             'success' => true,
             'data' => [
-                'reviews' => $reviews->getCollection()
-                    ->map(static fn (RunnerTaskRating $rating): array => [
-                        'rating' => (int) $rating->rating,
-                        'review' => $rating->review,
-                        'created_at' => $rating->created_at,
-                    ])
-                    ->values(),
+                'rating_summary' => [
+                    'rating_average' => $ratingAverage !== null
+                        ? round((float) $ratingAverage, 1)
+                        : null,
+                    'rating_count' => $ratingCount,
+                ],
+                'reviews' => [],
                 'pagination' => [
-                    'current_page' => $reviews->currentPage(),
-                    'last_page' => $reviews->lastPage(),
-                    'per_page' => $reviews->perPage(),
-                    'total' => $reviews->total(),
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => 0,
+                    'total' => 0,
                 ],
             ],
-        ]);
+        ], 200);
     }
 
     private function error(
