@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Account;
-use App\Models\IdentityVerification;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
 use App\Services\MarketplaceService;
@@ -41,7 +40,7 @@ class MarketplaceController extends Controller
         } else {
             if (!$this->isEligibleRunner($account)) {
                 return $this->error(
-                    'Only active, approved, and identity-verified runners can browse available requests.',
+                    'Only active and approved runners can browse available requests.',
                     403
                 );
             }
@@ -529,16 +528,8 @@ class MarketplaceController extends Controller
 
     private function isEligibleRunner(Account $account): bool
     {
-        if (
-            $account->status !== 'ACTIVE'
-            || $account->runner_status !== Account::RUNNER_STATUS_APPROVED
-        ) {
-            return false;
-        }
-
-        return $account->identityVerification()
-            ->where('status', IdentityVerification::STATUS_VERIFIED)
-            ->exists();
+        return $account->status === 'ACTIVE'
+            && $account->runner_status === Account::RUNNER_STATUS_APPROVED;
     }
 
     private function requestPayload(
