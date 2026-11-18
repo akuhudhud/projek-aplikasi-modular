@@ -27,6 +27,16 @@ class RunnerNotificationController extends Controller
             ], 401);
         }
 
+        if (
+            $account->status !== 'ACTIVE'
+            || $account->runner_status !== Account::RUNNER_STATUS_APPROVED
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Runner access is not approved.',
+            ], 403);
+        }
+
         $notifications = $account->notifications()
             ->orderByDesc('created_at')
             ->orderBy('id')
@@ -90,6 +100,7 @@ class RunnerNotificationController extends Controller
 
         return response()->json([
             'success' => true,
+            'message' => 'Notification marked as read.',
             'data' => [
                 'id' => $notification->id,
                 'read_at' => $notification->fresh()->read_at,
