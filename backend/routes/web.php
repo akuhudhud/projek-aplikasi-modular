@@ -2,7 +2,10 @@
 
 use App\Http\Controllers\Api\AuthController as ApiAuthController;
 use App\Http\Controllers\Api\ContactChangeController;
+use App\Http\Controllers\Api\CoreTaskController;
+use App\Http\Controllers\Api\MarketplaceController;
 use App\Http\Controllers\Api\ProfilePictureController;
+use App\Http\Controllers\Api\RunnerPublicProfileController;
 use App\Http\Controllers\Api\RunnerTaskRatingController;
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\RegistrationController;
@@ -10,6 +13,7 @@ use App\Http\Controllers\Web\CustomerMarketplaceRequestController;
 use App\Http\Controllers\Web\CustomerNotificationController;
 use App\Http\Controllers\Web\CustomerTaskController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Middleware\ExpireMarketplaceItems;
 
 Route::prefix('web/auth')
     ->name('web.auth.')
@@ -99,6 +103,71 @@ Route::prefix('web/auth')
             Route::post('/logout', [AuthController::class, 'logout'])
                 ->name('logout');
         });
+    });
+
+/*
+|--------------------------------------------------------------------------
+| Runner PWA
+|--------------------------------------------------------------------------
+*/
+
+Route::prefix('web/runner')
+    ->name('web.runner.')
+    ->middleware('web.auth')
+    ->group(function (): void {
+        /*
+         * Assigned Runner tasks.
+         */
+        Route::get('/tasks', [
+            CoreTaskController::class,
+            'index',
+        ])->name('tasks.index');
+
+        Route::post('/tasks/{taskId}/start', [
+            CoreTaskController::class,
+            'start',
+        ])->name('tasks.start');
+
+        Route::post('/tasks/{taskId}/complete', [
+            CoreTaskController::class,
+            'complete',
+        ])->name('tasks.complete');
+
+        /*
+         * Open Marketplace requests and Runner quotations.
+         */
+        Route::middleware(ExpireMarketplaceItems::class)
+            ->prefix('requests')
+            ->name('requests.')
+            ->group(function (): void {
+                Route::get('/', [
+                    MarketplaceController::class,
+                    'index',
+                ])->name('index');
+
+                Route::get('/{requestId}', [
+                    MarketplaceController::class,
+                    'show',
+                ])->name('show');
+
+                Route::post('/{requestId}/quotations', [
+                    MarketplaceController::class,
+                    'submitQuotation',
+                ])->name('quotations.store');
+            });
+
+        /*
+         * Runner public profile management and analytics.
+         */
+        Route::post('/profile', [
+            RunnerPublicProfileController::class,
+            'save',
+        ])->name('profile.save');
+
+        Route::get('/profile/analytics', [
+            RunnerPublicProfileController::class,
+            'analytics',
+        ])->name('profile.analytics');
     });
 
 Route::prefix('web/customer')
