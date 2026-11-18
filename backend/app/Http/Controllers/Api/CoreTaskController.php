@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Http\Controllers\Api;
@@ -21,23 +22,23 @@ class CoreTaskController extends Controller
     }
 
     /**
-     * Generic core task list.
-     * Kekalkan akses asal untuk modul dan akaun lain.
+     * Generic Core Task list.
+     * Kekalkan akses asal untuk modul lain.
      */
     public function index(Request $request): JsonResponse
     {
-        return $this->taskListResponse($request);
+        return $this->taskListResponse($request, false);
     }
 
     /**
-     * Runner PWA task list.
+     * Runner-specific task list.
      * Hanya Runner aktif, diluluskan dan identiti disahkan.
      */
     public function runnerIndex(Request $request): JsonResponse
     {
         $account = $request->attributes->get('account');
 
-        if (!$account) {
+        if (!$account instanceof Account) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized.',
@@ -51,32 +52,59 @@ class CoreTaskController extends Controller
             ], 403);
         }
 
-        return $this->taskListResponse($request);
+        return $this->taskListResponse($request, true);
     }
 
-    private function taskListResponse(Request $request): JsonResponse
-    {
+    private function taskListResponse(
+        Request $request,
+        bool $runnerMode
+    ): JsonResponse {
         $account = $request->attributes->get('account');
 
-        if (!$account) {
+        if (!$account instanceof Account) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized.',
             ], 401);
         }
 
-        $isPrivileged = in_array($account->role, [
-            'ROOT_SUPER_ADMIN',
-            'SUPER_ADMIN',
-        ], true);
-
         $query = CoreTask::query();
 
-        if (!$isPrivileged) {
-            $query->where(
-                'assigned_account_id',
-                $account->id
-            );
+        if ($runnerMode) {
+            $view = $request->query('view', 'active');
+
+            if (!in_array($view, ['active', 'history'], true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid task view.',
+                ], 422);
+            }
+
+            $query->where('assigned_account_id', $account->id);
+
+            if ($view === 'history') {
+                $query->whereIn('generic_status', [
+                    CoreTask::STATUS_COMPLETED,
+                    CoreTask::STATUS_CANCELLED,
+                ]);
+            } else {
+                $query->whereIn('generic_status', [
+                    CoreTask::STATUS_ASSIGNED,
+                    CoreTask::STATUS_IN_PROGRESS,
+                ]);
+            }
+        } else {
+            $isPrivileged = in_array($account->role, [
+                'ROOT_SUPER_ADMIN',
+                'SUPER_ADMIN',
+            ], true);
+
+            if (!$isPrivileged) {
+                $query->where(
+                    'assigned_account_id',
+                    $account->id
+                );
+            }
         }
 
         $columns = [
@@ -95,8 +123,13 @@ class CoreTaskController extends Controller
             'updated_at',
         ];
 
-        // Internal creator reference is available to privileged admins only.
-        if ($isPrivileged) {
+        if (
+            !$runnerMode
+            && in_array($account->role, [
+                'ROOT_SUPER_ADMIN',
+                'SUPER_ADMIN',
+            ], true)
+        ) {
             $columns[] = 'created_by_account_id';
         }
 
@@ -130,15 +163,115 @@ class CoreTaskController extends Controller
         );
     }
 
+    public function arrive(
+        Request $request,
+        string $taskId
+    ): JsonResponse {
+        $validated = $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+        ]);
+
+        $account = $request->attributes->get('account');
+
+        if (!$account instanceof Account) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
+        try {
+            $task = $this->lifecycle->arrive(
+                $taskId,
+                $account->id,
+                (float) $validated['latitude'],
+                (float) $validated['longitude']
+            );
+        } catch (ModelNotFoundException) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Task or account not found.',
+            ], 404);
+        } catch (DomainException | InvalidArgumentException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return $this->taskResponse($task);
+    }
+
     public function complete(
         Request $request,
         string $taskId
     ): JsonResponse {
-        return $this->performLifecycleAction(
-            $request,
-            $taskId,
-            'complete'
-        );
+        $validated = $request->validate([
+            'completion_proof' => [
+                'required',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:5120',
+            ],
+        ]);
+
+        $account = $request->attributes->get('account');
+
+        if (!$account instanceof Account) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
+        $task = CoreTask::query()
+            ->where('task_id', $taskId)
+            ->where('assigned_account_id', $account->id)
+            ->first();
+
+        if (!$task) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Task not found.',
+            ], 404);
+        }
+
+        if (!$task->arrived_at) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Runner must arrive before completing the task.',
+            ], 422);
+        }
+
+        $proofPath = $request->file('completion_proof')
+            ->store('runner-task-proofs', 'local');
+
+        try {
+            $task = $this->lifecycle->complete(
+                $taskId,
+                $account->id,
+                $proofPath
+            );
+        } catch (ModelNotFoundException) {
+            \Illuminate\Support\Facades\Storage::disk('local')
+                ->delete($proofPath);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Task or account not found.',
+            ], 404);
+        } catch (DomainException | InvalidArgumentException $exception) {
+            \Illuminate\Support\Facades\Storage::disk('local')
+                ->delete($proofPath);
+
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return $this->taskResponse($task);
     }
 
     private function performLifecycleAction(
@@ -148,7 +281,7 @@ class CoreTaskController extends Controller
     ): JsonResponse {
         $account = $request->attributes->get('account');
 
-        if (!$account) {
+        if (!$account instanceof Account) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized.',
@@ -172,6 +305,11 @@ class CoreTaskController extends Controller
             ], 422);
         }
 
+        return $this->taskResponse($task);
+    }
+
+    private function taskResponse(CoreTask $task): JsonResponse
+    {
         return response()->json([
             'success' => true,
             'data' => [
@@ -185,7 +323,11 @@ class CoreTaskController extends Controller
                     'generic_status',
                     'assigned_at',
                     'started_at',
+                    'arrived_at',
+                    'arrival_latitude',
+                    'arrival_longitude',
                     'completed_at',
+                    'completion_proof_path',
                     'cancelled_at',
                     'created_at',
                     'updated_at',
