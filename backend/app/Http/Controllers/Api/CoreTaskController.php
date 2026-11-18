@@ -6,7 +6,6 @@ use App\Contracts\CoreTaskLifecycle;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\CoreTask;
-use App\Models\IdentityVerification;
 use DomainException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -36,7 +35,7 @@ class CoreTaskController extends Controller
 
         if (!$this->isEligibleRunner($account)) {
             return $this->error(
-                'Only active, approved, and identity-verified runners can view assigned tasks.',
+                'Only active and approved runners can view assigned tasks.',
                 403
             );
         }
@@ -57,7 +56,6 @@ class CoreTaskController extends Controller
         $query = CoreTask::query();
 
         if ($runnerMode) {
-            // Route defaults must take precedence over query-string defaults.
             $view = $request->route('view')
                 ?? $request->query('view', 'active');
 
@@ -177,10 +175,6 @@ class CoreTaskController extends Controller
         return $this->taskResponse($task);
     }
 
-    /**
-     * Generic Core Task completion.
-     * Runner PWA must use runnerComplete().
-     */
     public function complete(
         Request $request,
         string $taskId
@@ -192,9 +186,6 @@ class CoreTaskController extends Controller
         );
     }
 
-    /**
-     * Runner PWA completion with mandatory photo proof.
-     */
     public function runnerComplete(
         Request $request,
         string $taskId
@@ -319,17 +310,9 @@ class CoreTaskController extends Controller
 
     private function isEligibleRunner(Account $account): bool
     {
-        if (
-            $account->status !== 'ACTIVE'
-            || $account->runner_status !== Account::RUNNER_STATUS_APPROVED
-        ) {
-            return false;
-        }
-
-        return IdentityVerification::query()
-            ->where('account_id', $account->id)
-            ->where('status', IdentityVerification::STATUS_VERIFIED)
-            ->exists();
+        return $account->status === 'ACTIVE'
+            && $account->runner_status
+                === Account::RUNNER_STATUS_APPROVED;
     }
 
     private function error(
