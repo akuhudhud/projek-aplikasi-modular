@@ -1,4 +1,3 @@
-
 <?php
 
 namespace App\Http\Controllers\Api;
@@ -12,6 +11,7 @@ use DomainException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 
 class CoreTaskController extends Controller
@@ -21,35 +21,24 @@ class CoreTaskController extends Controller
     ) {
     }
 
-    /**
-     * Generic Core Task list.
-     * Kekalkan akses asal untuk modul lain.
-     */
     public function index(Request $request): JsonResponse
     {
         return $this->taskListResponse($request, false);
     }
 
-    /**
-     * Runner-specific task list.
-     * Hanya Runner aktif, diluluskan dan identiti disahkan.
-     */
     public function runnerIndex(Request $request): JsonResponse
     {
         $account = $request->attributes->get('account');
 
         if (!$account instanceof Account) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized.',
-            ], 401);
+            return $this->error('Unauthorized.', 401);
         }
 
         if (!$this->isEligibleRunner($account)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Only active, approved, and identity-verified runners can view assigned tasks.',
-            ], 403);
+            return $this->error(
+                'Only active, approved, and identity-verified runners can view assigned tasks.',
+                403
+            );
         }
 
         return $this->taskListResponse($request, true);
@@ -62,10 +51,7 @@ class CoreTaskController extends Controller
         $account = $request->attributes->get('account');
 
         if (!$account instanceof Account) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized.',
-            ], 401);
+            return $this->error('Unauthorized.', 401);
         }
 
         $query = CoreTask::query();
@@ -74,10 +60,7 @@ class CoreTaskController extends Controller
             $view = $request->query('view', 'active');
 
             if (!in_array($view, ['active', 'history'], true)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid task view.',
-                ], 422);
+                return $this->error('Invalid task view.', 422);
             }
 
             $query->where('assigned_account_id', $account->id);
@@ -100,10 +83,7 @@ class CoreTaskController extends Controller
             ], true);
 
             if (!$isPrivileged) {
-                $query->where(
-                    'assigned_account_id',
-                    $account->id
-                );
+                $query->where('assigned_account_id', $account->id);
             }
         }
 
@@ -117,6 +97,7 @@ class CoreTaskController extends Controller
             'generic_status',
             'assigned_at',
             'started_at',
+            'arrived_at',
             'completed_at',
             'cancelled_at',
             'created_at',
@@ -175,10 +156,7 @@ class CoreTaskController extends Controller
         $account = $request->attributes->get('account');
 
         if (!$account instanceof Account) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized.',
-            ], 401);
+            return $this->error('Unauthorized.', 401);
         }
 
         try {
@@ -189,21 +167,33 @@ class CoreTaskController extends Controller
                 (float) $validated['longitude']
             );
         } catch (ModelNotFoundException) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Task or account not found.',
-            ], 404);
+            return $this->error('Task or account not found.', 404);
         } catch (DomainException | InvalidArgumentException $exception) {
-            return response()->json([
-                'success' => false,
-                'message' => $exception->getMessage(),
-            ], 422);
+            return $this->error($exception->getMessage(), 422);
         }
 
         return $this->taskResponse($task);
     }
 
+    /**
+     * Generic Core Task completion.
+     * Runner PWA must use runnerComplete().
+     */
     public function complete(
+        Request $request,
+        string $taskId
+    ): JsonResponse {
+        return $this->performLifecycleAction(
+            $request,
+            $taskId,
+            'complete'
+        );
+    }
+
+    /**
+     * Runner PWA completion with mandatory photo proof.
+     */
+    public function runnerComplete(
         Request $request,
         string $taskId
     ): JsonResponse {
@@ -219,10 +209,7 @@ class CoreTaskController extends Controller
         $account = $request->attributes->get('account');
 
         if (!$account instanceof Account) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized.',
-            ], 401);
+            return $this->error('Unauthorized.', 401);
         }
 
         $task = CoreTask::query()
@@ -231,17 +218,14 @@ class CoreTaskController extends Controller
             ->first();
 
         if (!$task) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Task not found.',
-            ], 404);
+            return $this->error('Task not found.', 404);
         }
 
-        if (!$task->arrived_at) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Runner must arrive before completing the task.',
-            ], 422);
+        if ($task->module_key !== 'Marketplace') {
+            return $this->error(
+                'This completion endpoint is only for Runner Marketplace tasks.',
+                422
+            );
         }
 
         $proofPath = $request->file('completion_proof')
@@ -254,21 +238,19 @@ class CoreTaskController extends Controller
                 $proofPath
             );
         } catch (ModelNotFoundException) {
-            \Illuminate\Support\Facades\Storage::disk('local')
-                ->delete($proofPath);
+            Storage::disk('local')->delete($proofPath);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Task or account not found.',
-            ], 404);
+            return $this->error(
+                'Task or account not found.',
+                404
+            );
         } catch (DomainException | InvalidArgumentException $exception) {
-            \Illuminate\Support\Facades\Storage::disk('local')
-                ->delete($proofPath);
+            Storage::disk('local')->delete($proofPath);
 
-            return response()->json([
-                'success' => false,
-                'message' => $exception->getMessage(),
-            ], 422);
+            return $this->error(
+                $exception->getMessage(),
+                422
+            );
         }
 
         return $this->taskResponse($task);
@@ -282,10 +264,7 @@ class CoreTaskController extends Controller
         $account = $request->attributes->get('account');
 
         if (!$account instanceof Account) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized.',
-            ], 401);
+            return $this->error('Unauthorized.', 401);
         }
 
         try {
@@ -294,15 +273,15 @@ class CoreTaskController extends Controller
                 $account->id
             );
         } catch (ModelNotFoundException) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Task or account not found.',
-            ], 404);
+            return $this->error(
+                'Task or account not found.',
+                404
+            );
         } catch (DomainException | InvalidArgumentException $exception) {
-            return response()->json([
-                'success' => false,
-                'message' => $exception->getMessage(),
-            ], 422);
+            return $this->error(
+                $exception->getMessage(),
+                422
+            );
         }
 
         return $this->taskResponse($task);
@@ -349,5 +328,15 @@ class CoreTaskController extends Controller
             ->where('account_id', $account->id)
             ->where('status', IdentityVerification::STATUS_VERIFIED)
             ->exists();
+    }
+
+    private function error(
+        string $message,
+        int $status
+    ): JsonResponse {
+        return response()->json([
+            'success' => false,
+            'message' => $message,
+        ], $status);
     }
 }
