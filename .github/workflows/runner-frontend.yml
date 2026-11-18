@@ -1,0 +1,47 @@
+name: Runner Frontend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/runner/**'
+      - '.github/workflows/runner-frontend.yml'
+
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/runner/**'
+      - '.github/workflows/runner-frontend.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  runner-frontend:
+    name: Runner Frontend Build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend/runner
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: TypeScript check
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
