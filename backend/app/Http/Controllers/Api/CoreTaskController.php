@@ -191,3 +191,178 @@ class CoreTaskController extends Controller
 
         return $this->taskResponse($task);
     }
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+        ]);
+
+        $account = $request->attributes->get('account');
+
+        if (!$account instanceof Account) {
+            return $this->error('Unauthorized.', 401);
+        }
+
+        try {
+            $task = $this->lifecycle->arrive(
+                $taskId,
+                $account->id,
+                (float) $validated['latitude'],
+                (float) $validated['longitude']
+            );
+        } catch (ModelNotFoundException) {
+            return $this->error('Task or account not found.', 404);
+        } catch (DomainException | InvalidArgumentException $exception) {
+            return $this->error($exception->getMessage(), 422);
+        }
+
+        return $this->taskResponse($task);
+    }
+
+    public function complete(
+        Request $request,
+        string $taskId
+    ): JsonResponse {
+        return $this->performLifecycleAction(
+            $request,
+            $taskId,
+            'complete'
+        );
+    }
+
+    public function runnerComplete(
+        Request $request,
+        string $taskId
+    ): JsonResponse {
+        $validated = $request->validate([
+            'completion_proof' => [
+                'required',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:5120',
+            ],
+        ]);
+
+        $account = $request->attributes->get('account');
+
+        if (!$account instanceof Account) {
+            return $this->error('Unauthorized.', 401);
+        }
+
+        $task = CoreTask::query()
+            ->where('task_id', $taskId)
+            ->where('assigned_account_id', $account->id)
+            ->first();
+
+        if (!$task) {
+            return $this->error('Task not found.', 404);
+        }
+
+        if ($task->module_key !== 'Marketplace') {
+            return $this->error(
+                'This completion endpoint is only for Runner Marketplace tasks.',
+                422
+            );
+        }
+
+        $proofPath = $request->file('completion_proof')
+            ->store('runner-task-proofs', 'local');
+
+        try {
+            $task = $this->lifecycle->complete(
+                $taskId,
+                $account->id,
+                $proofPath
+            );
+        } catch (ModelNotFoundException) {
+            Storage::disk('local')->delete($proofPath);
+
+            return $this->error(
+                'Task or account not found.',
+                404
+            );
+        } catch (DomainException | InvalidArgumentException $exception) {
+            Storage::disk('local')->delete($proofPath);
+
+            return $this->error(
+                $exception->getMessage(),
+                422
+            );
+        }
+
+        return $this->taskResponse($task);
+    }
+
+    private function performLifecycleAction(
+        Request $request,
+        string $taskId,
+        string $action
+    ): JsonResponse {
+        $account = $request->attributes->get('account');
+
+        if (!$account instanceof Account) {
+            return $this->error('Unauthorized.', 401);
+        }
+
+        try {
+            $task = $this->lifecycle->{$action}(
+                $taskId,
+                $account->id
+            );
+        } catch (ModelNotFoundException) {
+            return $this->error(
+                'Task or account not found.',
+                404
+            );
+        } catch (DomainException | InvalidArgumentException $exception) {
+            return $this->error(
+                $exception->getMessage(),
+                422
+            );
+        }
+
+        return $this->taskResponse($task);
+    }
+
+    private function taskResponse(CoreTask $task): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'task' => $task->only([
+                    'task_id',
+                    'module_key',
+                    'task_type',
+                    'source_type',
+                    'source_id',
+                    'assigned_account_id',
+                    'generic_status',
+                    'assigned_at',
+                    'started_at',
+                    'arrived_at',
+                    'arrival_latitude',
+                    'arrival_longitude',
+                    'completed_at',
+                    'completion_proof_path',
+                    'cancelled_at',
+                    'created_at',
+                    'updated_at',
+                ]),
+            ],
+        ], 200);
+    }
+
+    private function isEligibleRunner(Account $account): bool
+    {
+        return $account->status === 'ACTIVE'
+            && $account->runner_status
+                === Account::RUNNER_STATUS_APPROVED;
+    }
+
+    private function error(
+        string $message,
+        int $status
+    ): JsonResponse {
+        return response()->json([
+            'success' => false,
+            'message' => $message,
+        ], 200);
+    }
+}
