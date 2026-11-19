@@ -263,6 +263,7 @@ class CoreTaskLifecycleServiceTest extends TestCase
 
         $notification = $customer->notifications()
             ->where('type', MarketplaceEventNotification::class)
+            ->where('data->event', 'marketplace.task_completed')
             ->latest()
             ->first();
 
