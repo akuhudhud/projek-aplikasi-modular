@@ -72,7 +72,7 @@ describe('RunnerAccessPage', () => {
 
         expect(
             screen.getByRole('heading', {
-                name: 'Permohonan Ditolak',
+                name: 'Permohonan Tidak Diluluskan',
             }),
         ).toBeInTheDocument();
     });
@@ -82,7 +82,7 @@ describe('RunnerAccessPage', () => {
 
         expect(
             screen.getByRole('heading', {
-                name: 'Status Runner Digantung',
+                name: 'Akses Runner Digantung',
             }),
         ).toBeInTheDocument();
     });
