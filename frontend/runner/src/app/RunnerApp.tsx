@@ -1,3 +1,5 @@
+                                                       existingQuotation.status,
+                      
 import {
     useCallback,
     useEffect,
@@ -180,10 +182,10 @@ function RunnerDashboard({
     const [unreadTotal, setUnreadTotal] = useState(0);
 
     const [tasksLoading, setTasksLoading] = useState(true);
-    const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyLoading, setHistoryLoading] = useState(true);
     const [requestsLoading, setRequestsLoading] = useState(false);
     const [notificationsLoading, setNotificationsLoading] =
-        useState(false);
+        useState(true);
 
     const [tasksError, setTasksError] = useState('');
     const [historyError, setHistoryError] = useState('');
@@ -277,7 +279,13 @@ function RunnerDashboard({
 
     useEffect(() => {
         void loadTasks();
-    }, [loadTasks]);
+        void loadHistory();
+        void loadNotifications();
+    }, [
+        loadTasks,
+        loadHistory,
+        loadNotifications,
+    ]);
 
     useEffect(() => {
         if (activeTab === 'HISTORY') {
@@ -399,6 +407,7 @@ function RunnerDashboard({
             setActionLoading('');
         }
     }
+
     async function handleMarkNotificationRead(
         notification: RunnerNotification,
     ) {
@@ -701,17 +710,23 @@ function RunnerDashboard({
                 <div className="runner-dashboard__summary">
                     <article className="runner-dashboard__summary-card">
                         <span>TUGASAN AKTIF</span>
-                        <strong>{activeTasks.length}</strong>
+                        <strong>
+                            {tasksLoading ? '—' : activeTasks.length}
+                        </strong>
                     </article>
 
                     <article className="runner-dashboard__summary-card">
                         <span>TUGASAN SELESAI</span>
-                        <strong>{completedTasks.length}</strong>
+                        <strong>
+                            {historyLoading ? '—' : completedTasks.length}
+                        </strong>
                     </article>
 
                     <article className="runner-dashboard__summary-card">
                         <span>NOTIFIKASI BELUM DIBACA</span>
-                        <strong>{unreadTotal}</strong>
+                        <strong>
+                            {notificationsLoading ? '—' : unreadTotal}
+                        </strong>
                     </article>
                 </div>
 
@@ -769,7 +784,8 @@ function RunnerDashboard({
                         {actionSuccess}
                     </p>
                 )}
-                                {activeTab === 'TASKS' && (
+
+                {activeTab === 'TASKS' && (
                     <section className="runner-dashboard__section">
                         <div className="runner-dashboard__section-heading">
                             <div>
@@ -1113,6 +1129,124 @@ function RunnerDashboard({
                                                             quotationStatusLabel(
                                                                 existingQuotation.status,
                                                             )
+                                                        }. Anda boleh menghantar
+                                                        sebut harga baharu.
+                                                    </p>
+                                                )}
+
+                                                <label>
+                                                    Jumlah sebut harga (RM)
+                                                    <input
+                                                        type="number"
+                                                        min="0.01"
+                                                        step="0.01"
+                                                        required
+                                                        value={quotationAmount}
+                                                        onChange={(event) =>
+                                                            setQuotationAmount(
+                                                                event.target.value,
+                                                            )
+                                                        }
+                                                        placeholder="Contoh: 15.00"
+                                                    />
+                                                </label>
+
+                                                <label>
+                                                    Mesej kepada pelanggan (pilihan)
+                                                    <textarea
+                                                        rows={3}
+                                                        value={quotationMessage}
+                                                        onChange={(event) =>
+                                                            setQuotationMessage(
+                                                                event.target.value,
+                                                            )
+                                                        }
+                                                        placeholder="Maklumat tambahan..."
+                                                    />
+                                                </label>
+
+                                                <div className="runner-dashboard__quotation-actions">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setQuotationRequestId(null);
+                                                            setExistingQuotation(null);
+                                                            setQuotationAmount('');
+                                                            setQuotationMessage('');
+                                                        }}
+                                                        disabled={quotationLoading}
+                                                    >
+                                                        BATAL
+                                                    </button>
+
+                                                    <button
+                                                        type="submit"
+                                                        disabled={quotationLoading}
+                                                    >
+                                                        {quotationLoading
+                                                            ? 'MENGHANTAR...'
+                                                            : 'HANTAR SEBUT HARGA'}
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        )}
+                                    </article>
+                                );
+                            })}
+                        </div>
+                    </section>
+                )}
+            </section>
+        </main>
+    );
+}
+
+export default function RunnerApp() {
+    const session = useRunnerSession();
+
+    if (session.checkingSession) {
+        return (
+            <main className="runner-loading">
+                <div className="runner-loading__brand">SR</div>
+                <p>Memeriksa sesi akaun...</p>
+            </main>
+        );
+    }
+
+    if (!session.account) {
+        return (
+            <RunnerAuthPage
+                onAuthenticated={session.setAccount}
+            />
+        );
+    }
+
+    const accessReason = getRunnerAccessReason(session.account);
+
+    if (accessReason !== null) {
+        return (
+            <RunnerAccessPage
+                account={session.account}
+                reason={accessReason}
+                logout={session.logout}
+                logoutLoading={session.logoutLoading}
+                logoutError={session.logoutError}
+            />
+        );
+    }
+
+    return (
+        <RunnerDashboard
+            account={session.account}
+            onLogout={() => {
+                void session.logout();
+            }}
+            logoutLoading={session.logoutLoading}
+            logoutError={session.logoutError}
+        />
+    );
+}
+                                      )
                                                         }. Anda boleh menghantar
                                                         sebut harga baharu.
                                                     </p>
