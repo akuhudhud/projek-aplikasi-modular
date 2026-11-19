@@ -425,8 +425,7 @@ class MarketplaceLifecycleApiTest extends TestCase
 
         $this->assertDatabaseCount('marketplace_requests', 0);
     }
-
-    public function test_runner_without_verified_identity_cannot_browse_available_requests(): void
+        public function test_approved_runner_can_browse_available_requests_with_pending_identity_record(): void
     {
         $customer = $this->makeAccount();
         $runner = $this->makeAccount(
@@ -453,11 +452,11 @@ class MarketplaceLifecycleApiTest extends TestCase
 
         $this->withToken($runnerToken)
             ->getJson('/api/marketplace/requests?view=available')
-            ->assertForbidden()
-            ->assertJsonPath('success', false);
+            ->assertOk()
+            ->assertJsonPath('success', true);
     }
 
-    public function test_runner_without_verified_identity_cannot_view_request_details(): void
+    public function test_approved_runner_can_view_request_details_with_pending_identity_record(): void
     {
         $customer = $this->makeAccount();
         $runner = $this->makeAccount(
@@ -486,11 +485,12 @@ class MarketplaceLifecycleApiTest extends TestCase
 
         $this->withToken($runnerToken)
             ->getJson('/api/marketplace/requests/'.$requestId)
-            ->assertNotFound()
-            ->assertJsonPath('success', false);
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.request.request_id', $requestId);
     }
 
-    public function test_runner_without_verified_identity_cannot_submit_quotation(): void
+    public function test_approved_runner_can_submit_quotation_with_pending_identity_record(): void
     {
         $customer = $this->makeAccount();
         $runner = $this->makeAccount(
@@ -522,10 +522,18 @@ class MarketplaceLifecycleApiTest extends TestCase
                 '/api/marketplace/requests/'.$requestId.'/quotations',
                 ['amount' => '25.00']
             )
-            ->assertUnprocessable()
-            ->assertJsonPath('success', false);
+            ->assertCreated()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath(
+                'data.quotation.runner_account_id',
+                $runner->id
+            );
 
-        $this->assertDatabaseCount('marketplace_quotations', 0);
+        $this->assertDatabaseHas('marketplace_quotations', [
+            'request_id' => $requestId,
+            'runner_account_id' => $runner->id,
+            'status' => MarketplaceQuotation::STATUS_SUBMITTED,
+        ]);
     }
 
     private function makeAccount(
