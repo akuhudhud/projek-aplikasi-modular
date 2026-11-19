@@ -369,7 +369,8 @@ describe('RunnerApp dashboard', () => {
             expect(runnerApi.getTasks).toHaveBeenCalled();
         });
     });
-        it('loads task history on dashboard initialization and displays it in the history tab', async () => {
+
+    it('loads task history on dashboard initialization and displays it in the history tab', async () => {
         vi.mocked(runnerApi.getTaskHistory).mockResolvedValue({
             tasks: [
                 {
@@ -400,8 +401,7 @@ describe('RunnerApp dashboard', () => {
             await screen.findByText('SELESAI'),
         ).toBeInTheDocument();
     });
-
-    it('loads notifications on dashboard initialization and displays them in the notification tab', async () => {
+        it('loads notifications on dashboard initialization and displays them in the notification tab', async () => {
         vi.mocked(runnerApi.getNotifications).mockResolvedValue({
             notifications: [mockNotification],
             summary: {
@@ -637,7 +637,8 @@ describe('RunnerApp dashboard', () => {
             screen.queryByText(/verified name/i),
         ).not.toBeInTheDocument();
     });
-        it('opens Profil & Tetapan and loads the runner profile', async () => {
+
+    it('opens Profil & Tetapan and loads the runner profile', async () => {
         vi.mocked(runnerApi.getProfile)
             .mockResolvedValue(mockProfile);
 
@@ -701,8 +702,7 @@ describe('RunnerApp dashboard', () => {
             runnerApi.getProfileAnalytics,
         ).not.toHaveBeenCalled();
     });
-
-    it('saves the runner public profile with normalized slug and services', async () => {
+        it('saves the runner public profile with normalized slug and services', async () => {
         vi.mocked(runnerApi.getProfile)
             .mockResolvedValue(null);
 
@@ -758,7 +758,7 @@ describe('RunnerApp dashboard', () => {
 
         fireEvent.change(
             screen.getByRole('textbox', {
-                name: 'Perkhidmatan',
+                name: /Perkhidmatan/,
             }),
             {
                 target: {
