@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Http\Controllers\Api;
@@ -54,6 +55,7 @@ class CoreTaskController extends Controller
         }
 
         $query = CoreTask::query();
+        $view = 'active';
 
         if ($runnerMode) {
             $view = $request->route('view')
@@ -119,7 +121,10 @@ class CoreTaskController extends Controller
         if ($runnerMode && $view === 'history') {
             $completedTotal = CoreTask::query()
                 ->where('assigned_account_id', $account->id)
-                ->where('generic_status', CoreTask::STATUS_COMPLETED)
+                ->where(
+                    'generic_status',
+                    CoreTask::STATUS_COMPLETED
+                )
                 ->count();
         }
 
@@ -167,30 +172,6 @@ class CoreTaskController extends Controller
     ): JsonResponse {
         $validated = $request->validate([
             'latitude' => ['required', 'numeric', 'between:-90,90'],
-            'longitude' => ['required', 'numeric', 'between:-180,180'],
-        ]);
-
-        $account = $request->attributes->get('account');
-
-        if (!$account instanceof Account) {
-            return $this->error('Unauthorized.', 401);
-        }
-
-        try {
-            $task = $this->lifecycle->arrive(
-                $taskId,
-                $account->id,
-                (float) $validated['latitude'],
-                (float) $validated['longitude']
-            );
-        } catch (ModelNotFoundException) {
-            return $this->error('Task or account not found.', 404);
-        } catch (DomainException | InvalidArgumentException $exception) {
-            return $this->error($exception->getMessage(), 422);
-        }
-
-        return $this->taskResponse($task);
-    }
             'longitude' => ['required', 'numeric', 'between:-180,180'],
         ]);
 
