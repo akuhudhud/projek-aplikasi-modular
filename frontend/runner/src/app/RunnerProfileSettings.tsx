@@ -1,4 +1,3 @@
-
 import {
     useCallback,
     useEffect,
@@ -58,6 +57,7 @@ function RunnerProfileSettings({
         useState<RunnerProfileAnalytics>(EMPTY_ANALYTICS);
 
     const [loading, setLoading] = useState(true);
+    const [profileLoadFailed, setProfileLoadFailed] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -71,7 +71,9 @@ function RunnerProfileSettings({
 
     const loadProfile = useCallback(async () => {
         setLoading(true);
+        setProfileLoadFailed(false);
         setError('');
+        setSuccess('');
 
         try {
             const result = await runnerApi.getProfile();
@@ -105,8 +107,11 @@ function RunnerProfileSettings({
                 setAnalytics(EMPTY_ANALYTICS);
             }
         } catch {
+            setProfileLoadFailed(true);
+            setProfile(null);
+            setAnalytics(EMPTY_ANALYTICS);
             setError(
-                'Tidak berjaya mendapatkan profil Runner. Sila cuba semula.',
+                'Tidak berjaya mendapatkan profil Runner. Sila tekan SEGARKAN sebelum menyimpan profil.',
             );
         } finally {
             setLoading(false);
@@ -122,7 +127,7 @@ function RunnerProfileSettings({
     ) {
         event.preventDefault();
 
-        if (saving) {
+        if (saving || profileLoadFailed) {
             return;
         }
 
@@ -209,8 +214,7 @@ function RunnerProfileSettings({
             </section>
         );
     }
-
-    return (
+        return (
         <section className="runner-dashboard__section">
             <div className="runner-dashboard__section-heading">
                 <div>
@@ -223,7 +227,7 @@ function RunnerProfileSettings({
                 <button
                     type="button"
                     onClick={() => void loadProfile()}
-                    disabled={saving}
+                    disabled={saving || loading}
                 >
                     SEGARKAN
                 </button>
@@ -290,6 +294,17 @@ function RunnerProfileSettings({
                         </article>
                     </div>
 
+                    {profileLoadFailed && (
+                        <div
+                            className="runner-dashboard__alert"
+                            role="alert"
+                        >
+                            Profil belum berjaya dimuatkan. Fungsi simpan
+                            dikunci untuk melindungi data profil sedia ada.
+                            Tekan SEGARKAN untuk mencuba semula.
+                        </div>
+                    )}
+
                     <form
                         className="runner-profile__form"
                         onSubmit={handleSaveProfile}
@@ -326,6 +341,7 @@ function RunnerProfileSettings({
                                 maxLength={50}
                                 placeholder="contoh: runner-tuaran"
                                 required
+                                disabled={profileLoadFailed}
                             />
                         </label>
 
@@ -339,6 +355,7 @@ function RunnerProfileSettings({
                                     setBio(event.target.value)
                                 }
                                 placeholder="Perkenalkan diri dan perkhidmatan anda..."
+                                disabled={profileLoadFailed}
                             />
                         </label>
 
@@ -352,6 +369,7 @@ function RunnerProfileSettings({
                                     setBaseLocation(event.target.value)
                                 }
                                 placeholder="Contoh: Tuaran, Sabah"
+                                disabled={profileLoadFailed}
                             />
                         </label>
 
@@ -365,6 +383,7 @@ function RunnerProfileSettings({
                                     setServiceArea(event.target.value)
                                 }
                                 placeholder="Contoh: Tuaran dan Kota Kinabalu"
+                                disabled={profileLoadFailed}
                             />
                         </label>
 
@@ -377,19 +396,20 @@ function RunnerProfileSettings({
                                     setServicesText(event.target.value)
                                 }
                                 placeholder="Contoh: Penghantaran, Pembelian barang, Urusan dokumen"
+                                disabled={profileLoadFailed}
                             />
                             <small>
                                 Pisahkan setiap perkhidmatan menggunakan koma.
                             </small>
                         </label>
-
-                        <label className="runner-profile__publish">
+                                                <label className="runner-profile__publish">
                             <input
                                 type="checkbox"
                                 checked={isPublished}
                                 onChange={(event) =>
                                     setIsPublished(event.target.checked)
                                 }
+                                disabled={profileLoadFailed}
                             />
 
                             <span>
@@ -403,9 +423,13 @@ function RunnerProfileSettings({
                         <button
                             type="submit"
                             className="runner-dashboard__primary-action"
-                            disabled={saving}
+                            disabled={saving || profileLoadFailed}
                         >
-                            {saving ? 'MENYIMPAN...' : 'SIMPAN PROFIL'}
+                            {profileLoadFailed
+                                ? 'PROFIL BELUM DIMUATKAN'
+                                : saving
+                                    ? 'MENYIMPAN...'
+                                    : 'SIMPAN PROFIL'}
                         </button>
 
                         {profile?.public_slug && (
