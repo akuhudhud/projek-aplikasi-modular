@@ -292,6 +292,7 @@ class CoreTaskLifecycleServiceTest extends TestCase
             1,
             $customer->notifications()
                 ->where('type', MarketplaceEventNotification::class)
+                ->where('data->event', 'marketplace.task_completed')
                 ->count()
         );
     }
@@ -383,7 +384,8 @@ class CoreTaskLifecycleServiceTest extends TestCase
             $account->id
         );
     }
-        public function test_open_task_cannot_be_started_before_assignment(): void
+
+    public function test_open_task_cannot_be_started_before_assignment(): void
     {
         $account = $this->createAccount();
 
