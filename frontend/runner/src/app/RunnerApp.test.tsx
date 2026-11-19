@@ -1,4 +1,3 @@
-
 import {
     fireEvent,
     render,
@@ -238,6 +237,33 @@ describe('RunnerApp dashboard', () => {
 
         expect(
             screen.getByText('SUPER RUNNER'),
+        ).toBeInTheDocument();
+
+        await waitFor(() => {
+            expect(runnerApi.getTasks).toHaveBeenCalled();
+        });
+    });
+
+    it('allows an approved Runner to access dashboard without VERIFIED identity status', async () => {
+        vi.mocked(useRunnerSession).mockReturnValue({
+            account: {
+                ...mockAccount,
+                identity_verification_status: 'PENDING',
+            },
+            checkingSession: false,
+            logoutLoading: false,
+            logoutError: '',
+            setAccount: vi.fn(),
+            logout: vi.fn().mockResolvedValue(true),
+            clearLogoutError: vi.fn(),
+        });
+
+        render(<RunnerApp />);
+
+        expect(
+            screen.getByRole('heading', {
+                name: 'Runner Test',
+            }),
         ).toBeInTheDocument();
 
         await waitFor(() => {
