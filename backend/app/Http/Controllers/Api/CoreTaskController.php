@@ -343,6 +343,6 @@ class CoreTaskController extends Controller
         return response()->json([
             'success' => false,
             'message' => $message,
-        ], 200);
+        ], $status);
     }
 }
