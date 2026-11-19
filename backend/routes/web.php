@@ -172,6 +172,11 @@ Route::prefix('web/runner')
                 ])->name('quotations.store');
             });
 
+        Route::get('/profile', [
+            RunnerPublicProfileController::class,
+            'showMine',
+        ])->name('profile.show');
+
         Route::post('/profile', [
             RunnerPublicProfileController::class,
             'save',
