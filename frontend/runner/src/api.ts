@@ -150,6 +150,9 @@ interface LoginPayload {
 interface TasksData {
     tasks: RunnerTask[];
     pagination: RunnerPagination;
+    summary?: {
+        completed_total: number;
+    };
 }
 
 interface MarketplaceRequestsData {
@@ -260,9 +263,14 @@ export const runnerApi = {
         return response.data.data;
     },
 
-    async getTaskHistory(): Promise<TasksData> {
+    async getTaskHistory(page = 1): Promise<TasksData> {
         const response = await api.get<ApiResponse<TasksData>>(
             '/web/runner/tasks/history',
+            {
+                params: {
+                    page,
+                },
+            },
         );
 
         return response.data.data;
