@@ -347,21 +347,6 @@ class RunnerStatusService
                         'Runner tidak boleh dipulihkan tanpa lesen semasa yang disahkan dan masih sah.'
                     );
                 }
-
-                $identity = IdentityVerification::query()
-                    ->where('account_id', $target->id)
-                    ->lockForUpdate()
-                    ->first();
-
-                if (
-                    $identity === null
-                    || $identity->status
-                        !== IdentityVerification::STATUS_VERIFIED
-                ) {
-                    throw new DomainException(
-                        'Runner tidak boleh dipulihkan tanpa pengesahan identiti VERIFIED.'
-                    );
-                }
             }
 
             $target->runner_status = $nextStatus;
