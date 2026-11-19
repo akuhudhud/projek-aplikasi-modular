@@ -1,13 +1,9 @@
-
 import type {
     RunnerAccount,
 } from '../../api';
 
 export type RunnerAccessReason =
     | 'ACCOUNT_INACTIVE'
-    | 'IDENTITY_NOT_SUBMITTED'
-    | 'IDENTITY_PENDING'
-    | 'IDENTITY_REJECTED'
     | 'RUNNER_NOT_REGISTERED'
     | 'RUNNER_PENDING'
     | 'RUNNER_REJECTED'
@@ -37,30 +33,6 @@ const ACCESS_CONTENT: Record<
             'Akaun anda tidak berada dalam keadaan aktif.',
         instruction:
             'Sila hubungi pihak Super Runner untuk mendapatkan bantuan.',
-    },
-
-    IDENTITY_NOT_SUBMITTED: {
-        title: 'Pengesahan Identiti Diperlukan',
-        description:
-            'Identiti anda belum dihantar untuk pengesahan.',
-        instruction:
-            'Lengkapkan proses pengesahan identiti sebelum memohon sebagai Runner. Proses penghantaran melalui aplikasi ini belum tersedia.',
-    },
-
-    IDENTITY_PENDING: {
-        title: 'Pengesahan Sedang Diproses',
-        description:
-            'Maklumat identiti anda sedang disemak oleh pihak pentadbir.',
-        instruction:
-            'Sila tunggu keputusan pengesahan. Anda belum boleh menggunakan fungsi Runner.',
-    },
-
-    IDENTITY_REJECTED: {
-        title: 'Pengesahan Identiti Tidak Berjaya',
-        description:
-            'Pengesahan identiti anda tidak diluluskan.',
-        instruction:
-            'Sila hubungi pihak Super Runner untuk mengetahui tindakan seterusnya.',
     },
 
     RUNNER_NOT_REGISTERED: {
