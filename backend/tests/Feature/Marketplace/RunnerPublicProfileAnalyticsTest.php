@@ -97,7 +97,7 @@ class RunnerPublicProfileAnalyticsTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
-    public function test_runner_without_verified_identity_cannot_view_profile_analytics(): void
+    public function test_approved_runner_can_view_profile_analytics_with_pending_identity_record(): void
     {
         $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
@@ -110,7 +110,7 @@ class RunnerPublicProfileAnalyticsTest extends TestCase
         RunnerPublicProfile::query()->create([
             'profile_id' => (string) Str::uuid(),
             'account_id' => $runner->id,
-            'public_slug' => 'unverified-analytics-runner',
+            'public_slug' => 'pending-identity-analytics-runner',
             'is_published' => true,
             'views_count' => 5,
         ]);
@@ -119,8 +119,9 @@ class RunnerPublicProfileAnalyticsTest extends TestCase
 
         $this->withToken($token)
             ->getJson('/api/me/runner-profile/analytics')
-            ->assertForbidden()
-            ->assertJsonPath('success', false);
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.analytics.profile_views', 5);
     }
 
     private function makeAccount(
