@@ -996,7 +996,7 @@ function RunnerDashboard({
                                 {requestsError}
                             </p>
                         )}
-                                              )}
+                                              
 
                         {!requestsLoading
                             && !requestsError
