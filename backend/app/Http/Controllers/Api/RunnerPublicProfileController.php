@@ -16,6 +16,36 @@ use Illuminate\Support\Str;
 
 class RunnerPublicProfileController extends Controller
 {
+    public function showMine(Request $request): JsonResponse
+    {
+        /** @var Account|null $account */
+        $account = $request->attributes->get('account');
+
+        if (!$account) {
+            return $this->error('Unauthorized.', 401);
+        }
+
+        if (!$this->isEligibleRunner($account)) {
+            return $this->error(
+                'Only active and approved runners can view their profile.',
+                403
+            );
+        }
+
+        $profile = RunnerPublicProfile::query()
+            ->where('account_id', $account->id)
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'profile' => $profile !== null
+                    ? $this->privatePayload($profile)
+                    : null,
+            ],
+        ]);
+    }
+
     public function save(Request $request): JsonResponse
     {
         /** @var Account|null $account */
@@ -182,12 +212,6 @@ class RunnerPublicProfileController extends Controller
 
         $profile->increment('views_count');
 
-        /*
-         * Profil awam hanya menggunakan profile_name.
-         * verified_name, MyKad dan maklumat identiti sahih tidak didedahkan.
-         * Lokasi profil ialah teks pentadbiran yang diisi oleh Runner,
-         * bukan koordinat GPS atau lokasi masa nyata.
-         */
         $publicProfile = [
             'public_slug' => $profile->public_slug,
             'profile_name' => $account->profile_name,
