@@ -24,11 +24,14 @@ import RunnerAccessPage, {
     type RunnerAccessReason,
 } from '../features/auth/RunnerAccessPage';
 
+import RunnerProfileSettings from './RunnerProfileSettings';
+
 type DashboardTab =
     | 'TASKS'
     | 'HISTORY'
     | 'REQUESTS'
-    | 'NOTIFICATIONS';
+    | 'NOTIFICATIONS'
+    | 'PROFILE';
 
 function getRunnerAccessReason(account: RunnerAccount): RunnerAccessReason | null {
     if (account.status !== 'ACTIVE') {
@@ -303,8 +306,7 @@ function RunnerDashboard({
         loadRequests,
         loadNotifications,
     ]);
-
-    async function handleStartTask(task: RunnerTask) {
+        async function handleStartTask(task: RunnerTask) {
         if (actionLoading) {
             return;
         }
@@ -603,7 +605,8 @@ function RunnerDashboard({
                         {isBusy ? 'SEDANG DIPROSES...' : 'MULA TUGASAN'}
                     </button>
                 )}
-                              {task.generic_status === 'IN_PROGRESS'
+
+                {task.generic_status === 'IN_PROGRESS'
                     && !task.arrived_at && (
                         <div className="runner-dashboard__task-action">
                             <p>
@@ -675,8 +678,7 @@ function RunnerDashboard({
     const completedTasks = history.filter(
         (task) => task.generic_status === 'COMPLETED',
     );
-
-    return (
+        return (
         <main className="runner-dashboard">
             <header className="runner-dashboard__header">
                 <div className="runner-dashboard__brand">
@@ -761,6 +763,14 @@ function RunnerDashboard({
                         onClick={() => setActiveTab('NOTIFICATIONS')}
                     >
                         NOTIFIKASI{unreadTotal > 0 ? ` (${unreadTotal})` : ''}
+                    </button>
+
+                    <button
+                        type="button"
+                        className={activeTab === 'PROFILE' ? 'is-active' : ''}
+                        onClick={() => setActiveTab('PROFILE')}
+                    >
+                        PROFIL & TETAPAN
                     </button>
                 </nav>
 
@@ -876,8 +886,7 @@ function RunnerDashboard({
                         </div>
                     </section>
                 )}
-
-                {activeTab === 'NOTIFICATIONS' && (
+                                {activeTab === 'NOTIFICATIONS' && (
                     <section className="runner-dashboard__section">
                         <div className="runner-dashboard__section-heading">
                             <div>
@@ -996,7 +1005,6 @@ function RunnerDashboard({
                                 {requestsError}
                             </p>
                         )}
-                                              
 
                         {!requestsLoading
                             && !requestsError
@@ -1193,6 +1201,13 @@ function RunnerDashboard({
                             })}
                         </div>
                     </section>
+                )}
+                                {activeTab === 'PROFILE' && (
+                    <RunnerProfileSettings
+                        account={account}
+                        onLogout={onLogout}
+                        logoutLoading={logoutLoading}
+                    />
                 )}
             </section>
         </main>
