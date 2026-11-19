@@ -1,5 +1,3 @@
-                                                       existingQuotation.status,
-                      
 import {
     useCallback,
     useEffect,
@@ -605,8 +603,7 @@ function RunnerDashboard({
                         {isBusy ? 'SEDANG DIPROSES...' : 'MULA TUGASAN'}
                     </button>
                 )}
-
-                {task.generic_status === 'IN_PROGRESS'
+                              {task.generic_status === 'IN_PROGRESS'
                     && !task.arrived_at && (
                         <div className="runner-dashboard__task-action">
                             <p>
@@ -999,6 +996,7 @@ function RunnerDashboard({
                                 {requestsError}
                             </p>
                         )}
+                                              )}
 
                         {!requestsLoading
                             && !requestsError
@@ -1129,124 +1127,6 @@ function RunnerDashboard({
                                                             quotationStatusLabel(
                                                                 existingQuotation.status,
                                                             )
-                                                        }. Anda boleh menghantar
-                                                        sebut harga baharu.
-                                                    </p>
-                                                )}
-
-                                                <label>
-                                                    Jumlah sebut harga (RM)
-                                                    <input
-                                                        type="number"
-                                                        min="0.01"
-                                                        step="0.01"
-                                                        required
-                                                        value={quotationAmount}
-                                                        onChange={(event) =>
-                                                            setQuotationAmount(
-                                                                event.target.value,
-                                                            )
-                                                        }
-                                                        placeholder="Contoh: 15.00"
-                                                    />
-                                                </label>
-
-                                                <label>
-                                                    Mesej kepada pelanggan (pilihan)
-                                                    <textarea
-                                                        rows={3}
-                                                        value={quotationMessage}
-                                                        onChange={(event) =>
-                                                            setQuotationMessage(
-                                                                event.target.value,
-                                                            )
-                                                        }
-                                                        placeholder="Maklumat tambahan..."
-                                                    />
-                                                </label>
-
-                                                <div className="runner-dashboard__quotation-actions">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setQuotationRequestId(null);
-                                                            setExistingQuotation(null);
-                                                            setQuotationAmount('');
-                                                            setQuotationMessage('');
-                                                        }}
-                                                        disabled={quotationLoading}
-                                                    >
-                                                        BATAL
-                                                    </button>
-
-                                                    <button
-                                                        type="submit"
-                                                        disabled={quotationLoading}
-                                                    >
-                                                        {quotationLoading
-                                                            ? 'MENGHANTAR...'
-                                                            : 'HANTAR SEBUT HARGA'}
-                                                    </button>
-                                                </div>
-                                            </form>
-                                        )}
-                                    </article>
-                                );
-                            })}
-                        </div>
-                    </section>
-                )}
-            </section>
-        </main>
-    );
-}
-
-export default function RunnerApp() {
-    const session = useRunnerSession();
-
-    if (session.checkingSession) {
-        return (
-            <main className="runner-loading">
-                <div className="runner-loading__brand">SR</div>
-                <p>Memeriksa sesi akaun...</p>
-            </main>
-        );
-    }
-
-    if (!session.account) {
-        return (
-            <RunnerAuthPage
-                onAuthenticated={session.setAccount}
-            />
-        );
-    }
-
-    const accessReason = getRunnerAccessReason(session.account);
-
-    if (accessReason !== null) {
-        return (
-            <RunnerAccessPage
-                account={session.account}
-                reason={accessReason}
-                logout={session.logout}
-                logoutLoading={session.logoutLoading}
-                logoutError={session.logoutError}
-            />
-        );
-    }
-
-    return (
-        <RunnerDashboard
-            account={session.account}
-            onLogout={() => {
-                void session.logout();
-            }}
-            logoutLoading={session.logoutLoading}
-            logoutError={session.logoutError}
-        />
-    );
-}
-                                      )
                                                         }. Anda boleh menghantar
                                                         sebut harga baharu.
                                                     </p>
