@@ -95,6 +95,7 @@ export interface RunnerMarketplaceRequestDetail
 
 export interface RunnerPublicProfile {
     profile_id?: string;
+    account_id?: number | string;
     public_slug: string;
     profile_name: string;
     bio: string | null;
@@ -103,6 +104,8 @@ export interface RunnerPublicProfile {
     services: string[];
     is_published: boolean;
     views_count: number;
+    created_at?: string | null;
+    updated_at?: string | null;
 }
 
 export interface RunnerProfileAnalytics {
@@ -170,7 +173,7 @@ interface TaskData {
 }
 
 interface ProfileData {
-    profile: RunnerPublicProfile;
+    profile: RunnerPublicProfile | null;
 }
 
 interface AnalyticsData {
@@ -368,6 +371,14 @@ export const runnerApi = {
         return response.data.data.quotation;
     },
 
+    async getProfile(): Promise<RunnerPublicProfile | null> {
+        const response = await api.get<ApiResponse<ProfileData>>(
+            '/web/runner/profile',
+        );
+
+        return response.data.data.profile;
+    },
+
     async saveProfile(
         payload: {
             public_slug: string;
@@ -382,6 +393,10 @@ export const runnerApi = {
             '/web/runner/profile',
             payload,
         );
+
+        if (!response.data.data.profile) {
+            throw new Error('Respons profil tidak sah.');
+        }
 
         return response.data.data.profile;
     },
