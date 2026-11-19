@@ -1,3 +1,4 @@
+
 import {
     fireEvent,
     render,
@@ -241,6 +242,65 @@ describe('RunnerApp dashboard', () => {
 
         await waitFor(() => {
             expect(runnerApi.getTasks).toHaveBeenCalled();
+            expect(runnerApi.getTaskHistory).toHaveBeenCalled();
+            expect(runnerApi.getNotifications).toHaveBeenCalled();
+        });
+    });
+
+    it('loads dashboard summary data when the dashboard is initialized', async () => {
+        render(<RunnerApp />);
+
+        await waitFor(() => {
+            expect(runnerApi.getTasks).toHaveBeenCalledTimes(1);
+            expect(runnerApi.getTaskHistory).toHaveBeenCalledTimes(1);
+            expect(runnerApi.getNotifications).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    it('shows completed task count from history on the dashboard', async () => {
+        vi.mocked(runnerApi.getTaskHistory).mockResolvedValue({
+            tasks: [
+                {
+                    ...mockTask,
+                    generic_status: 'COMPLETED',
+                    completed_at: '2026-11-18T11:00:00Z',
+                },
+            ],
+            pagination: {
+                ...emptyPagination(),
+                total: 1,
+            },
+        });
+
+        render(<RunnerApp />);
+
+        await waitFor(() => {
+            const summaryLabel = screen.getByText('TUGASAN SELESAI');
+
+            expect(summaryLabel.parentElement).toHaveTextContent('1');
+        });
+    });
+
+    it('shows unread notification count on the dashboard', async () => {
+        vi.mocked(runnerApi.getNotifications).mockResolvedValue({
+            notifications: [mockNotification],
+            summary: {
+                unread_total: 3,
+            },
+            pagination: {
+                ...emptyPagination(),
+                total: 3,
+            },
+        });
+
+        render(<RunnerApp />);
+
+        await waitFor(() => {
+            const summaryLabel = screen.getByText(
+                'NOTIFIKASI BELUM DIBACA',
+            );
+
+            expect(summaryLabel.parentElement).toHaveTextContent('3');
         });
     });
 
@@ -271,7 +331,7 @@ describe('RunnerApp dashboard', () => {
         });
     });
 
-    it('loads task history when the history tab is opened', async () => {
+    it('loads task history on dashboard initialization and displays it in the history tab', async () => {
         vi.mocked(runnerApi.getTaskHistory).mockResolvedValue({
             tasks: [
                 {
@@ -288,6 +348,10 @@ describe('RunnerApp dashboard', () => {
 
         render(<RunnerApp />);
 
+        await waitFor(() => {
+            expect(runnerApi.getTaskHistory).toHaveBeenCalledTimes(1);
+        });
+
         fireEvent.click(
             screen.getByRole('button', {
                 name: 'SEJARAH',
@@ -297,11 +361,9 @@ describe('RunnerApp dashboard', () => {
         expect(
             await screen.findByText('SELESAI'),
         ).toBeInTheDocument();
-
-        expect(runnerApi.getTaskHistory).toHaveBeenCalled();
     });
 
-    it('loads notifications when the notification tab is opened', async () => {
+    it('loads notifications on dashboard initialization and displays them in the notification tab', async () => {
         vi.mocked(runnerApi.getNotifications).mockResolvedValue({
             notifications: [mockNotification],
             summary: {
@@ -315,6 +377,10 @@ describe('RunnerApp dashboard', () => {
 
         render(<RunnerApp />);
 
+        await waitFor(() => {
+            expect(runnerApi.getNotifications).toHaveBeenCalledTimes(1);
+        });
+
         fireEvent.click(
             screen.getByRole('button', {
                 name: /NOTIFIKASI/,
@@ -326,8 +392,6 @@ describe('RunnerApp dashboard', () => {
                 'Runner telah memulakan tugasan',
             ),
         ).toBeInTheDocument();
-
-        expect(runnerApi.getNotifications).toHaveBeenCalled();
     });
 
     it('marks an unread notification as read', async () => {
