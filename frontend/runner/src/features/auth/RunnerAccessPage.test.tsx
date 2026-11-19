@@ -67,17 +67,27 @@ describe('RunnerAccessPage', () => {
         ).toBeInTheDocument();
     });
 
-    it('shows identity verification instructions', () => {
-        renderPage('IDENTITY_NOT_SUBMITTED');
+    it('shows rejected Runner application information', () => {
+        renderPage('RUNNER_REJECTED');
 
         expect(
             screen.getByRole('heading', {
-                name: 'Pengesahan Identiti Diperlukan',
+                name: 'Permohonan Ditolak',
             }),
         ).toBeInTheDocument();
     });
 
-    it('shows suspended account information', () => {
+    it('shows suspended Runner information', () => {
+        renderPage('RUNNER_SUSPENDED');
+
+        expect(
+            screen.getByRole('heading', {
+                name: 'Status Runner Digantung',
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('shows account inactive information', () => {
         renderPage('ACCOUNT_INACTIVE');
 
         expect(
