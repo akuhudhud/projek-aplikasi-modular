@@ -383,8 +383,7 @@ class CoreTaskLifecycleServiceTest extends TestCase
             $account->id
         );
     }
-
-    public function test_open_task_cannot_be_started_before_assignment(): void
+        public function test_open_task_cannot_be_started_before_assignment(): void
     {
         $account = $this->createAccount();
 
@@ -561,7 +560,7 @@ class CoreTaskLifecycleServiceTest extends TestCase
         );
     }
 
-    public function test_runner_without_verified_identity_cannot_start_task(): void
+    public function test_approved_runner_without_identity_record_can_start_task(): void
     {
         $account = $this->createAccount(
             'ACTIVE',
@@ -574,18 +573,26 @@ class CoreTaskLifecycleServiceTest extends TestCase
             $account->id
         );
 
-        $this->expectException(DomainException::class);
-        $this->expectExceptionMessage(
-            'Verified identity is required to perform task actions.'
-        );
-
-        $this->lifecycle->start(
+        $result = $this->lifecycle->start(
             $task->task_id,
             $account->id
         );
+
+        $this->assertSame(
+            CoreTask::STATUS_IN_PROGRESS,
+            $result->generic_status
+        );
+
+        $this->assertNotNull($result->started_at);
+
+        $this->assertDatabaseHas('core_tasks', [
+            'task_id' => $task->task_id,
+            'generic_status' => CoreTask::STATUS_IN_PROGRESS,
+            'assigned_account_id' => $account->id,
+        ]);
     }
 
-    public function test_runner_without_verified_identity_cannot_complete_task(): void
+    public function test_approved_runner_without_identity_record_can_complete_task(): void
     {
         $account = $this->createAccount(
             'ACTIVE',
@@ -599,15 +606,24 @@ class CoreTaskLifecycleServiceTest extends TestCase
             true
         );
 
-        $this->expectException(DomainException::class);
-        $this->expectExceptionMessage(
-            'Verified identity is required to perform task actions.'
-        );
-
-        $this->lifecycle->complete(
+        $result = $this->lifecycle->complete(
             $task->task_id,
             $account->id
         );
+
+        $this->assertSame(
+            CoreTask::STATUS_COMPLETED,
+            $result->generic_status
+        );
+
+        $this->assertNotNull($result->started_at);
+        $this->assertNotNull($result->completed_at);
+
+        $this->assertDatabaseHas('core_tasks', [
+            'task_id' => $task->task_id,
+            'generic_status' => CoreTask::STATUS_COMPLETED,
+            'assigned_account_id' => $account->id,
+        ]);
     }
 
     public function test_empty_identifiers_are_rejected(): void
