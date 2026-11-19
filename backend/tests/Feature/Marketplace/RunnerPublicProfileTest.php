@@ -56,25 +56,35 @@ class RunnerPublicProfileTest extends TestCase
         $this->assertDatabaseCount('runner_public_profiles', 0);
     }
 
-    public function test_runner_without_verified_identity_cannot_publish_profile(): void
+    public function test_approved_runner_can_publish_profile_with_pending_identity_record(): void
     {
         $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         IdentityVerification::query()
             ->where('account_id', $runner->id)
-            ->update(['status' => IdentityVerification::STATUS_PENDING]);
+            ->update([
+                'status' => IdentityVerification::STATUS_PENDING,
+            ]);
 
         $token = $this->createSessionToken($runner);
 
         $this->withToken($token)
             ->postJson('/api/me/runner-profile', [
-                'public_slug' => 'unverified-runner',
+                'public_slug' => 'pending-identity-runner',
                 'is_published' => true,
             ])
-            ->assertForbidden();
+            ->assertCreated()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath(
+                'data.profile.public_slug',
+                'pending-identity-runner'
+            )
+            ->assertJsonPath('data.profile.is_published', true);
 
-        $this->assertDatabaseMissing('runner_public_profiles', [
+        $this->assertDatabaseHas('runner_public_profiles', [
             'account_id' => $runner->id,
+            'public_slug' => 'pending-identity-runner',
+            'is_published' => true,
         ]);
     }
 
@@ -100,41 +110,58 @@ class RunnerPublicProfileTest extends TestCase
         ]);
     }
 
-    public function test_public_profile_is_hidden_when_identity_is_pending(): void
+    public function test_public_profile_remains_visible_when_identity_is_pending(): void
     {
         $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         IdentityVerification::query()
             ->where('account_id', $runner->id)
-            ->update(['status' => IdentityVerification::STATUS_PENDING]);
+            ->update([
+                'status' => IdentityVerification::STATUS_PENDING,
+            ]);
 
         $this->createPublicProfile($runner, 'pending-identity-runner');
 
         $this->getJson('/api/runners/pending-identity-runner')
-            ->assertNotFound();
+            ->assertOk()
+            ->assertJsonPath(
+                'data.profile.public_slug',
+                'pending-identity-runner'
+            );
     }
 
-    public function test_public_profile_is_hidden_when_identity_is_rejected(): void
+    public function test_public_profile_remains_visible_when_identity_is_rejected(): void
     {
         $runner = $this->makeAccount(Account::RUNNER_STATUS_APPROVED);
 
         IdentityVerification::query()
             ->where('account_id', $runner->id)
-            ->update(['status' => IdentityVerification::STATUS_REJECTED]);
+            ->update([
+                'status' => IdentityVerification::STATUS_REJECTED,
+            ]);
 
         $this->createPublicProfile($runner, 'rejected-identity-runner');
 
         $this->getJson('/api/runners/rejected-identity-runner')
-            ->assertNotFound();
+            ->assertOk()
+            ->assertJsonPath(
+                'data.profile.public_slug',
+                'rejected-identity-runner'
+            );
     }
 
-    public function test_public_profile_is_hidden_without_identity_record(): void
+    public function test_public_profile_remains_visible_without_identity_record(): void
     {
         $runner = $this->createApprovedRunner();
+
         $this->createPublicProfile($runner, 'no-identity-runner');
 
         $this->getJson('/api/runners/no-identity-runner')
-            ->assertNotFound();
+            ->assertOk()
+            ->assertJsonPath(
+                'data.profile.public_slug',
+                'no-identity-runner'
+            );
     }
 
     public function test_unpublished_profile_is_not_publicly_visible(): void
