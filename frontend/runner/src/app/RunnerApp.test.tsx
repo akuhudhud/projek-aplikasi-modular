@@ -1,4 +1,3 @@
-
 import {
     fireEvent,
     render,
@@ -23,6 +22,8 @@ import {
     type RunnerQuotation,
     type RunnerTask,
     type RunnerNotification,
+    type RunnerPublicProfile,
+    type RunnerProfileAnalytics,
 } from '../api';
 
 import {
@@ -44,6 +45,7 @@ vi.mock('../api', () => ({
         getAvailableRequests: vi.fn(),
         getRequest: vi.fn(),
         submitQuotation: vi.fn(),
+        getProfile: vi.fn(),
         saveProfile: vi.fn(),
         getProfileAnalytics: vi.fn(),
     },
@@ -63,6 +65,26 @@ const mockAccount: RunnerAccount = {
     status: 'ACTIVE',
     runner_status: 'APPROVED',
     identity_verification_status: 'VERIFIED',
+};
+
+const mockProfile: RunnerPublicProfile = {
+    profile_id: 'profile-001',
+    account_id: 1,
+    public_slug: 'runner-tuaran',
+    profile_name: 'Runner Test',
+    bio: 'Runner menyediakan perkhidmatan penghantaran.',
+    base_location: 'Tuaran',
+    service_area: 'Tuaran dan Tamparuli',
+    services: ['Penghantaran barang', 'Pembelian barang'],
+    is_published: true,
+    views_count: 25,
+};
+
+const mockAnalytics: RunnerProfileAnalytics = {
+    profile_views: 25,
+    requests_from_profile: 8,
+    quotations_for_profile_requests: 6,
+    completed_tasks_from_profile_requests: 4,
 };
 
 const mockRequest: RunnerMarketplaceRequest = {
@@ -104,7 +126,7 @@ const mockTask: RunnerTask = {
 
 const mockNotification: RunnerNotification = {
     id: 'notification-001',
-    type: 'App\\Notifications\\MarketplaceEventNotification',
+    type: 'App\\\\Notifications\\\\MarketplaceEventNotification',
     data: {
         event: 'marketplace.task_started',
         title: 'Runner telah memulakan tugasan',
@@ -172,6 +194,14 @@ function openRequestsTab() {
     );
 }
 
+function openProfileTab() {
+    fireEvent.click(
+        screen.getByRole('button', {
+            name: 'PROFIL & TETAPAN',
+        }),
+    );
+}
+
 describe('RunnerApp dashboard', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -223,6 +253,15 @@ describe('RunnerApp dashboard', () => {
                 completed_at: '2026-11-18T10:30:00Z',
                 completion_proof_path: 'runner-task-proofs/proof.jpg',
             });
+
+        vi.mocked(runnerApi.getProfile)
+            .mockResolvedValue(null);
+
+        vi.mocked(runnerApi.getProfileAnalytics)
+            .mockResolvedValue(mockAnalytics);
+
+        vi.mocked(runnerApi.saveProfile)
+            .mockResolvedValue(mockProfile);
 
         mockEmptyRequests();
     });
@@ -330,8 +369,7 @@ describe('RunnerApp dashboard', () => {
             expect(runnerApi.getTasks).toHaveBeenCalled();
         });
     });
-
-    it('loads task history on dashboard initialization and displays it in the history tab', async () => {
+        it('loads task history on dashboard initialization and displays it in the history tab', async () => {
         vi.mocked(runnerApi.getTaskHistory).mockResolvedValue({
             tasks: [
                 {
@@ -598,5 +636,263 @@ describe('RunnerApp dashboard', () => {
         expect(
             screen.queryByText(/verified name/i),
         ).not.toBeInTheDocument();
+    });
+        it('opens Profil & Tetapan and loads the runner profile', async () => {
+        vi.mocked(runnerApi.getProfile)
+            .mockResolvedValue(mockProfile);
+
+        vi.mocked(runnerApi.getProfileAnalytics)
+            .mockResolvedValue(mockAnalytics);
+
+        render(<RunnerApp />);
+
+        openProfileTab();
+
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Profil dan Tetapan',
+            }),
+        ).toBeInTheDocument();
+
+        await waitFor(() => {
+            expect(runnerApi.getProfile).toHaveBeenCalledTimes(1);
+            expect(runnerApi.getProfileAnalytics)
+                .toHaveBeenCalledTimes(1);
+        });
+
+        expect(
+            screen.getByDisplayValue('Runner Test'),
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByDisplayValue('runner-tuaran'),
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByDisplayValue('Tuaran'),
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByText('25'),
+        ).toBeInTheDocument();
+    });
+
+    it('shows an empty profile form when the runner has no public profile', async () => {
+        vi.mocked(runnerApi.getProfile)
+            .mockResolvedValue(null);
+
+        render(<RunnerApp />);
+
+        openProfileTab();
+
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Maklumat Profil Awam',
+            }),
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByRole('textbox', {
+                name: /Nama pautan profil/i,
+            }),
+        ).toHaveValue('');
+
+        expect(
+            runnerApi.getProfileAnalytics,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('saves the runner public profile with normalized slug and services', async () => {
+        vi.mocked(runnerApi.getProfile)
+            .mockResolvedValue(null);
+
+        vi.mocked(runnerApi.saveProfile)
+            .mockResolvedValue(mockProfile);
+
+        render(<RunnerApp />);
+
+        openProfileTab();
+
+        const slugInput = await screen.findByRole('textbox', {
+            name: /Nama pautan profil/i,
+        });
+
+        fireEvent.change(slugInput, {
+            target: {
+                value: 'Runner Tuaran',
+            },
+        });
+
+        fireEvent.change(
+            screen.getByRole('textbox', {
+                name: 'Biodata',
+            }),
+            {
+                target: {
+                    value: 'Runner menyediakan penghantaran.',
+                },
+            },
+        );
+
+        fireEvent.change(
+            screen.getByRole('textbox', {
+                name: 'Lokasi asas',
+            }),
+            {
+                target: {
+                    value: 'Tuaran',
+                },
+            },
+        );
+
+        fireEvent.change(
+            screen.getByRole('textbox', {
+                name: 'Kawasan perkhidmatan',
+            }),
+            {
+                target: {
+                    value: 'Tuaran dan Tamparuli',
+                },
+            },
+        );
+
+        fireEvent.change(
+            screen.getByRole('textbox', {
+                name: 'Perkhidmatan',
+            }),
+            {
+                target: {
+                    value: 'Penghantaran barang, Pembelian barang',
+                },
+            },
+        );
+
+        fireEvent.click(
+            screen.getByRole('checkbox', {
+                name: /Terbitkan profil awam/i,
+            }),
+        );
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'SIMPAN PROFIL',
+            }),
+        );
+
+        await waitFor(() => {
+            expect(runnerApi.saveProfile).toHaveBeenCalledWith({
+                public_slug: 'runner-tuaran',
+                bio: 'Runner menyediakan penghantaran.',
+                base_location: 'Tuaran',
+                service_area: 'Tuaran dan Tamparuli',
+                services: [
+                    'Penghantaran barang',
+                    'Pembelian barang',
+                ],
+                is_published: true,
+            });
+        });
+
+        expect(
+            await screen.findByText(
+                'Profil Runner berjaya disimpan.',
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('rejects an invalid public profile slug before saving', async () => {
+        vi.mocked(runnerApi.getProfile)
+            .mockResolvedValue(null);
+
+        render(<RunnerApp />);
+
+        openProfileTab();
+
+        const slugInput = await screen.findByRole('textbox', {
+            name: /Nama pautan profil/i,
+        });
+
+        fireEvent.change(slugInput, {
+            target: {
+                value: 'ab',
+            },
+        });
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'SIMPAN PROFIL',
+            }),
+        );
+
+        expect(
+            await screen.findByRole('alert'),
+        ).toHaveTextContent(
+            'Pautan profil mesti 3 hingga 50 aksara',
+        );
+
+        expect(
+            runnerApi.saveProfile,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('displays the account settings and supports logout', async () => {
+        const logout = vi.fn();
+
+        vi.mocked(useRunnerSession).mockReturnValue({
+            account: mockAccount,
+            checkingSession: false,
+            logoutLoading: false,
+            logoutError: '',
+            setAccount: vi.fn(),
+            logout,
+            clearLogoutError: vi.fn(),
+        });
+
+        render(<RunnerApp />);
+
+        openProfileTab();
+
+        fireEvent.click(
+            await screen.findByRole('button', {
+                name: 'TETAPAN AKAUN',
+            }),
+        );
+
+        expect(
+            screen.getByRole('heading', {
+                name: 'Maklumat Akaun',
+            }),
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByText('runner@example.com'),
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByText('0123456789'),
+        ).toBeInTheDocument();
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'LOG KELUAR AKAUN',
+            }),
+        );
+
+        expect(logout).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows an error when the runner profile cannot be loaded', async () => {
+        vi.mocked(runnerApi.getProfile)
+            .mockRejectedValue(new Error('Network error'));
+
+        render(<RunnerApp />);
+
+        openProfileTab();
+
+        expect(
+            await screen.findByRole('alert'),
+        ).toHaveTextContent(
+            'Tidak berjaya mendapatkan profil Runner.',
+        );
     });
 });
