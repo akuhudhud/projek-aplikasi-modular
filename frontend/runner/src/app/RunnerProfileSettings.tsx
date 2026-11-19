@@ -214,7 +214,8 @@ function RunnerProfileSettings({
             </section>
         );
     }
-        return (
+
+    return (
         <section className="runner-dashboard__section">
             <div className="runner-dashboard__section-heading">
                 <div>
@@ -295,10 +296,7 @@ function RunnerProfileSettings({
                     </div>
 
                     {profileLoadFailed && (
-                        <div
-                            className="runner-dashboard__alert"
-                            role="alert"
-                        >
+                        <div className="runner-dashboard__alert">
                             Profil belum berjaya dimuatkan. Fungsi simpan
                             dikunci untuk melindungi data profil sedia ada.
                             Tekan SEGARKAN untuk mencuba semula.
@@ -358,8 +356,7 @@ function RunnerProfileSettings({
                                 disabled={profileLoadFailed}
                             />
                         </label>
-
-                        <label>
+                                                <label>
                             Lokasi asas
                             <input
                                 type="text"
@@ -402,7 +399,8 @@ function RunnerProfileSettings({
                                 Pisahkan setiap perkhidmatan menggunakan koma.
                             </small>
                         </label>
-                                                <label className="runner-profile__publish">
+
+                        <label className="runner-profile__publish">
                             <input
                                 type="checkbox"
                                 checked={isPublished}
