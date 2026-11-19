@@ -214,7 +214,7 @@ class RunnerPublicRatingReviewTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.rating_summary.rating_average', 4.0)
+            ->assertJsonPath('data.rating_summary.rating_average', 4)
             ->assertJsonPath('data.rating_summary.rating_count', 3)
             ->assertJsonPath('data.reviews', [])
             ->assertJsonPath('data.pagination.total', 0);
@@ -306,7 +306,7 @@ class RunnerPublicRatingReviewTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('data.rating_summary.rating_average', 5.0)
+            ->assertJsonPath('data.rating_summary.rating_average', 5)
             ->assertJsonPath('data.rating_summary.rating_count', 21)
             ->assertJsonPath('data.reviews', [])
             ->assertJsonPath('data.pagination.total', 0);
