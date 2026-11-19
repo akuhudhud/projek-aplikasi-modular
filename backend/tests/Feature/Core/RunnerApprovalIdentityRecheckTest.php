@@ -72,6 +72,14 @@ class RunnerApprovalIdentityRecheckTest extends TestCase
         ]);
     }
 
+    private function grantRestorePermission(Account $admin): void
+    {
+        AccountPermission::query()->create([
+            'account_id' => $admin->id,
+            'permission_key' => 'runners.restore',
+        ]);
+    }
+
     private function createIdentity(
         Account $account,
         string $status
@@ -101,6 +109,31 @@ class RunnerApprovalIdentityRecheckTest extends TestCase
             'is_current' => false,
             'submitted_at' => now(),
             'reviewed_at' => null,
+            'reviewer_account_id' => null,
+            'rejection_reason' => null,
+            'disk' => 'local',
+            'document_path' => 'runner-license-documents/test-'
+                .Str::uuid()
+                .'.pdf',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 100,
+        ]);
+    }
+
+    private function createVerifiedCurrentLicense(
+        Account $account
+    ): RunnerLicenseVerification {
+        return RunnerLicenseVerification::query()->create([
+            'id' => (string) Str::uuid(),
+            'account_id' => $account->id,
+            'license_number' => 'D123456789012',
+            'license_type' => $this->licenseType->code,
+            'license_class' => 'D',
+            'expires_at' => now()->addYear()->toDateString(),
+            'status' => RunnerLicenseVerification::STATUS_VERIFIED,
+            'is_current' => true,
+            'submitted_at' => now()->subDays(10),
+            'reviewed_at' => now()->subDays(9),
             'reviewer_account_id' => null,
             'rejection_reason' => null,
             'disk' => 'local',
@@ -205,6 +238,60 @@ class RunnerApprovalIdentityRecheckTest extends TestCase
             'id' => $license->id,
             'status' => RunnerLicenseVerification::STATUS_PENDING,
             'is_current' => false,
+        ]);
+    }
+
+    public function test_suspended_runner_can_be_restored_without_rechecking_identity(): void
+    {
+        $admin = $this->createAccount('SUPER_ADMIN');
+        $this->grantRestorePermission($admin);
+
+        $runner = $this->createAccount(
+            'USER',
+            Account::RUNNER_STATUS_SUSPENDED
+        );
+
+        $identity = $this->createIdentity(
+            $runner,
+            IdentityVerification::STATUS_REJECTED
+        );
+
+        $license = $this->createVerifiedCurrentLicense($runner);
+
+        $result = app(RunnerStatusService::class)->changeStatus(
+            $admin,
+            $runner->id,
+            Account::RUNNER_STATUS_APPROVED,
+            'Runner dipulihkan selepas semakan.'
+        );
+
+        $this->assertSame(
+            Account::RUNNER_STATUS_APPROVED,
+            $result->runner_status
+        );
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $runner->id,
+            'status' => 'ACTIVE',
+            'runner_status' => Account::RUNNER_STATUS_APPROVED,
+        ]);
+
+        $this->assertDatabaseHas('identity_verifications', [
+            'id' => $identity->id,
+            'status' => IdentityVerification::STATUS_REJECTED,
+        ]);
+
+        $this->assertDatabaseHas('runner_license_verifications', [
+            'id' => $license->id,
+            'status' => RunnerLicenseVerification::STATUS_VERIFIED,
+            'is_current' => true,
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $runner->id,
+            'action' => 'RUNNER_ELIGIBILITY_RESTORED',
+            'reason' => 'Runner dipulihkan selepas semakan.',
         ]);
     }
 }
