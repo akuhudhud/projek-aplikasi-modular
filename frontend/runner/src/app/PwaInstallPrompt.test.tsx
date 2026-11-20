@@ -163,9 +163,7 @@ describe('PWA install prompt', () => {
         );
 
         expect(
-            screen.getByText(
-                'Buka SUPER RUNNER menggunakan Safari.',
-            ),
+            screen.getByText('Buka SUPER RUNNER menggunakan Safari.'),
         ).toBeInTheDocument();
 
         expect(
@@ -223,9 +221,7 @@ describe('PWA install prompt', () => {
         );
 
         expect(
-            screen.getByText(
-                /Install App atau Add to Home Screen/,
-            ),
+            screen.getByText(/Install App atau Add to Home Screen/),
         ).toBeInTheDocument();
     });
 
@@ -250,16 +246,14 @@ describe('PWA install prompt', () => {
             expect(installEvent.prompt).toHaveBeenCalledTimes(1);
         });
 
-        await waitFor(() => {
-            expect(
-                screen.getByRole('button', {
-                    name: 'CARA PEMASANGAN',
-                }),
-            ).toBeInTheDocument();
-        });
+        expect(
+            await screen.findByRole('button', {
+                name: 'CARA PEMASANGAN',
+            }),
+        ).toBeInTheDocument();
     });
 
-    it('keeps the installation option available when the user dismisses the prompt', async () => {
+    it('shows the manual guide after the user dismisses the browser prompt', async () => {
         setUserAgent(
             'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36',
         );
@@ -281,9 +275,17 @@ describe('PWA install prompt', () => {
         });
 
         expect(
-            screen.getByRole('button', {
-                name: 'PASANG APLIKASI',
+            await screen.findByRole('button', {
+                name: 'CARA PEMASANGAN',
             }),
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByText('Cara memasang SUPER RUNNER'),
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByText('Buka menu tiga titik pada Chrome.'),
         ).toBeInTheDocument();
     });
 
