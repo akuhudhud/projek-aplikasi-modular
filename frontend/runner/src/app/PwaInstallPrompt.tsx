@@ -82,6 +82,20 @@ const secondaryButtonStyle = {
     cursor: 'pointer',
 };
 
+const guideListStyle = {
+    margin: '0',
+    paddingLeft: '20px',
+    color: '#404040',
+    fontSize: '12px',
+    lineHeight: 1.8,
+};
+
+const guideTextStyle = {
+    color: '#404040',
+    fontSize: '12px',
+    lineHeight: 1.7,
+};
+
 export default function PwaInstallPrompt() {
     const [platform, setPlatform] = useState<InstallPlatform>('OTHER');
     const [installed, setInstalled] = useState(false);
@@ -95,10 +109,7 @@ export default function PwaInstallPrompt() {
 
         function handleBeforeInstallPrompt(event: Event) {
             event.preventDefault();
-
-            setInstallPrompt(
-                event as BeforeInstallPromptEvent,
-            );
+            setInstallPrompt(event as BeforeInstallPromptEvent);
         }
 
         function handleAppInstalled() {
@@ -124,13 +135,19 @@ export default function PwaInstallPrompt() {
         function handleDisplayModeChange(event: MediaQueryListEvent) {
             if (event.matches) {
                 setInstalled(true);
+                setInstallPrompt(null);
+                setGuideOpen(false);
             }
         }
 
-        mediaQuery.addEventListener(
-            'change',
-            handleDisplayModeChange,
-        );
+        if (typeof mediaQuery.addEventListener === 'function') {
+            mediaQuery.addEventListener(
+                'change',
+                handleDisplayModeChange,
+            );
+        } else {
+            mediaQuery.addListener(handleDisplayModeChange);
+        }
 
         return () => {
             window.removeEventListener(
@@ -143,10 +160,14 @@ export default function PwaInstallPrompt() {
                 handleAppInstalled,
             );
 
-            mediaQuery.removeEventListener(
-                'change',
-                handleDisplayModeChange,
-            );
+            if (typeof mediaQuery.removeEventListener === 'function') {
+                mediaQuery.removeEventListener(
+                    'change',
+                    handleDisplayModeChange,
+                );
+            } else {
+                mediaQuery.removeListener(handleDisplayModeChange);
+            }
         };
     }, []);
 
@@ -156,19 +177,22 @@ export default function PwaInstallPrompt() {
             return;
         }
 
+        const currentPrompt = installPrompt;
+
+        // Event pemasangan hanya boleh digunakan sekali.
+        setInstallPrompt(null);
+
         try {
-            await installPrompt.prompt();
+            await currentPrompt.prompt();
 
-            const choice = await installPrompt.userChoice;
+            const choice = await currentPrompt.userChoice;
 
-            if (choice.outcome === 'accepted') {
-                setInstallPrompt(null);
+            if (choice.outcome === 'dismissed') {
+                setGuideOpen(true);
             }
         } catch (error) {
-            console.error(
-                'PWA installation failed:',
-                error,
-            );
+            console.error('PWA installation failed:', error);
+            setGuideOpen(true);
         }
     }
 
@@ -337,17 +361,3 @@ export default function PwaInstallPrompt() {
         </aside>
     );
 }
-
-const guideListStyle = {
-    margin: '0',
-    paddingLeft: '20px',
-    color: '#404040',
-    fontSize: '12px',
-    lineHeight: 1.8,
-};
-
-const guideTextStyle = {
-    color: '#404040',
-    fontSize: '12px',
-    lineHeight: 1.7,
-};
