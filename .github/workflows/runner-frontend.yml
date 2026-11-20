@@ -1,3 +1,4 @@
+
 name: Runner Frontend CI
 
 on:
@@ -45,3 +46,116 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      - name: Verify PWA build artifacts
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+
+          const dist = path.resolve('dist');
+
+          function requireFile(relativePath) {
+              const filePath = path.join(dist, relativePath);
+
+              if (!fs.existsSync(filePath)) {
+                  throw new Error(`PWA artifact missing: ${relativePath}`);
+              }
+
+              return filePath;
+          }
+
+          const requiredFiles = [
+              'index.html',
+              'manifest.webmanifest',
+              'manifest.json',
+              'sw.js',
+              'icons/icon.svg',
+          ];
+
+          for (const file of requiredFiles) {
+              requireFile(file);
+          }
+
+          const indexHtml = fs.readFileSync(
+              requireFile('index.html'),
+              'utf8',
+          );
+
+          if (!indexHtml.includes('/manifest.webmanifest')) {
+              throw new Error(
+                  'index.html does not reference manifest.webmanifest.',
+              );
+          }
+
+          const webManifest = JSON.parse(
+              fs.readFileSync(
+                  requireFile('manifest.webmanifest'),
+                  'utf8',
+              ),
+          );
+
+          if (
+              webManifest.display !== 'standalone' ||
+              webManifest.start_url !== '/' ||
+              webManifest.scope !== '/'
+          ) {
+              throw new Error('PWA manifest configuration is invalid.');
+          }
+
+          if (!Array.isArray(webManifest.icons) || webManifest.icons.length === 0) {
+              throw new Error('PWA manifest has no application icons.');
+          }
+
+          for (const icon of webManifest.icons) {
+              if (!icon.src) {
+                  throw new Error('PWA manifest contains an invalid icon.');
+              }
+
+              requireFile(icon.src.replace(/^\/+/, ''));
+          }
+
+          const buildManifest = JSON.parse(
+              fs.readFileSync(
+                  requireFile('manifest.json'),
+                  'utf8',
+              ),
+          );
+
+          for (const entry of Object.values(buildManifest)) {
+              if (!entry || typeof entry !== 'object') {
+                  continue;
+              }
+
+              const assets = [
+                  entry.file,
+                  ...(Array.isArray(entry.css) ? entry.css : []),
+                  ...(Array.isArray(entry.assets) ? entry.assets : []),
+              ];
+
+              for (const asset of assets) {
+                  if (typeof asset === 'string') {
+                      requireFile(asset.replace(/^\/+/, ''));
+                  }
+              }
+          }
+
+          const serviceWorker = fs.readFileSync(
+              requireFile('sw.js'),
+              'utf8',
+          );
+
+          for (const requiredPath of [
+              '/manifest.webmanifest',
+              '/manifest.json',
+              '/icons/icon.svg',
+          ]) {
+              if (!serviceWorker.includes(requiredPath)) {
+                  throw new Error(
+                      `Service Worker app shell is missing ${requiredPath}.`,
+                  );
+              }
+          }
+
+          console.log('PWA build artifacts verification passed.');
+          NODE
