@@ -1,21 +1,26 @@
 
-import type { RunnerTask } from '../api';
+import type { RunnerPagination, RunnerTask } from '../api';
 import RunnerTaskCard from '../components/tasks/RunnerTaskCard';
+import PaginationControls from '../components/shared/PaginationControls';
 
 interface HistoryPageProps {
     history: RunnerTask[];
+    pagination: RunnerPagination;
     loading: boolean;
     error: string;
     actionLoading: string;
     onRefresh: () => void;
+    onPageChange: (page: number) => void;
 }
 
 export default function HistoryPage({
     history,
+    pagination,
     loading,
     error,
     actionLoading,
     onRefresh,
+    onPageChange,
 }: HistoryPageProps) {
     return (
         <section className="runner-dashboard__section">
@@ -70,6 +75,14 @@ export default function HistoryPage({
                     />
                 ))}
             </div>
+
+            <PaginationControls
+                currentPage={pagination.current_page}
+                lastPage={pagination.last_page}
+                total={pagination.total}
+                loading={loading}
+                onPageChange={onPageChange}
+            />
         </section>
     );
 }
