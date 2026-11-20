@@ -16,15 +16,21 @@ import type {
     RunnerMarketplaceRequestDetail,
 } from '../../api';
 
-const { mockGetRequest } = vi.hoisted(() => ({
+const {
+    mockGetRequest,
+    mockGetAvailableRequests,
+    mockSubmitQuotation,
+} = vi.hoisted(() => ({
     mockGetRequest: vi.fn(),
+    mockGetAvailableRequests: vi.fn(),
+    mockSubmitQuotation: vi.fn(),
 }));
 
 vi.mock('../../api', () => ({
     runnerApi: {
         getRequest: mockGetRequest,
-        getAvailableRequests: vi.fn(),
-        submitQuotation: vi.fn(),
+        getAvailableRequests: mockGetAvailableRequests,
+        submitQuotation: mockSubmitQuotation,
     },
 }));
 
@@ -166,4 +172,125 @@ describe('useRunnerMarketplace notification request', () => {
             result.current.notificationRequestError,
         ).toBe('');
     });
+});
+
+describe('useRunnerMarketplace quotation request lifecycle', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it.each([
+        {
+            scenario: 'request telah dibatalkan sebelum borang dibuka',
+            error: new Error('Request cancelled'),
+        },
+        {
+            scenario: 'request telah tamat tempoh sebelum borang dibuka',
+            error: new Error('Request expired'),
+        },
+    ])(
+        'does not open quotation form when $scenario',
+        async ({ error }) => {
+            mockGetRequest.mockRejectedValueOnce(error);
+
+            const { result } = renderHook(() =>
+                useRunnerMarketplace(),
+            );
+
+            await act(async () => {
+                await result.current.openQuotation(
+                    'request-12345678',
+                );
+            });
+
+            expect(mockGetRequest).toHaveBeenCalledWith(
+                'request-12345678',
+            );
+
+            expect(
+                result.current.quotationRequestId,
+            ).toBeNull();
+
+            expect(
+                result.current.existingQuotation,
+            ).toBeNull();
+
+            expect(
+                result.current.quotationDetailLoading,
+            ).toBe('');
+
+            expect(
+                result.current.requestsError,
+            ).toContain(
+                'Tidak berjaya mendapatkan status sebut harga.',
+            );
+        },
+    );
+
+    it.each([
+        {
+            scenario: 'request dibatalkan ketika Runner mengisi sebut harga',
+            error: new Error('Request cancelled'),
+        },
+        {
+            scenario: 'request tamat tempoh ketika Runner mengisi sebut harga',
+            error: new Error('Request expired'),
+        },
+    ])(
+        'rejects quotation submission when $scenario',
+        async ({ error }) => {
+            mockGetRequest.mockResolvedValueOnce(mockRequest);
+
+            mockSubmitQuotation.mockRejectedValueOnce(error);
+
+            const { result } = renderHook(() =>
+                useRunnerMarketplace(),
+            );
+
+            await act(async () => {
+                await result.current.openQuotation(
+                    'request-12345678',
+                );
+            });
+
+            expect(
+                result.current.quotationRequestId,
+            ).toBe('request-12345678');
+
+            act(() => {
+                result.current.setQuotationAmount('15.00');
+                result.current.setQuotationMessage(
+                    'Penghantaran dokumen.',
+                );
+            });
+
+            let submissionResult = true;
+
+            await act(async () => {
+                submissionResult =
+                    await result.current.submitQuotation();
+            });
+
+            expect(mockSubmitQuotation).toHaveBeenCalledWith(
+                'request-12345678',
+                {
+                    amount: 15,
+                    currency: 'MYR',
+                    message: 'Penghantaran dokumen.',
+                },
+            );
+
+            expect(submissionResult).toBe(false);
+
+            expect(
+                result.current.requestsError,
+            ).toContain(
+                'Sebut harga tidak berjaya dihantar.',
+            );
+
+            expect(
+                result.current.quotationLoading,
+            ).toBe(false);
+        },
+    );
 });
