@@ -62,16 +62,12 @@ export default function AppShell({
                 <div className="runner-dashboard__summary">
                     <article className="runner-dashboard__summary-card">
                         <span>TUGASAN AKTIF</span>
-                        <strong>
-                            {activeTaskCount ?? '—'}
-                        </strong>
+                        <strong>{activeTaskCount ?? '—'}</strong>
                     </article>
 
                     <article className="runner-dashboard__summary-card">
                         <span>TUGASAN SELESAI</span>
-                        <strong>
-                            {completedTaskCount ?? '—'}
-                        </strong>
+                        <strong>{completedTaskCount ?? '—'}</strong>
                     </article>
 
                     <article className="runner-dashboard__summary-card">
@@ -87,6 +83,7 @@ export default function AppShell({
                     <button
                         type="button"
                         className={activeTab === 'TASKS' ? 'is-active' : ''}
+                        aria-pressed={activeTab === 'TASKS'}
                         onClick={() => onTabChange('TASKS')}
                     >
                         TUGASAN SAYA
@@ -95,6 +92,7 @@ export default function AppShell({
                     <button
                         type="button"
                         className={activeTab === 'HISTORY' ? 'is-active' : ''}
+                        aria-pressed={activeTab === 'HISTORY'}
                         onClick={() => onTabChange('HISTORY')}
                     >
                         SEJARAH
@@ -103,6 +101,7 @@ export default function AppShell({
                     <button
                         type="button"
                         className={activeTab === 'REQUESTS' ? 'is-active' : ''}
+                        aria-pressed={activeTab === 'REQUESTS'}
                         onClick={() => onTabChange('REQUESTS')}
                     >
                         OPEN REQUEST
@@ -111,6 +110,7 @@ export default function AppShell({
                     <button
                         type="button"
                         className={activeTab === 'NOTIFICATIONS' ? 'is-active' : ''}
+                        aria-pressed={activeTab === 'NOTIFICATIONS'}
                         onClick={() => onTabChange('NOTIFICATIONS')}
                     >
                         NOTIFIKASI
@@ -120,6 +120,7 @@ export default function AppShell({
                     <button
                         type="button"
                         className={activeTab === 'PROFILE' ? 'is-active' : ''}
+                        aria-pressed={activeTab === 'PROFILE'}
                         onClick={() => onTabChange('PROFILE')}
                     >
                         PROFIL & TETAPAN
