@@ -1,9 +1,17 @@
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    afterEach,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    vi,
+} from 'vitest';
 
 import registerRunnerServiceWorker from '../../src/pwa/registerRunnerServiceWorker';
 
 describe('registerRunnerServiceWorker', () => {
+    const originalNavigator = navigator;
     const originalServiceWorker = navigator.serviceWorker;
 
     let register: ReturnType<typeof vi.fn>;
@@ -46,8 +54,9 @@ describe('registerRunnerServiceWorker', () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+        vi.unstubAllGlobals();
 
-        Object.defineProperty(navigator, 'serviceWorker', {
+        Object.defineProperty(originalNavigator, 'serviceWorker', {
             configurable: true,
             value: originalServiceWorker,
         });
@@ -71,6 +80,17 @@ describe('registerRunnerServiceWorker', () => {
     });
 
     it('reloads once when an existing controller changes', () => {
+        const reload = vi.fn();
+
+        vi.stubGlobal('window', {
+            addEventListener: vi.fn((event, handler) => {
+                if (event === 'load') {
+                    loadHandler = handler as () => void;
+                }
+            }),
+            location: { reload },
+        });
+
         Object.defineProperty(navigator, 'serviceWorker', {
             configurable: true,
             value: {
@@ -84,10 +104,6 @@ describe('registerRunnerServiceWorker', () => {
             },
         });
 
-        const reload = vi
-            .spyOn(window.location, 'reload')
-            .mockImplementation(() => {});
-
         registerRunnerServiceWorker();
         loadHandler?.();
 
@@ -100,10 +116,8 @@ describe('registerRunnerServiceWorker', () => {
     });
 
     it('does not register when Service Worker is unsupported', () => {
-        Object.defineProperty(navigator, 'serviceWorker', {
-            configurable: true,
-            value: undefined,
-        });
+        vi.stubGlobal('navigator', {});
+        loadHandler = undefined;
 
         registerRunnerServiceWorker();
 
@@ -113,6 +127,7 @@ describe('registerRunnerServiceWorker', () => {
 
     it('handles registration failure', async () => {
         const error = new Error('Registration failed');
+
         const consoleError = vi
             .spyOn(console, 'error')
             .mockImplementation(() => {});
