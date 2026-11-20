@@ -5,7 +5,10 @@ import {
     type FormEvent,
 } from 'react';
 
-import type { RunnerAccount } from '../api';
+import type {
+    RunnerAccount,
+    RunnerNotification,
+} from '../api';
 
 import AppShell, {
     type RunnerDashboardTab,
@@ -81,12 +84,38 @@ export default function RunnerWorkspace({
     function handleOpenQuotation(requestId: string) {
         setQuotationSuccess('');
         tasksModule.clearActionMessages();
+
         void marketplaceModule.openQuotation(requestId);
     }
 
     function handleCloseQuotation() {
         marketplaceModule.closeQuotation();
         setQuotationSuccess('');
+    }
+
+    function handleOpenNotificationRequest(
+        notification: RunnerNotification,
+    ) {
+        const requestId = notification.data.request_id;
+
+        if (!requestId) {
+            return;
+        }
+
+        setQuotationSuccess('');
+        tasksModule.clearActionMessages();
+
+        if (!notification.read_at) {
+            void notificationsModule.markNotificationRead(
+                notification,
+            );
+        }
+
+        setActiveTab('REQUESTS');
+
+        void marketplaceModule.openNotificationRequest(
+            requestId,
+        );
     }
 
     const activeTaskCount = tasksModule.tasksLoading
@@ -97,11 +126,8 @@ export default function RunnerWorkspace({
         ? null
         : tasksModule.completedTaskCount;
 
-    const actionError =
-        tasksModule.actionError;
-
-    const actionSuccess =
-        tasksModule.actionSuccess;
+    const actionError = tasksModule.actionError;
+    const actionSuccess = tasksModule.actionSuccess;
 
     return (
         <AppShell
@@ -177,6 +203,9 @@ export default function RunnerWorkspace({
                     quotationLoading={marketplaceModule.quotationLoading}
                     quotationDetailLoading={marketplaceModule.quotationDetailLoading}
                     existingQuotation={marketplaceModule.existingQuotation}
+                    notificationRequest={marketplaceModule.notificationRequest}
+                    notificationRequestLoading={marketplaceModule.notificationRequestLoading}
+                    notificationRequestError={marketplaceModule.notificationRequestError}
                     onRefresh={() => marketplaceModule.loadRequests()}
                     onPageChange={marketplaceModule.loadRequests}
                     onOpenQuotation={handleOpenQuotation}
@@ -184,6 +213,7 @@ export default function RunnerWorkspace({
                     onAmountChange={marketplaceModule.setQuotationAmount}
                     onMessageChange={marketplaceModule.setQuotationMessage}
                     onSubmitQuotation={handleSubmitQuotation}
+                    onCloseNotificationRequest={marketplaceModule.closeNotificationRequest}
                 />
             )}
 
@@ -196,6 +226,7 @@ export default function RunnerWorkspace({
                     onRefresh={() => notificationsModule.loadNotifications()}
                     onPageChange={notificationsModule.loadNotifications}
                     onMarkRead={notificationsModule.markNotificationRead}
+                    onOpenRequest={handleOpenNotificationRequest}
                 />
             )}
 
