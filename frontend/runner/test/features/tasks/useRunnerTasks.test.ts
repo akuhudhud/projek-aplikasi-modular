@@ -255,6 +255,29 @@ describe('useRunnerTasks', () => {
         );
     });
 
+    it('shows a GPS-specific error when geolocation fails', async () => {
+        const gpsError = new Error('Location permission denied');
+        gpsError.name = 'RunnerGeolocationError';
+
+        vi.mocked(getCurrentCoordinates).mockRejectedValue(gpsError);
+
+        const { result } = renderHook(() => useRunnerTasks());
+
+        await waitFor(() => {
+            expect(result.current.tasksLoading).toBe(false);
+        });
+
+        await act(async () => {
+            await result.current.arriveTask(inProgressTask);
+        });
+
+        expect(runnerApi.arriveTask).not.toHaveBeenCalled();
+        expect(result.current.actionError).toBe(
+            'Tidak berjaya mendapatkan GPS. Benarkan akses lokasi dan cuba semula.',
+        );
+        expect(result.current.actionLoading).toBe('');
+    });
+
     it('requires an image before completing a task', async () => {
         const { result } = renderHook(() => useRunnerTasks());
 
