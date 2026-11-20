@@ -7,7 +7,10 @@ import {
     type RunnerTask,
 } from '../../api';
 
-import { getCurrentCoordinates } from '../../utils/geolocation';
+import {
+    getCurrentCoordinates,
+    RunnerGeolocationError,
+} from '../../utils/geolocation';
 
 const EMPTY_PAGINATION: RunnerPagination = {
     current_page: 1,
@@ -154,8 +157,7 @@ export function useRunnerTasks(): UseRunnerTasksResult {
             await loadTasks();
         } catch (error) {
             const isGeolocationError =
-                typeof GeolocationPositionError !== 'undefined'
-                && error instanceof GeolocationPositionError;
+                error instanceof RunnerGeolocationError;
 
             setActionError(
                 isGeolocationError
