@@ -1,12 +1,15 @@
 
 const CACHE_PREFIX = 'super-runner-runner-';
-const CACHE_NAME = `${CACHE_PREFIX}v2`;
+const CACHE_NAME = `${CACHE_PREFIX}v3`;
 
 const APP_SHELL = [
     '/',
     '/manifest.webmanifest',
     '/manifest.json',
     '/icons/icon.svg',
+    '/icons/icon-192-1.png',
+    '/icons/icon-512-1.png',
+    '/icons/apple-touch-icon-1.png',
 ];
 
 function isApiPath(pathname) {
