@@ -15,6 +15,7 @@ interface NotificationsPageProps {
     onRefresh: () => void;
     onPageChange: (page: number) => void;
     onMarkRead: (notification: RunnerNotification) => void;
+    onOpenRequest: (notification: RunnerNotification) => void;
 }
 
 export default function NotificationsPage({
@@ -25,6 +26,7 @@ export default function NotificationsPage({
     onRefresh,
     onPageChange,
     onMarkRead,
+    onOpenRequest,
 }: NotificationsPageProps) {
     return (
         <section className="runner-dashboard__section">
@@ -72,6 +74,7 @@ export default function NotificationsPage({
                         key={notification.id}
                         notification={notification}
                         onMarkRead={onMarkRead}
+                        onOpenRequest={onOpenRequest}
                     />
                 ))}
             </div>
