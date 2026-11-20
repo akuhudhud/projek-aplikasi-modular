@@ -2,10 +2,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import RunnerAuthPage from './RunnerAuthPage';
-import { runnerApi, type RunnerAccount } from '../../api';
+import RunnerAuthPage from '../../../src/features/auth/RunnerAuthPage';
+import { runnerApi, type RunnerAccount } from '../../../src/api';
 
-vi.mock('../../api', () => ({
+vi.mock('../../../src/api', () => ({
     runnerApi: {
         login: vi.fn(),
     },

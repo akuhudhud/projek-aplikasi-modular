@@ -15,11 +15,11 @@ import {
 
 import RunnerAccessPage, {
     type RunnerAccessReason,
-} from './RunnerAccessPage';
+} from '../../../src/features/auth/RunnerAccessPage';
 
 import type {
     RunnerAccount,
-} from '../../api';
+} from '../../../src/api';
 
 const mockAccount: RunnerAccount = {
     id: 1,

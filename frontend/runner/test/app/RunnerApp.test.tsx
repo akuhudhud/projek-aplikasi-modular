@@ -13,7 +13,7 @@ import {
     vi,
 } from 'vitest';
 
-import RunnerApp from './RunnerApp';
+import RunnerApp from '../../src/app/RunnerApp';
 
 import {
     runnerApi,
@@ -24,13 +24,13 @@ import {
     type RunnerNotification,
     type RunnerPublicProfile,
     type RunnerProfileAnalytics,
-} from '../api';
+} from '../../src/api';
 
 import {
     useRunnerSession,
-} from '../features/auth/useRunnerSession';
+} from '../../src/features/auth/useRunnerSession';
 
-vi.mock('../api', () => ({
+vi.mock('../../src/api', () => ({
     runnerApi: {
         me: vi.fn(),
         login: vi.fn(),
@@ -51,7 +51,7 @@ vi.mock('../api', () => ({
     },
 }));
 
-vi.mock('../features/auth/useRunnerSession', () => ({
+vi.mock('../../src/features/auth/useRunnerSession', () => ({
     useRunnerSession: vi.fn(),
 }));
 

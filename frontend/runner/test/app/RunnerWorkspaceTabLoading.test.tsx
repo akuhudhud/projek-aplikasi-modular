@@ -13,46 +13,46 @@ import {
     vi,
 } from 'vitest';
 
-import RunnerWorkspace from './RunnerWorkspace';
+import RunnerWorkspace from '../../src/app/RunnerWorkspace';
 
 import type {
     RunnerAccount,
     RunnerPagination,
-} from '../api';
+} from '../../src/api';
 
-import { useRunnerTasks } from '../features/tasks/useRunnerTasks';
-import { useRunnerMarketplace } from '../features/marketplace/useRunnerMarketplace';
-import { useRunnerNotifications } from '../features/notifications/useRunnerNotifications';
+import { useRunnerTasks } from '../../src/features/tasks/useRunnerTasks';
+import { useRunnerMarketplace } from '../../src/features/marketplace/useRunnerMarketplace';
+import { useRunnerNotifications } from '../../src/features/notifications/useRunnerNotifications';
 
-vi.mock('../features/tasks/useRunnerTasks', () => ({
+vi.mock('../../src/features/tasks/useRunnerTasks', () => ({
     useRunnerTasks: vi.fn(),
 }));
 
-vi.mock('../features/marketplace/useRunnerMarketplace', () => ({
+vi.mock('../../src/features/marketplace/useRunnerMarketplace', () => ({
     useRunnerMarketplace: vi.fn(),
 }));
 
-vi.mock('../features/notifications/useRunnerNotifications', () => ({
+vi.mock('../../src/features/notifications/useRunnerNotifications', () => ({
     useRunnerNotifications: vi.fn(),
 }));
 
-vi.mock('../pages/TasksPage', () => ({
+vi.mock('../../src/pages/TasksPage', () => ({
     default: () => null,
 }));
 
-vi.mock('../pages/HistoryPage', () => ({
+vi.mock('../../src/pages/HistoryPage', () => ({
     default: () => null,
 }));
 
-vi.mock('../pages/RequestsPage', () => ({
+vi.mock('../../src/pages/RequestsPage', () => ({
     default: () => null,
 }));
 
-vi.mock('../pages/NotificationsPage', () => ({
+vi.mock('../../src/pages/NotificationsPage', () => ({
     default: () => null,
 }));
 
-vi.mock('./RunnerProfileSettings', () => ({
+vi.mock('../../src/app/RunnerProfileSettings', () => ({
     default: () => null,
 }));
 

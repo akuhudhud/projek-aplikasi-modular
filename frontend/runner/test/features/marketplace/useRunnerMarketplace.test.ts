@@ -14,7 +14,7 @@ import {
 
 import type {
     RunnerMarketplaceRequestDetail,
-} from '../../api';
+} from '../../../src/api';
 
 const {
     mockGetRequest,
@@ -26,7 +26,7 @@ const {
     mockSubmitQuotation: vi.fn(),
 }));
 
-vi.mock('../../api', () => ({
+vi.mock('../../../src/api', () => ({
     runnerApi: {
         getRequest: mockGetRequest,
         getAvailableRequests: mockGetAvailableRequests,
@@ -36,7 +36,7 @@ vi.mock('../../api', () => ({
 
 import {
     useRunnerMarketplace,
-} from './useRunnerMarketplace';
+} from '../../../src/features/marketplace/useRunnerMarketplace';
 
 const mockRequest: RunnerMarketplaceRequestDetail = {
     request_id: 'request-12345678',

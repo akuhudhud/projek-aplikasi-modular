@@ -14,7 +14,7 @@ import {
     vi,
 } from 'vitest';
 
-import PwaInstallPrompt from './PwaInstallPrompt';
+import PwaInstallPrompt from '../../src/app/PwaInstallPrompt';
 
 interface MockBeforeInstallPromptEvent extends Event {
     prompt: ReturnType<typeof vi.fn>;
