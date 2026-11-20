@@ -5,6 +5,7 @@ import {
     runnerApi,
     type RunnerPagination,
     type RunnerMarketplaceRequest,
+    type RunnerMarketplaceRequestDetail,
     type RunnerQuotation,
 } from '../../api';
 
@@ -28,9 +29,14 @@ interface UseRunnerMarketplaceResult {
     quotationLoading: boolean;
     quotationDetailLoading: string;
     existingQuotation: RunnerQuotation | null;
+    notificationRequest: RunnerMarketplaceRequestDetail | null;
+    notificationRequestLoading: boolean;
+    notificationRequestError: string;
     loadRequests: (page?: number) => Promise<void>;
     openQuotation: (requestId: string) => Promise<void>;
     closeQuotation: () => void;
+    openNotificationRequest: (requestId: string) => Promise<void>;
+    closeNotificationRequest: () => void;
     setQuotationAmount: (value: string) => void;
     setQuotationMessage: (value: string) => void;
     submitQuotation: () => Promise<boolean>;
@@ -55,6 +61,15 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
 
     const [existingQuotation, setExistingQuotation] =
         useState<RunnerQuotation | null>(null);
+
+    const [notificationRequest, setNotificationRequest] =
+        useState<RunnerMarketplaceRequestDetail | null>(null);
+
+    const [notificationRequestLoading, setNotificationRequestLoading] =
+        useState(false);
+
+    const [notificationRequestError, setNotificationRequestError] =
+        useState('');
 
     const loadRequests = useCallback(async (
         page = requestsPagination.current_page,
@@ -121,6 +136,40 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
         quotationRequestId,
         closeQuotation,
     ]);
+
+    const openNotificationRequest = useCallback(async (
+        requestId: string,
+    ) => {
+        if (notificationRequestLoading) {
+            return;
+        }
+
+        setNotificationRequestLoading(true);
+        setNotificationRequestError('');
+        setNotificationRequest(null);
+
+        closeQuotation();
+
+        try {
+            const detail = await runnerApi.getRequest(requestId);
+
+            setNotificationRequest(detail);
+        } catch {
+            setNotificationRequestError(
+                'Permintaan ini tidak dapat dibuka. Ia mungkin telah dibatalkan, tamat tempoh atau tidak lagi boleh diakses.',
+            );
+        } finally {
+            setNotificationRequestLoading(false);
+        }
+    }, [
+        notificationRequestLoading,
+        closeQuotation,
+    ]);
+
+    const closeNotificationRequest = useCallback(() => {
+        setNotificationRequest(null);
+        setNotificationRequestError('');
+    }, []);
 
     const submitQuotation = useCallback(async (): Promise<boolean> => {
         if (!quotationRequestId || quotationLoading) {
@@ -193,9 +242,14 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
         quotationLoading,
         quotationDetailLoading,
         existingQuotation,
+        notificationRequest,
+        notificationRequestLoading,
+        notificationRequestError,
         loadRequests,
         openQuotation,
         closeQuotation,
+        openNotificationRequest,
+        closeNotificationRequest,
         setQuotationAmount,
         setQuotationMessage,
         submitQuotation,
