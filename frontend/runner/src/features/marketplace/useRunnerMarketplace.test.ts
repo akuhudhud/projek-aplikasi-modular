@@ -1,0 +1,169 @@
+
+import {
+    act,
+    renderHook,
+} from '@testing-library/react';
+
+import {
+    beforeEach,
+    describe,
+    expect,
+    it,
+    vi,
+} from 'vitest';
+
+import type {
+    RunnerMarketplaceRequestDetail,
+} from '../../api';
+
+const { mockGetRequest } = vi.hoisted(() => ({
+    mockGetRequest: vi.fn(),
+}));
+
+vi.mock('../../api', () => ({
+    runnerApi: {
+        getRequest: mockGetRequest,
+        getAvailableRequests: vi.fn(),
+        submitQuotation: vi.fn(),
+    },
+}));
+
+import {
+    useRunnerMarketplace,
+} from './useRunnerMarketplace';
+
+const mockRequest: RunnerMarketplaceRequestDetail = {
+    request_id: 'request-12345678',
+    source_type: 'CUSTOMER',
+    task_class: 'NON_DELIVERY',
+    description: 'Urusan penghantaran dokumen.',
+    pickup_location_snapshot: null,
+    delivery_location_snapshot: null,
+    task_location_snapshot: {
+        address: 'Tuaran, Sabah',
+    },
+    status: 'OPEN',
+    expires_at: '2026-11-21T10:00:00Z',
+    created_at: '2026-11-20T10:00:00Z',
+    my_quotations: [],
+};
+
+describe('useRunnerMarketplace notification request', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('loads request details successfully', async () => {
+        mockGetRequest.mockResolvedValueOnce(mockRequest);
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        await act(async () => {
+            await result.current.openNotificationRequest(
+                'request-12345678',
+            );
+        });
+
+        expect(mockGetRequest).toHaveBeenCalledWith(
+            'request-12345678',
+        );
+
+        expect(result.current.notificationRequest).toEqual(
+            mockRequest,
+        );
+
+        expect(
+            result.current.notificationRequestError,
+        ).toBe('');
+
+        expect(
+            result.current.notificationRequestLoading,
+        ).toBe(false);
+    });
+
+    it.each([
+        {
+            scenario: 'request telah dibatalkan',
+            error: new Error('Request cancelled'),
+        },
+        {
+            scenario: 'request telah tamat tempoh',
+            error: new Error('Request expired'),
+        },
+        {
+            scenario: 'Runner tidak lagi mempunyai akses',
+            error: new Error('Request unavailable'),
+        },
+    ])(
+        'shows an error when $scenario',
+        async ({ error }) => {
+            mockGetRequest.mockRejectedValueOnce(error);
+
+            const { result } = renderHook(() =>
+                useRunnerMarketplace(),
+            );
+
+            await act(async () => {
+                await result.current.openNotificationRequest(
+                    'request-12345678',
+                );
+            });
+
+            expect(mockGetRequest).toHaveBeenCalledWith(
+                'request-12345678',
+            );
+
+            expect(
+                result.current.notificationRequest,
+            ).toBeNull();
+
+            expect(
+                result.current.notificationRequestError,
+            ).toContain(
+                'Permintaan ini tidak dapat dibuka.',
+            );
+
+            expect(
+                result.current.notificationRequestError,
+            ).toContain('dibatalkan');
+
+            expect(
+                result.current.notificationRequestLoading,
+            ).toBe(false);
+        },
+    );
+
+    it('clears the request error when the notification request is closed', async () => {
+        mockGetRequest.mockRejectedValueOnce(
+            new Error('Request unavailable'),
+        );
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        await act(async () => {
+            await result.current.openNotificationRequest(
+                'request-12345678',
+            );
+        });
+
+        expect(
+            result.current.notificationRequestError,
+        ).not.toBe('');
+
+        act(() => {
+            result.current.closeNotificationRequest();
+        });
+
+        expect(
+            result.current.notificationRequest,
+        ).toBeNull();
+
+        expect(
+            result.current.notificationRequestError,
+        ).toBe('');
+    });
+});
