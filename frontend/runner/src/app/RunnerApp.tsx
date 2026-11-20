@@ -44,8 +44,16 @@ export default function RunnerApp() {
     if (session.checkingSession) {
         return (
             <main className="runner-loading">
-                <div className="runner-loading__brand">SR</div>
-                <p>Memeriksa sesi akaun...</p>
+                <div
+                    className="runner-loading__brand"
+                    aria-hidden="true"
+                >
+                    SR
+                </div>
+
+                <p role="status" aria-live="polite">
+                    Memeriksa sesi akaun...
+                </p>
             </main>
         );
     }
