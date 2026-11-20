@@ -128,6 +128,43 @@ describe('useRunnerNotifications', () => {
         expect(runnerApi.markNotificationAsRead).not.toHaveBeenCalled();
     });
 
+    it('prevents duplicate requests while marking the same notification as read', async () => {
+        const { result } = renderHook(() => useRunnerNotifications());
+
+        await waitFor(() => {
+            expect(result.current.notifications).toHaveLength(2);
+        });
+
+        let resolveRequest!: () => void;
+
+        vi.mocked(runnerApi.markNotificationAsRead).mockImplementation(
+            () => new Promise<void>((resolve) => {
+                resolveRequest = resolve;
+            }),
+        );
+
+        let firstRequest!: Promise<void>;
+
+        act(() => {
+            firstRequest = result.current.markNotificationRead(
+                notifications[0],
+            );
+        });
+
+        await act(async () => {
+            await result.current.markNotificationRead(notifications[0]);
+        });
+
+        expect(runnerApi.markNotificationAsRead).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            resolveRequest();
+            await firstRequest;
+        });
+
+        expect(result.current.unreadTotal).toBe(0);
+    });
+
     it('shows an error when notifications cannot be loaded', async () => {
         vi.mocked(runnerApi.getNotifications).mockRejectedValue(
             new Error('Network error'),
