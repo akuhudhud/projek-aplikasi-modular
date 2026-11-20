@@ -2,8 +2,15 @@
 import type {
     RunnerPagination,
     RunnerMarketplaceRequest,
+    RunnerMarketplaceRequestDetail,
     RunnerQuotation,
 } from '../api';
+
+import {
+    formatDate,
+    getRequestLocation,
+    requestStatusLabel,
+} from '../utils/runnerFormatters';
 
 import RunnerRequestCard from '../components/requests/RunnerRequestCard';
 import PaginationControls from '../components/shared/PaginationControls';
@@ -19,6 +26,9 @@ interface RequestsPageProps {
     quotationLoading: boolean;
     quotationDetailLoading: string;
     existingQuotation: RunnerQuotation | null;
+    notificationRequest: RunnerMarketplaceRequestDetail | null;
+    notificationRequestLoading: boolean;
+    notificationRequestError: string;
     onRefresh: () => void;
     onPageChange: (page: number) => void;
     onOpenQuotation: (requestId: string) => void;
@@ -28,6 +38,7 @@ interface RequestsPageProps {
     onSubmitQuotation: (
         event: React.FormEvent<HTMLFormElement>,
     ) => void;
+    onCloseNotificationRequest: () => void;
 }
 
 export default function RequestsPage({
@@ -41,6 +52,9 @@ export default function RequestsPage({
     quotationLoading,
     quotationDetailLoading,
     existingQuotation,
+    notificationRequest,
+    notificationRequestLoading,
+    notificationRequestError,
     onRefresh,
     onPageChange,
     onOpenQuotation,
@@ -48,6 +62,7 @@ export default function RequestsPage({
     onAmountChange,
     onMessageChange,
     onSubmitQuotation,
+    onCloseNotificationRequest,
 }: RequestsPageProps) {
     return (
         <section className="runner-dashboard__section">
@@ -68,6 +83,65 @@ export default function RequestsPage({
                     {loading ? 'MEMUAT...' : 'SEGARKAN'}
                 </button>
             </div>
+
+            {notificationRequestLoading && (
+                <p className="runner-dashboard__notice" role="status">
+                    Membuka permintaan daripada notifikasi...
+                </p>
+            )}
+
+            {notificationRequestError && (
+                <p className="runner-dashboard__alert" role="alert">
+                    {notificationRequestError}
+                </p>
+            )}
+
+            {notificationRequest && (
+                <article className="runner-dashboard__item">
+                    <div className="runner-dashboard__item-top">
+                        <strong>
+                            PERMINTAAN DARIPADA NOTIFIKASI
+                        </strong>
+
+                        <span className="runner-dashboard__status runner-dashboard__status--open">
+                            {requestStatusLabel(
+                                notificationRequest.status,
+                            )}
+                        </span>
+                    </div>
+
+                    <p>
+                        {notificationRequest.task_class === 'PICKUP_DELIVERY'
+                            ? 'PICKUP & DELIVERY'
+                            : 'NON-DELIVERY'}
+                    </p>
+
+                    <p>
+                        {notificationRequest.description}
+                    </p>
+
+                    <div className="runner-dashboard__request-location">
+                        <strong>Lokasi</strong>
+                        <span>
+                            {getRequestLocation(notificationRequest)}
+                        </span>
+                    </div>
+
+                    <small>
+                        Tarikh permintaan: {
+                            formatDate(notificationRequest.created_at)
+                        }
+                    </small>
+
+                    <button
+                        type="button"
+                        className="runner-dashboard__primary-action"
+                        onClick={onCloseNotificationRequest}
+                    >
+                        TUTUP MAKLUMAT PERMINTAAN
+                    </button>
+                </article>
+            )}
 
             {loading && (
                 <p className="runner-dashboard__notice">
