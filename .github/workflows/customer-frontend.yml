@@ -2,12 +2,15 @@
 name: Customer Frontend CI
 
 on:
+  workflow_dispatch:
+
   push:
     branches:
       - main
     paths:
       - 'frontend/customer/**'
       - '.github/workflows/customer-frontend.yml'
+
   pull_request:
     branches:
       - main
