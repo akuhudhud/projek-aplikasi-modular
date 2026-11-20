@@ -1,4 +1,6 @@
 
+import type { FormEvent } from 'react';
+
 import type {
     RunnerMarketplaceRequest,
     RunnerQuotation,
@@ -18,6 +20,7 @@ interface RunnerRequestCardProps {
     request: RunnerMarketplaceRequest;
     isQuotationOpen: boolean;
     isCheckingQuotation: boolean;
+    anyQuotationDetailLoading: boolean;
     quotationLoading: boolean;
     existingQuotation: RunnerQuotation | null;
     quotationAmount: string;
@@ -26,15 +29,14 @@ interface RunnerRequestCardProps {
     onCloseQuotation: () => void;
     onAmountChange: (value: string) => void;
     onMessageChange: (value: string) => void;
-    onSubmitQuotation: (
-        event: React.FormEvent<HTMLFormElement>,
-    ) => void;
+    onSubmitQuotation: (event: FormEvent<HTMLFormElement>) => void;
 }
 
 export default function RunnerRequestCard({
     request,
     isQuotationOpen,
     isCheckingQuotation,
+    anyQuotationDetailLoading,
     quotationLoading,
     existingQuotation,
     quotationAmount,
@@ -79,7 +81,7 @@ export default function RunnerRequestCard({
                 className="runner-dashboard__primary-action"
                 onClick={() => onOpenQuotation(request.request_id)}
                 disabled={
-                    isCheckingQuotation
+                    anyQuotationDetailLoading
                     || quotationLoading
                 }
             >
@@ -99,9 +101,7 @@ export default function RunnerRequestCard({
 
                     <p>
                         Status: {
-                            quotationStatusLabel(
-                                existingQuotation.status,
-                            )
+                            quotationStatusLabel(existingQuotation.status)
                         }
                     </p>
 
