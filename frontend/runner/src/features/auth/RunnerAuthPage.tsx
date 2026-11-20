@@ -7,6 +7,8 @@ import {
     type RunnerAccount,
 } from '../../api';
 
+import RunnerLoginForm from '../../components/auth/RunnerLoginForm';
+
 type RunnerAuthPageProps = {
     onAuthenticated: (account: RunnerAccount) => void;
 };
@@ -98,133 +100,31 @@ export default function RunnerAuthPage({
         }
     }
 
+    function handleIdentifierChange(value: string) {
+        setIdentifier(value);
+        setError('');
+    }
+
+    function handlePasswordChange(value: string) {
+        setPassword(value);
+        setError('');
+    }
+
+    function handleTogglePassword() {
+        setShowPassword((current) => !current);
+    }
+
     return (
-        <main className="runner-auth">
-            <section
-                className="runner-auth__panel"
-                aria-labelledby="runner-auth-heading"
-            >
-                <div className="runner-auth__brand">
-                    <div
-                        className="runner-auth__brand-mark"
-                        aria-hidden="true"
-                    >
-                        SR
-                    </div>
-
-                    <div>
-                        <h1>SUPER RUNNER</h1>
-                        <p>Runner Platform</p>
-                    </div>
-                </div>
-
-                <div className="runner-auth__heading">
-                    <h2 id="runner-auth-heading">
-                        Log Masuk Runner
-                    </h2>
-
-                    <p>
-                        Log masuk menggunakan akaun Super Runner
-                        anda untuk meneruskan.
-                    </p>
-                </div>
-
-                <form
-                    className="runner-auth__form"
-                    onSubmit={handleLogin}
-                >
-                    <div className="runner-auth__field">
-                        <label htmlFor="runner-identifier">
-                            Nombor Telefon atau E-mel
-                        </label>
-
-                        <input
-                            id="runner-identifier"
-                            type="text"
-                            autoComplete="username"
-                            value={identifier}
-                            onChange={(event) => {
-                                setIdentifier(event.target.value);
-                                setError('');
-                            }}
-                            placeholder="Masukkan nombor telefon atau e-mel"
-                            required
-                            disabled={loading}
-                        />
-                    </div>
-
-                    <div className="runner-auth__field">
-                        <label htmlFor="runner-password">
-                            Kata Laluan
-                        </label>
-
-                        <div className="runner-auth__password">
-                            <input
-                                id="runner-password"
-                                type={
-                                    showPassword
-                                        ? 'text'
-                                        : 'password'
-                                }
-                                autoComplete="current-password"
-                                value={password}
-                                onChange={(event) => {
-                                    setPassword(event.target.value);
-                                    setError('');
-                                }}
-                                placeholder="Masukkan kata laluan"
-                                required
-                                disabled={loading}
-                            />
-
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setShowPassword((current) => !current)
-                                }
-                                disabled={loading}
-                                aria-label={
-                                    showPassword
-                                        ? 'Sembunyikan kata laluan'
-                                        : 'Paparkan kata laluan'
-                                }
-                            >
-                                {showPassword ? 'Sembunyi' : 'Papar'}
-                            </button>
-                        </div>
-                    </div>
-
-                    {error && (
-                        <p
-                            className="runner-auth__error"
-                            role="alert"
-                        >
-                            {error}
-                        </p>
-                    )}
-
-                    <button
-                        className="runner-auth__submit"
-                        type="submit"
-                        disabled={loading}
-                    >
-                        {loading
-                            ? 'Sedang log masuk...'
-                            : 'LOG MASUK'}
-                    </button>
-                </form>
-
-                <div className="runner-auth__footer">
-                    <p>
-                        Belum mempunyai akaun?
-                    </p>
-
-                    <p>
-                        Daftar akaun melalui platform
-                        Super Runner Customer terlebih dahulu.
-                    </p>
-                </div>
-            </section>
-        </main>
+        <RunnerLoginForm
+            identifier={identifier}
+            password={password}
+            showPassword={showPassword}
+            loading={loading}
+            error={error}
+            onIdentifierChange={handleIdentifierChange}
+            onPasswordChange={handlePasswordChange}
+            onTogglePassword={handleTogglePassword}
+            onSubmit={handleLogin}
+        />
     );
 }
