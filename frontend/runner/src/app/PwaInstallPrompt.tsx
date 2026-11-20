@@ -14,7 +14,7 @@ type InstallPlatform = 'ANDROID' | 'IOS' | 'HARMONY' | 'OTHER';
 function detectPlatform(): InstallPlatform {
     const userAgent = navigator.userAgent;
 
-    if (/HarmonyOS/i.test(userAgent)) {
+    if (/HarmonyOS|HuaweiBrowser|HUAWEI/i.test(userAgent)) {
         return 'HARMONY';
     }
 
@@ -179,7 +179,7 @@ export default function PwaInstallPrompt() {
     const platformName = {
         ANDROID: 'Android',
         IOS: 'iPhone / iOS',
-        HARMONY: 'Huawei HarmonyOS',
+        HARMONY: 'Huawei / HarmonyOS',
         OTHER: 'peranti anda',
     }[platform];
 
