@@ -3,14 +3,23 @@ import { useCallback, useState } from 'react';
 
 import {
     runnerApi,
+    type RunnerPagination,
     type RunnerMarketplaceRequest,
     type RunnerQuotation,
 } from '../../api';
 
 import { getLatestQuotation } from '../../utils/runnerFormatters';
 
+const EMPTY_PAGINATION: RunnerPagination = {
+    current_page: 1,
+    per_page: 25,
+    total: 0,
+    last_page: 1,
+};
+
 interface UseRunnerMarketplaceResult {
     requests: RunnerMarketplaceRequest[];
+    requestsPagination: RunnerPagination;
     requestsLoading: boolean;
     requestsError: string;
     quotationRequestId: string | null;
@@ -19,7 +28,7 @@ interface UseRunnerMarketplaceResult {
     quotationLoading: boolean;
     quotationDetailLoading: string;
     existingQuotation: RunnerQuotation | null;
-    loadRequests: () => Promise<void>;
+    loadRequests: (page?: number) => Promise<void>;
     openQuotation: (requestId: string) => Promise<void>;
     closeQuotation: () => void;
     setQuotationAmount: (value: string) => void;
@@ -29,6 +38,9 @@ interface UseRunnerMarketplaceResult {
 
 export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
     const [requests, setRequests] = useState<RunnerMarketplaceRequest[]>([]);
+    const [requestsPagination, setRequestsPagination] =
+        useState<RunnerPagination>(EMPTY_PAGINATION);
+
     const [requestsLoading, setRequestsLoading] = useState(false);
     const [requestsError, setRequestsError] = useState('');
 
@@ -44,13 +56,17 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
     const [existingQuotation, setExistingQuotation] =
         useState<RunnerQuotation | null>(null);
 
-    const loadRequests = useCallback(async () => {
+    const loadRequests = useCallback(async (
+        page = requestsPagination.current_page,
+    ) => {
         setRequestsLoading(true);
         setRequestsError('');
 
         try {
-            const result = await runnerApi.getAvailableRequests();
+            const result = await runnerApi.getAvailableRequests(page);
+
             setRequests(result.requests);
+            setRequestsPagination(result.pagination);
         } catch {
             setRequestsError(
                 'Tidak berjaya mendapatkan Open Request. Sila cuba semula.',
@@ -58,7 +74,7 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
         } finally {
             setRequestsLoading(false);
         }
-    }, []);
+    }, [requestsPagination.current_page]);
 
     const closeQuotation = useCallback(() => {
         setQuotationRequestId(null);
@@ -168,6 +184,7 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
 
     return {
         requests,
+        requestsPagination,
         requestsLoading,
         requestsError,
         quotationRequestId,
