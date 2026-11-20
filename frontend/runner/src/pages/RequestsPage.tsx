@@ -1,13 +1,16 @@
 
 import type {
+    RunnerPagination,
     RunnerMarketplaceRequest,
     RunnerQuotation,
 } from '../api';
 
 import RunnerRequestCard from '../components/requests/RunnerRequestCard';
+import PaginationControls from '../components/shared/PaginationControls';
 
 interface RequestsPageProps {
     requests: RunnerMarketplaceRequest[];
+    pagination: RunnerPagination;
     loading: boolean;
     error: string;
     quotationRequestId: string | null;
@@ -17,6 +20,7 @@ interface RequestsPageProps {
     quotationDetailLoading: string;
     existingQuotation: RunnerQuotation | null;
     onRefresh: () => void;
+    onPageChange: (page: number) => void;
     onOpenQuotation: (requestId: string) => void;
     onCloseQuotation: () => void;
     onAmountChange: (value: string) => void;
@@ -28,6 +32,7 @@ interface RequestsPageProps {
 
 export default function RequestsPage({
     requests,
+    pagination,
     loading,
     error,
     quotationRequestId,
@@ -37,6 +42,7 @@ export default function RequestsPage({
     quotationDetailLoading,
     existingQuotation,
     onRefresh,
+    onPageChange,
     onOpenQuotation,
     onCloseQuotation,
     onAmountChange,
@@ -115,6 +121,14 @@ export default function RequestsPage({
                     />
                 ))}
             </div>
+
+            <PaginationControls
+                currentPage={pagination.current_page}
+                lastPage={pagination.last_page}
+                total={pagination.total}
+                loading={loading}
+                onPageChange={onPageChange}
+            />
         </section>
     );
 }
