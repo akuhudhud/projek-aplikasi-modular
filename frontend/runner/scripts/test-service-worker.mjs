@@ -1,3 +1,4 @@
+
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -177,7 +178,7 @@ await lifecycle('install');
 assert.equal(calls.skipWaiting, 1);
 
 const currentCache = cacheStores.get(
-    'super-runner-runner-v3',
+    'super-runner-runner-v4',
 );
 
 assert.ok(currentCache);
@@ -205,12 +206,12 @@ for (const path of expectedFiles) {
 }
 
 // 2. Activation and old-cache cleanup.
-cacheStores.set('super-runner-runner-v2', new Map());
+cacheStores.set('super-runner-runner-v3', new Map());
 cacheStores.set('unrelated-cache', new Map());
 
 await lifecycle('activate');
 
-assert.ok(!cacheStores.has('super-runner-runner-v2'));
+assert.ok(!cacheStores.has('super-runner-runner-v3'));
 assert.ok(cacheStores.has('unrelated-cache'));
 assert.equal(calls.claim, 1);
 
@@ -266,17 +267,27 @@ assert.equal(
 
 assert.equal(calls.fetch.length, firstAssetFetchCount);
 
-// 5. Offline navigation fallback.
+// 5. Offline static asset remains available from cache.
+calls.offline = true;
+
+response = await fetchEvent(
+    'https://runner.test/icons/dynamic.png',
+);
+
+assert.equal(
+    await response.text(),
+    'network:https://runner.test/icons/dynamic.png',
+);
+
+// 6. Offline navigation fallback.
 const cache = await sandbox.caches.open(
-    'super-runner-runner-v3',
+    'super-runner-runner-v4',
 );
 
 await cache.put(
     'https://runner.test/cached-page',
     basicResponse('cached requested page'),
 );
-
-calls.offline = true;
 
 response = await fetchEvent(
     'https://runner.test/cached-page',
@@ -288,7 +299,7 @@ assert.equal(
     'cached requested page',
 );
 
-// 6. Fallback to App Shell.
+// 7. Fallback to App Shell.
 response = await fetchEvent(
     'https://runner.test/uncached-page',
     { mode: 'navigate' },
@@ -296,8 +307,8 @@ response = await fetchEvent(
 
 assert.equal(await response.text(), 'network:/');
 
-// 7. No cache available: return 503.
-cacheStores.get('super-runner-runner-v3').delete(
+// 8. No cache available: return 503.
+cacheStores.get('super-runner-runner-v4').delete(
     'https://runner.test/',
 );
 
@@ -309,5 +320,5 @@ response = await fetchEvent(
 assert.equal(response.status, 503);
 
 console.log(
-    'Service Worker tests passed: install, precache, cache cleanup, API exclusion, static cache-first, offline fallback and 503.',
+    'Service Worker tests passed: install, precache, cache cleanup, API exclusion, static cache-first, offline asset cache, navigation fallback and 503.',
 );
