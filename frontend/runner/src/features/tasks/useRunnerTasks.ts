@@ -3,14 +3,25 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
     runnerApi,
+    type RunnerPagination,
     type RunnerTask,
 } from '../../api';
 
 import { getCurrentCoordinates } from '../../utils/geolocation';
 
+const EMPTY_PAGINATION: RunnerPagination = {
+    current_page: 1,
+    per_page: 50,
+    total: 0,
+    last_page: 1,
+};
+
 interface UseRunnerTasksResult {
     tasks: RunnerTask[];
     history: RunnerTask[];
+    tasksPagination: RunnerPagination;
+    historyPagination: RunnerPagination;
+    completedTaskCount: number;
     tasksLoading: boolean;
     historyLoading: boolean;
     tasksError: string;
@@ -20,8 +31,8 @@ interface UseRunnerTasksResult {
     actionSuccess: string;
     activeTasks: RunnerTask[];
     completedTasks: RunnerTask[];
-    loadTasks: () => Promise<void>;
-    loadHistory: () => Promise<void>;
+    loadTasks: (page?: number) => Promise<void>;
+    loadHistory: (page?: number) => Promise<void>;
     startTask: (task: RunnerTask) => Promise<void>;
     arriveTask: (task: RunnerTask) => Promise<void>;
     completeTask: (task: RunnerTask, file?: File) => Promise<void>;
@@ -31,6 +42,14 @@ interface UseRunnerTasksResult {
 export function useRunnerTasks(): UseRunnerTasksResult {
     const [tasks, setTasks] = useState<RunnerTask[]>([]);
     const [history, setHistory] = useState<RunnerTask[]>([]);
+
+    const [tasksPagination, setTasksPagination] =
+        useState<RunnerPagination>(EMPTY_PAGINATION);
+
+    const [historyPagination, setHistoryPagination] =
+        useState<RunnerPagination>(EMPTY_PAGINATION);
+
+    const [completedTaskCount, setCompletedTaskCount] = useState(0);
 
     const [tasksLoading, setTasksLoading] = useState(true);
     const [historyLoading, setHistoryLoading] = useState(true);
@@ -47,13 +66,17 @@ export function useRunnerTasks(): UseRunnerTasksResult {
         setActionSuccess('');
     }, []);
 
-    const loadTasks = useCallback(async () => {
+    const loadTasks = useCallback(async (
+        page = tasksPagination.current_page,
+    ) => {
         setTasksLoading(true);
         setTasksError('');
 
         try {
-            const result = await runnerApi.getTasks();
+            const result = await runnerApi.getTasks(page);
+
             setTasks(result.tasks);
+            setTasksPagination(result.pagination);
         } catch {
             setTasksError(
                 'Tidak berjaya mendapatkan senarai tugasan. Sila cuba semula.',
@@ -61,15 +84,22 @@ export function useRunnerTasks(): UseRunnerTasksResult {
         } finally {
             setTasksLoading(false);
         }
-    }, []);
+    }, [tasksPagination.current_page]);
 
-    const loadHistory = useCallback(async () => {
+    const loadHistory = useCallback(async (
+        page = historyPagination.current_page,
+    ) => {
         setHistoryLoading(true);
         setHistoryError('');
 
         try {
-            const result = await runnerApi.getTaskHistory();
+            const result = await runnerApi.getTaskHistory(page);
+
             setHistory(result.tasks);
+            setHistoryPagination(result.pagination);
+            setCompletedTaskCount(
+                result.summary?.completed_total ?? result.pagination.total,
+            );
         } catch {
             setHistoryError(
                 'Tidak berjaya mendapatkan sejarah tugasan.',
@@ -77,12 +107,12 @@ export function useRunnerTasks(): UseRunnerTasksResult {
         } finally {
             setHistoryLoading(false);
         }
-    }, []);
+    }, [historyPagination.current_page]);
 
     useEffect(() => {
-        void loadTasks();
-        void loadHistory();
-    }, [loadTasks, loadHistory]);
+        void loadTasks(1);
+        void loadHistory(1);
+    }, []);
 
     const startTask = useCallback(async (task: RunnerTask) => {
         if (actionLoading) return;
@@ -205,6 +235,9 @@ export function useRunnerTasks(): UseRunnerTasksResult {
     return {
         tasks,
         history,
+        tasksPagination,
+        historyPagination,
+        completedTaskCount,
         tasksLoading,
         historyLoading,
         tasksError,
