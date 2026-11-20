@@ -37,7 +37,7 @@ describe('RunnerTaskCard', () => {
             />,
         );
 
-        expect(screen.getByText('Tugasan #task-12')).toBeInTheDocument();
+        expect(screen.getByText('Tugasan #task-123')).toBeInTheDocument();
         expect(screen.getByText('Rujukan: request-001')).toBeInTheDocument();
         expect(screen.getByText('DITUGASKAN')).toBeInTheDocument();
     });
