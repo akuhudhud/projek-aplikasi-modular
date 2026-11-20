@@ -179,7 +179,7 @@ export default function PwaInstallPrompt() {
     const platformName = {
         ANDROID: 'Android',
         IOS: 'iPhone / iOS',
-        HARMONY: 'Huawei / HarmonyOS',
+        HARMONY: 'Huawei HarmonyOS',
         OTHER: 'peranti anda',
     }[platform];
 
