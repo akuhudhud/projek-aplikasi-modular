@@ -1,5 +1,10 @@
 
-import { useCallback, useEffect, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+} from 'react';
 
 import {
     runnerApi,
@@ -38,6 +43,8 @@ export function useRunnerNotifications(): UseRunnerNotificationsResult {
         useState(true);
     const [notificationsError, setNotificationsError] = useState('');
 
+    const markingNotificationIds = useRef(new Set<string>());
+
     const loadNotifications = useCallback(async (
         page = notificationsPagination.current_page,
     ) => {
@@ -66,9 +73,14 @@ export function useRunnerNotifications(): UseRunnerNotificationsResult {
     const markNotificationRead = useCallback(async (
         notification: RunnerNotification,
     ) => {
-        if (notification.read_at) {
+        if (
+            notification.read_at ||
+            markingNotificationIds.current.has(notification.id)
+        ) {
             return;
         }
+
+        markingNotificationIds.current.add(notification.id);
 
         try {
             await runnerApi.markNotificationAsRead(notification.id);
@@ -89,6 +101,8 @@ export function useRunnerNotifications(): UseRunnerNotificationsResult {
             setNotificationsError(
                 'Tidak berjaya mengemas kini notifikasi.',
             );
+        } finally {
+            markingNotificationIds.current.delete(notification.id);
         }
     }, []);
 
