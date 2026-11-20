@@ -39,7 +39,7 @@ describe('RunnerTaskCard', () => {
 
         expect(screen.getByText('Tugasan #task-12')).toBeInTheDocument();
         expect(screen.getByText('Rujukan: request-001')).toBeInTheDocument();
-        expect(screen.getByText('Diberikan')).toBeInTheDocument();
+        expect(screen.getByText('DITUGASKAN')).toBeInTheDocument();
     });
 
     it('starts an assigned task when the button is clicked', () => {
