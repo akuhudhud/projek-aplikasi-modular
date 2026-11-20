@@ -5,12 +5,18 @@ import { formatDate } from '../../utils/runnerFormatters';
 interface RunnerNotificationCardProps {
     notification: RunnerNotification;
     onMarkRead: (notification: RunnerNotification) => void;
+    onOpenRequest: (notification: RunnerNotification) => void;
 }
 
 export default function RunnerNotificationCard({
     notification,
     onMarkRead,
+    onOpenRequest,
 }: RunnerNotificationCardProps) {
+    const hasRelatedRequest = Boolean(
+        notification.data.request_id,
+    );
+
     return (
         <article
             className="runner-dashboard__item"
@@ -37,6 +43,16 @@ export default function RunnerNotificationCard({
             <small>
                 {formatDate(notification.created_at)}
             </small>
+
+            {hasRelatedRequest && (
+                <button
+                    type="button"
+                    className="runner-dashboard__primary-action"
+                    onClick={() => onOpenRequest(notification)}
+                >
+                    LIHAT PERMINTAAN
+                </button>
+            )}
 
             {!notification.read_at && (
                 <button
