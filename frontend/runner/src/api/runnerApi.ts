@@ -140,9 +140,14 @@ export const runnerApi = {
         await api.post('/web/auth/logout');
     },
 
-    async getTasks(): Promise<TasksData> {
+    async getTasks(page = 1): Promise<TasksData> {
         const response = await api.get<ApiResponse<TasksData>>(
             '/web/runner/tasks',
+            {
+                params: {
+                    page,
+                },
+            },
         );
 
         return response.data.data;
@@ -209,9 +214,14 @@ export const runnerApi = {
         return response.data.data.task;
     },
 
-    async getNotifications(): Promise<NotificationsData> {
+    async getNotifications(page = 1): Promise<NotificationsData> {
         const response = await api.get<ApiResponse<NotificationsData>>(
             '/web/runner/notifications',
+            {
+                params: {
+                    page,
+                },
+            },
         );
 
         return response.data.data;
@@ -225,12 +235,15 @@ export const runnerApi = {
         );
     },
 
-    async getAvailableRequests(): Promise<MarketplaceRequestsData> {
+    async getAvailableRequests(
+        page = 1,
+    ): Promise<MarketplaceRequestsData> {
         const response = await api.get<ApiResponse<MarketplaceRequestsData>>(
             '/web/runner/requests',
             {
                 params: {
                     view: 'available',
+                    page,
                 },
             },
         );
