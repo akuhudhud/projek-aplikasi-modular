@@ -95,7 +95,7 @@ export default function RunnerWorkspace({
 
     const completedTaskCount = tasksModule.historyLoading
         ? null
-        : tasksModule.completedTasks.length;
+        : tasksModule.completedTaskCount;
 
     const actionError =
         tasksModule.actionError;
@@ -141,10 +141,12 @@ export default function RunnerWorkspace({
             {activeTab === 'TASKS' && (
                 <TasksPage
                     tasks={tasksModule.tasks}
+                    pagination={tasksModule.tasksPagination}
                     loading={tasksModule.tasksLoading}
                     error={tasksModule.tasksError}
                     actionLoading={tasksModule.actionLoading}
-                    onRefresh={tasksModule.loadTasks}
+                    onRefresh={() => tasksModule.loadTasks()}
+                    onPageChange={tasksModule.loadTasks}
                     onStart={tasksModule.startTask}
                     onArrive={tasksModule.arriveTask}
                     onComplete={tasksModule.completeTask}
@@ -154,16 +156,19 @@ export default function RunnerWorkspace({
             {activeTab === 'HISTORY' && (
                 <HistoryPage
                     history={tasksModule.history}
+                    pagination={tasksModule.historyPagination}
                     loading={tasksModule.historyLoading}
                     error={tasksModule.historyError}
                     actionLoading={tasksModule.actionLoading}
-                    onRefresh={tasksModule.loadHistory}
+                    onRefresh={() => tasksModule.loadHistory()}
+                    onPageChange={tasksModule.loadHistory}
                 />
             )}
 
             {activeTab === 'REQUESTS' && (
                 <RequestsPage
                     requests={marketplaceModule.requests}
+                    pagination={marketplaceModule.requestsPagination}
                     loading={marketplaceModule.requestsLoading}
                     error={marketplaceModule.requestsError}
                     quotationRequestId={marketplaceModule.quotationRequestId}
@@ -172,7 +177,8 @@ export default function RunnerWorkspace({
                     quotationLoading={marketplaceModule.quotationLoading}
                     quotationDetailLoading={marketplaceModule.quotationDetailLoading}
                     existingQuotation={marketplaceModule.existingQuotation}
-                    onRefresh={marketplaceModule.loadRequests}
+                    onRefresh={() => marketplaceModule.loadRequests()}
+                    onPageChange={marketplaceModule.loadRequests}
                     onOpenQuotation={handleOpenQuotation}
                     onCloseQuotation={handleCloseQuotation}
                     onAmountChange={marketplaceModule.setQuotationAmount}
@@ -184,9 +190,11 @@ export default function RunnerWorkspace({
             {activeTab === 'NOTIFICATIONS' && (
                 <NotificationsPage
                     notifications={notificationsModule.notifications}
+                    pagination={notificationsModule.notificationsPagination}
                     loading={notificationsModule.notificationsLoading}
                     error={notificationsModule.notificationsError}
-                    onRefresh={notificationsModule.loadNotifications}
+                    onRefresh={() => notificationsModule.loadNotifications()}
+                    onPageChange={notificationsModule.loadNotifications}
                     onMarkRead={notificationsModule.markNotificationRead}
                 />
             )}
