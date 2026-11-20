@@ -3,15 +3,24 @@ import { useCallback, useEffect, useState } from 'react';
 
 import {
     runnerApi,
+    type RunnerPagination,
     type RunnerNotification,
 } from '../../api';
 
+const EMPTY_PAGINATION: RunnerPagination = {
+    current_page: 1,
+    per_page: 25,
+    total: 0,
+    last_page: 1,
+};
+
 interface UseRunnerNotificationsResult {
     notifications: RunnerNotification[];
+    notificationsPagination: RunnerPagination;
     unreadTotal: number;
     notificationsLoading: boolean;
     notificationsError: string;
-    loadNotifications: () => Promise<void>;
+    loadNotifications: (page?: number) => Promise<void>;
     markNotificationRead: (
         notification: RunnerNotification,
     ) => Promise<void>;
@@ -21,19 +30,25 @@ export function useRunnerNotifications(): UseRunnerNotificationsResult {
     const [notifications, setNotifications] =
         useState<RunnerNotification[]>([]);
 
+    const [notificationsPagination, setNotificationsPagination] =
+        useState<RunnerPagination>(EMPTY_PAGINATION);
+
     const [unreadTotal, setUnreadTotal] = useState(0);
     const [notificationsLoading, setNotificationsLoading] =
         useState(true);
     const [notificationsError, setNotificationsError] = useState('');
 
-    const loadNotifications = useCallback(async () => {
+    const loadNotifications = useCallback(async (
+        page = notificationsPagination.current_page,
+    ) => {
         setNotificationsLoading(true);
         setNotificationsError('');
 
         try {
-            const result = await runnerApi.getNotifications();
+            const result = await runnerApi.getNotifications(page);
 
             setNotifications(result.notifications);
+            setNotificationsPagination(result.pagination);
             setUnreadTotal(result.summary.unread_total);
         } catch {
             setNotificationsError(
@@ -42,11 +57,11 @@ export function useRunnerNotifications(): UseRunnerNotificationsResult {
         } finally {
             setNotificationsLoading(false);
         }
-    }, []);
+    }, [notificationsPagination.current_page]);
 
     useEffect(() => {
-        void loadNotifications();
-    }, [loadNotifications]);
+        void loadNotifications(1);
+    }, []);
 
     const markNotificationRead = useCallback(async (
         notification: RunnerNotification,
@@ -79,6 +94,7 @@ export function useRunnerNotifications(): UseRunnerNotificationsResult {
 
     return {
         notifications,
+        notificationsPagination,
         unreadTotal,
         notificationsLoading,
         notificationsError,
