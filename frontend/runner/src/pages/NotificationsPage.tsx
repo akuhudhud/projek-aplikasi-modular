@@ -1,20 +1,29 @@
 
-import type { RunnerNotification } from '../api';
+import type {
+    RunnerPagination,
+    RunnerNotification,
+} from '../api';
+
 import RunnerNotificationCard from '../components/shared/RunnerNotificationCard';
+import PaginationControls from '../components/shared/PaginationControls';
 
 interface NotificationsPageProps {
     notifications: RunnerNotification[];
+    pagination: RunnerPagination;
     loading: boolean;
     error: string;
     onRefresh: () => void;
+    onPageChange: (page: number) => void;
     onMarkRead: (notification: RunnerNotification) => void;
 }
 
 export default function NotificationsPage({
     notifications,
+    pagination,
     loading,
     error,
     onRefresh,
+    onPageChange,
     onMarkRead,
 }: NotificationsPageProps) {
     return (
@@ -66,6 +75,14 @@ export default function NotificationsPage({
                     />
                 ))}
             </div>
+
+            <PaginationControls
+                currentPage={pagination.current_page}
+                lastPage={pagination.last_page}
+                total={pagination.total}
+                loading={loading}
+                onPageChange={onPageChange}
+            />
         </section>
     );
 }
