@@ -1,6 +1,7 @@
 
 import {
     useEffect,
+    useRef,
     useState,
     type FormEvent,
 } from 'react';
@@ -47,24 +48,38 @@ export default function RunnerWorkspace({
     const marketplaceModule = useRunnerMarketplace();
     const notificationsModule = useRunnerNotifications();
 
+    const loadHistoryRef = useRef(tasksModule.loadHistory);
+    const loadRequestsRef = useRef(marketplaceModule.loadRequests);
+    const loadNotificationsRef = useRef(
+        notificationsModule.loadNotifications,
+    );
+
+    useEffect(() => {
+        loadHistoryRef.current = tasksModule.loadHistory;
+    }, [tasksModule.loadHistory]);
+
+    useEffect(() => {
+        loadRequestsRef.current = marketplaceModule.loadRequests;
+    }, [marketplaceModule.loadRequests]);
+
+    useEffect(() => {
+        loadNotificationsRef.current =
+            notificationsModule.loadNotifications;
+    }, [notificationsModule.loadNotifications]);
+
     useEffect(() => {
         if (activeTab === 'HISTORY') {
-            void tasksModule.loadHistory();
+            void loadHistoryRef.current();
         }
 
         if (activeTab === 'REQUESTS') {
-            void marketplaceModule.loadRequests();
+            void loadRequestsRef.current();
         }
 
         if (activeTab === 'NOTIFICATIONS') {
-            void notificationsModule.loadNotifications();
+            void loadNotificationsRef.current();
         }
-    }, [
-        activeTab,
-        tasksModule.loadHistory,
-        marketplaceModule.loadRequests,
-        notificationsModule.loadNotifications,
-    ]);
+    }, [activeTab]);
 
     async function handleSubmitQuotation(
         event: FormEvent<HTMLFormElement>,
