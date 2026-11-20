@@ -1,13 +1,16 @@
 
-import type { RunnerTask } from '../api';
+import type { RunnerPagination, RunnerTask } from '../api';
 import RunnerTaskCard from '../components/tasks/RunnerTaskCard';
+import PaginationControls from '../components/shared/PaginationControls';
 
 interface TasksPageProps {
     tasks: RunnerTask[];
+    pagination: RunnerPagination;
     loading: boolean;
     error: string;
     actionLoading: string;
     onRefresh: () => void;
+    onPageChange: (page: number) => void;
     onStart: (task: RunnerTask) => void;
     onArrive: (task: RunnerTask) => void;
     onComplete: (task: RunnerTask, file?: File) => void;
@@ -15,10 +18,12 @@ interface TasksPageProps {
 
 export default function TasksPage({
     tasks,
+    pagination,
     loading,
     error,
     actionLoading,
     onRefresh,
+    onPageChange,
     onStart,
     onArrive,
     onComplete,
@@ -76,6 +81,14 @@ export default function TasksPage({
                     />
                 ))}
             </div>
+
+            <PaginationControls
+                currentPage={pagination.current_page}
+                lastPage={pagination.last_page}
+                total={pagination.total}
+                loading={loading}
+                onPageChange={onPageChange}
+            />
         </section>
     );
 }
