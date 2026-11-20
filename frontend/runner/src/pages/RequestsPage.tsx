@@ -85,7 +85,11 @@ export default function RequestsPage({
             </div>
 
             {notificationRequestLoading && (
-                <p className="runner-dashboard__notice" role="status">
+                <p
+                    className="runner-dashboard__notice"
+                    role="status"
+                    aria-live="polite"
+                >
                     Membuka permintaan daripada notifikasi...
                 </p>
             )}
@@ -144,7 +148,11 @@ export default function RequestsPage({
             )}
 
             {loading && (
-                <p className="runner-dashboard__notice">
+                <p
+                    className="runner-dashboard__notice"
+                    role="status"
+                    aria-live="polite"
+                >
                     Memuatkan Open Request...
                 </p>
             )}
