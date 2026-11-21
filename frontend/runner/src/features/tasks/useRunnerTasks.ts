@@ -1,5 +1,11 @@
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 
 import {
     runnerApi,
@@ -61,6 +67,11 @@ export function useRunnerTasks(): UseRunnerTasksResult {
     const [actionError, setActionError] = useState('');
     const [actionSuccess, setActionSuccess] = useState('');
 
+    // Each list has its own request sequence.
+    // Only the latest request may update its state.
+    const tasksRequestId = useRef(0);
+    const historyRequestId = useRef(0);
+
     const clearActionMessages = useCallback(() => {
         setActionError('');
         setActionSuccess('');
@@ -68,32 +79,50 @@ export function useRunnerTasks(): UseRunnerTasksResult {
 
     const loadTasks = useCallback(async (
         page = tasksPagination.current_page,
-    ) => {
+    ): Promise<void> => {
+        const requestId = ++tasksRequestId.current;
+
         setTasksLoading(true);
         setTasksError('');
 
         try {
             const result = await runnerApi.getTasks(page);
 
+            if (requestId !== tasksRequestId.current) {
+                return;
+            }
+
             setTasks(result.tasks);
             setTasksPagination(result.pagination);
         } catch {
+            if (requestId !== tasksRequestId.current) {
+                return;
+            }
+
             setTasksError(
                 'Tidak berjaya mendapatkan senarai tugasan. Sila cuba semula.',
             );
         } finally {
-            setTasksLoading(false);
+            if (requestId === tasksRequestId.current) {
+                setTasksLoading(false);
+            }
         }
     }, [tasksPagination.current_page]);
 
     const loadHistory = useCallback(async (
         page = historyPagination.current_page,
-    ) => {
+    ): Promise<void> => {
+        const requestId = ++historyRequestId.current;
+
         setHistoryLoading(true);
         setHistoryError('');
 
         try {
             const result = await runnerApi.getTaskHistory(page);
+
+            if (requestId !== historyRequestId.current) {
+                return;
+            }
 
             setHistory(result.tasks);
             setHistoryPagination(result.pagination);
@@ -101,17 +130,31 @@ export function useRunnerTasks(): UseRunnerTasksResult {
                 result.summary?.completed_total ?? result.pagination.total,
             );
         } catch {
+            if (requestId !== historyRequestId.current) {
+                return;
+            }
+
             setHistoryError(
                 'Tidak berjaya mendapatkan sejarah tugasan.',
             );
         } finally {
-            setHistoryLoading(false);
+            if (requestId === historyRequestId.current) {
+                setHistoryLoading(false);
+            }
         }
     }, [historyPagination.current_page]);
 
     useEffect(() => {
         void loadTasks(1);
         void loadHistory(1);
+    }, []);
+
+    // Invalidate pending requests when the hook unmounts.
+    useEffect(() => {
+        return () => {
+            tasksRequestId.current += 1;
+            historyRequestId.current += 1;
+        };
     }, []);
 
     const startTask = useCallback(async (task: RunnerTask) => {
@@ -122,7 +165,9 @@ export function useRunnerTasks(): UseRunnerTasksResult {
 
         try {
             await runnerApi.startTask(task.task_id);
+
             setActionSuccess('Tugasan berjaya dimulakan.');
+
             await loadTasks();
         } catch {
             setActionError(
