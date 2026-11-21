@@ -25,7 +25,8 @@ const adminProfile: AdminProfile = {
   email: 'admin@example.com',
   profile_picture: null,
   role: 'SUPER_ADMIN',
-  status: 'ACTIVE'
+  status: 'ACTIVE',
+  permissions: []
 };
 
 const userProfile: AdminProfile = {
@@ -90,6 +91,11 @@ describe('Admin Web Application', () => {
         })
       ).toBeTruthy();
     });
+
+    expect(screen.getByText('Dashboard')).toBeTruthy();
+    expect(
+      screen.queryByText('Pengurusan Pengguna')
+    ).toBeNull();
   });
 
   it('menolak sesi yang dipulihkan untuk akaun USER', async () => {
