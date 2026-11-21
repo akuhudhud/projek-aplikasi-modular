@@ -79,10 +79,9 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
     const [notificationRequestError, setNotificationRequestError] =
         useState('');
 
-    // Independent request identities prevent stale responses
-    // from overwriting newer list or detail state.
     const requestsRequestId = useRef(0);
     const quotationDetailRequestId = useRef(0);
+    const quotationSubmitRequestId = useRef(0);
     const notificationDetailRequestId = useRef(0);
 
     const loadRequests = useCallback(async (
@@ -119,9 +118,11 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
 
     const closeQuotation = useCallback(() => {
         quotationDetailRequestId.current += 1;
+        quotationSubmitRequestId.current += 1;
 
         setQuotationRequestId(null);
         setQuotationDetailLoading('');
+        setQuotationLoading(false);
         setExistingQuotation(null);
         setQuotationAmount('');
         setQuotationMessage('');
@@ -247,6 +248,7 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
         }
 
         const submittedRequestId = quotationRequestId;
+        const submissionSequence = ++quotationSubmitRequestId.current;
 
         setQuotationLoading(true);
         setRequestsError('');
@@ -261,13 +263,15 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
                 },
             );
 
-            setExistingQuotation(quotation);
-            setQuotationAmount('');
-            setQuotationMessage('');
-            setQuotationRequestId(submittedRequestId);
+            if (
+                submissionSequence === quotationSubmitRequestId.current
+            ) {
+                setExistingQuotation(quotation);
+                setQuotationAmount('');
+                setQuotationMessage('');
+                setQuotationRequestId(submittedRequestId);
+            }
 
-            // A refresh failure must not turn a successful
-            // quotation submission into a failed submission.
             try {
                 await loadRequests();
             } catch {
@@ -276,13 +280,21 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
 
             return true;
         } catch {
-            setRequestsError(
-                'Sebut harga tidak berjaya dihantar. Permintaan mungkin telah tamat tempoh atau anda sudah mempunyai sebut harga aktif.',
-            );
+            if (
+                submissionSequence === quotationSubmitRequestId.current
+            ) {
+                setRequestsError(
+                    'Sebut harga tidak berjaya dihantar. Permintaan mungkin telah tamat tempoh atau anda sudah mempunyai sebut harga aktif.',
+                );
+            }
 
             return false;
         } finally {
-            setQuotationLoading(false);
+            if (
+                submissionSequence === quotationSubmitRequestId.current
+            ) {
+                setQuotationLoading(false);
+            }
         }
     }, [
         quotationRequestId,
@@ -292,11 +304,11 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
         loadRequests,
     ]);
 
-    // Invalidate all outstanding requests when the hook unmounts.
     useEffect(() => {
         return () => {
             requestsRequestId.current += 1;
             quotationDetailRequestId.current += 1;
+            quotationSubmitRequestId.current += 1;
             notificationDetailRequestId.current += 1;
         };
     }, []);
