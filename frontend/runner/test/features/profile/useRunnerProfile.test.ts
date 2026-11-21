@@ -53,6 +53,15 @@ const profile: RunnerPublicProfile = {
     views_count: 25,
 };
 
+const newerProfile: RunnerPublicProfile = {
+    ...profile,
+    profile_id: 'profile-002',
+    public_slug: 'runner-baru',
+    profile_name: 'Runner Baru',
+    bio: 'Profil terkini.',
+    views_count: 40,
+};
+
 const analytics: RunnerProfileAnalytics = {
     profile_views: 25,
     requests_from_profile: 8,
@@ -60,10 +69,29 @@ const analytics: RunnerProfileAnalytics = {
     completed_tasks_from_profile_requests: 3,
 };
 
+const newerAnalytics: RunnerProfileAnalytics = {
+    profile_views: 40,
+    requests_from_profile: 12,
+    quotations_for_profile_requests: 7,
+    completed_tasks_from_profile_requests: 4,
+};
+
 function submitEvent() {
     return {
         preventDefault: vi.fn(),
     } as unknown as React.FormEvent<HTMLFormElement>;
+}
+
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason?: unknown) => void;
+
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+
+    return { promise, resolve, reject };
 }
 
 describe('useRunnerProfile', () => {
@@ -279,5 +307,74 @@ describe('useRunnerProfile', () => {
             'Nama pautan profil telah digunakan.',
         );
         expect(result.current.saving).toBe(false);
+    });
+
+    it('keeps the newest profile when requests finish out of order', async () => {
+        const firstRequest = deferred<RunnerPublicProfile | null>();
+        const secondRequest = deferred<RunnerPublicProfile | null>();
+
+        mockGetProfile
+            .mockReturnValueOnce(firstRequest.promise)
+            .mockReturnValueOnce(secondRequest.promise);
+
+        const { result } = renderHook(() => useRunnerProfile(account));
+
+        await act(async () => {
+            await result.current.loadProfile();
+        });
+
+        await act(async () => {
+            secondRequest.resolve(newerProfile);
+        });
+
+        await waitFor(() => {
+            expect(result.current.profile).toEqual(newerProfile);
+            expect(result.current.publicSlug).toBe('runner-baru');
+        });
+
+        await act(async () => {
+            firstRequest.resolve(profile);
+        });
+
+        expect(result.current.profile).toEqual(newerProfile);
+        expect(result.current.publicSlug).toBe('runner-baru');
+    });
+
+    it('ignores stale analytics after a newer profile request starts', async () => {
+        const firstAnalytics = deferred<RunnerProfileAnalytics>();
+        const secondAnalytics = deferred<RunnerProfileAnalytics>();
+
+        mockGetProfile
+            .mockResolvedValueOnce(profile)
+            .mockResolvedValueOnce(newerProfile);
+
+        mockGetProfileAnalytics
+            .mockReturnValueOnce(firstAnalytics.promise)
+            .mockReturnValueOnce(secondAnalytics.promise);
+
+        const { result } = renderHook(() => useRunnerProfile(account));
+
+        await waitFor(() => {
+            expect(mockGetProfileAnalytics).toHaveBeenCalledTimes(1);
+        });
+
+        await act(async () => {
+            await result.current.loadProfile();
+        });
+
+        await act(async () => {
+            secondAnalytics.resolve(newerAnalytics);
+        });
+
+        await waitFor(() => {
+            expect(result.current.analytics).toEqual(newerAnalytics);
+        });
+
+        await act(async () => {
+            firstAnalytics.resolve(analytics);
+        });
+
+        expect(result.current.analytics).toEqual(newerAnalytics);
+        expect(result.current.profile).toEqual(newerProfile);
     });
 });
