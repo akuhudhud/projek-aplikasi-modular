@@ -33,6 +33,7 @@ const account: RunnerAccount = {
 describe('useRunnerSession', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+
         vi.mocked(runnerApi.me).mockResolvedValue(account);
         vi.mocked(runnerApi.logout).mockResolvedValue(undefined);
     });
@@ -83,6 +84,58 @@ describe('useRunnerSession', () => {
         await Promise.resolve();
 
         expect(runnerApi.me).toHaveBeenCalledOnce();
+    });
+
+    it('does not restore an account after the session-expired event', async () => {
+        let resolveSession!: (value: RunnerAccount) => void;
+
+        vi.mocked(runnerApi.me).mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    resolveSession = resolve;
+                }),
+        );
+
+        const { result } = renderHook(() => useRunnerSession());
+
+        act(() => {
+            window.dispatchEvent(
+                new Event(RUNNER_SESSION_EXPIRED_EVENT),
+            );
+        });
+
+        await act(async () => {
+            resolveSession(account);
+            await Promise.resolve();
+        });
+
+        expect(result.current.account).toBeNull();
+        expect(result.current.checkingSession).toBe(false);
+    });
+
+    it('does not restore an account after manual account update', async () => {
+        let resolveSession!: (value: RunnerAccount) => void;
+
+        vi.mocked(runnerApi.me).mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    resolveSession = resolve;
+                }),
+        );
+
+        const { result } = renderHook(() => useRunnerSession());
+
+        act(() => {
+            result.current.setAccount(null);
+        });
+
+        await act(async () => {
+            resolveSession(account);
+            await Promise.resolve();
+        });
+
+        expect(result.current.account).toBeNull();
+        expect(result.current.checkingSession).toBe(false);
     });
 
     it('updates the account and clears logout errors', async () => {
