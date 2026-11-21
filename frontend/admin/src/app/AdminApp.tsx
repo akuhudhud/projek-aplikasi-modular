@@ -18,14 +18,13 @@ import {
   logout
 } from '../services/adminApi';
 
-import type { AdminPage, AdminProfile } from '../types/admin';
+import {
+  canAccessPage,
+  getDefaultAdminPage,
+  isAdminAccount
+} from './adminAccess';
 
-function isAdminAccount(account: AdminProfile): boolean {
-  return (
-    account.role === 'ROOT_SUPER_ADMIN' ||
-    account.role === 'SUPER_ADMIN'
-  );
-}
+import type { AdminPage, AdminProfile } from '../types/admin';
 
 export default function AdminApp() {
   const [account, setAccount] = useState<AdminProfile | null>(null);
@@ -58,6 +57,7 @@ export default function AdminApp() {
 
         if (mounted) {
           setAccount(current);
+          setActivePage(getDefaultAdminPage(current));
         }
       } catch {
         clearSession();
@@ -88,7 +88,7 @@ export default function AdminApp() {
       }
 
       setAccount(current);
-      setActivePage('dashboard');
+      setActivePage(getDefaultAdminPage(current));
     } catch (error) {
       setLoginError(getApiError(error));
     } finally {
@@ -103,6 +103,14 @@ export default function AdminApp() {
       setAccount(null);
       setActivePage('dashboard');
     }
+  }
+
+  function handleNavigate(page: AdminPage) {
+    if (!account || !canAccessPage(account, page)) {
+      return;
+    }
+
+    setActivePage(page);
   }
 
   if (checkingSession) {
@@ -123,8 +131,12 @@ export default function AdminApp() {
     );
   }
 
+  const safePage = canAccessPage(account, activePage)
+    ? activePage
+    : getDefaultAdminPage(account);
+
   function renderPage() {
-    switch (activePage) {
+    switch (safePage) {
       case 'dashboard':
         return <DashboardPage />;
 
@@ -151,8 +163,8 @@ export default function AdminApp() {
   return (
     <AdminLayout
       account={account}
-      activePage={activePage}
-      onNavigate={setActivePage}
+      activePage={safePage}
+      onNavigate={handleNavigate}
       onLogout={() => void handleLogout()}
     >
       {renderPage()}
