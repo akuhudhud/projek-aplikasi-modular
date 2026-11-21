@@ -22,13 +22,13 @@ export function formatDate(value: string | null): string {
 }
 
 export function formatAmount(
-    amount: number,
+    amount: number | string,
     currency: string,
 ): string {
     return new Intl.NumberFormat('ms-MY', {
         style: 'currency',
         currency,
-    }).format(amount);
+    }).format(Number(amount));
 }
 
 export function taskStatusLabel(status: string): string {
