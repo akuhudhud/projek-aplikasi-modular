@@ -12,7 +12,7 @@ describe('Admin Web Application', () => {
   it('memaparkan identiti SUPER RUNNER Admin', () => {
     render(<AdminApp />);
 
-    expect(screen.getByText('SUPER RUNNER')).toBeTruthy();
+    expect(screen.getAllByText('SUPER RUNNER').length).toBeGreaterThan(0);
     expect(screen.getByText('ADMINISTRATION')).toBeTruthy();
   });
 
@@ -33,9 +33,7 @@ describe('Admin Web Application', () => {
     ];
 
     for (const item of items) {
-      expect(
-        navigation.textContent?.includes(item)
-      ).toBe(true);
+      expect(navigation.textContent?.includes(item)).toBe(true);
     }
   });
 
