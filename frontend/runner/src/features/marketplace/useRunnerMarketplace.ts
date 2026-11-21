@@ -1,5 +1,10 @@
 
-import { useCallback, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+} from 'react';
 
 import {
     runnerApi,
@@ -43,7 +48,9 @@ interface UseRunnerMarketplaceResult {
 }
 
 export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
-    const [requests, setRequests] = useState<RunnerMarketplaceRequest[]>([]);
+    const [requests, setRequests] =
+        useState<RunnerMarketplaceRequest[]>([]);
+
     const [requestsPagination, setRequestsPagination] =
         useState<RunnerPagination>(EMPTY_PAGINATION);
 
@@ -57,7 +64,8 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
     const [quotationMessage, setQuotationMessage] = useState('');
 
     const [quotationLoading, setQuotationLoading] = useState(false);
-    const [quotationDetailLoading, setQuotationDetailLoading] = useState('');
+    const [quotationDetailLoading, setQuotationDetailLoading] =
+        useState('');
 
     const [existingQuotation, setExistingQuotation] =
         useState<RunnerQuotation | null>(null);
@@ -71,35 +79,56 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
     const [notificationRequestError, setNotificationRequestError] =
         useState('');
 
+    // Independent request identities prevent stale responses
+    // from overwriting newer list or detail state.
+    const requestsRequestId = useRef(0);
+    const quotationDetailRequestId = useRef(0);
+    const notificationDetailRequestId = useRef(0);
+
     const loadRequests = useCallback(async (
         page = requestsPagination.current_page,
-    ) => {
+    ): Promise<void> => {
+        const requestId = ++requestsRequestId.current;
+
         setRequestsLoading(true);
         setRequestsError('');
 
         try {
             const result = await runnerApi.getAvailableRequests(page);
 
+            if (requestId !== requestsRequestId.current) {
+                return;
+            }
+
             setRequests(result.requests);
             setRequestsPagination(result.pagination);
         } catch {
+            if (requestId !== requestsRequestId.current) {
+                return;
+            }
+
             setRequestsError(
                 'Tidak berjaya mendapatkan Open Request. Sila cuba semula.',
             );
         } finally {
-            setRequestsLoading(false);
+            if (requestId === requestsRequestId.current) {
+                setRequestsLoading(false);
+            }
         }
     }, [requestsPagination.current_page]);
 
     const closeQuotation = useCallback(() => {
+        quotationDetailRequestId.current += 1;
+
         setQuotationRequestId(null);
+        setQuotationDetailLoading('');
         setExistingQuotation(null);
         setQuotationAmount('');
         setQuotationMessage('');
     }, []);
 
     const openQuotation = useCallback(async (requestId: string) => {
-        if (quotationDetailLoading || quotationLoading) {
+        if (quotationLoading) {
             return;
         }
 
@@ -108,13 +137,23 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
             return;
         }
 
+        const requestSequence = ++quotationDetailRequestId.current;
+
         setQuotationDetailLoading(requestId);
+        setQuotationRequestId(null);
         setExistingQuotation(null);
         setQuotationAmount('');
         setQuotationMessage('');
+        setRequestsError('');
 
         try {
             const detail = await runnerApi.getRequest(requestId);
+
+            if (
+                requestSequence !== quotationDetailRequestId.current
+            ) {
+                return;
+            }
 
             setExistingQuotation(
                 getLatestQuotation(detail.my_quotations ?? []),
@@ -122,16 +161,26 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
 
             setQuotationRequestId(requestId);
         } catch {
+            if (
+                requestSequence !== quotationDetailRequestId.current
+            ) {
+                return;
+            }
+
             setQuotationRequestId(null);
             setExistingQuotation(null);
+
             setRequestsError(
                 'Tidak berjaya mendapatkan status sebut harga. Sila cuba semula.',
             );
         } finally {
-            setQuotationDetailLoading('');
+            if (
+                requestSequence === quotationDetailRequestId.current
+            ) {
+                setQuotationDetailLoading('');
+            }
         }
     }, [
-        quotationDetailLoading,
         quotationLoading,
         quotationRequestId,
         closeQuotation,
@@ -140,9 +189,7 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
     const openNotificationRequest = useCallback(async (
         requestId: string,
     ) => {
-        if (notificationRequestLoading) {
-            return;
-        }
+        const requestSequence = ++notificationDetailRequestId.current;
 
         setNotificationRequestLoading(true);
         setNotificationRequestError('');
@@ -153,21 +200,37 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
         try {
             const detail = await runnerApi.getRequest(requestId);
 
+            if (
+                requestSequence !== notificationDetailRequestId.current
+            ) {
+                return;
+            }
+
             setNotificationRequest(detail);
         } catch {
+            if (
+                requestSequence !== notificationDetailRequestId.current
+            ) {
+                return;
+            }
+
             setNotificationRequestError(
                 'Permintaan ini tidak dapat dibuka. Ia mungkin telah dibatalkan, tamat tempoh atau tidak lagi boleh diakses.',
             );
         } finally {
-            setNotificationRequestLoading(false);
+            if (
+                requestSequence === notificationDetailRequestId.current
+            ) {
+                setNotificationRequestLoading(false);
+            }
         }
-    }, [
-        notificationRequestLoading,
-        closeQuotation,
-    ]);
+    }, [closeQuotation]);
 
     const closeNotificationRequest = useCallback(() => {
+        notificationDetailRequestId.current += 1;
+
         setNotificationRequest(null);
+        setNotificationRequestLoading(false);
         setNotificationRequestError('');
     }, []);
 
@@ -203,7 +266,13 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
             setQuotationMessage('');
             setQuotationRequestId(submittedRequestId);
 
-            await loadRequests();
+            // A refresh failure must not turn a successful
+            // quotation submission into a failed submission.
+            try {
+                await loadRequests();
+            } catch {
+                // loadRequests handles its own error state.
+            }
 
             return true;
         } catch {
@@ -222,6 +291,15 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
         quotationMessage,
         loadRequests,
     ]);
+
+    // Invalidate all outstanding requests when the hook unmounts.
+    useEffect(() => {
+        return () => {
+            requestsRequestId.current += 1;
+            quotationDetailRequestId.current += 1;
+            notificationDetailRequestId.current += 1;
+        };
+    }, []);
 
     return {
         requests,
