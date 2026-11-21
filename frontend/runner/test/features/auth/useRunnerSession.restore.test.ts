@@ -104,41 +104,32 @@ describe('useRunnerSession restoration recovery', () => {
         expect(runnerApi.me).toHaveBeenCalledTimes(2);
     });
 
-    it('keeps the latest restoration result when requests finish out of order', async () => {
-        const first = deferred<RunnerAccount>();
-        const second = deferred<RunnerAccount>();
+    it('does not start duplicate restoration while a request is pending', async () => {
+        const pending = deferred<RunnerAccount>();
 
-        vi.mocked(runnerApi.me)
-            .mockReturnValueOnce(first.promise)
-            .mockReturnValueOnce(second.promise);
+        vi.mocked(runnerApi.me).mockReturnValueOnce(pending.promise);
 
         const { result } = renderHook(() => useRunnerSession());
 
         await waitFor(() => {
             expect(runnerApi.me).toHaveBeenCalledTimes(1);
+            expect(result.current.checkingSession).toBe(true);
         });
 
         act(() => {
             result.current.retrySession();
+            result.current.retrySession();
         });
 
-        await waitFor(() => {
-            expect(runnerApi.me).toHaveBeenCalledTimes(2);
-        });
+        expect(runnerApi.me).toHaveBeenCalledTimes(1);
 
         await act(async () => {
-            second.resolve(account);
-            await second.promise;
+            pending.resolve(account);
+            await pending.promise;
         });
 
         expect(result.current.account).toEqual(account);
-
-        await act(async () => {
-            first.reject(new Error('Old request failed'));
-            await first.promise.catch(() => undefined);
-        });
-
-        expect(result.current.account).toEqual(account);
+        expect(result.current.checkingSession).toBe(false);
         expect(result.current.restoreSessionError).toBe('');
     });
 
