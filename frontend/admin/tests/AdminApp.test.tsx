@@ -4,7 +4,8 @@ import {
   cleanup,
   render,
   screen,
-  waitFor
+  waitFor,
+  within
 } from '@testing-library/react';
 
 import AdminApp from '../src/app/AdminApp';
@@ -84,17 +85,16 @@ describe('Admin Web Application', () => {
 
     render(<AdminApp />);
 
-    await waitFor(() => {
-      expect(
-        screen.getByRole('navigation', {
-          name: 'Navigasi utama'
-        })
-      ).toBeTruthy();
+    const navigation = await screen.findByRole('navigation', {
+      name: 'Navigasi utama'
     });
 
-    expect(screen.getByText('Dashboard')).toBeTruthy();
     expect(
-      screen.queryByText('Pengurusan Pengguna')
+      within(navigation).getByText('Dashboard')
+    ).toBeTruthy();
+
+    expect(
+      within(navigation).queryByText('Pengurusan Pengguna')
     ).toBeNull();
   });
 
