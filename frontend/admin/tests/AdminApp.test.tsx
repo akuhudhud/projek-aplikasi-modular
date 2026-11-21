@@ -6,64 +6,47 @@ import AdminApp from '../src/app/AdminApp';
 
 afterEach(() => {
   cleanup();
+  sessionStorage.clear();
 });
 
 describe('Admin Web Application', () => {
-  it('memaparkan identiti SUPER RUNNER Admin', () => {
-    render(<AdminApp />);
-
-    expect(screen.getAllByText('SUPER RUNNER').length).toBeGreaterThan(0);
-    expect(screen.getByText('ADMINISTRATION')).toBeTruthy();
-  });
-
-  it('memaparkan semua navigasi utama', () => {
-    render(<AdminApp />);
-
-    const navigation = screen.getByRole('navigation', {
-      name: 'Navigasi utama'
-    });
-
-    const items = [
-      'Dashboard',
-      'Pengurusan Pengguna',
-      'Permohonan Runner',
-      'Pengesahan Identiti',
-      'Pengesahan Lesen',
-      'Log Audit'
-    ];
-
-    for (const item of items) {
-      expect(navigation.textContent?.includes(item)).toBe(true);
-    }
-  });
-
-  it('memaparkan dashboard tanpa statistik rekaan', () => {
+  it('memaparkan identiti SUPER RUNNER pada halaman log masuk', () => {
     render(<AdminApp />);
 
     expect(
-      screen.getByRole('heading', { name: 'Selamat datang' })
+      screen.getByRole('heading', {
+        name: 'Log Masuk Pentadbir'
+      })
+    ).toBeTruthy();
+
+    expect(screen.getByText('SUPER RUNNER')).toBeTruthy();
+  });
+
+  it('menyediakan medan nombor telefon atau e-mel', () => {
+    render(<AdminApp />);
+
+    expect(
+      screen.getByLabelText('Nombor Telefon / E-mel')
     ).toBeTruthy();
 
     expect(
-      screen.getByText('Dashboard sedang disediakan')
-    ).toBeTruthy();
-
-    expect(
-      screen.getByText(/tidak menggunakan data contoh/i)
+      screen.getByLabelText('Kata Laluan')
     ).toBeTruthy();
   });
 
-  it('menandakan Dashboard sebagai halaman aktif', () => {
+  it('tidak memaparkan dashboard sebelum pentadbir log masuk', () => {
     render(<AdminApp />);
 
-    const navigation = screen.getByRole('navigation', {
-      name: 'Navigasi utama'
-    });
+    expect(
+      screen.queryByRole('navigation', {
+        name: 'Navigasi utama'
+      })
+    ).toBeNull();
 
-    const activeItem = navigation.querySelector(
-      '[aria-current="page"]'
-    );
-
-    expect(activeItem?.textContent).toContain('Dashboard');
+    expect(
+      screen.queryByRole('heading', {
+        name: 'Selamat datang'
+      })
+    ).toBeNull();
   });
 });
