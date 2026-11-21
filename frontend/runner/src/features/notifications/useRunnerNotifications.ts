@@ -44,30 +44,47 @@ export function useRunnerNotifications(): UseRunnerNotificationsResult {
     const [notificationsError, setNotificationsError] = useState('');
 
     const markingNotificationIds = useRef(new Set<string>());
+    const notificationsRequestId = useRef(0);
 
     const loadNotifications = useCallback(async (
         page = notificationsPagination.current_page,
     ) => {
+        const requestId = ++notificationsRequestId.current;
+
         setNotificationsLoading(true);
         setNotificationsError('');
 
         try {
             const result = await runnerApi.getNotifications(page);
 
+            if (requestId !== notificationsRequestId.current) {
+                return;
+            }
+
             setNotifications(result.notifications);
             setNotificationsPagination(result.pagination);
             setUnreadTotal(result.summary.unread_total);
         } catch {
+            if (requestId !== notificationsRequestId.current) {
+                return;
+            }
+
             setNotificationsError(
                 'Tidak berjaya mendapatkan notifikasi.',
             );
         } finally {
-            setNotificationsLoading(false);
+            if (requestId === notificationsRequestId.current) {
+                setNotificationsLoading(false);
+            }
         }
     }, [notificationsPagination.current_page]);
 
     useEffect(() => {
         void loadNotifications(1);
+
+        return () => {
+            notificationsRequestId.current += 1;
+        };
     }, []);
 
     const markNotificationRead = useCallback(async (
