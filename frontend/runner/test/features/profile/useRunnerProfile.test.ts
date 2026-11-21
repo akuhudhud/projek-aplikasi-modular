@@ -319,9 +319,15 @@ describe('useRunnerProfile', () => {
 
         const { result } = renderHook(() => useRunnerProfile(account));
 
-        await act(async () => {
-            await result.current.loadProfile();
+        await waitFor(() => {
+            expect(mockGetProfile).toHaveBeenCalledTimes(1);
         });
+
+        act(() => {
+            void result.current.loadProfile();
+        });
+
+        expect(mockGetProfile).toHaveBeenCalledTimes(2);
 
         await act(async () => {
             secondRequest.resolve(newerProfile);
@@ -358,8 +364,13 @@ describe('useRunnerProfile', () => {
             expect(mockGetProfileAnalytics).toHaveBeenCalledTimes(1);
         });
 
-        await act(async () => {
-            await result.current.loadProfile();
+        act(() => {
+            void result.current.loadProfile();
+        });
+
+        await waitFor(() => {
+            expect(mockGetProfile).toHaveBeenCalledTimes(2);
+            expect(mockGetProfileAnalytics).toHaveBeenCalledTimes(2);
         });
 
         await act(async () => {
