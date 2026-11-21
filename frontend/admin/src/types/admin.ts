@@ -14,10 +14,31 @@ export interface AdminAccount {
   job_title: string | null;
   phone: string | null;
   email: string | null;
+  profile_picture?: string | null;
   role: string;
   status: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface AccountPagination {
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+  from: number | null;
+  to: number | null;
+}
+
+export interface AccountDirectoryResult {
+  accounts: AdminAccount[];
+  pagination: AccountPagination;
+}
+
+export interface AdminAccountDetail extends AdminAccount {
+  identity_status: string | null;
+  identity_submitted_at: string | null;
+  identity_reviewed_at: string | null;
 }
 
 export interface RunnerLicenseApplication {
