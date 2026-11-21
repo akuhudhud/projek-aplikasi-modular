@@ -1,6 +1,8 @@
+
 import {
     useCallback,
     useEffect,
+    useRef,
     useState,
     type FormEvent,
 } from 'react';
@@ -58,6 +60,25 @@ function createEmptyProfile(
     };
 }
 
+function getSaveErrorMessage(saveError: unknown): string {
+    if (
+        saveError
+        && typeof saveError === 'object'
+        && 'response' in saveError
+        && saveError.response
+        && typeof saveError.response === 'object'
+        && 'data' in saveError.response
+        && saveError.response.data
+        && typeof saveError.response.data === 'object'
+        && 'message' in saveError.response.data
+        && typeof saveError.response.data.message === 'string'
+    ) {
+        return saveError.response.data.message;
+    }
+
+    return 'Profil tidak berjaya disimpan. Semak maklumat dan cuba semula.';
+}
+
 export function useRunnerProfile(
     account: RunnerAccount,
 ): UseRunnerProfileResult {
@@ -80,7 +101,14 @@ export function useRunnerProfile(
     const [servicesText, setServicesText] = useState('');
     const [isPublished, setIsPublished] = useState(false);
 
-    const loadProfile = useCallback(async () => {
+    // Prevent old profile and analytics responses from replacing
+    // data belonging to a newer load or account context.
+    const profileRequestId = useRef(0);
+    const saveRequestId = useRef(0);
+
+    const loadProfile = useCallback(async (): Promise<void> => {
+        const requestId = ++profileRequestId.current;
+
         setLoading(true);
         setProfileLoadFailed(false);
         setError('');
@@ -88,6 +116,10 @@ export function useRunnerProfile(
 
         try {
             const result = await runnerApi.getProfile();
+
+            if (requestId !== profileRequestId.current) {
+                return;
+            }
 
             const currentProfile = result
                 ?? createEmptyProfile(account);
@@ -107,8 +139,16 @@ export function useRunnerProfile(
                     const statistics =
                         await runnerApi.getProfileAnalytics();
 
+                    if (requestId !== profileRequestId.current) {
+                        return;
+                    }
+
                     setAnalytics(statistics);
                 } catch {
+                    if (requestId !== profileRequestId.current) {
+                        return;
+                    }
+
                     setAnalytics({
                         ...EMPTY_ANALYTICS,
                         profile_views: result.views_count,
@@ -118,6 +158,10 @@ export function useRunnerProfile(
                 setAnalytics(EMPTY_ANALYTICS);
             }
         } catch {
+            if (requestId !== profileRequestId.current) {
+                return;
+            }
+
             setProfileLoadFailed(true);
             setProfile(null);
             setAnalytics(EMPTY_ANALYTICS);
@@ -125,17 +169,23 @@ export function useRunnerProfile(
                 'Tidak berjaya mendapatkan profil Runner. Sila tekan SEGARKAN sebelum menyimpan profil.',
             );
         } finally {
-            setLoading(false);
+            if (requestId === profileRequestId.current) {
+                setLoading(false);
+            }
         }
     }, [account]);
 
     useEffect(() => {
         void loadProfile();
+
+        return () => {
+            profileRequestId.current += 1;
+        };
     }, [loadProfile]);
 
     const saveProfile = useCallback(async (
         event: FormEvent<HTMLFormElement>,
-    ) => {
+    ): Promise<void> => {
         event.preventDefault();
 
         if (saving || profileLoadFailed) {
@@ -160,6 +210,8 @@ export function useRunnerProfile(
             .filter(Boolean)
             .slice(0, 20);
 
+        const requestId = ++saveRequestId.current;
+
         setSaving(true);
         setError('');
         setSuccess('');
@@ -173,6 +225,10 @@ export function useRunnerProfile(
                 services,
                 is_published: isPublished,
             });
+
+            if (requestId !== saveRequestId.current) {
+                return;
+            }
 
             setProfile(saved);
             setPublicSlug(saved.public_slug);
@@ -188,31 +244,31 @@ export function useRunnerProfile(
                 const statistics =
                     await runnerApi.getProfileAnalytics();
 
+                if (requestId !== saveRequestId.current) {
+                    return;
+                }
+
                 setAnalytics(statistics);
             } catch {
+                if (requestId !== saveRequestId.current) {
+                    return;
+                }
+
                 setAnalytics((current) => ({
                     ...current,
                     profile_views: saved.views_count,
                 }));
             }
         } catch (saveError: unknown) {
-            const message =
-                saveError
-                && typeof saveError === 'object'
-                && 'response' in saveError
-                && saveError.response
-                && typeof saveError.response === 'object'
-                && 'data' in saveError.response
-                && saveError.response.data
-                && typeof saveError.response.data === 'object'
-                && 'message' in saveError.response.data
-                && typeof saveError.response.data.message === 'string'
-                    ? saveError.response.data.message
-                    : 'Profil tidak berjaya disimpan. Semak maklumat dan cuba semula.';
+            if (requestId !== saveRequestId.current) {
+                return;
+            }
 
-            setError(message);
+            setError(getSaveErrorMessage(saveError));
         } finally {
-            setSaving(false);
+            if (requestId === saveRequestId.current) {
+                setSaving(false);
+            }
         }
     }, [
         saving,
@@ -224,6 +280,12 @@ export function useRunnerProfile(
         serviceArea,
         isPublished,
     ]);
+
+    useEffect(() => {
+        return () => {
+            saveRequestId.current += 1;
+        };
+    }, []);
 
     return {
         profile,
