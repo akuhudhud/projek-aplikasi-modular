@@ -1,5 +1,59 @@
 
+import { useEffect, useState } from 'react';
+
+import {
+  getAdminDashboard,
+  getApiError
+} from '../../services/adminApi';
+
+import DashboardStatCard from './DashboardStatCard';
+import DashboardTaskChart from './DashboardTaskChart';
+import DashboardRecentApplications from './DashboardRecentApplications';
+
+import type { AdminDashboard } from './dashboardTypes';
+
+import './dashboard.css';
+
 export default function DashboardPage() {
+  const [dashboard, setDashboard] = useState<AdminDashboard | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadDashboard() {
+      setLoading(true);
+      setError('');
+
+      try {
+        const result = await getAdminDashboard();
+
+        if (mounted) {
+          setDashboard(result);
+        }
+      } catch (requestError) {
+        if (mounted) {
+          setError(getApiError(requestError));
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadDashboard();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  function formatStatus(status: string): string {
+    return status.replace(/_/g, ' ');
+  }
+
   return (
     <section className="dashboard-page">
       <div className="dashboard-page__welcome">
@@ -24,24 +78,107 @@ export default function DashboardPage() {
       <div className="dashboard-section-heading">
         <div>
           <h3>Ringkasan Operasi</h3>
-          <p>
-            Data akan dipaparkan selepas sambungan API dashboard
-            tersedia.
-          </p>
+          <p>Statistik berdasarkan rekod sebenar sistem.</p>
         </div>
       </div>
 
-      <div className="dashboard-empty">
-        <div className="dashboard-empty__icon">SR</div>
+      {loading && (
+        <div className="dashboard-loading" role="status">
+          Memuatkan data dashboard...
+        </div>
+      )}
 
-        <h3>Dashboard sedang disediakan</h3>
+      {!loading && error && (
+        <div className="admin-alert admin-alert--error" role="alert">
+          {error}
+        </div>
+      )}
 
-        <p>
-          Tiada data operasi dipaparkan buat masa ini.
-          Sistem tidak menggunakan data contoh atau statistik
-          rekaan.
-        </p>
-      </div>
+      {!loading && dashboard && (
+        <>
+          <div className="dashboard-stats-grid">
+            <DashboardStatCard
+              label="Jumlah Pengguna"
+              value={dashboard.accounts.total_users}
+              description="Semua akaun pengguna"
+            />
+
+            <DashboardStatCard
+              label="Pengguna Aktif"
+              value={dashboard.accounts.active_users}
+              description="Akaun berstatus aktif"
+            />
+
+            <DashboardStatCard
+              label="Jumlah Runner"
+              value={dashboard.runners.total}
+              description="Semua status permohonan Runner"
+            />
+
+            <DashboardStatCard
+              label="Permohonan Menunggu"
+              value={dashboard.runner_applications.pending}
+              description="Menunggu tindakan pentadbir"
+            />
+          </div>
+
+          <div className="dashboard-main-grid">
+            <DashboardTaskChart
+              data={dashboard.tasks.daily_activity}
+            />
+
+            <section className="dashboard-panel">
+              <div className="dashboard-panel__heading">
+                <div>
+                  <h3>Status Tugasan</h3>
+                  <p>
+                    Jumlah: {dashboard.tasks.total.toLocaleString('ms-MY')}
+                  </p>
+                </div>
+              </div>
+
+              <div className="dashboard-status-list">
+                {Object.entries(dashboard.tasks.statuses).map(
+                  ([status, total]) => (
+                    <div className="dashboard-status-row" key={status}>
+                      <span>{formatStatus(status)}</span>
+                      <strong>{total.toLocaleString('ms-MY')}</strong>
+                    </div>
+                  )
+                )}
+              </div>
+            </section>
+          </div>
+
+          <div className="dashboard-main-grid">
+            <DashboardRecentApplications
+              applications={dashboard.runner_applications.recent}
+            />
+
+            <section className="dashboard-panel">
+              <div className="dashboard-panel__heading">
+                <div>
+                  <h3>Status Runner</h3>
+                  <p>
+                    Jumlah: {dashboard.runners.total.toLocaleString('ms-MY')}
+                  </p>
+                </div>
+              </div>
+
+              <div className="dashboard-status-list">
+                {Object.entries(dashboard.runners.statuses).map(
+                  ([status, total]) => (
+                    <div className="dashboard-status-row" key={status}>
+                      <span>{formatStatus(status)}</span>
+                      <strong>{total.toLocaleString('ms-MY')}</strong>
+                    </div>
+                  )
+                )}
+              </div>
+            </section>
+          </div>
+        </>
+      )}
     </section>
   );
 }
