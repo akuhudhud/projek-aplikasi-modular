@@ -27,10 +27,7 @@ const pagination = {
     last_page: 1,
 };
 
-function createTask(
-    taskId: string,
-    status: string,
-) {
+function createTask(taskId: string, status: string) {
     return {
         task_id: taskId,
         module_key: 'MARKETPLACE',
@@ -101,7 +98,6 @@ describe('useRunnerTasks', () => {
 
         expect(runnerApi.getTasks).toHaveBeenCalledWith(1);
         expect(runnerApi.getTaskHistory).toHaveBeenCalledWith(1);
-
         expect(result.current.tasks).toHaveLength(2);
         expect(result.current.history).toHaveLength(1);
         expect(result.current.completedTaskCount).toBe(7);
@@ -141,6 +137,139 @@ describe('useRunnerTasks', () => {
 
         expect(runnerApi.getTasks).toHaveBeenLastCalledWith(2);
         expect(runnerApi.getTaskHistory).toHaveBeenLastCalledWith(3);
+    });
+
+    it('keeps the latest task response when requests finish out of order', async () => {
+        const { result } = renderHook(() => useRunnerTasks());
+
+        await waitFor(() => {
+            expect(result.current.tasksLoading).toBe(false);
+        });
+
+        type TasksResponse = Awaited<
+            ReturnType<typeof runnerApi.getTasks>
+        >;
+
+        let resolveFirst!: (value: TasksResponse) => void;
+        let resolveSecond!: (value: TasksResponse) => void;
+
+        const firstResponse = new Promise<TasksResponse>((resolve) => {
+            resolveFirst = resolve;
+        });
+
+        const secondResponse = new Promise<TasksResponse>((resolve) => {
+            resolveSecond = resolve;
+        });
+
+        vi.mocked(runnerApi.getTasks)
+            .mockImplementationOnce(() => firstResponse)
+            .mockImplementationOnce(() => secondResponse);
+
+        let firstRequest!: Promise<void>;
+        let secondRequest!: Promise<void>;
+
+        act(() => {
+            firstRequest = result.current.loadTasks(2);
+            secondRequest = result.current.loadTasks(3);
+        });
+
+        await act(async () => {
+            resolveSecond({
+                tasks: [inProgressTask],
+                pagination: {
+                    ...pagination,
+                    current_page: 3,
+                },
+            });
+
+            await secondRequest;
+        });
+
+        await act(async () => {
+            resolveFirst({
+                tasks: [assignedTask],
+                pagination: {
+                    ...pagination,
+                    current_page: 2,
+                },
+            });
+
+            await firstRequest;
+        });
+
+        expect(result.current.tasks).toEqual([inProgressTask]);
+        expect(result.current.tasksPagination.current_page).toBe(3);
+        expect(result.current.tasksLoading).toBe(false);
+    });
+
+    it('keeps the latest history response when requests finish out of order', async () => {
+        const { result } = renderHook(() => useRunnerTasks());
+
+        await waitFor(() => {
+            expect(result.current.historyLoading).toBe(false);
+        });
+
+        type HistoryResponse = Awaited<
+            ReturnType<typeof runnerApi.getTaskHistory>
+        >;
+
+        let resolveFirst!: (value: HistoryResponse) => void;
+        let resolveSecond!: (value: HistoryResponse) => void;
+
+        const firstResponse = new Promise<HistoryResponse>((resolve) => {
+            resolveFirst = resolve;
+        });
+
+        const secondResponse = new Promise<HistoryResponse>((resolve) => {
+            resolveSecond = resolve;
+        });
+
+        vi.mocked(runnerApi.getTaskHistory)
+            .mockImplementationOnce(() => firstResponse)
+            .mockImplementationOnce(() => secondResponse);
+
+        let firstRequest!: Promise<void>;
+        let secondRequest!: Promise<void>;
+
+        act(() => {
+            firstRequest = result.current.loadHistory(2);
+            secondRequest = result.current.loadHistory(3);
+        });
+
+        await act(async () => {
+            resolveSecond({
+                tasks: [completedTask],
+                pagination: {
+                    ...pagination,
+                    current_page: 3,
+                },
+                summary: {
+                    completed_total: 9,
+                },
+            });
+
+            await secondRequest;
+        });
+
+        await act(async () => {
+            resolveFirst({
+                tasks: [assignedTask],
+                pagination: {
+                    ...pagination,
+                    current_page: 2,
+                },
+                summary: {
+                    completed_total: 4,
+                },
+            });
+
+            await firstRequest;
+        });
+
+        expect(result.current.history).toEqual([completedTask]);
+        expect(result.current.historyPagination.current_page).toBe(3);
+        expect(result.current.completedTaskCount).toBe(9);
+        expect(result.current.historyLoading).toBe(false);
     });
 
     it('shows errors when task lists cannot be loaded', async () => {
