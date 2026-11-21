@@ -2,7 +2,9 @@
 import axios from 'axios';
 
 import type {
+  AccountDirectoryResult,
   AdminAccount,
+  AdminAccountDetail,
   AdminProfile,
   ApiResponse,
   AuditLog,
@@ -109,12 +111,64 @@ export async function logout(): Promise<void> {
   }
 }
 
-export async function getAccounts(): Promise<AdminAccount[]> {
-  const response = await adminApi.get<
-    ApiResponse<{ accounts: AdminAccount[] }>
-  >('/admin/accounts');
+export interface AccountDirectoryFilters {
+  search?: string;
+  status?: string;
+  role?: string;
+  page?: number;
+  per_page?: number;
+}
 
-  return response.data.data.accounts;
+export async function getAccounts(
+  filters: AccountDirectoryFilters = {}
+): Promise<AccountDirectoryResult> {
+  const response = await adminApi.get<
+    ApiResponse<AccountDirectoryResult>
+  >('/admin/account-directory', {
+    params: filters
+  });
+
+  return response.data.data;
+}
+
+export async function getAccountDetail(
+  accountId: string
+): Promise<AdminAccountDetail> {
+  const response = await adminApi.get<
+    ApiResponse<{ account: AdminAccountDetail }>
+  >(`/admin/account-directory/${encodeURIComponent(accountId)}`);
+
+  return response.data.data.account;
+}
+
+export async function suspendAccount(
+  accountId: string,
+  reason: string
+): Promise<void> {
+  await adminApi.post(
+    `/admin/accounts/${encodeURIComponent(accountId)}/suspend`,
+    { reason }
+  );
+}
+
+export async function unsuspendAccount(
+  accountId: string,
+  reason: string
+): Promise<void> {
+  await adminApi.post(
+    `/admin/accounts/${encodeURIComponent(accountId)}/unsuspend`,
+    { reason }
+  );
+}
+
+export async function reactivateAccount(
+  accountId: string,
+  reason: string
+): Promise<void> {
+  await adminApi.post(
+    `/admin/accounts/${encodeURIComponent(accountId)}/reactivate`,
+    { reason }
+  );
 }
 
 export async function getRunnerApplications(): Promise<RunnerApplication[]> {
@@ -131,7 +185,7 @@ export async function decideRunnerApplication(
   reason: string
 ): Promise<void> {
   await adminApi.post(
-    `/admin/runner-applications/${accountId}/${decision}`,
+    `/admin/runner-applications/${encodeURIComponent(accountId)}/${decision}`,
     { reason }
   );
 }
