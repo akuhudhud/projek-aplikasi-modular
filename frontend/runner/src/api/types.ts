@@ -44,10 +44,10 @@ export interface RunnerTask {
     assigned_at: string | null;
     started_at: string | null;
     arrived_at: string | null;
-    arrival_latitude: string | number | null;
-    arrival_longitude: string | number | null;
+    arrival_latitude?: string | number | null;
+    arrival_longitude?: string | number | null;
     completed_at: string | null;
-    completion_proof_path: string | null;
+    completion_proof_path?: string | null;
     cancelled_at: string | null;
     created_at: string;
     updated_at: string;
@@ -75,7 +75,7 @@ export interface RunnerMarketplaceRequest {
 
 export interface RunnerQuotation {
     quotation_id: string;
-    amount: number;
+    amount: number | string;
     currency: string;
     message: string | null;
     status: string;
