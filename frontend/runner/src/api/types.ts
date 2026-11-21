@@ -79,7 +79,7 @@ export interface RunnerQuotation {
     currency: string;
     message: string | null;
     status: string;
-    expires_at: string | null;
+    expires_at?: string | null;
     created_at: string;
 }
 
