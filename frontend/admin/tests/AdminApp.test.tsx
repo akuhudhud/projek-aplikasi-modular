@@ -128,4 +128,62 @@ describe('Admin Web Application', () => {
       })
     ).toBeNull();
   });
+
+  it('memadam sesi apabila server memulangkan HTTP 401', async () => {
+    adminApi.saveSession('expired-admin-token');
+
+    vi.spyOn(adminApi, 'getCurrentAdmin').mockRejectedValue({
+      isAxiosError: true,
+      response: {
+        status: 401,
+        data: {
+          message: 'Unauthenticated.'
+        }
+      }
+    });
+
+    render(<AdminApp />);
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Log Masuk Pentadbir'
+      })
+    ).toBeTruthy();
+
+    expect(
+      screen.getByText(
+        'Sesi telah tamat. Sila log masuk semula.'
+      )
+    ).toBeTruthy();
+
+    expect(adminApi.hasSession()).toBe(false);
+  });
+
+  it('mengekalkan sesi apabila server memulangkan HTTP 403', async () => {
+    adminApi.saveSession('valid-admin-token');
+
+    vi.spyOn(adminApi, 'getCurrentAdmin').mockRejectedValue({
+      isAxiosError: true,
+      response: {
+        status: 403,
+        data: {
+          message: 'Access denied.'
+        }
+      }
+    });
+
+    render(<AdminApp />);
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Log Masuk Pentadbir'
+      })
+    ).toBeTruthy();
+
+    expect(
+      screen.getByText('Access denied.')
+    ).toBeTruthy();
+
+    expect(adminApi.hasSession()).toBe(true);
+  });
 });
