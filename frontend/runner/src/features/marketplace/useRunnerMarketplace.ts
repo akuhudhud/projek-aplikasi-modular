@@ -189,7 +189,7 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
         setRequestsError('');
 
         try {
-            await runnerApi.submitQuotation(
+            const quotation = await runnerApi.submitQuotation(
                 submittedRequestId,
                 {
                     amount,
@@ -198,20 +198,12 @@ export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
                 },
             );
 
+            setExistingQuotation(quotation);
             setQuotationAmount('');
             setQuotationMessage('');
+            setQuotationRequestId(submittedRequestId);
 
             await loadRequests();
-
-            const detail = await runnerApi.getRequest(
-                submittedRequestId,
-            );
-
-            setExistingQuotation(
-                getLatestQuotation(detail.my_quotations ?? []),
-            );
-
-            setQuotationRequestId(submittedRequestId);
 
             return true;
         } catch {
