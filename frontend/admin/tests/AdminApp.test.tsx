@@ -1,8 +1,12 @@
 
-import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
 
 import AdminApp from '../src/app/AdminApp';
+
+afterEach(() => {
+  cleanup();
+});
 
 describe('Admin Web Application', () => {
   it('memaparkan identiti SUPER RUNNER Admin', () => {
@@ -19,8 +23,6 @@ describe('Admin Web Application', () => {
       name: 'Navigasi utama'
     });
 
-    expect(navigation).toBeTruthy();
-
     const items = [
       'Dashboard',
       'Pengurusan Pengguna',
@@ -31,7 +33,9 @@ describe('Admin Web Application', () => {
     ];
 
     for (const item of items) {
-      expect(screen.getByText(item)).toBeTruthy();
+      expect(
+        navigation.textContent?.includes(item)
+      ).toBe(true);
     }
   });
 
@@ -54,10 +58,14 @@ describe('Admin Web Application', () => {
   it('menandakan Dashboard sebagai halaman aktif', () => {
     render(<AdminApp />);
 
-    const activeItem = screen.getByText('Dashboard');
+    const navigation = screen.getByRole('navigation', {
+      name: 'Navigasi utama'
+    });
 
-    expect(
-      activeItem.closest('[aria-current="page"]')
-    ).toBeTruthy();
+    const activeItem = navigation.querySelector(
+      '[aria-current="page"]'
+    );
+
+    expect(activeItem?.textContent).toContain('Dashboard');
   });
 });
