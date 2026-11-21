@@ -58,11 +58,10 @@ const mockQuotation = {
     quotation_id: 'quotation-12345678',
     request_id: 'request-12345678',
     runner_account_id: 10,
-    amount: 15,
+    amount: '15.00',
     currency: 'MYR',
     message: 'Penghantaran dokumen.',
-    status: 'PENDING',
-    expires_at: null,
+    status: 'SUBMITTED',
     created_at: '2026-11-20T11:00:00Z',
 };
 
