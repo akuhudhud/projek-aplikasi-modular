@@ -40,6 +40,13 @@ export function hasSession(): boolean {
   return Boolean(sessionStorage.getItem(TOKEN_KEY));
 }
 
+export function isUnauthorizedError(error: unknown): boolean {
+  return (
+    axios.isAxiosError(error) &&
+    error.response?.status === 401
+  );
+}
+
 export function getApiError(error: unknown): string {
   if (axios.isAxiosError(error)) {
     return (
