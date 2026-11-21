@@ -8,18 +8,16 @@ use App\Models\CoreTask;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class AdminDashboardController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        /** @var Account|null $admin */
         $admin = $request->attributes->get('account');
 
         if (
-            !$admin
-            || !in_array(
+            !$admin instanceof Account ||
+            !in_array(
                 $admin->role,
                 ['ROOT_SUPER_ADMIN', 'SUPER_ADMIN'],
                 true
@@ -38,17 +36,16 @@ class AdminDashboardController extends Controller
             Account::RUNNER_STATUS_SUSPENDED,
         ];
 
-        $accountQuery = Account::query()
-            ->where('role', 'USER');
+        $users = Account::query()->where('role', 'USER');
 
-        $runnerQuery = Account::query()
+        $runners = Account::query()
             ->where('role', 'USER')
             ->whereIn('runner_status', $runnerStatuses);
 
         $runnerStatusCounts = [];
 
         foreach ($runnerStatuses as $status) {
-            $runnerStatusCounts[$status] = (clone $runnerQuery)
+            $runnerStatusCounts[$status] = (clone $runners)
                 ->where('runner_status', $status)
                 ->count();
         }
@@ -71,19 +68,20 @@ class AdminDashboardController extends Controller
 
         $today = Carbon::today();
         $rangeStart = $today->copy()->subDays(6);
+        $rangeEnd = $today->copy()->addDay();
 
-        $taskCreatedRows = CoreTask::query()
+        $createdRows = CoreTask::query()
             ->where('created_at', '>=', $rangeStart)
-            ->where('created_at', '<', $today->copy()->addDay())
+            ->where('created_at', '<', $rangeEnd)
             ->selectRaw('DATE(created_at) as activity_date, COUNT(*) as total')
             ->groupByRaw('DATE(created_at)')
             ->get()
             ->keyBy('activity_date');
 
-        $taskCompletedRows = CoreTask::query()
+        $completedRows = CoreTask::query()
             ->whereNotNull('completed_at')
             ->where('completed_at', '>=', $rangeStart)
-            ->where('completed_at', '<', $today->copy()->addDay())
+            ->where('completed_at', '<', $rangeEnd)
             ->selectRaw('DATE(completed_at) as activity_date, COUNT(*) as total')
             ->groupByRaw('DATE(completed_at)')
             ->get()
@@ -92,12 +90,14 @@ class AdminDashboardController extends Controller
         $dailyActivity = [];
 
         for ($day = 0; $day < 7; $day++) {
-            $date = $rangeStart->copy()->addDays($day)->toDateString();
+            $date = $rangeStart->copy()
+                ->addDays($day)
+                ->toDateString();
 
             $dailyActivity[] = [
                 'date' => $date,
-                'created' => (int) ($taskCreatedRows->get($date)?->total ?? 0),
-                'completed' => (int) ($taskCompletedRows->get($date)?->total ?? 0),
+                'created' => (int) ($createdRows->get($date)?->total ?? 0),
+                'completed' => (int) ($completedRows->get($date)?->total ?? 0),
             ];
         }
 
@@ -124,17 +124,17 @@ class AdminDashboardController extends Controller
                 'generated_at' => now()->toISOString(),
 
                 'accounts' => [
-                    'total_users' => (clone $accountQuery)->count(),
-                    'active_users' => (clone $accountQuery)
+                    'total_users' => (clone $users)->count(),
+                    'active_users' => (clone $users)
                         ->where('status', 'ACTIVE')
                         ->count(),
-                    'suspended_users' => (clone $accountQuery)
+                    'suspended_users' => (clone $users)
                         ->where('status', 'SUSPENDED')
                         ->count(),
                 ],
 
                 'runners' => [
-                    'total' => (clone $runnerQuery)->count(),
+                    'total' => (clone $runners)->count(),
                     'statuses' => $runnerStatusCounts,
                 ],
 
@@ -151,6 +151,6 @@ class AdminDashboardController extends Controller
                     'daily_activity' => $dailyActivity,
                 ],
             ],
-        ], 200);
+        ]);
     }
 }
