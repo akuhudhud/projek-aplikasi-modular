@@ -54,6 +54,25 @@ const mockRequest: RunnerMarketplaceRequestDetail = {
     my_quotations: [],
 };
 
+const mockQuotation = {
+    quotation_id: 'quotation-12345678',
+    request_id: 'request-12345678',
+    runner_account_id: 10,
+    amount: 15,
+    currency: 'MYR',
+    message: 'Penghantaran dokumen.',
+    status: 'PENDING',
+    expires_at: null,
+    created_at: '2026-11-20T11:00:00Z',
+};
+
+const mockPagination = {
+    current_page: 1,
+    per_page: 25,
+    total: 0,
+    last_page: 1,
+};
+
 describe('useRunnerMarketplace notification request', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -293,4 +312,105 @@ describe('useRunnerMarketplace quotation request lifecycle', () => {
             ).toBe(false);
         },
     );
+
+    it('keeps successful quotation submission successful without another detail request', async () => {
+        mockGetRequest.mockResolvedValueOnce(mockRequest);
+
+        mockSubmitQuotation.mockResolvedValueOnce(mockQuotation);
+
+        mockGetAvailableRequests.mockResolvedValueOnce({
+            requests: [],
+            pagination: mockPagination,
+        });
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        await act(async () => {
+            await result.current.openQuotation(
+                'request-12345678',
+            );
+        });
+
+        act(() => {
+            result.current.setQuotationAmount('15.00');
+            result.current.setQuotationMessage(
+                'Penghantaran dokumen.',
+            );
+        });
+
+        let submissionResult = false;
+
+        await act(async () => {
+            submissionResult =
+                await result.current.submitQuotation();
+        });
+
+        expect(mockSubmitQuotation).toHaveBeenCalledWith(
+            'request-12345678',
+            {
+                amount: 15,
+                currency: 'MYR',
+                message: 'Penghantaran dokumen.',
+            },
+        );
+
+        expect(submissionResult).toBe(true);
+
+        expect(mockGetRequest).toHaveBeenCalledTimes(1);
+
+        expect(result.current.existingQuotation).toEqual(
+            mockQuotation,
+        );
+
+        expect(result.current.quotationRequestId).toBe(
+            'request-12345678',
+        );
+
+        expect(result.current.quotationAmount).toBe('');
+        expect(result.current.quotationMessage).toBe('');
+        expect(result.current.quotationLoading).toBe(false);
+    });
+
+    it('does not report submission failure when refreshing request list fails', async () => {
+        mockGetRequest.mockResolvedValueOnce(mockRequest);
+
+        mockSubmitQuotation.mockResolvedValueOnce(mockQuotation);
+
+        mockGetAvailableRequests.mockRejectedValueOnce(
+            new Error('Network error'),
+        );
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        await act(async () => {
+            await result.current.openQuotation(
+                'request-12345678',
+            );
+        });
+
+        act(() => {
+            result.current.setQuotationAmount('15.00');
+        });
+
+        let submissionResult = false;
+
+        await act(async () => {
+            submissionResult =
+                await result.current.submitQuotation();
+        });
+
+        expect(submissionResult).toBe(true);
+
+        expect(result.current.existingQuotation).toEqual(
+            mockQuotation,
+        );
+
+        expect(result.current.requestsError).toContain(
+            'Tidak berjaya mendapatkan Open Request.',
+        );
+    });
 });
