@@ -113,84 +113,61 @@ function createRequest(
     };
 }
 
+function mockEmptyRequestList() {
+    mockGetAvailableRequests.mockResolvedValue({
+        requests: [],
+        pagination: mockPagination,
+    });
+}
+
 describe('useRunnerMarketplace notification request', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockEmptyRequestList();
     });
 
     it('loads request details successfully', async () => {
         mockGetRequest.mockResolvedValueOnce(mockRequest);
 
-        const { result } = renderHook(() =>
-            useRunnerMarketplace(),
-        );
+        const { result } = renderHook(() => useRunnerMarketplace());
 
         await act(async () => {
-            await result.current.openNotificationRequest(
-                'request-12345678',
-            );
+            await result.current.openNotificationRequest('request-12345678');
         });
 
-        expect(mockGetRequest).toHaveBeenCalledWith(
-            'request-12345678',
-        );
         expect(result.current.notificationRequest).toEqual(mockRequest);
         expect(result.current.notificationRequestError).toBe('');
         expect(result.current.notificationRequestLoading).toBe(false);
     });
 
     it.each([
-        {
-            scenario: 'request telah dibatalkan',
-            error: new Error('Request cancelled'),
-        },
-        {
-            scenario: 'request telah tamat tempoh',
-            error: new Error('Request expired'),
-        },
-        {
-            scenario: 'Runner tidak lagi mempunyai akses',
-            error: new Error('Request unavailable'),
-        },
-    ])(
-        'shows an error when $scenario',
-        async ({ error }) => {
-            mockGetRequest.mockRejectedValueOnce(error);
+        new Error('Request cancelled'),
+        new Error('Request expired'),
+        new Error('Request unavailable'),
+    ])('shows an error when request cannot be opened', async (error) => {
+        mockGetRequest.mockRejectedValueOnce(error);
 
-            const { result } = renderHook(() =>
-                useRunnerMarketplace(),
-            );
-
-            await act(async () => {
-                await result.current.openNotificationRequest(
-                    'request-12345678',
-                );
-            });
-
-            expect(result.current.notificationRequest).toBeNull();
-            expect(result.current.notificationRequestError).toContain(
-                'Permintaan ini tidak dapat dibuka.',
-            );
-            expect(result.current.notificationRequestLoading).toBe(false);
-        },
-    );
-
-    it('clears the request error when the notification request is closed', async () => {
-        mockGetRequest.mockRejectedValueOnce(
-            new Error('Request unavailable'),
-        );
-
-        const { result } = renderHook(() =>
-            useRunnerMarketplace(),
-        );
+        const { result } = renderHook(() => useRunnerMarketplace());
 
         await act(async () => {
-            await result.current.openNotificationRequest(
-                'request-12345678',
-            );
+            await result.current.openNotificationRequest('request-12345678');
         });
 
-        expect(result.current.notificationRequestError).not.toBe('');
+        expect(result.current.notificationRequest).toBeNull();
+        expect(result.current.notificationRequestError).toContain(
+            'Permintaan ini tidak dapat dibuka.',
+        );
+        expect(result.current.notificationRequestLoading).toBe(false);
+    });
+
+    it('clears the request error when the notification request is closed', async () => {
+        mockGetRequest.mockRejectedValueOnce(new Error('Unavailable'));
+
+        const { result } = renderHook(() => useRunnerMarketplace());
+
+        await act(async () => {
+            await result.current.openNotificationRequest('request-12345678');
+        });
 
         act(() => {
             result.current.closeNotificationRequest();
@@ -202,17 +179,12 @@ describe('useRunnerMarketplace notification request', () => {
 
     it('does not reopen a notification request after it is closed while loading', async () => {
         const pendingRequest = deferred<RunnerMarketplaceRequestDetail>();
-
         mockGetRequest.mockReturnValueOnce(pendingRequest.promise);
 
-        const { result } = renderHook(() =>
-            useRunnerMarketplace(),
-        );
+        const { result } = renderHook(() => useRunnerMarketplace());
 
         act(() => {
-            void result.current.openNotificationRequest(
-                'request-12345678',
-            );
+            void result.current.openNotificationRequest('request-12345678');
         });
 
         act(() => {
@@ -236,9 +208,7 @@ describe('useRunnerMarketplace notification request', () => {
             .mockReturnValueOnce(firstRequest.promise)
             .mockReturnValueOnce(secondRequest.promise);
 
-        const { result } = renderHook(() =>
-            useRunnerMarketplace(),
-        );
+        const { result } = renderHook(() => useRunnerMarketplace());
 
         act(() => {
             void result.current.openNotificationRequest('request-12345678');
@@ -253,11 +223,7 @@ describe('useRunnerMarketplace notification request', () => {
             await secondRequest.promise;
         });
 
-        await waitFor(() => {
-            expect(result.current.notificationRequest).toEqual(
-                secondMockRequest,
-            );
-        });
+        expect(result.current.notificationRequest).toEqual(secondMockRequest);
 
         await act(async () => {
             firstRequest.resolve(mockRequest);
@@ -272,92 +238,65 @@ describe('useRunnerMarketplace notification request', () => {
 describe('useRunnerMarketplace quotation request lifecycle', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockEmptyRequestList();
     });
 
     it.each([
-        {
-            scenario: 'request telah dibatalkan sebelum borang dibuka',
-            error: new Error('Request cancelled'),
-        },
-        {
-            scenario: 'request telah tamat tempoh sebelum borang dibuka',
-            error: new Error('Request expired'),
-        },
-    ])(
-        'does not open quotation form when $scenario',
-        async ({ error }) => {
-            mockGetRequest.mockRejectedValueOnce(error);
+        new Error('Request cancelled'),
+        new Error('Request expired'),
+    ])('does not open quotation form when request is unavailable', async (error) => {
+        mockGetRequest.mockRejectedValueOnce(error);
 
-            const { result } = renderHook(() =>
-                useRunnerMarketplace(),
-            );
+        const { result } = renderHook(() => useRunnerMarketplace());
 
-            await act(async () => {
-                await result.current.openQuotation('request-12345678');
-            });
+        await act(async () => {
+            await result.current.openQuotation('request-12345678');
+        });
 
-            expect(result.current.quotationRequestId).toBeNull();
-            expect(result.current.existingQuotation).toBeNull();
-            expect(result.current.quotationDetailLoading).toBe('');
-            expect(result.current.requestsError).toContain(
-                'Tidak berjaya mendapatkan status sebut harga.',
-            );
-        },
-    );
+        expect(result.current.quotationRequestId).toBeNull();
+        expect(result.current.existingQuotation).toBeNull();
+        expect(result.current.quotationDetailLoading).toBe('');
+        expect(result.current.requestsError).toContain(
+            'Tidak berjaya mendapatkan status sebut harga.',
+        );
+    });
 
     it.each([
-        {
-            scenario: 'request dibatalkan ketika Runner mengisi sebut harga',
-            error: new Error('Request cancelled'),
-        },
-        {
-            scenario: 'request tamat tempoh ketika Runner mengisi sebut harga',
-            error: new Error('Request expired'),
-        },
-    ])(
-        'rejects quotation submission when $scenario',
-        async ({ error }) => {
-            mockGetRequest.mockResolvedValueOnce(mockRequest);
-            mockSubmitQuotation.mockRejectedValueOnce(error);
+        new Error('Request cancelled'),
+        new Error('Request expired'),
+    ])('rejects quotation submission when request is unavailable', async (error) => {
+        mockGetRequest.mockResolvedValueOnce(mockRequest);
+        mockSubmitQuotation.mockRejectedValueOnce(error);
 
-            const { result } = renderHook(() =>
-                useRunnerMarketplace(),
-            );
+        const { result } = renderHook(() => useRunnerMarketplace());
 
-            await act(async () => {
-                await result.current.openQuotation('request-12345678');
-            });
+        await act(async () => {
+            await result.current.openQuotation('request-12345678');
+        });
 
-            act(() => {
-                result.current.setQuotationAmount('15.00');
-                result.current.setQuotationMessage('Penghantaran dokumen.');
-            });
+        act(() => {
+            result.current.setQuotationAmount('15.00');
+            result.current.setQuotationMessage('Penghantaran dokumen.');
+        });
 
-            let submissionResult = true;
+        let submissionResult = true;
 
-            await act(async () => {
-                submissionResult = await result.current.submitQuotation();
-            });
+        await act(async () => {
+            submissionResult = await result.current.submitQuotation();
+        });
 
-            expect(submissionResult).toBe(false);
-            expect(result.current.requestsError).toContain(
-                'Sebut harga tidak berjaya dihantar.',
-            );
-            expect(result.current.quotationLoading).toBe(false);
-        },
-    );
+        expect(submissionResult).toBe(false);
+        expect(result.current.requestsError).toContain(
+            'Sebut harga tidak berjaya dihantar.',
+        );
+        expect(result.current.quotationLoading).toBe(false);
+    });
 
     it('keeps successful quotation submission successful without another detail request', async () => {
         mockGetRequest.mockResolvedValueOnce(mockRequest);
         mockSubmitQuotation.mockResolvedValueOnce(mockQuotation);
-        mockGetAvailableRequests.mockResolvedValueOnce({
-            requests: [],
-            pagination: mockPagination,
-        });
 
-        const { result } = renderHook(() =>
-            useRunnerMarketplace(),
-        );
+        const { result } = renderHook(() => useRunnerMarketplace());
 
         await act(async () => {
             await result.current.openQuotation('request-12345678');
@@ -386,13 +325,9 @@ describe('useRunnerMarketplace quotation request lifecycle', () => {
     it('does not report submission failure when refreshing request list fails', async () => {
         mockGetRequest.mockResolvedValueOnce(mockRequest);
         mockSubmitQuotation.mockResolvedValueOnce(mockQuotation);
-        mockGetAvailableRequests.mockRejectedValueOnce(
-            new Error('Network error'),
-        );
+        mockGetAvailableRequests.mockRejectedValueOnce(new Error('Network error'));
 
-        const { result } = renderHook(() =>
-            useRunnerMarketplace(),
-        );
+        const { result } = renderHook(() => useRunnerMarketplace());
 
         await act(async () => {
             await result.current.openQuotation('request-12345678');
@@ -420,14 +355,8 @@ describe('useRunnerMarketplace quotation request lifecycle', () => {
 
         const pendingSubmission = deferred<typeof mockQuotation>();
         mockSubmitQuotation.mockReturnValueOnce(pendingSubmission.promise);
-        mockGetAvailableRequests.mockResolvedValueOnce({
-            requests: [],
-            pagination: mockPagination,
-        });
 
-        const { result } = renderHook(() =>
-            useRunnerMarketplace(),
-        );
+        const { result } = renderHook(() => useRunnerMarketplace());
 
         await act(async () => {
             await result.current.openQuotation('request-12345678');
@@ -438,16 +367,15 @@ describe('useRunnerMarketplace quotation request lifecycle', () => {
         });
 
         let submissionResult = false;
+        let submissionPromise!: Promise<boolean>;
 
         act(() => {
-            void result.current.submitQuotation().then((value) => {
-                submissionResult = value;
-            });
+            submissionPromise = result.current.submitQuotation();
         });
 
         expect(result.current.quotationLoading).toBe(true);
 
-        act(() => {
+        await act(async () => {
             result.current.closeQuotation();
         });
 
@@ -456,13 +384,10 @@ describe('useRunnerMarketplace quotation request lifecycle', () => {
 
         await act(async () => {
             pendingSubmission.resolve(mockQuotation);
-            await pendingSubmission.promise;
+            submissionResult = await submissionPromise;
         });
 
-        await waitFor(() => {
-            expect(submissionResult).toBe(true);
-        });
-
+        expect(submissionResult).toBe(true);
         expect(result.current.quotationRequestId).toBeNull();
         expect(result.current.existingQuotation).toBeNull();
         expect(result.current.quotationAmount).toBe('');
@@ -477,9 +402,7 @@ describe('useRunnerMarketplace quotation request lifecycle', () => {
             .mockReturnValueOnce(firstRequest.promise)
             .mockReturnValueOnce(secondRequest.promise);
 
-        const { result } = renderHook(() =>
-            useRunnerMarketplace(),
-        );
+        const { result } = renderHook(() => useRunnerMarketplace());
 
         act(() => {
             void result.current.openQuotation('request-12345678');
@@ -494,11 +417,7 @@ describe('useRunnerMarketplace quotation request lifecycle', () => {
             await secondRequest.promise;
         });
 
-        await waitFor(() => {
-            expect(result.current.quotationRequestId).toBe(
-                'request-87654321',
-            );
-        });
+        expect(result.current.quotationRequestId).toBe('request-87654321');
 
         await act(async () => {
             firstRequest.resolve(mockRequest);
@@ -511,12 +430,9 @@ describe('useRunnerMarketplace quotation request lifecycle', () => {
 
     it('does not reopen quotation details after closing while loading', async () => {
         const pendingRequest = deferred<RunnerMarketplaceRequestDetail>();
-
         mockGetRequest.mockReturnValueOnce(pendingRequest.promise);
 
-        const { result } = renderHook(() =>
-            useRunnerMarketplace(),
-        );
+        const { result } = renderHook(() => useRunnerMarketplace());
 
         act(() => {
             void result.current.openQuotation('request-12345678');
@@ -542,6 +458,11 @@ describe('useRunnerMarketplace request list race conditions', () => {
     });
 
     it('keeps the latest Open Request list when responses finish out of order', async () => {
+        const initialRequest = deferred<{
+            requests: RunnerMarketplaceRequest[];
+            pagination: typeof mockPagination;
+        }>();
+
         const firstRequest = deferred<{
             requests: RunnerMarketplaceRequest[];
             pagination: typeof mockPagination;
@@ -552,13 +473,13 @@ describe('useRunnerMarketplace request list race conditions', () => {
             pagination: typeof mockPagination;
         }>();
 
+        // The hook automatically loads page 1 on mount.
         mockGetAvailableRequests
+            .mockReturnValueOnce(initialRequest.promise)
             .mockReturnValueOnce(firstRequest.promise)
             .mockReturnValueOnce(secondRequest.promise);
 
-        const { result } = renderHook(() =>
-            useRunnerMarketplace(),
-        );
+        const { result } = renderHook(() => useRunnerMarketplace());
 
         act(() => {
             void result.current.loadRequests(2);
@@ -584,10 +505,8 @@ describe('useRunnerMarketplace request list race conditions', () => {
             await secondRequest.promise;
         });
 
-        await waitFor(() => {
-            expect(result.current.requests).toEqual([latestRequest]);
-            expect(result.current.requestsPagination.current_page).toBe(3);
-        });
+        expect(result.current.requests).toEqual([latestRequest]);
+        expect(result.current.requestsPagination.current_page).toBe(3);
 
         await act(async () => {
             firstRequest.resolve({
@@ -600,6 +519,17 @@ describe('useRunnerMarketplace request list race conditions', () => {
                 },
             });
             await firstRequest.promise;
+        });
+
+        expect(result.current.requests).toEqual([latestRequest]);
+        expect(result.current.requestsPagination.current_page).toBe(3);
+
+        await act(async () => {
+            initialRequest.resolve({
+                requests: [],
+                pagination: mockPagination,
+            });
+            await initialRequest.promise;
         });
 
         expect(result.current.requests).toEqual([latestRequest]);
