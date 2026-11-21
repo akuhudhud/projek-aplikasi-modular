@@ -15,18 +15,23 @@ import {
 type RunnerSessionState = {
     account: RunnerAccount | null;
     checkingSession: boolean;
+    restoreSessionError: string;
     logoutLoading: boolean;
     logoutError: string;
 };
 
 type RunnerSessionActions = {
     setAccount: (account: RunnerAccount | null) => void;
+    retrySession: () => void;
     logout: () => Promise<boolean>;
     clearLogoutError: () => void;
 };
 
 export type RunnerSession = RunnerSessionState &
     RunnerSessionActions;
+
+const RESTORE_SESSION_ERROR =
+    'Tidak dapat menghubungi server. Periksa sambungan internet dan cuba semula.';
 
 export function useRunnerSession(): RunnerSession {
     const [account, setAccount] =
@@ -35,62 +40,62 @@ export function useRunnerSession(): RunnerSession {
     const [checkingSession, setCheckingSession] =
         useState(true);
 
+    const [restoreSessionError, setRestoreSessionError] =
+        useState('');
+
     const [logoutLoading, setLogoutLoading] =
         useState(false);
 
     const [logoutError, setLogoutError] =
         useState('');
 
-    // Invalidates outdated session restoration responses.
     const sessionRequestId = useRef(0);
 
-    useEffect(() => {
-        let mounted = true;
+    const restoreSession = useCallback(async (): Promise<void> => {
         const requestId = ++sessionRequestId.current;
 
-        async function restoreSession() {
-            try {
-                const currentAccount = await runnerApi.me();
+        setCheckingSession(true);
+        setRestoreSessionError('');
 
-                if (
-                    mounted
-                    && requestId === sessionRequestId.current
-                ) {
-                    setAccount(currentAccount);
-                }
-            } catch {
-                if (
-                    mounted
-                    && requestId === sessionRequestId.current
-                ) {
-                    setAccount(null);
-                }
-            } finally {
-                if (
-                    mounted
-                    && requestId === sessionRequestId.current
-                ) {
-                    setCheckingSession(false);
-                }
+        try {
+            const currentAccount = await runnerApi.me();
+
+            if (requestId !== sessionRequestId.current) {
+                return;
+            }
+
+            setAccount(currentAccount);
+        } catch {
+            if (requestId !== sessionRequestId.current) {
+                return;
+            }
+
+            // A 401 dispatches SESSION_EXPIRED and invalidates
+            // this request. Other failures are treated as
+            // temporary connectivity/server errors.
+            setRestoreSessionError(RESTORE_SESSION_ERROR);
+        } finally {
+            if (requestId === sessionRequestId.current) {
+                setCheckingSession(false);
             }
         }
-
-        void restoreSession();
-
-        return () => {
-            mounted = false;
-            sessionRequestId.current += 1;
-        };
     }, []);
 
     useEffect(() => {
+        void restoreSession();
+
+        return () => {
+            sessionRequestId.current += 1;
+        };
+    }, [restoreSession]);
+
+    useEffect(() => {
         function handleSessionExpired() {
-            // Prevent an earlier me() response from restoring
-            // an account after the session has expired.
             sessionRequestId.current += 1;
 
             setAccount(null);
             setCheckingSession(false);
+            setRestoreSessionError('');
             setLogoutError('');
             setLogoutLoading(false);
         }
@@ -110,22 +115,29 @@ export function useRunnerSession(): RunnerSession {
 
     const updateAccount = useCallback(
         (nextAccount: RunnerAccount | null) => {
-            // Manual account changes supersede pending restoration.
             sessionRequestId.current += 1;
 
             setAccount(nextAccount);
             setCheckingSession(false);
+            setRestoreSessionError('');
             setLogoutError('');
         },
         [],
     );
+
+    const retrySession = useCallback(() => {
+        if (checkingSession) {
+            return;
+        }
+
+        void restoreSession();
+    }, [checkingSession, restoreSession]);
 
     const logout = useCallback(async (): Promise<boolean> => {
         if (logoutLoading) {
             return false;
         }
 
-        // Invalidate pending restoration before logging out.
         sessionRequestId.current += 1;
 
         setLogoutLoading(true);
@@ -135,6 +147,7 @@ export function useRunnerSession(): RunnerSession {
             await runnerApi.logout();
 
             setAccount(null);
+            setRestoreSessionError('');
 
             return true;
         } catch {
@@ -155,9 +168,11 @@ export function useRunnerSession(): RunnerSession {
     return {
         account,
         checkingSession,
+        restoreSessionError,
         logoutLoading,
         logoutError,
         setAccount: updateAccount,
+        retrySession,
         logout,
         clearLogoutError,
     };
