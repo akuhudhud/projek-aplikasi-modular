@@ -36,7 +36,8 @@ class AdminDashboardController extends Controller
             Account::RUNNER_STATUS_SUSPENDED,
         ];
 
-        $users = Account::query()->where('role', 'USER');
+        $users = Account::query()
+            ->where('role', 'USER');
 
         $runners = Account::query()
             ->where('role', 'USER')
@@ -70,22 +71,26 @@ class AdminDashboardController extends Controller
         $rangeStart = $today->copy()->subDays(6);
         $rangeEnd = $today->copy()->addDay();
 
-        $createdRows = CoreTask::query()
+        $createdTotals = CoreTask::query()
             ->where('created_at', '>=', $rangeStart)
             ->where('created_at', '<', $rangeEnd)
-            ->selectRaw('DATE(created_at) as activity_date, COUNT(*) as total')
+            ->selectRaw(
+                'DATE(created_at) as activity_date, COUNT(*) as total'
+            )
             ->groupByRaw('DATE(created_at)')
-            ->get()
-            ->keyBy('activity_date');
+            ->pluck('total', 'activity_date')
+            ->all();
 
-        $completedRows = CoreTask::query()
+        $completedTotals = CoreTask::query()
             ->whereNotNull('completed_at')
             ->where('completed_at', '>=', $rangeStart)
             ->where('completed_at', '<', $rangeEnd)
-            ->selectRaw('DATE(completed_at) as activity_date, COUNT(*) as total')
+            ->selectRaw(
+                'DATE(completed_at) as activity_date, COUNT(*) as total'
+            )
             ->groupByRaw('DATE(completed_at)')
-            ->get()
-            ->keyBy('activity_date');
+            ->pluck('total', 'activity_date')
+            ->all();
 
         $dailyActivity = [];
 
@@ -96,8 +101,8 @@ class AdminDashboardController extends Controller
 
             $dailyActivity[] = [
                 'date' => $date,
-                'created' => (int) ($createdRows->get($date)?->total ?? 0),
-                'completed' => (int) ($completedRows->get($date)?->total ?? 0),
+                'created' => (int) ($createdTotals[$date] ?? 0),
+                'completed' => (int) ($completedTotals[$date] ?? 0),
             ];
         }
 
