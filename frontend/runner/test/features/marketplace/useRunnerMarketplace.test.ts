@@ -2,6 +2,7 @@
 import {
     act,
     renderHook,
+    waitFor,
 } from '@testing-library/react';
 
 import {
@@ -13,6 +14,7 @@ import {
 } from 'vitest';
 
 import type {
+    RunnerMarketplaceRequest,
     RunnerMarketplaceRequestDetail,
 } from '../../../src/api';
 
@@ -54,6 +56,12 @@ const mockRequest: RunnerMarketplaceRequestDetail = {
     my_quotations: [],
 };
 
+const secondMockRequest: RunnerMarketplaceRequestDetail = {
+    ...mockRequest,
+    request_id: 'request-87654321',
+    description: 'Permintaan kedua.',
+};
+
 const mockQuotation = {
     quotation_id: 'quotation-12345678',
     request_id: 'request-12345678',
@@ -71,6 +79,39 @@ const mockPagination = {
     total: 0,
     last_page: 1,
 };
+
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason?: unknown) => void;
+
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+
+    return { promise, resolve, reject };
+}
+
+function createRequest(
+    requestId: string,
+    description: string,
+): RunnerMarketplaceRequest {
+    return {
+        request_id: requestId,
+        source_type: 'CUSTOMER',
+        task_class: 'NON_DELIVERY',
+        description,
+        pickup_location_snapshot: null,
+        delivery_location_snapshot: null,
+        task_location_snapshot: {
+            address: 'Tuaran, Sabah',
+        },
+        status: 'OPEN',
+        expires_at: '2026-11-21T10:00:00Z',
+        created_at: '2026-11-20T10:00:00Z',
+        my_quotations: [],
+    };
+}
 
 describe('useRunnerMarketplace notification request', () => {
     beforeEach(() => {
@@ -98,13 +139,8 @@ describe('useRunnerMarketplace notification request', () => {
             mockRequest,
         );
 
-        expect(
-            result.current.notificationRequestError,
-        ).toBe('');
-
-        expect(
-            result.current.notificationRequestLoading,
-        ).toBe(false);
+        expect(result.current.notificationRequestError).toBe('');
+        expect(result.current.notificationRequestLoading).toBe(false);
     });
 
     it.each([
@@ -139,23 +175,17 @@ describe('useRunnerMarketplace notification request', () => {
                 'request-12345678',
             );
 
-            expect(
-                result.current.notificationRequest,
-            ).toBeNull();
+            expect(result.current.notificationRequest).toBeNull();
 
             expect(
                 result.current.notificationRequestError,
-            ).toContain(
-                'Permintaan ini tidak dapat dibuka.',
-            );
+            ).toContain('Permintaan ini tidak dapat dibuka.');
 
             expect(
                 result.current.notificationRequestError,
             ).toContain('dibatalkan');
 
-            expect(
-                result.current.notificationRequestLoading,
-            ).toBe(false);
+            expect(result.current.notificationRequestLoading).toBe(false);
         },
     );
 
@@ -182,13 +212,89 @@ describe('useRunnerMarketplace notification request', () => {
             result.current.closeNotificationRequest();
         });
 
-        expect(
-            result.current.notificationRequest,
-        ).toBeNull();
+        expect(result.current.notificationRequest).toBeNull();
+        expect(result.current.notificationRequestError).toBe('');
+    });
 
-        expect(
-            result.current.notificationRequestError,
-        ).toBe('');
+    it('does not reopen a notification request after it is closed while loading', async () => {
+        const pendingRequest = deferred<RunnerMarketplaceRequestDetail>();
+
+        mockGetRequest.mockReturnValueOnce(pendingRequest.promise);
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        act(() => {
+            void result.current.openNotificationRequest(
+                'request-12345678',
+            );
+        });
+
+        expect(result.current.notificationRequestLoading).toBe(true);
+
+        act(() => {
+            result.current.closeNotificationRequest();
+        });
+
+        expect(result.current.notificationRequestLoading).toBe(false);
+        expect(result.current.notificationRequest).toBeNull();
+
+        await act(async () => {
+            pendingRequest.resolve(mockRequest);
+            await pendingRequest.promise;
+        });
+
+        expect(result.current.notificationRequest).toBeNull();
+        expect(result.current.notificationRequestLoading).toBe(false);
+    });
+
+    it('keeps the latest notification request when responses finish out of order', async () => {
+        const firstRequest = deferred<RunnerMarketplaceRequestDetail>();
+        const secondRequest = deferred<RunnerMarketplaceRequestDetail>();
+
+        mockGetRequest
+            .mockReturnValueOnce(firstRequest.promise)
+            .mockReturnValueOnce(secondRequest.promise);
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        act(() => {
+            void result.current.openNotificationRequest(
+                'request-12345678',
+            );
+        });
+
+        act(() => {
+            void result.current.openNotificationRequest(
+                'request-87654321',
+            );
+        });
+
+        expect(mockGetRequest).toHaveBeenCalledTimes(2);
+
+        await act(async () => {
+            secondRequest.resolve(secondMockRequest);
+            await secondRequest.promise;
+        });
+
+        await waitFor(() => {
+            expect(result.current.notificationRequest).toEqual(
+                secondMockRequest,
+            );
+        });
+
+        await act(async () => {
+            firstRequest.resolve(mockRequest);
+            await firstRequest.promise;
+        });
+
+        expect(result.current.notificationRequest).toEqual(
+            secondMockRequest,
+        );
+        expect(result.current.notificationRequestLoading).toBe(false);
     });
 });
 
@@ -225,21 +331,11 @@ describe('useRunnerMarketplace quotation request lifecycle', () => {
                 'request-12345678',
             );
 
-            expect(
-                result.current.quotationRequestId,
-            ).toBeNull();
+            expect(result.current.quotationRequestId).toBeNull();
+            expect(result.current.existingQuotation).toBeNull();
+            expect(result.current.quotationDetailLoading).toBe('');
 
-            expect(
-                result.current.existingQuotation,
-            ).toBeNull();
-
-            expect(
-                result.current.quotationDetailLoading,
-            ).toBe('');
-
-            expect(
-                result.current.requestsError,
-            ).toContain(
+            expect(result.current.requestsError).toContain(
                 'Tidak berjaya mendapatkan status sebut harga.',
             );
         },
@@ -258,7 +354,6 @@ describe('useRunnerMarketplace quotation request lifecycle', () => {
         'rejects quotation submission when $scenario',
         async ({ error }) => {
             mockGetRequest.mockResolvedValueOnce(mockRequest);
-
             mockSubmitQuotation.mockRejectedValueOnce(error);
 
             const { result } = renderHook(() =>
@@ -271,9 +366,9 @@ describe('useRunnerMarketplace quotation request lifecycle', () => {
                 );
             });
 
-            expect(
-                result.current.quotationRequestId,
-            ).toBe('request-12345678');
+            expect(result.current.quotationRequestId).toBe(
+                'request-12345678',
+            );
 
             act(() => {
                 result.current.setQuotationAmount('15.00');
@@ -300,21 +395,16 @@ describe('useRunnerMarketplace quotation request lifecycle', () => {
 
             expect(submissionResult).toBe(false);
 
-            expect(
-                result.current.requestsError,
-            ).toContain(
+            expect(result.current.requestsError).toContain(
                 'Sebut harga tidak berjaya dihantar.',
             );
 
-            expect(
-                result.current.quotationLoading,
-            ).toBe(false);
+            expect(result.current.quotationLoading).toBe(false);
         },
     );
 
     it('keeps successful quotation submission successful without another detail request', async () => {
         mockGetRequest.mockResolvedValueOnce(mockRequest);
-
         mockSubmitQuotation.mockResolvedValueOnce(mockQuotation);
 
         mockGetAvailableRequests.mockResolvedValueOnce({
@@ -356,7 +446,6 @@ describe('useRunnerMarketplace quotation request lifecycle', () => {
         );
 
         expect(submissionResult).toBe(true);
-
         expect(mockGetRequest).toHaveBeenCalledTimes(1);
 
         expect(result.current.existingQuotation).toEqual(
@@ -374,7 +463,6 @@ describe('useRunnerMarketplace quotation request lifecycle', () => {
 
     it('does not report submission failure when refreshing request list fails', async () => {
         mockGetRequest.mockResolvedValueOnce(mockRequest);
-
         mockSubmitQuotation.mockResolvedValueOnce(mockQuotation);
 
         mockGetAvailableRequests.mockRejectedValueOnce(
@@ -403,7 +491,6 @@ describe('useRunnerMarketplace quotation request lifecycle', () => {
         });
 
         expect(submissionResult).toBe(true);
-
         expect(result.current.existingQuotation).toEqual(
             mockQuotation,
         );
@@ -411,5 +498,158 @@ describe('useRunnerMarketplace quotation request lifecycle', () => {
         expect(result.current.requestsError).toContain(
             'Tidak berjaya mendapatkan Open Request.',
         );
+    });
+
+    it('does not open an old quotation detail after a newer request is selected', async () => {
+        const firstRequest = deferred<RunnerMarketplaceRequestDetail>();
+        const secondRequest = deferred<RunnerMarketplaceRequestDetail>();
+
+        mockGetRequest
+            .mockReturnValueOnce(firstRequest.promise)
+            .mockReturnValueOnce(secondRequest.promise);
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        act(() => {
+            void result.current.openQuotation('request-12345678');
+        });
+
+        act(() => {
+            void result.current.openQuotation('request-87654321');
+        });
+
+        expect(mockGetRequest).toHaveBeenCalledTimes(2);
+
+        await act(async () => {
+            secondRequest.resolve(secondMockRequest);
+            await secondRequest.promise;
+        });
+
+        await waitFor(() => {
+            expect(result.current.quotationRequestId).toBe(
+                'request-87654321',
+            );
+        });
+
+        await act(async () => {
+            firstRequest.resolve(mockRequest);
+            await firstRequest.promise;
+        });
+
+        expect(result.current.quotationRequestId).toBe(
+            'request-87654321',
+        );
+        expect(result.current.quotationDetailLoading).toBe('');
+    });
+
+    it('does not reopen quotation details after closing while loading', async () => {
+        const pendingRequest = deferred<RunnerMarketplaceRequestDetail>();
+
+        mockGetRequest.mockReturnValueOnce(pendingRequest.promise);
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        act(() => {
+            void result.current.openQuotation('request-12345678');
+        });
+
+        expect(result.current.quotationDetailLoading).toBe(
+            'request-12345678',
+        );
+
+        act(() => {
+            result.current.closeQuotation();
+        });
+
+        expect(result.current.quotationRequestId).toBeNull();
+        expect(result.current.quotationDetailLoading).toBe('');
+
+        await act(async () => {
+            pendingRequest.resolve(mockRequest);
+            await pendingRequest.promise;
+        });
+
+        expect(result.current.quotationRequestId).toBeNull();
+        expect(result.current.existingQuotation).toBeNull();
+    });
+});
+
+describe('useRunnerMarketplace request list race conditions', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('keeps the latest Open Request list when responses finish out of order', async () => {
+        const firstRequest = deferred<{
+            requests: RunnerMarketplaceRequest[];
+            pagination: typeof mockPagination;
+        }>();
+
+        const secondRequest = deferred<{
+            requests: RunnerMarketplaceRequest[];
+            pagination: typeof mockPagination;
+        }>();
+
+        mockGetAvailableRequests
+            .mockReturnValueOnce(firstRequest.promise)
+            .mockReturnValueOnce(secondRequest.promise);
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        act(() => {
+            void result.current.loadRequests(2);
+        });
+
+        act(() => {
+            void result.current.loadRequests(3);
+        });
+
+        expect(mockGetAvailableRequests).toHaveBeenCalledTimes(2);
+
+        const latestRequest = createRequest(
+            'request-latest',
+            'Permintaan terkini.',
+        );
+
+        await act(async () => {
+            secondRequest.resolve({
+                requests: [latestRequest],
+                pagination: {
+                    ...mockPagination,
+                    current_page: 3,
+                },
+            });
+
+            await secondRequest.promise;
+        });
+
+        await waitFor(() => {
+            expect(result.current.requests).toEqual([latestRequest]);
+            expect(result.current.requestsPagination.current_page).toBe(3);
+        });
+
+        await act(async () => {
+            firstRequest.resolve({
+                requests: [
+                    createRequest('request-old', 'Permintaan lama.'),
+                ],
+                pagination: {
+                    ...mockPagination,
+                    current_page: 2,
+                },
+            });
+
+            await firstRequest.promise;
+        });
+
+        expect(result.current.requests).toEqual([latestRequest]);
+        expect(result.current.requestsPagination.current_page).toBe(3);
+        expect(result.current.requestsLoading).toBe(false);
     });
 });
