@@ -71,7 +71,7 @@ export async function login(
     password
   });
 
-  const { account, session } = response.data.data;
+  const { session } = response.data.data;
 
   if (!session?.token) {
     throw new Error('Token sesi tidak diterima daripada server.');
@@ -79,7 +79,12 @@ export async function login(
 
   saveSession(session.token);
 
-  return account;
+  try {
+    return await getCurrentAdmin();
+  } catch (error) {
+    clearSession();
+    throw error;
+  }
 }
 
 export async function getCurrentAdmin(): Promise<AdminProfile> {
