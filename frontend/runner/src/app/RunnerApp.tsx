@@ -58,6 +58,32 @@ export default function RunnerApp() {
         );
     }
 
+    if (session.restoreSessionError) {
+        return (
+            <main className="runner-loading">
+                <div
+                    className="runner-loading__brand"
+                    aria-hidden="true"
+                >
+                    SR
+                </div>
+
+                <h1>MASALAH SAMBUNGAN</h1>
+
+                <p role="alert">
+                    {session.restoreSessionError}
+                </p>
+
+                <button
+                    type="button"
+                    onClick={session.retrySession}
+                >
+                    CUBA SEMULA
+                </button>
+            </main>
+        );
+    }
+
     if (!session.account) {
         return (
             <RunnerAuthPage
