@@ -14,6 +14,7 @@ import {
   getApiError,
   getCurrentAdmin,
   hasSession,
+  isUnauthorizedError,
   login,
   logout
 } from '../services/adminApi';
@@ -59,8 +60,16 @@ export default function AdminApp() {
           setAccount(current);
           setActivePage(getDefaultAdminPage(current));
         }
-      } catch {
-        clearSession();
+      } catch (error) {
+        if (isUnauthorizedError(error)) {
+          clearSession();
+
+          if (mounted) {
+            setLoginError('Sesi telah tamat. Sila log masuk semula.');
+          }
+        } else if (mounted) {
+          setLoginError(getApiError(error));
+        }
       } finally {
         if (mounted) {
           setCheckingSession(false);
