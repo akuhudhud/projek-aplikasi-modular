@@ -4,15 +4,18 @@ namespace App\Http\Middleware;
 
 use App\Models\Account;
 use App\Models\Session;
+use App\Services\AdminPermissionService;
 use App\Services\Session\SessionService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Http\JsonResponse;
 
 class AuthenticateSession
 {
     public function __construct(
-        private SessionService $sessionService
+        private SessionService $sessionService,
+        private AdminPermissionService $adminPermissionService
     ) {
     }
 
@@ -81,6 +84,34 @@ class AuthenticateSession
             $account
         );
 
-        return $next($request);
+        $response = $next($request);
+
+        if (
+            $request->is('api/me') &&
+            $response instanceof JsonResponse
+        ) {
+            $payload = $response->getData(true);
+
+            if (
+                isset($payload['data']['account']) &&
+                is_array($payload['data']['account'])
+            ) {
+                $permissions = [];
+
+                if ($account->role === 'ROOT_SUPER_ADMIN') {
+                    $permissions = $this->adminPermissionService
+                        ->permissionKeys();
+                } elseif ($account->role === 'SUPER_ADMIN') {
+                    $permissions = $this->adminPermissionService
+                        ->assignedTo($account);
+                }
+
+                $payload['data']['account']['permissions'] = $permissions;
+
+                $response->setData($payload);
+            }
+        }
+
+        return $response;
     }
 }
