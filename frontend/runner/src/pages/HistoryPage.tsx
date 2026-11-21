@@ -42,7 +42,11 @@ export default function HistoryPage({
             </div>
 
             {loading && (
-                <p className="runner-dashboard__notice">
+                <p
+                    className="runner-dashboard__notice"
+                    role="status"
+                    aria-live="polite"
+                >
                     Memuatkan sejarah...
                 </p>
             )}
