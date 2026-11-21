@@ -62,6 +62,7 @@ export interface AdminProfile {
   profile_picture: string | null;
   role: string;
   status: string;
+  permissions: string[];
 }
 
 export interface ApiResponse<T> {
