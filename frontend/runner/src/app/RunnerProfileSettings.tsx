@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 
 import type { RunnerAccount } from '../api';
@@ -28,7 +29,11 @@ export default function RunnerProfileSettings({
     if (profileModule.loading) {
         return (
             <section className="runner-dashboard__section">
-                <p className="runner-dashboard__notice">
+                <p
+                    className="runner-dashboard__notice"
+                    role="status"
+                    aria-live="polite"
+                >
                     Memuatkan profil dan tetapan Runner...
                 </p>
             </section>
