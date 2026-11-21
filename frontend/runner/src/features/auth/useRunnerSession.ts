@@ -1,5 +1,10 @@
 
-import { useCallback, useEffect, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+} from 'react';
 
 import {
     RUNNER_SESSION_EXPIRED_EVENT,
@@ -36,22 +41,35 @@ export function useRunnerSession(): RunnerSession {
     const [logoutError, setLogoutError] =
         useState('');
 
+    // Invalidates outdated session restoration responses.
+    const sessionRequestId = useRef(0);
+
     useEffect(() => {
         let mounted = true;
+        const requestId = ++sessionRequestId.current;
 
         async function restoreSession() {
             try {
                 const currentAccount = await runnerApi.me();
 
-                if (mounted) {
+                if (
+                    mounted
+                    && requestId === sessionRequestId.current
+                ) {
                     setAccount(currentAccount);
                 }
             } catch {
-                if (mounted) {
+                if (
+                    mounted
+                    && requestId === sessionRequestId.current
+                ) {
                     setAccount(null);
                 }
             } finally {
-                if (mounted) {
+                if (
+                    mounted
+                    && requestId === sessionRequestId.current
+                ) {
                     setCheckingSession(false);
                 }
             }
@@ -61,12 +79,18 @@ export function useRunnerSession(): RunnerSession {
 
         return () => {
             mounted = false;
+            sessionRequestId.current += 1;
         };
     }, []);
 
     useEffect(() => {
         function handleSessionExpired() {
+            // Prevent an earlier me() response from restoring
+            // an account after the session has expired.
+            sessionRequestId.current += 1;
+
             setAccount(null);
+            setCheckingSession(false);
             setLogoutError('');
             setLogoutLoading(false);
         }
@@ -86,7 +110,11 @@ export function useRunnerSession(): RunnerSession {
 
     const updateAccount = useCallback(
         (nextAccount: RunnerAccount | null) => {
+            // Manual account changes supersede pending restoration.
+            sessionRequestId.current += 1;
+
             setAccount(nextAccount);
+            setCheckingSession(false);
             setLogoutError('');
         },
         [],
@@ -96,6 +124,9 @@ export function useRunnerSession(): RunnerSession {
         if (logoutLoading) {
             return false;
         }
+
+        // Invalidate pending restoration before logging out.
+        sessionRequestId.current += 1;
 
         setLogoutLoading(true);
         setLogoutError('');
