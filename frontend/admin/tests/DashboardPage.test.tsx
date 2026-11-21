@@ -79,7 +79,7 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Status Tugasan')).toBeTruthy();
     expect(screen.getByText('Status Runner')).toBeTruthy();
     expect(screen.getByText('120')).toBeTruthy();
-    expect(screen.getByText('80')).toBeTruthy();
+    expect(screen.getByText('Jumlah: 80')).toBeTruthy();
   });
 
   it('memaparkan ralat apabila API gagal', async () => {
