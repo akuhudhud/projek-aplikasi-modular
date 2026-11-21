@@ -1,4 +1,3 @@
-
 <?php
 
 namespace Tests\Feature\Auth;
@@ -8,6 +7,7 @@ use App\Models\AccountPermission;
 use App\Models\Session;
 use App\Services\AdminPermissionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class MeAdminPermissionsTest extends TestCase
@@ -19,7 +19,7 @@ class MeAdminPermissionsTest extends TestCase
         string $token
     ): Account {
         $account = Account::create([
-            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'id' => (string) Str::uuid(),
             'profile_name' => 'Test Admin',
             'email' => strtolower($role).'@example.com',
             'password' => 'Password1',
@@ -28,7 +28,7 @@ class MeAdminPermissionsTest extends TestCase
         ]);
 
         Session::create([
-            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'id' => (string) Str::uuid(),
             'account_id' => $account->id,
             'token_hash' => hash('sha256', $token),
             'created_at' => now(),
@@ -40,7 +40,7 @@ class MeAdminPermissionsTest extends TestCase
 
     public function test_root_super_admin_receives_full_permission_catalog(): void
     {
-        $account = $this->createAccountWithSession(
+        $this->createAccountWithSession(
             'ROOT_SUPER_ADMIN',
             'root-permission-token'
         );
