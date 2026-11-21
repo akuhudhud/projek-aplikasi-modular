@@ -1,13 +1,38 @@
 
-import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor
+} from '@testing-library/react';
 
 import AdminApp from '../src/app/AdminApp';
+import * as adminApi from '../src/services/adminApi';
+import type { AdminProfile } from '../src/types/admin';
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   sessionStorage.clear();
 });
+
+const adminProfile: AdminProfile = {
+  id: 'admin-001',
+  profile_name: 'Admin Test',
+  verified_name: null,
+  phone: '0123456789',
+  email: 'admin@example.com',
+  profile_picture: null,
+  role: 'SUPER_ADMIN',
+  status: 'ACTIVE'
+};
+
+const userProfile: AdminProfile = {
+  ...adminProfile,
+  id: 'user-001',
+  role: 'USER'
+};
 
 describe('Admin Web Application', () => {
   it('memaparkan identiti SUPER RUNNER pada halaman log masuk', () => {
@@ -46,6 +71,54 @@ describe('Admin Web Application', () => {
     expect(
       screen.queryByRole('heading', {
         name: 'Selamat datang'
+      })
+    ).toBeNull();
+  });
+
+  it('menerima sesi yang dipulihkan untuk akaun Super Admin', async () => {
+    adminApi.saveSession('test-admin-token');
+
+    vi.spyOn(adminApi, 'getCurrentAdmin')
+      .mockResolvedValue(adminProfile);
+
+    render(<AdminApp />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('navigation', {
+          name: 'Navigasi utama'
+        })
+      ).toBeTruthy();
+    });
+  });
+
+  it('menolak sesi yang dipulihkan untuk akaun USER', async () => {
+    adminApi.saveSession('test-user-token');
+
+    vi.spyOn(adminApi, 'getCurrentAdmin')
+      .mockResolvedValue(userProfile);
+
+    render(<AdminApp />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', {
+          name: 'Log Masuk Pentadbir'
+        })
+      ).toBeTruthy();
+    });
+
+    expect(
+      screen.getByText(
+        'Akaun ini tidak mempunyai akses pentadbir.'
+      )
+    ).toBeTruthy();
+
+    expect(adminApi.hasSession()).toBe(false);
+
+    expect(
+      screen.queryByRole('navigation', {
+        name: 'Navigasi utama'
       })
     ).toBeNull();
   });
