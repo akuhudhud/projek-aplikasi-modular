@@ -20,6 +20,13 @@ import {
 
 import type { AdminPage, AdminProfile } from '../types/admin';
 
+function isAdminAccount(account: AdminProfile): boolean {
+  return (
+    account.role === 'ROOT_SUPER_ADMIN' ||
+    account.role === 'SUPER_ADMIN'
+  );
+}
+
 export default function AdminApp() {
   const [account, setAccount] = useState<AdminProfile | null>(null);
   const [activePage, setActivePage] = useState<AdminPage>('dashboard');
@@ -38,6 +45,16 @@ export default function AdminApp() {
 
       try {
         const current = await getCurrentAdmin();
+
+        if (!isAdminAccount(current)) {
+          clearSession();
+
+          if (mounted) {
+            setLoginError('Akaun ini tidak mempunyai akses pentadbir.');
+          }
+
+          return;
+        }
 
         if (mounted) {
           setAccount(current);
@@ -65,10 +82,7 @@ export default function AdminApp() {
     try {
       const current = await login(identifier, password);
 
-      if (
-        current.role !== 'ROOT_SUPER_ADMIN' &&
-        current.role !== 'SUPER_ADMIN'
-      ) {
+      if (!isAdminAccount(current)) {
         clearSession();
         throw new Error('Akaun ini bukan akaun pentadbir.');
       }
@@ -92,7 +106,11 @@ export default function AdminApp() {
   }
 
   if (checkingSession) {
-    return <div className="admin-state">Memeriksa sesi pentadbir...</div>;
+    return (
+      <div className="admin-state">
+        Memeriksa sesi pentadbir...
+      </div>
+    );
   }
 
   if (!account) {
