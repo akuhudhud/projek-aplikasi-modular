@@ -9,6 +9,8 @@ import type {
   RunnerApplication
 } from '../types/admin';
 
+import type { AdminDashboard } from '../features/dashboard/dashboardTypes';
+
 const TOKEN_KEY = 'super_runner_admin_session';
 
 export const adminApi = axios.create({
@@ -41,10 +43,7 @@ export function hasSession(): boolean {
 }
 
 export function isUnauthorizedError(error: unknown): boolean {
-  return (
-    axios.isAxiosError(error) &&
-    error.response?.status === 401
-  );
+  return axios.isAxiosError(error) && error.response?.status === 401;
 }
 
 export function getApiError(error: unknown): string {
@@ -78,13 +77,13 @@ export async function login(
     password
   });
 
-  const { session } = response.data.data;
+  const token = response.data.data.session?.token;
 
-  if (!session?.token) {
+  if (!token) {
     throw new Error('Token sesi tidak diterima daripada server.');
   }
 
-  saveSession(session.token);
+  saveSession(token);
 
   try {
     return await getCurrentAdmin();
@@ -118,9 +117,7 @@ export async function getAccounts(): Promise<AdminAccount[]> {
   return response.data.data.accounts;
 }
 
-export async function getRunnerApplications(): Promise<
-  RunnerApplication[]
-> {
+export async function getRunnerApplications(): Promise<RunnerApplication[]> {
   const response = await adminApi.get<
     ApiResponse<{ applications: RunnerApplication[] }>
   >('/admin/runner-applications');
@@ -145,4 +142,12 @@ export async function getAuditLogs(): Promise<AuditLog[]> {
   >('/admin/audit-logs');
 
   return response.data.data.audit_logs;
+}
+
+export async function getAdminDashboard(): Promise<AdminDashboard> {
+  const response = await adminApi.get<ApiResponse<AdminDashboard>>(
+    '/admin/dashboard'
+  );
+
+  return response.data.data;
 }
