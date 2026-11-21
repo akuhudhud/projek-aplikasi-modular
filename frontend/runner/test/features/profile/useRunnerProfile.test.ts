@@ -278,13 +278,13 @@ describe('useRunnerProfile', () => {
         );
     });
 
-    it('shows the API error message when saving fails', async () => {
+    it('shows a safe generic message when saving fails', async () => {
         mockGetProfile.mockResolvedValue(null);
 
         mockSaveProfile.mockRejectedValue({
             response: {
                 data: {
-                    message: 'Nama pautan profil telah digunakan.',
+                    message: 'Internal database exception: SQLSTATE...',
                 },
             },
         });
@@ -304,8 +304,9 @@ describe('useRunnerProfile', () => {
         });
 
         expect(result.current.error).toBe(
-            'Nama pautan profil telah digunakan.',
+            'Profil tidak berjaya disimpan. Semak maklumat dan cuba semula.',
         );
+        expect(result.current.error).not.toContain('SQLSTATE');
         expect(result.current.saving).toBe(false);
     });
 
