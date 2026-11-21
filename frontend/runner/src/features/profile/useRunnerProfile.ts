@@ -60,24 +60,8 @@ function createEmptyProfile(
     };
 }
 
-function getSaveErrorMessage(saveError: unknown): string {
-    if (
-        saveError
-        && typeof saveError === 'object'
-        && 'response' in saveError
-        && saveError.response
-        && typeof saveError.response === 'object'
-        && 'data' in saveError.response
-        && saveError.response.data
-        && typeof saveError.response.data === 'object'
-        && 'message' in saveError.response.data
-        && typeof saveError.response.data.message === 'string'
-    ) {
-        return saveError.response.data.message;
-    }
-
-    return 'Profil tidak berjaya disimpan. Semak maklumat dan cuba semula.';
-}
+const SAVE_PROFILE_ERROR =
+    'Profil tidak berjaya disimpan. Semak maklumat dan cuba semula.';
 
 export function useRunnerProfile(
     account: RunnerAccount,
@@ -101,8 +85,6 @@ export function useRunnerProfile(
     const [servicesText, setServicesText] = useState('');
     const [isPublished, setIsPublished] = useState(false);
 
-    // Prevent old profile and analytics responses from replacing
-    // data belonging to a newer load or account context.
     const profileRequestId = useRef(0);
     const saveRequestId = useRef(0);
 
@@ -259,12 +241,13 @@ export function useRunnerProfile(
                     profile_views: saved.views_count,
                 }));
             }
-        } catch (saveError: unknown) {
+        } catch {
             if (requestId !== saveRequestId.current) {
                 return;
             }
 
-            setError(getSaveErrorMessage(saveError));
+            // Do not expose raw server messages or internal details.
+            setError(SAVE_PROFILE_ERROR);
         } finally {
             if (requestId === saveRequestId.current) {
                 setSaving(false);
