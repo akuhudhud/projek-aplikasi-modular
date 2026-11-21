@@ -1,341 +1,609 @@
 
 import {
-    useCallback,
-    useEffect,
-    useRef,
-    useState,
-} from 'react';
+    act,
+    renderHook,
+    waitFor,
+} from '@testing-library/react';
 
 import {
-    runnerApi,
-    type RunnerPagination,
-    type RunnerMarketplaceRequest,
-    type RunnerMarketplaceRequestDetail,
-    type RunnerQuotation,
-} from '../../api';
+    beforeEach,
+    describe,
+    expect,
+    it,
+    vi,
+} from 'vitest';
 
-import { getLatestQuotation } from '../../utils/runnerFormatters';
+import type {
+    RunnerMarketplaceRequest,
+    RunnerMarketplaceRequestDetail,
+} from '../../../src/api';
 
-const EMPTY_PAGINATION: RunnerPagination = {
+const {
+    mockGetRequest,
+    mockGetAvailableRequests,
+    mockSubmitQuotation,
+} = vi.hoisted(() => ({
+    mockGetRequest: vi.fn(),
+    mockGetAvailableRequests: vi.fn(),
+    mockSubmitQuotation: vi.fn(),
+}));
+
+vi.mock('../../../src/api', () => ({
+    runnerApi: {
+        getRequest: mockGetRequest,
+        getAvailableRequests: mockGetAvailableRequests,
+        submitQuotation: mockSubmitQuotation,
+    },
+}));
+
+import {
+    useRunnerMarketplace,
+} from '../../../src/features/marketplace/useRunnerMarketplace';
+
+const mockRequest: RunnerMarketplaceRequestDetail = {
+    request_id: 'request-12345678',
+    source_type: 'CUSTOMER',
+    task_class: 'NON_DELIVERY',
+    description: 'Urusan penghantaran dokumen.',
+    pickup_location_snapshot: null,
+    delivery_location_snapshot: null,
+    task_location_snapshot: {
+        address: 'Tuaran, Sabah',
+    },
+    status: 'OPEN',
+    expires_at: '2026-11-21T10:00:00Z',
+    created_at: '2026-11-20T10:00:00Z',
+    my_quotations: [],
+};
+
+const secondMockRequest: RunnerMarketplaceRequestDetail = {
+    ...mockRequest,
+    request_id: 'request-87654321',
+    description: 'Permintaan kedua.',
+};
+
+const mockQuotation = {
+    quotation_id: 'quotation-12345678',
+    request_id: 'request-12345678',
+    runner_account_id: 10,
+    amount: '15.00',
+    currency: 'MYR',
+    message: 'Penghantaran dokumen.',
+    status: 'SUBMITTED',
+    created_at: '2026-11-20T11:00:00Z',
+};
+
+const mockPagination = {
     current_page: 1,
     per_page: 25,
     total: 0,
     last_page: 1,
 };
 
-interface UseRunnerMarketplaceResult {
-    requests: RunnerMarketplaceRequest[];
-    requestsPagination: RunnerPagination;
-    requestsLoading: boolean;
-    requestsError: string;
-    quotationRequestId: string | null;
-    quotationAmount: string;
-    quotationMessage: string;
-    quotationLoading: boolean;
-    quotationDetailLoading: string;
-    existingQuotation: RunnerQuotation | null;
-    notificationRequest: RunnerMarketplaceRequestDetail | null;
-    notificationRequestLoading: boolean;
-    notificationRequestError: string;
-    loadRequests: (page?: number) => Promise<void>;
-    openQuotation: (requestId: string) => Promise<void>;
-    closeQuotation: () => void;
-    openNotificationRequest: (requestId: string) => Promise<void>;
-    closeNotificationRequest: () => void;
-    setQuotationAmount: (value: string) => void;
-    setQuotationMessage: (value: string) => void;
-    submitQuotation: () => Promise<boolean>;
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason?: unknown) => void;
+
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+
+    return { promise, resolve, reject };
 }
 
-export function useRunnerMarketplace(): UseRunnerMarketplaceResult {
-    const [requests, setRequests] =
-        useState<RunnerMarketplaceRequest[]>([]);
-
-    const [requestsPagination, setRequestsPagination] =
-        useState<RunnerPagination>(EMPTY_PAGINATION);
-
-    const [requestsLoading, setRequestsLoading] = useState(false);
-    const [requestsError, setRequestsError] = useState('');
-
-    const [quotationRequestId, setQuotationRequestId] =
-        useState<string | null>(null);
-
-    const [quotationAmount, setQuotationAmount] = useState('');
-    const [quotationMessage, setQuotationMessage] = useState('');
-
-    const [quotationLoading, setQuotationLoading] = useState(false);
-    const [quotationDetailLoading, setQuotationDetailLoading] =
-        useState('');
-
-    const [existingQuotation, setExistingQuotation] =
-        useState<RunnerQuotation | null>(null);
-
-    const [notificationRequest, setNotificationRequest] =
-        useState<RunnerMarketplaceRequestDetail | null>(null);
-
-    const [notificationRequestLoading, setNotificationRequestLoading] =
-        useState(false);
-
-    const [notificationRequestError, setNotificationRequestError] =
-        useState('');
-
-    // Independent request identities prevent stale responses
-    // from overwriting newer list or detail state.
-    const requestsRequestId = useRef(0);
-    const quotationDetailRequestId = useRef(0);
-    const quotationSubmitRequestId = useRef(0);
-    const notificationDetailRequestId = useRef(0);
-
-    const loadRequests = useCallback(async (
-        page = requestsPagination.current_page,
-    ): Promise<void> => {
-        const requestId = ++requestsRequestId.current;
-
-        setRequestsLoading(true);
-        setRequestsError('');
-
-        try {
-            const result = await runnerApi.getAvailableRequests(page);
-
-            if (requestId !== requestsRequestId.current) {
-                return;
-            }
-
-            setRequests(result.requests);
-            setRequestsPagination(result.pagination);
-        } catch {
-            if (requestId !== requestsRequestId.current) {
-                return;
-            }
-
-            setRequestsError(
-                'Tidak berjaya mendapatkan Open Request. Sila cuba semula.',
-            );
-        } finally {
-            if (requestId === requestsRequestId.current) {
-                setRequestsLoading(false);
-            }
-        }
-    }, [requestsPagination.current_page]);
-
-    const closeQuotation = useCallback(() => {
-        // Invalidate both detail loading and any pending submission UI.
-        quotationDetailRequestId.current += 1;
-        quotationSubmitRequestId.current += 1;
-
-        setQuotationRequestId(null);
-        setQuotationDetailLoading('');
-        setQuotationLoading(false);
-        setExistingQuotation(null);
-        setQuotationAmount('');
-        setQuotationMessage('');
-    }, []);
-
-    const openQuotation = useCallback(async (requestId: string) => {
-        if (quotationLoading) {
-            return;
-        }
-
-        if (quotationRequestId === requestId) {
-            closeQuotation();
-            return;
-        }
-
-        const requestSequence = ++quotationDetailRequestId.current;
-
-        setQuotationDetailLoading(requestId);
-        setQuotationRequestId(null);
-        setExistingQuotation(null);
-        setQuotationAmount('');
-        setQuotationMessage('');
-        setRequestsError('');
-
-        try {
-            const detail = await runnerApi.getRequest(requestId);
-
-            if (
-                requestSequence !== quotationDetailRequestId.current
-            ) {
-                return;
-            }
-
-            setExistingQuotation(
-                getLatestQuotation(detail.my_quotations ?? []),
-            );
-
-            setQuotationRequestId(requestId);
-        } catch {
-            if (
-                requestSequence !== quotationDetailRequestId.current
-            ) {
-                return;
-            }
-
-            setQuotationRequestId(null);
-            setExistingQuotation(null);
-
-            setRequestsError(
-                'Tidak berjaya mendapatkan status sebut harga. Sila cuba semula.',
-            );
-        } finally {
-            if (
-                requestSequence === quotationDetailRequestId.current
-            ) {
-                setQuotationDetailLoading('');
-            }
-        }
-    }, [
-        quotationLoading,
-        quotationRequestId,
-        closeQuotation,
-    ]);
-
-    const openNotificationRequest = useCallback(async (
-        requestId: string,
-    ) => {
-        const requestSequence = ++notificationDetailRequestId.current;
-
-        setNotificationRequestLoading(true);
-        setNotificationRequestError('');
-        setNotificationRequest(null);
-
-        closeQuotation();
-
-        try {
-            const detail = await runnerApi.getRequest(requestId);
-
-            if (
-                requestSequence !== notificationDetailRequestId.current
-            ) {
-                return;
-            }
-
-            setNotificationRequest(detail);
-        } catch {
-            if (
-                requestSequence !== notificationDetailRequestId.current
-            ) {
-                return;
-            }
-
-            setNotificationRequestError(
-                'Permintaan ini tidak dapat dibuka. Ia mungkin telah dibatalkan, tamat tempoh atau tidak lagi boleh diakses.',
-            );
-        } finally {
-            if (
-                requestSequence === notificationDetailRequestId.current
-            ) {
-                setNotificationRequestLoading(false);
-            }
-        }
-    }, [closeQuotation]);
-
-    const closeNotificationRequest = useCallback(() => {
-        notificationDetailRequestId.current += 1;
-
-        setNotificationRequest(null);
-        setNotificationRequestLoading(false);
-        setNotificationRequestError('');
-    }, []);
-
-    const submitQuotation = useCallback(async (): Promise<boolean> => {
-        if (!quotationRequestId || quotationLoading) {
-            return false;
-        }
-
-        const amount = Number(quotationAmount);
-
-        if (!Number.isFinite(amount) || amount <= 0) {
-            setRequestsError('Masukkan jumlah sebut harga yang sah.');
-            return false;
-        }
-
-        const submittedRequestId = quotationRequestId;
-        const requestSequence = ++quotationSubmitRequestId.current;
-
-        setQuotationLoading(true);
-        setRequestsError('');
-
-        try {
-            const quotation = await runnerApi.submitQuotation(
-                submittedRequestId,
-                {
-                    amount,
-                    currency: 'MYR',
-                    message: quotationMessage.trim() || null,
-                },
-            );
-
-            // Only update the quotation panel if it is still
-            // the same active submission context.
-            if (requestSequence === quotationSubmitRequestId.current) {
-                setExistingQuotation(quotation);
-                setQuotationAmount('');
-                setQuotationMessage('');
-                setQuotationRequestId(submittedRequestId);
-            }
-
-            // The server submission succeeded even if the user
-            // closed the panel while the request was in progress.
-            try {
-                await loadRequests();
-            } catch {
-                // loadRequests handles its own error state.
-            }
-
-            return true;
-        } catch {
-            if (requestSequence === quotationSubmitRequestId.current) {
-                setRequestsError(
-                    'Sebut harga tidak berjaya dihantar. Permintaan mungkin telah tamat tempoh atau anda sudah mempunyai sebut harga aktif.',
-                );
-            }
-
-            return false;
-        } finally {
-            if (requestSequence === quotationSubmitRequestId.current) {
-                setQuotationLoading(false);
-            }
-        }
-    }, [
-        quotationRequestId,
-        quotationLoading,
-        quotationAmount,
-        quotationMessage,
-        loadRequests,
-    ]);
-
-    // Invalidate all outstanding requests when the hook unmounts.
-    useEffect(() => {
-        return () => {
-            requestsRequestId.current += 1;
-            quotationDetailRequestId.current += 1;
-            quotationSubmitRequestId.current += 1;
-            notificationDetailRequestId.current += 1;
-        };
-    }, []);
-
+function createRequest(
+    requestId: string,
+    description: string,
+): RunnerMarketplaceRequest {
     return {
-        requests,
-        requestsPagination,
-        requestsLoading,
-        requestsError,
-        quotationRequestId,
-        quotationAmount,
-        quotationMessage,
-        quotationLoading,
-        quotationDetailLoading,
-        existingQuotation,
-        notificationRequest,
-        notificationRequestLoading,
-        notificationRequestError,
-        loadRequests,
-        openQuotation,
-        closeQuotation,
-        openNotificationRequest,
-        closeNotificationRequest,
-        setQuotationAmount,
-        setQuotationMessage,
-        submitQuotation,
+        request_id: requestId,
+        source_type: 'CUSTOMER',
+        task_class: 'NON_DELIVERY',
+        description,
+        pickup_location_snapshot: null,
+        delivery_location_snapshot: null,
+        task_location_snapshot: {
+            address: 'Tuaran, Sabah',
+        },
+        status: 'OPEN',
+        expires_at: '2026-11-21T10:00:00Z',
+        created_at: '2026-11-20T10:00:00Z',
+        my_quotations: [],
     };
 }
+
+describe('useRunnerMarketplace notification request', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('loads request details successfully', async () => {
+        mockGetRequest.mockResolvedValueOnce(mockRequest);
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        await act(async () => {
+            await result.current.openNotificationRequest(
+                'request-12345678',
+            );
+        });
+
+        expect(mockGetRequest).toHaveBeenCalledWith(
+            'request-12345678',
+        );
+        expect(result.current.notificationRequest).toEqual(mockRequest);
+        expect(result.current.notificationRequestError).toBe('');
+        expect(result.current.notificationRequestLoading).toBe(false);
+    });
+
+    it.each([
+        {
+            scenario: 'request telah dibatalkan',
+            error: new Error('Request cancelled'),
+        },
+        {
+            scenario: 'request telah tamat tempoh',
+            error: new Error('Request expired'),
+        },
+        {
+            scenario: 'Runner tidak lagi mempunyai akses',
+            error: new Error('Request unavailable'),
+        },
+    ])(
+        'shows an error when $scenario',
+        async ({ error }) => {
+            mockGetRequest.mockRejectedValueOnce(error);
+
+            const { result } = renderHook(() =>
+                useRunnerMarketplace(),
+            );
+
+            await act(async () => {
+                await result.current.openNotificationRequest(
+                    'request-12345678',
+                );
+            });
+
+            expect(result.current.notificationRequest).toBeNull();
+            expect(result.current.notificationRequestError).toContain(
+                'Permintaan ini tidak dapat dibuka.',
+            );
+            expect(result.current.notificationRequestLoading).toBe(false);
+        },
+    );
+
+    it('clears the request error when the notification request is closed', async () => {
+        mockGetRequest.mockRejectedValueOnce(
+            new Error('Request unavailable'),
+        );
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        await act(async () => {
+            await result.current.openNotificationRequest(
+                'request-12345678',
+            );
+        });
+
+        expect(result.current.notificationRequestError).not.toBe('');
+
+        act(() => {
+            result.current.closeNotificationRequest();
+        });
+
+        expect(result.current.notificationRequest).toBeNull();
+        expect(result.current.notificationRequestError).toBe('');
+    });
+
+    it('does not reopen a notification request after it is closed while loading', async () => {
+        const pendingRequest = deferred<RunnerMarketplaceRequestDetail>();
+
+        mockGetRequest.mockReturnValueOnce(pendingRequest.promise);
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        act(() => {
+            void result.current.openNotificationRequest(
+                'request-12345678',
+            );
+        });
+
+        act(() => {
+            result.current.closeNotificationRequest();
+        });
+
+        await act(async () => {
+            pendingRequest.resolve(mockRequest);
+            await pendingRequest.promise;
+        });
+
+        expect(result.current.notificationRequest).toBeNull();
+        expect(result.current.notificationRequestLoading).toBe(false);
+    });
+
+    it('keeps the latest notification request when responses finish out of order', async () => {
+        const firstRequest = deferred<RunnerMarketplaceRequestDetail>();
+        const secondRequest = deferred<RunnerMarketplaceRequestDetail>();
+
+        mockGetRequest
+            .mockReturnValueOnce(firstRequest.promise)
+            .mockReturnValueOnce(secondRequest.promise);
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        act(() => {
+            void result.current.openNotificationRequest('request-12345678');
+        });
+
+        act(() => {
+            void result.current.openNotificationRequest('request-87654321');
+        });
+
+        await act(async () => {
+            secondRequest.resolve(secondMockRequest);
+            await secondRequest.promise;
+        });
+
+        await waitFor(() => {
+            expect(result.current.notificationRequest).toEqual(
+                secondMockRequest,
+            );
+        });
+
+        await act(async () => {
+            firstRequest.resolve(mockRequest);
+            await firstRequest.promise;
+        });
+
+        expect(result.current.notificationRequest).toEqual(secondMockRequest);
+        expect(result.current.notificationRequestLoading).toBe(false);
+    });
+});
+
+describe('useRunnerMarketplace quotation request lifecycle', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it.each([
+        {
+            scenario: 'request telah dibatalkan sebelum borang dibuka',
+            error: new Error('Request cancelled'),
+        },
+        {
+            scenario: 'request telah tamat tempoh sebelum borang dibuka',
+            error: new Error('Request expired'),
+        },
+    ])(
+        'does not open quotation form when $scenario',
+        async ({ error }) => {
+            mockGetRequest.mockRejectedValueOnce(error);
+
+            const { result } = renderHook(() =>
+                useRunnerMarketplace(),
+            );
+
+            await act(async () => {
+                await result.current.openQuotation('request-12345678');
+            });
+
+            expect(result.current.quotationRequestId).toBeNull();
+            expect(result.current.existingQuotation).toBeNull();
+            expect(result.current.quotationDetailLoading).toBe('');
+            expect(result.current.requestsError).toContain(
+                'Tidak berjaya mendapatkan status sebut harga.',
+            );
+        },
+    );
+
+    it.each([
+        {
+            scenario: 'request dibatalkan ketika Runner mengisi sebut harga',
+            error: new Error('Request cancelled'),
+        },
+        {
+            scenario: 'request tamat tempoh ketika Runner mengisi sebut harga',
+            error: new Error('Request expired'),
+        },
+    ])(
+        'rejects quotation submission when $scenario',
+        async ({ error }) => {
+            mockGetRequest.mockResolvedValueOnce(mockRequest);
+            mockSubmitQuotation.mockRejectedValueOnce(error);
+
+            const { result } = renderHook(() =>
+                useRunnerMarketplace(),
+            );
+
+            await act(async () => {
+                await result.current.openQuotation('request-12345678');
+            });
+
+            act(() => {
+                result.current.setQuotationAmount('15.00');
+                result.current.setQuotationMessage('Penghantaran dokumen.');
+            });
+
+            let submissionResult = true;
+
+            await act(async () => {
+                submissionResult = await result.current.submitQuotation();
+            });
+
+            expect(submissionResult).toBe(false);
+            expect(result.current.requestsError).toContain(
+                'Sebut harga tidak berjaya dihantar.',
+            );
+            expect(result.current.quotationLoading).toBe(false);
+        },
+    );
+
+    it('keeps successful quotation submission successful without another detail request', async () => {
+        mockGetRequest.mockResolvedValueOnce(mockRequest);
+        mockSubmitQuotation.mockResolvedValueOnce(mockQuotation);
+        mockGetAvailableRequests.mockResolvedValueOnce({
+            requests: [],
+            pagination: mockPagination,
+        });
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        await act(async () => {
+            await result.current.openQuotation('request-12345678');
+        });
+
+        act(() => {
+            result.current.setQuotationAmount('15.00');
+            result.current.setQuotationMessage('Penghantaran dokumen.');
+        });
+
+        let submissionResult = false;
+
+        await act(async () => {
+            submissionResult = await result.current.submitQuotation();
+        });
+
+        expect(submissionResult).toBe(true);
+        expect(mockGetRequest).toHaveBeenCalledTimes(1);
+        expect(result.current.existingQuotation).toEqual(mockQuotation);
+        expect(result.current.quotationRequestId).toBe('request-12345678');
+        expect(result.current.quotationAmount).toBe('');
+        expect(result.current.quotationMessage).toBe('');
+        expect(result.current.quotationLoading).toBe(false);
+    });
+
+    it('does not report submission failure when refreshing request list fails', async () => {
+        mockGetRequest.mockResolvedValueOnce(mockRequest);
+        mockSubmitQuotation.mockResolvedValueOnce(mockQuotation);
+        mockGetAvailableRequests.mockRejectedValueOnce(
+            new Error('Network error'),
+        );
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        await act(async () => {
+            await result.current.openQuotation('request-12345678');
+        });
+
+        act(() => {
+            result.current.setQuotationAmount('15.00');
+        });
+
+        let submissionResult = false;
+
+        await act(async () => {
+            submissionResult = await result.current.submitQuotation();
+        });
+
+        expect(submissionResult).toBe(true);
+        expect(result.current.existingQuotation).toEqual(mockQuotation);
+        expect(result.current.requestsError).toContain(
+            'Tidak berjaya mendapatkan Open Request.',
+        );
+    });
+
+    it('does not update quotation UI after the form is closed during submission', async () => {
+        mockGetRequest.mockResolvedValueOnce(mockRequest);
+
+        const pendingSubmission = deferred<typeof mockQuotation>();
+        mockSubmitQuotation.mockReturnValueOnce(pendingSubmission.promise);
+        mockGetAvailableRequests.mockResolvedValueOnce({
+            requests: [],
+            pagination: mockPagination,
+        });
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        await act(async () => {
+            await result.current.openQuotation('request-12345678');
+        });
+
+        act(() => {
+            result.current.setQuotationAmount('15.00');
+        });
+
+        let submissionResult = false;
+
+        act(() => {
+            void result.current.submitQuotation().then((value) => {
+                submissionResult = value;
+            });
+        });
+
+        expect(result.current.quotationLoading).toBe(true);
+
+        act(() => {
+            result.current.closeQuotation();
+        });
+
+        expect(result.current.quotationRequestId).toBeNull();
+        expect(result.current.quotationLoading).toBe(false);
+
+        await act(async () => {
+            pendingSubmission.resolve(mockQuotation);
+            await pendingSubmission.promise;
+        });
+
+        await waitFor(() => {
+            expect(submissionResult).toBe(true);
+        });
+
+        expect(result.current.quotationRequestId).toBeNull();
+        expect(result.current.existingQuotation).toBeNull();
+        expect(result.current.quotationAmount).toBe('');
+        expect(result.current.quotationLoading).toBe(false);
+    });
+
+    it('does not open an old quotation detail after a newer request is selected', async () => {
+        const firstRequest = deferred<RunnerMarketplaceRequestDetail>();
+        const secondRequest = deferred<RunnerMarketplaceRequestDetail>();
+
+        mockGetRequest
+            .mockReturnValueOnce(firstRequest.promise)
+            .mockReturnValueOnce(secondRequest.promise);
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        act(() => {
+            void result.current.openQuotation('request-12345678');
+        });
+
+        act(() => {
+            void result.current.openQuotation('request-87654321');
+        });
+
+        await act(async () => {
+            secondRequest.resolve(secondMockRequest);
+            await secondRequest.promise;
+        });
+
+        await waitFor(() => {
+            expect(result.current.quotationRequestId).toBe(
+                'request-87654321',
+            );
+        });
+
+        await act(async () => {
+            firstRequest.resolve(mockRequest);
+            await firstRequest.promise;
+        });
+
+        expect(result.current.quotationRequestId).toBe('request-87654321');
+        expect(result.current.quotationDetailLoading).toBe('');
+    });
+
+    it('does not reopen quotation details after closing while loading', async () => {
+        const pendingRequest = deferred<RunnerMarketplaceRequestDetail>();
+
+        mockGetRequest.mockReturnValueOnce(pendingRequest.promise);
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        act(() => {
+            void result.current.openQuotation('request-12345678');
+        });
+
+        act(() => {
+            result.current.closeQuotation();
+        });
+
+        await act(async () => {
+            pendingRequest.resolve(mockRequest);
+            await pendingRequest.promise;
+        });
+
+        expect(result.current.quotationRequestId).toBeNull();
+        expect(result.current.existingQuotation).toBeNull();
+    });
+});
+
+describe('useRunnerMarketplace request list race conditions', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('keeps the latest Open Request list when responses finish out of order', async () => {
+        const firstRequest = deferred<{
+            requests: RunnerMarketplaceRequest[];
+            pagination: typeof mockPagination;
+        }>();
+
+        const secondRequest = deferred<{
+            requests: RunnerMarketplaceRequest[];
+            pagination: typeof mockPagination;
+        }>();
+
+        mockGetAvailableRequests
+            .mockReturnValueOnce(firstRequest.promise)
+            .mockReturnValueOnce(secondRequest.promise);
+
+        const { result } = renderHook(() =>
+            useRunnerMarketplace(),
+        );
+
+        act(() => {
+            void result.current.loadRequests(2);
+        });
+
+        act(() => {
+            void result.current.loadRequests(3);
+        });
+
+        const latestRequest = createRequest(
+            'request-latest',
+            'Permintaan terkini.',
+        );
+
+        await act(async () => {
+            secondRequest.resolve({
+                requests: [latestRequest],
+                pagination: {
+                    ...mockPagination,
+                    current_page: 3,
+                },
+            });
+            await secondRequest.promise;
+        });
+
+        await waitFor(() => {
+            expect(result.current.requests).toEqual([latestRequest]);
+            expect(result.current.requestsPagination.current_page).toBe(3);
+        });
+
+        await act(async () => {
+            firstRequest.resolve({
+                requests: [
+                    createRequest('request-old', 'Permintaan lama.'),
+                ],
+                pagination: {
+                    ...mockPagination,
+                    current_page: 2,
+                },
+            });
+            await firstRequest.promise;
+        });
+
+        expect(result.current.requests).toEqual([latestRequest]);
+        expect(result.current.requestsPagination.current_page).toBe(3);
+        expect(result.current.requestsLoading).toBe(false);
+    });
+});
