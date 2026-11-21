@@ -1,61 +1,52 @@
 
-const navigationItems = [
-  {
-    label: 'Dashboard',
-    active: true
-  },
-  {
-    label: 'Pengurusan Pengguna',
-    active: false
-  },
-  {
-    label: 'Permohonan Runner',
-    active: false
-  },
-  {
-    label: 'Pengesahan Identiti',
-    active: false
-  },
-  {
-    label: 'Pengesahan Lesen',
-    active: false
-  },
-  {
-    label: 'Log Audit',
-    active: false
-  }
+import type { AdminPage } from '../../types/admin';
+
+interface AdminSidebarProps {
+  activePage: AdminPage;
+  onNavigate: (page: AdminPage) => void;
+}
+
+const navigationItems: { id: AdminPage; label: string }[] = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'accounts', label: 'Pengurusan Pengguna' },
+  { id: 'runner-applications', label: 'Permohonan Runner' },
+  { id: 'identity-verifications', label: 'Pengesahan Identiti' },
+  { id: 'license-verifications', label: 'Pengesahan Lesen' },
+  { id: 'audit-logs', label: 'Log Audit' }
 ];
 
-export default function AdminSidebar() {
+export default function AdminSidebar({
+  activePage,
+  onNavigate
+}: AdminSidebarProps) {
   return (
     <aside className="admin-sidebar">
       <div className="admin-sidebar__brand">
         <div className="admin-sidebar__logo">SR</div>
-
         <div>
           <strong>SUPER RUNNER</strong>
           <span>ADMINISTRATION</span>
         </div>
       </div>
 
-      <div className="admin-sidebar__section-label">
-        MENU UTAMA
-      </div>
+      <div className="admin-sidebar__section-label">MENU UTAMA</div>
 
       <nav aria-label="Navigasi utama">
         {navigationItems.map((item) => (
-          <div
-            key={item.label}
+          <button
+            type="button"
+            key={item.id}
             className={[
               'admin-sidebar__item',
-              item.active
+              activePage === item.id
                 ? 'admin-sidebar__item--active'
                 : ''
             ].join(' ')}
-            aria-current={item.active ? 'page' : undefined}
+            aria-current={activePage === item.id ? 'page' : undefined}
+            onClick={() => onNavigate(item.id)}
           >
-            <span>{item.label}</span>
-          </div>
+            {item.label}
+          </button>
         ))}
       </nav>
 
