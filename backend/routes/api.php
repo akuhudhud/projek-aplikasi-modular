@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AccountController;
+use App\Http\Controllers\Api\AdminDashboardController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ContactChangeController;
@@ -376,6 +377,11 @@ Route::get('/me/runner-profile/analytics', [
 | Administration
 |--------------------------------------------------------------------------
 */
+
+Route::get('/admin/dashboard', [
+    AdminDashboardController::class,
+    'index',
+])->middleware(AuthenticateSession::class);
 
 Route::get('/admin/accounts', [
     AccountController::class,
