@@ -48,6 +48,10 @@ export function getApiError(error: unknown): string {
     );
   }
 
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
   return 'Ralat tidak dijangka berlaku.';
 }
 
