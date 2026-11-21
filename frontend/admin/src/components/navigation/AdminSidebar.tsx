@@ -1,7 +1,9 @@
 
-import type { AdminPage } from '../../types/admin';
+import type { AdminPage, AdminProfile } from '../../types/admin';
+import { canAccessPage } from '../../app/adminAccess';
 
 interface AdminSidebarProps {
+  account: AdminProfile;
   activePage: AdminPage;
   onNavigate: (page: AdminPage) => void;
 }
@@ -16,9 +18,14 @@ const navigationItems: { id: AdminPage; label: string }[] = [
 ];
 
 export default function AdminSidebar({
+  account,
   activePage,
   onNavigate
 }: AdminSidebarProps) {
+  const accessibleItems = navigationItems.filter((item) =>
+    canAccessPage(account, item.id)
+  );
+
   return (
     <aside className="admin-sidebar">
       <div className="admin-sidebar__brand">
@@ -32,7 +39,7 @@ export default function AdminSidebar({
       <div className="admin-sidebar__section-label">MENU UTAMA</div>
 
       <nav aria-label="Navigasi utama">
-        {navigationItems.map((item) => (
+        {accessibleItems.map((item) => (
           <button
             type="button"
             key={item.id}
