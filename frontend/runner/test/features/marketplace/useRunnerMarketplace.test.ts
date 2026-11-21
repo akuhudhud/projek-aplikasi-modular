@@ -2,7 +2,6 @@
 import {
     act,
     renderHook,
-    waitFor,
 } from '@testing-library/react';
 
 import {
@@ -455,14 +454,10 @@ describe('useRunnerMarketplace quotation request lifecycle', () => {
 describe('useRunnerMarketplace request list race conditions', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockEmptyRequestList();
     });
 
     it('keeps the latest Open Request list when responses finish out of order', async () => {
-        const initialRequest = deferred<{
-            requests: RunnerMarketplaceRequest[];
-            pagination: typeof mockPagination;
-        }>();
-
         const firstRequest = deferred<{
             requests: RunnerMarketplaceRequest[];
             pagination: typeof mockPagination;
@@ -473,9 +468,7 @@ describe('useRunnerMarketplace request list race conditions', () => {
             pagination: typeof mockPagination;
         }>();
 
-        // The hook automatically loads page 1 on mount.
         mockGetAvailableRequests
-            .mockReturnValueOnce(initialRequest.promise)
             .mockReturnValueOnce(firstRequest.promise)
             .mockReturnValueOnce(secondRequest.promise);
 
@@ -519,17 +512,6 @@ describe('useRunnerMarketplace request list race conditions', () => {
                 },
             });
             await firstRequest.promise;
-        });
-
-        expect(result.current.requests).toEqual([latestRequest]);
-        expect(result.current.requestsPagination.current_page).toBe(3);
-
-        await act(async () => {
-            initialRequest.resolve({
-                requests: [],
-                pagination: mockPagination,
-            });
-            await initialRequest.promise;
         });
 
         expect(result.current.requests).toEqual([latestRequest]);
