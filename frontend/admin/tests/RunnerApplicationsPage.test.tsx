@@ -1,3 +1,4 @@
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   cleanup,
@@ -136,7 +137,9 @@ describe('RunnerApplicationsPage', () => {
     expect(await screen.findByText('Runner Ujian')).toBeTruthy();
     expect(screen.getByText('60123456789')).toBeTruthy();
     expect(screen.getByText('CDL')).toBeTruthy();
-    expect(screen.getByText('PENDING')).toBeTruthy();
+
+    expect(screen.getAllByText('PENDING')).toHaveLength(2);
+
     expect(screen.getByText('Tarikh Permohonan')).toBeTruthy();
   });
 
@@ -158,7 +161,7 @@ describe('RunnerApplicationsPage', () => {
       .mockResolvedValue([application]);
 
     const decide = vi.spyOn(adminApi, 'decideRunnerApplication')
-      .mockResolvedValue();
+      .mockResolvedValue(undefined);
 
     render(<RunnerApplicationsPage account={adminAccount} />);
     await screen.findByText('Runner Ujian');
@@ -184,7 +187,7 @@ describe('RunnerApplicationsPage', () => {
       .mockResolvedValue([application]);
 
     const decide = vi.spyOn(adminApi, 'decideRunnerApplication')
-      .mockResolvedValue();
+      .mockResolvedValue(undefined);
 
     render(<RunnerApplicationsPage account={adminAccount} />);
     await screen.findByText('Runner Ujian');
@@ -210,7 +213,7 @@ describe('RunnerApplicationsPage', () => {
       .mockResolvedValue([application]);
 
     const decide = vi.spyOn(adminApi, 'decideRunnerApplication')
-      .mockResolvedValue();
+      .mockResolvedValue(undefined);
 
     render(<RunnerApplicationsPage account={adminAccount} />);
     await screen.findByText('Runner Ujian');
@@ -335,7 +338,7 @@ describe('RunnerApplicationsPage', () => {
       .mockResolvedValue(mockRunnerDirectory());
 
     const changeStatus = vi.spyOn(adminApi, 'changeRunnerStatus')
-      .mockResolvedValue();
+      .mockResolvedValue(undefined);
 
     render(<RunnerApplicationsPage account={adminAccount} />);
 
