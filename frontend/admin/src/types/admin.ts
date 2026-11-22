@@ -41,6 +41,32 @@ export interface AdminAccountDetail extends AdminAccount {
   identity_reviewed_at: string | null;
 }
 
+export interface AdminPermission {
+  key: string;
+  label: string;
+}
+
+export interface SuperAdminPermissionResult {
+  account: {
+    id: string;
+    profile_name: string;
+    job_title: string | null;
+    role: string;
+  };
+  catalog: AdminPermission[];
+  permissions: string[];
+}
+
+export interface CreateSuperAdminPayload {
+  profile_name: string;
+  job_title: string;
+  phone: string;
+  email: string;
+  password: string;
+  password_confirmation: string;
+  reason: string;
+}
+
 export interface RunnerLicenseApplication {
   id: string;
   license_type: string | null;
