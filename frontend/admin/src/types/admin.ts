@@ -4,7 +4,6 @@ export type AdminPage =
   | 'accounts'
   | 'runner-applications'
   | 'identity-verifications'
-  | 'license-verifications'
   | 'audit-logs';
 
 export interface AdminAccount {
