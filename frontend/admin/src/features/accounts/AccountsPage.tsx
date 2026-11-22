@@ -1,5 +1,5 @@
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 
 import {
@@ -66,6 +66,9 @@ export default function AccountsPage({ account }: AccountsPageProps) {
 
   const [actionReason, setActionReason] = useState('');
 
+  const accountListRequestId = useRef(0);
+  const accountDetailRequestId = useRef(0);
+
   const isRoot = account.role === 'ROOT_SUPER_ADMIN';
 
   const hasPermission = (permission: string): boolean => {
@@ -73,6 +76,8 @@ export default function AccountsPage({ account }: AccountsPageProps) {
   };
 
   const loadAccounts = useCallback(async (page = 1) => {
+    const requestId = ++accountListRequestId.current;
+
     setLoading(true);
     setError('');
 
@@ -85,12 +90,18 @@ export default function AccountsPage({ account }: AccountsPageProps) {
         per_page: 15
       });
 
+      if (requestId !== accountListRequestId.current) return;
+
       setAccounts(result.accounts);
       setPagination(result.pagination);
     } catch (err) {
-      setError(getApiError(err));
+      if (requestId === accountListRequestId.current) {
+        setError(getApiError(err));
+      }
     } finally {
-      setLoading(false);
+      if (requestId === accountListRequestId.current) {
+        setLoading(false);
+      }
     }
   }, [search, status, role]);
 
@@ -99,6 +110,8 @@ export default function AccountsPage({ account }: AccountsPageProps) {
   }, [loadAccounts]);
 
   async function openAccount(accountId: string) {
+    const requestId = ++accountDetailRequestId.current;
+
     setDetailLoading(true);
     setSelectedAccount(null);
     setPendingAction(null);
@@ -108,12 +121,29 @@ export default function AccountsPage({ account }: AccountsPageProps) {
 
     try {
       const detail = await getAccountDetail(accountId);
+
+      if (requestId !== accountDetailRequestId.current) return;
+
       setSelectedAccount(detail);
     } catch (err) {
-      setError(getApiError(err));
+      if (requestId === accountDetailRequestId.current) {
+        setError(getApiError(err));
+      }
     } finally {
-      setDetailLoading(false);
+      if (requestId === accountDetailRequestId.current) {
+        setDetailLoading(false);
+      }
     }
+  }
+
+  function closeAccountDetail() {
+    if (actionLoading) return;
+
+    accountDetailRequestId.current += 1;
+    setSelectedAccount(null);
+    setPendingAction(null);
+    setActionReason('');
+    setDetailLoading(false);
   }
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
@@ -185,7 +215,6 @@ export default function AccountsPage({ account }: AccountsPageProps) {
 
     const actions: {
       action: AccountAction;
-      permission: string;
       className?: string;
     }[] = [];
 
@@ -195,7 +224,6 @@ export default function AccountsPage({ account }: AccountsPageProps) {
     ) {
       actions.push({
         action: 'suspend',
-        permission: 'accounts.suspend',
         className: 'admin-button--danger'
       });
     }
@@ -204,20 +232,14 @@ export default function AccountsPage({ account }: AccountsPageProps) {
       selectedAccount.status === 'SUSPENDED' &&
       hasPermission('accounts.unsuspend')
     ) {
-      actions.push({
-        action: 'unsuspend',
-        permission: 'accounts.unsuspend'
-      });
+      actions.push({ action: 'unsuspend' });
     }
 
     if (
       selectedAccount.status === 'DEACTIVATED' &&
       hasPermission('accounts.reactivate')
     ) {
-      actions.push({
-        action: 'reactivate',
-        permission: 'accounts.reactivate'
-      });
+      actions.push({ action: 'reactivate' });
     }
 
     if (actions.length === 0) return null;
@@ -326,28 +348,28 @@ export default function AccountsPage({ account }: AccountsPageProps) {
       )}
 
       {detailLoading && (
-        <div className="admin-state">
+        <div className="admin-state" role="status" aria-live="polite">
           Memuatkan butiran akaun...
         </div>
       )}
 
       {selectedAccount && (
-        <section className="account-detail">
+        <section className="account-detail" aria-labelledby="account-detail-title">
           <div className="admin-page__heading">
             <div>
               <span className="dashboard-page__eyebrow">
                 BUTIRAN AKAUN
               </span>
-              <h3>{selectedAccount.profile_name}</h3>
+              <h3 id="account-detail-title">
+                {selectedAccount.profile_name}
+              </h3>
             </div>
 
             <button
               type="button"
               className="admin-button"
-              onClick={() => {
-                setSelectedAccount(null);
-                setPendingAction(null);
-              }}
+              disabled={actionLoading}
+              onClick={closeAccountDetail}
             >
               Tutup
             </button>
@@ -457,7 +479,7 @@ export default function AccountsPage({ account }: AccountsPageProps) {
       )}
 
       {loading ? (
-        <div className="admin-state">
+        <div className="admin-state" role="status" aria-live="polite">
           Memuatkan senarai akaun...
         </div>
       ) : accounts.length === 0 ? (
@@ -468,15 +490,16 @@ export default function AccountsPage({ account }: AccountsPageProps) {
         <>
           <div className="admin-table-wrap">
             <table className="admin-table">
+              <caption>Senarai akaun pengguna</caption>
               <thead>
                 <tr>
-                  <th>Nama Paparan</th>
-                  <th>Nama Disahkan</th>
-                  <th>Telefon</th>
-                  <th>E-mel</th>
-                  <th>Peranan</th>
-                  <th>Status</th>
-                  <th>Tindakan</th>
+                  <th scope="col">Nama Paparan</th>
+                  <th scope="col">Nama Disahkan</th>
+                  <th scope="col">Telefon</th>
+                  <th scope="col">E-mel</th>
+                  <th scope="col">Peranan</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Tindakan</th>
                 </tr>
               </thead>
 
@@ -497,6 +520,7 @@ export default function AccountsPage({ account }: AccountsPageProps) {
                       <button
                         type="button"
                         className="admin-button admin-button--small"
+                        disabled={detailLoading || actionLoading}
                         onClick={() => void openAccount(item.id)}
                       >
                         Lihat
