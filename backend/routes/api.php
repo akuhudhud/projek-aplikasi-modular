@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AccountController;
+use App\Http\Controllers\Api\AdminAccountDirectoryController;
 use App\Http\Controllers\Api\AdminDashboardController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
@@ -382,6 +383,28 @@ Route::get('/admin/dashboard', [
     AdminDashboardController::class,
     'index',
 ])->middleware(AuthenticateSession::class);
+
+/*
+|--------------------------------------------------------------------------
+| Admin Account Directory
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/admin/account-directory', [
+    AdminAccountDirectoryController::class,
+    'index',
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:accounts.view',
+]);
+
+Route::get('/admin/account-directory/{accountId}', [
+    AdminAccountDirectoryController::class,
+    'show',
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:accounts.view',
+]);
 
 Route::get('/admin/accounts', [
     AccountController::class,
