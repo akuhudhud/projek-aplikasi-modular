@@ -5,7 +5,6 @@ const PAGE_PERMISSIONS: Partial<Record<AdminPage, string>> = {
   accounts: 'accounts.view',
   'runner-applications': 'runner_applications.view',
   'identity-verifications': 'identity_verifications.review',
-  'license-verifications': 'runner_license_verifications.review',
   'audit-logs': 'audit_logs.view'
 };
 
@@ -48,7 +47,6 @@ export function getAccessiblePages(
     'accounts',
     'runner-applications',
     'identity-verifications',
-    'license-verifications',
     'audit-logs'
   ];
 
