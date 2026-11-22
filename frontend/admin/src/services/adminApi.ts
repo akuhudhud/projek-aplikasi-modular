@@ -4,10 +4,13 @@ import axios from 'axios';
 import type {
   AccountDirectoryResult,
   AdminAccountDetail,
+  AdminPermission,
   AdminProfile,
   ApiResponse,
   AuditLog,
-  RunnerApplication
+  CreateSuperAdminPayload,
+  RunnerApplication,
+  SuperAdminPermissionResult
 } from '../types/admin';
 
 import type { AdminDashboard } from '../features/dashboard/dashboardTypes';
@@ -168,6 +171,60 @@ export async function reactivateAccount(
     `/admin/accounts/${encodeURIComponent(accountId)}/reactivate`,
     { reason }
   );
+}
+
+export async function createSuperAdmin(
+  payload: CreateSuperAdminPayload
+): Promise<void> {
+  await adminApi.post('/admin/accounts', payload);
+}
+
+export async function updateSuperAdminJobTitle(
+  accountId: string,
+  jobTitle: string,
+  reason: string
+): Promise<void> {
+  await adminApi.patch(
+    `/admin/accounts/${encodeURIComponent(accountId)}/job-title`,
+    {
+      job_title: jobTitle,
+      reason
+    }
+  );
+}
+
+export async function getSuperAdminPermissions(
+  accountId: string
+): Promise<SuperAdminPermissionResult> {
+  const response = await adminApi.get<
+    ApiResponse<SuperAdminPermissionResult>
+  >(
+    `/admin/accounts/${encodeURIComponent(accountId)}/permissions`
+  );
+
+  return response.data.data;
+}
+
+export async function updateSuperAdminPermissions(
+  accountId: string,
+  permissions: string[],
+  reason: string
+): Promise<void> {
+  await adminApi.put(
+    `/admin/accounts/${encodeURIComponent(accountId)}/permissions`,
+    {
+      permissions,
+      reason
+    }
+  );
+}
+
+export async function getAdminPermissionCatalog(): Promise<AdminPermission[]> {
+  const response = await adminApi.get<
+    ApiResponse<{ catalog: AdminPermission[] }>
+  >('/admin/permission-catalog');
+
+  return response.data.data.catalog;
 }
 
 export async function getRunnerApplications(): Promise<RunnerApplication[]> {
