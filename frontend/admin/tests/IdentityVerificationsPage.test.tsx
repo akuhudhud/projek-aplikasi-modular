@@ -241,7 +241,7 @@ describe('IdentityVerificationsPage', () => {
     const decide = vi.spyOn(
       adminApi,
       'decideIdentityVerification'
-    ).mockResolvedValue();
+    ).mockResolvedValue(undefined);
 
     render(
       <IdentityVerificationsPage account={adminAccount} />
@@ -284,7 +284,7 @@ describe('IdentityVerificationsPage', () => {
     const decide = vi.spyOn(
       adminApi,
       'decideIdentityVerification'
-    ).mockResolvedValue();
+    ).mockResolvedValue(undefined);
 
     render(
       <IdentityVerificationsPage account={adminAccount} />
@@ -319,7 +319,7 @@ describe('IdentityVerificationsPage', () => {
     const decide = vi.spyOn(
       adminApi,
       'decideIdentityVerification'
-    ).mockResolvedValue();
+    ).mockResolvedValue(undefined);
 
     render(
       <IdentityVerificationsPage account={adminAccount} />
