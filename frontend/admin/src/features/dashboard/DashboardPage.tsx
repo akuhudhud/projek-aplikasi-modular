@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 
 import {
@@ -151,9 +150,11 @@ export default function DashboardPage() {
           </div>
 
           <div className="dashboard-main-grid">
-            <DashboardRecentApplications
-              applications={dashboard.runner_applications.recent}
-            />
+            {dashboard.runner_applications.can_view_recent && (
+              <DashboardRecentApplications
+                applications={dashboard.runner_applications.recent}
+              />
+            )}
 
             <section className="dashboard-panel">
               <div className="dashboard-panel__heading">
