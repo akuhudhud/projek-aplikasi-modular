@@ -159,7 +159,9 @@ export default function AdminApp() {
         return <AccountsPage account={authenticatedAccount} />;
 
       case 'runner-applications':
-        return <RunnerApplicationsPage />;
+        return (
+          <RunnerApplicationsPage account={authenticatedAccount} />
+        );
 
       case 'identity-verifications':
         return <VerificationUnavailablePage type="identity" />;
