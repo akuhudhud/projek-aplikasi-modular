@@ -11,9 +11,8 @@ interface AdminSidebarProps {
 const navigationItems: { id: AdminPage; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'accounts', label: 'Pengurusan Pengguna' },
-  { id: 'runner-applications', label: 'Permohonan Runner' },
+  { id: 'runner-applications', label: 'Pengurusan Runner' },
   { id: 'identity-verifications', label: 'Pengesahan Identiti' },
-  { id: 'license-verifications', label: 'Pengesahan Lesen' },
   { id: 'audit-logs', label: 'Log Audit' }
 ];
 
