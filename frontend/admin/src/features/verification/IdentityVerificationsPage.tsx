@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+
+import { useEffect, useRef, useState } from 'react';
 
 import {
   decideIdentityVerification,
@@ -101,6 +102,10 @@ export default function IdentityVerificationsPage({ account }: Props) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
+  const queueRequestId = useRef(0);
+  const detailRequestId = useRef(0);
+  const mounted = useRef(false);
+
   const canReview = hasReviewPermission(account);
 
   async function loadQueue(
@@ -108,6 +113,8 @@ export default function IdentityVerificationsPage({ account }: Props) {
     nextStatus = activeStatus,
     nextSearch = search
   ) {
+    const requestId = ++queueRequestId.current;
+
     setLoading(true);
     setError('');
 
@@ -119,43 +126,77 @@ export default function IdentityVerificationsPage({ account }: Props) {
         per_page: 15
       });
 
+      if (!mounted.current || requestId !== queueRequestId.current) {
+        return;
+      }
+
       setItems(result.verifications);
       setPage(result.pagination.current_page);
       setLastPage(result.pagination.last_page);
       setTotal(result.pagination.total);
 
-      if (
-        selectedId &&
-        !result.verifications.some(
-          (item) => item.account_id === selectedId
-        )
-      ) {
-        setSelectedId('');
-        setDetail(null);
-      }
+      setSelectedId((currentId) => {
+        if (
+          currentId &&
+          !result.verifications.some(
+            (item) => item.account_id === currentId
+          )
+        ) {
+          detailRequestId.current += 1;
+          setDetail(null);
+          setDetailLoading(false);
+          return '';
+        }
+
+        return currentId;
+      });
     } catch (err) {
-      setError(getApiError(err));
+      if (mounted.current && requestId === queueRequestId.current) {
+        setError(getApiError(err));
+      }
     } finally {
-      setLoading(false);
+      if (mounted.current && requestId === queueRequestId.current) {
+        setLoading(false);
+      }
     }
   }
 
   useEffect(() => {
+    mounted.current = true;
+
     if (canReview) {
       void loadQueue(1, 'PENDING', '');
     } else {
       setLoading(false);
     }
-    // Load the initial queue once when the page opens.
+
+    return () => {
+      mounted.current = false;
+      queueRequestId.current += 1;
+      detailRequestId.current += 1;
+    };
+    // Initial queue is loaded once when the page opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  function resetDetail() {
+    detailRequestId.current += 1;
+    setSelectedId('');
+    setDetail(null);
+    setDetailLoading(false);
+    setRejectionReason('');
+  }
+
   async function changeStatus(status: VerificationStatus) {
+    detailRequestId.current += 1;
     setActiveStatus(status);
     setPage(1);
     setSelectedId('');
     setDetail(null);
+    setDetailLoading(false);
     setMessage('');
+    setError('');
+
     await loadQueue(1, status, search);
   }
 
@@ -164,16 +205,21 @@ export default function IdentityVerificationsPage({ account }: Props) {
 
     const nextSearch = searchInput.trim();
 
+    detailRequestId.current += 1;
     setSearch(nextSearch);
     setPage(1);
     setSelectedId('');
     setDetail(null);
+    setDetailLoading(false);
     setMessage('');
+    setError('');
 
     await loadQueue(1, activeStatus, nextSearch);
   }
 
   async function openDetail(item: IdentityVerificationQueueItem) {
+    const requestId = ++detailRequestId.current;
+
     setSelectedId(item.account_id);
     setDetail(null);
     setRejectionReason('');
@@ -183,23 +229,43 @@ export default function IdentityVerificationsPage({ account }: Props) {
 
     try {
       const result = await getIdentityVerificationDetail(item.account_id);
+
+      if (
+        !mounted.current ||
+        requestId !== detailRequestId.current
+      ) {
+        return;
+      }
+
       setDetail(result);
     } catch (err) {
-      setError(getApiError(err));
+      if (
+        mounted.current &&
+        requestId === detailRequestId.current
+      ) {
+        setError(getApiError(err));
+      }
     } finally {
-      setDetailLoading(false);
+      if (
+        mounted.current &&
+        requestId === detailRequestId.current
+      ) {
+        setDetailLoading(false);
+      }
     }
   }
 
   async function downloadDocument(documentId: string) {
-    if (!detail || !canReview) return;
+    if (!detail || !canReview || documentLoadingId) return;
+
+    const accountId = detail.account_id;
 
     setDocumentLoadingId(documentId);
     setError('');
 
     try {
       const blob = await downloadIdentityVerificationDocument(
-        detail.account_id,
+        accountId,
         documentId
       );
 
@@ -223,7 +289,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
   }
 
   async function submitDecision(decision: 'VERIFIED' | 'REJECTED') {
-    if (!detail || detail.status !== 'PENDING' || !canReview) {
+    if (!detail || detail.status !== 'PENDING' || !canReview || working) {
       return;
     }
 
@@ -239,16 +305,20 @@ export default function IdentityVerificationsPage({ account }: Props) {
       return;
     }
 
+    const accountId = detail.account_id;
+
     setWorking(true);
     setError('');
     setMessage('');
 
     try {
       await decideIdentityVerification(
-        detail.account_id,
+        accountId,
         decision,
         decision === 'REJECTED' ? reason : undefined
       );
+
+      if (!mounted.current) return;
 
       setMessage(
         decision === 'VERIFIED'
@@ -257,7 +327,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
       );
 
       setDetail((current) =>
-        current
+        current && current.account_id === accountId
           ? {
               ...current,
               status: decision,
@@ -269,16 +339,18 @@ export default function IdentityVerificationsPage({ account }: Props) {
 
       await loadQueue(page, activeStatus, search);
     } catch (err) {
-      setError(getApiError(err));
+      if (mounted.current) {
+        setError(getApiError(err));
+      }
     } finally {
-      setWorking(false);
+      if (mounted.current) {
+        setWorking(false);
+      }
     }
   }
 
   function closeDetail() {
-    setSelectedId('');
-    setDetail(null);
-    setRejectionReason('');
+    resetDetail();
     setError('');
   }
 
@@ -294,7 +366,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
           </div>
         </div>
 
-        <div className="admin-state">
+        <div className="admin-state" role="status">
           Anda tidak mempunyai kebenaran menyemak pengesahan identiti.
         </div>
       </section>
@@ -309,9 +381,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
             PENGURUSAN PENGESAHAN
           </span>
           <h2>Pengesahan Identiti</h2>
-          <p>
-            Semak maklumat identiti dan dokumen pengguna.
-          </p>
+          <p>Semak maklumat identiti dan dokumen pengguna.</p>
         </div>
 
         <button
@@ -338,18 +408,17 @@ export default function IdentityVerificationsPage({ account }: Props) {
 
       <div
         className="admin-tabs"
-        role="tablist"
         aria-label="Tapisan status pengesahan identiti"
       >
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.value}
             type="button"
-            role="tab"
-            aria-selected={activeStatus === tab.value}
+            aria-pressed={activeStatus === tab.value}
             className={`admin-tab ${
               activeStatus === tab.value ? 'admin-tab--active' : ''
             }`}
+            disabled={loading}
             onClick={() => void changeStatus(tab.value)}
           >
             {tab.label}
@@ -382,8 +451,8 @@ export default function IdentityVerificationsPage({ account }: Props) {
             setSearchInput('');
             setSearch('');
             setPage(1);
-            setSelectedId('');
-            setDetail(null);
+            resetDetail();
+            setMessage('');
             void loadQueue(1, activeStatus, '');
           }}
         >
@@ -391,16 +460,16 @@ export default function IdentityVerificationsPage({ account }: Props) {
         </button>
       </form>
 
-      <div className="admin-page__footnote">
+      <div className="admin-page__footnote" aria-live="polite">
         Jumlah rekod: {total}
       </div>
 
       {loading ? (
-        <div className="admin-state">
+        <div className="admin-state" role="status" aria-live="polite">
           Memuatkan senarai permohonan...
         </div>
       ) : items.length === 0 ? (
-        <div className="admin-state">
+        <div className="admin-state" role="status">
           Tiada permohonan ditemui untuk tapisan ini.
         </div>
       ) : (
@@ -451,6 +520,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
                   className="admin-button admin-button--primary"
                   disabled={
                     detailLoading ||
+                    loading ||
                     selectedId === item.account_id
                   }
                   onClick={() => void openDetail(item)}
@@ -476,7 +546,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
             Sebelum
           </button>
 
-          <span className="admin-page__footnote">
+          <span className="admin-page__footnote" aria-live="polite">
             Halaman {page} daripada {lastPage}
           </span>
 
@@ -492,7 +562,11 @@ export default function IdentityVerificationsPage({ account }: Props) {
       )}
 
       {selectedId && (
-        <section className="admin-record" aria-label="Butiran pengesahan identiti">
+        <section
+          className="admin-record"
+          aria-label="Butiran pengesahan identiti"
+          aria-busy={detailLoading}
+        >
           <div className="admin-page__heading">
             <div>
               <span className="dashboard-page__eyebrow">
@@ -511,7 +585,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
           </div>
 
           {detailLoading ? (
-            <div className="admin-state">
+            <div className="admin-state" role="status" aria-live="polite">
               Memuatkan butiran permohonan...
             </div>
           ) : detail ? (
@@ -588,7 +662,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
                           <button
                             type="button"
                             className="admin-button"
-                            disabled={documentLoadingId === document.id}
+                            disabled={Boolean(documentLoadingId)}
                             onClick={() =>
                               void downloadDocument(document.id)
                             }
@@ -656,7 +730,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
               )}
             </>
           ) : (
-            <div className="admin-state">
+            <div className="admin-state" role="alert">
               Butiran permohonan tidak dapat dimuatkan.
             </div>
           )}
