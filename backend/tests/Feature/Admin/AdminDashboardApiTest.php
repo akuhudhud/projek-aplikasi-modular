@@ -14,15 +14,24 @@ class AdminDashboardApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    private int $phoneSequence = 0;
+
     private function createAccount(
         string $role,
         string $email
     ): Account {
+        $this->phoneSequence++;
+
         return Account::create([
             'id' => (string) Str::uuid(),
             'profile_name' => 'Dashboard Test',
             'email' => $email,
-            'phone' => '60123456789',
+            'phone' => '601234'.str_pad(
+                (string) $this->phoneSequence,
+                5,
+                '0',
+                STR_PAD_LEFT
+            ),
             'password' => 'Password1',
             'role' => $role,
             'status' => 'ACTIVE',
