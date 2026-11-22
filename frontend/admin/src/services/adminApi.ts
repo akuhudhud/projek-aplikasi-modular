@@ -10,7 +10,7 @@ import type {
   CreateSuperAdminPayload,
   IdentityVerificationDetail,
   IdentityVerificationQueueResult,
-  RunnerApplication,
+  RunnerApplicationResult,
   RunnerDirectoryResult,
   RunnerLicenseVerificationDetail,
   SuperAdminPermissionResult
@@ -222,12 +222,19 @@ export async function updateSuperAdminPermissions(
   );
 }
 
-export async function getRunnerApplications(): Promise<RunnerApplication[]> {
+export async function getRunnerApplications(
+  filters: {
+    page?: number;
+    per_page?: number;
+  } = {}
+): Promise<RunnerApplicationResult> {
   const response = await adminApi.get<
-    ApiResponse<{ applications: RunnerApplication[] }>
-  >('/admin/runner-applications');
+    ApiResponse<RunnerApplicationResult>
+  >('/admin/runner-applications', {
+    params: filters
+  });
 
-  return response.data.data.applications;
+  return response.data.data;
 }
 
 export async function decideRunnerApplication(
