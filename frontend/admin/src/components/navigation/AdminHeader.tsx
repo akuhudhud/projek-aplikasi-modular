@@ -10,9 +10,8 @@ interface AdminHeaderProps {
 const pageTitles: Record<AdminPage, string> = {
   dashboard: 'Dashboard',
   accounts: 'Pengurusan Pengguna',
-  'runner-applications': 'Permohonan Runner',
+  'runner-applications': 'Pengurusan Runner',
   'identity-verifications': 'Pengesahan Identiti',
-  'license-verifications': 'Pengesahan Lesen',
   'audit-logs': 'Log Audit'
 };
 
