@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\Account;
+use App\Models\AccountPermission;
 use App\Models\CoreTask;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -17,16 +18,15 @@ class AdminDashboardApiTest extends TestCase
         string $role,
         string $email
     ): Account {
-        $account = Account::create([
+        return Account::create([
             'id' => (string) Str::uuid(),
             'profile_name' => 'Dashboard Test',
             'email' => $email,
+            'phone' => '60123456789',
             'password' => 'Password1',
             'role' => $role,
             'status' => 'ACTIVE',
         ]);
-
-        return $account;
     }
 
     private function authenticate(Account $account, string $token): void
@@ -37,6 +37,16 @@ class AdminDashboardApiTest extends TestCase
             'token_hash' => hash('sha256', $token),
             'created_at' => now(),
             'ended_at' => null,
+        ]);
+    }
+
+    private function grantPermission(
+        Account $account,
+        string $permission
+    ): void {
+        AccountPermission::create([
+            'account_id' => $account->id,
+            'permission_key' => $permission,
         ]);
     }
 
@@ -82,7 +92,7 @@ class AdminDashboardApiTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
-    public function test_super_admin_can_view_dashboard_statistics(): void
+    public function test_super_admin_can_view_dashboard_statistics_without_application_details(): void
     {
         $admin = $this->createAccount(
             'SUPER_ADMIN',
@@ -105,13 +115,13 @@ class AdminDashboardApiTest extends TestCase
 
         Account::query()
             ->whereKey($activeUser->id)
-            ->update(['runner_status' => Account::RUNNER_STATUS_PENDING]);
+            ->update([
+                'runner_status' => Account::RUNNER_STATUS_PENDING,
+            ]);
 
         $completedAt = now()->subHours(2);
 
-        $this->createTask(
-            CoreTask::STATUS_OPEN
-        );
+        $this->createTask(CoreTask::STATUS_OPEN);
 
         $this->createTask(
             CoreTask::STATUS_COMPLETED,
@@ -133,26 +143,77 @@ class AdminDashboardApiTest extends TestCase
             ->assertJsonPath('data.accounts.active_users', 1)
             ->assertJsonPath('data.accounts.suspended_users', 1)
             ->assertJsonPath('data.runners.total', 1)
+            ->assertJsonPath('data.runner_applications.pending', 1)
             ->assertJsonPath(
-                'data.runner_applications.pending',
-                1
+                'data.runner_applications.can_view_recent',
+                false
+            )
+            ->assertJsonPath(
+                'data.runner_applications.recent',
+                []
             )
             ->assertJsonPath('data.tasks.total', 2)
+            ->assertJsonPath('data.tasks.statuses.OPEN', 1)
+            ->assertJsonPath('data.tasks.statuses.COMPLETED', 1)
+            ->assertJsonCount(7, 'data.tasks.daily_activity');
+    }
+
+    public function test_super_admin_with_runner_application_permission_can_view_recent_applications(): void
+    {
+        $admin = $this->createAccount(
+            'SUPER_ADMIN',
+            'dashboard-permitted-admin@example.com'
+        );
+
+        $runner = $this->createAccount(
+            'USER',
+            'dashboard-runner@example.com'
+        );
+
+        Account::query()
+            ->whereKey($runner->id)
+            ->update([
+                'runner_status' => Account::RUNNER_STATUS_PENDING,
+            ]);
+
+        $this->grantPermission(
+            $admin,
+            'runner_applications.view'
+        );
+
+        $token = 'dashboard-permitted-admin-token';
+
+        $this->authenticate($admin, $token);
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->getJson('/api/admin/dashboard');
+
+        $response->assertOk()
             ->assertJsonPath(
-                'data.tasks.statuses.OPEN',
-                1
+                'data.runner_applications.can_view_recent',
+                true
             )
             ->assertJsonPath(
-                'data.tasks.statuses.COMPLETED',
-                1
+                'data.runner_applications.recent.0.id',
+                $runner->id
             )
-            ->assertJsonCount(
-                7,
-                'data.tasks.daily_activity'
+            ->assertJsonPath(
+                'data.runner_applications.recent.0.profile_name',
+                $runner->profile_name
+            )
+            ->assertJsonPath(
+                'data.runner_applications.recent.0.phone',
+                $runner->phone
+            )
+            ->assertJsonPath(
+                'data.runner_applications.recent.0.email',
+                $runner->email
             );
     }
 
-    public function test_root_super_admin_can_access_dashboard(): void
+    public function test_root_super_admin_can_access_dashboard_and_recent_applications(): void
     {
         $admin = $this->createAccount(
             'ROOT_SUPER_ADMIN',
@@ -169,6 +230,10 @@ class AdminDashboardApiTest extends TestCase
         )->getJson('/api/admin/dashboard')
             ->assertOk()
             ->assertJsonPath('success', true)
+            ->assertJsonPath(
+                'data.runner_applications.can_view_recent',
+                true
+            )
             ->assertJsonStructure([
                 'data' => [
                     'generated_at',
