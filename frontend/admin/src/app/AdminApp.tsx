@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 
 import AdminLayout from './AdminLayout';
@@ -7,6 +6,7 @@ import LoginPage from '../features/auth/LoginPage';
 import AccountsPage from '../features/accounts/AccountsPage';
 import RunnerApplicationsPage from '../features/runner-applications/RunnerApplicationsPage';
 import AuditLogsPage from '../features/audit-logs/AuditLogsPage';
+import IdentityVerificationsPage from '../features/verification/IdentityVerificationsPage';
 import VerificationUnavailablePage from '../features/verification/VerificationUnavailablePage';
 
 import {
@@ -164,7 +164,9 @@ export default function AdminApp() {
         );
 
       case 'identity-verifications':
-        return <VerificationUnavailablePage type="identity" />;
+        return (
+          <IdentityVerificationsPage account={authenticatedAccount} />
+        );
 
       case 'license-verifications':
         return <VerificationUnavailablePage type="license" />;
