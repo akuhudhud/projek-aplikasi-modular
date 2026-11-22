@@ -144,9 +144,11 @@ export default function AdminApp() {
     );
   }
 
-  const safePage = canAccessPage(account, activePage)
+  const authenticatedAccount = account;
+
+  const safePage = canAccessPage(authenticatedAccount, activePage)
     ? activePage
-    : getDefaultAdminPage(account);
+    : getDefaultAdminPage(authenticatedAccount);
 
   function renderPage() {
     switch (safePage) {
@@ -154,7 +156,7 @@ export default function AdminApp() {
         return <DashboardPage />;
 
       case 'accounts':
-        return <AccountsPage account={account} />;
+        return <AccountsPage account={authenticatedAccount} />;
 
       case 'runner-applications':
         return <RunnerApplicationsPage />;
@@ -175,7 +177,7 @@ export default function AdminApp() {
 
   return (
     <AdminLayout
-      account={account}
+      account={authenticatedAccount}
       activePage={safePage}
       onNavigate={handleNavigate}
       onLogout={() => void handleLogout()}
