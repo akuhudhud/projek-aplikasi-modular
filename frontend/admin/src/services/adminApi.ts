@@ -3,7 +3,6 @@ import axios from 'axios';
 
 import type {
   AccountDirectoryResult,
-  AdminAccount,
   AdminAccountDetail,
   AdminProfile,
   ApiResponse,
