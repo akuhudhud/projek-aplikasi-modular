@@ -91,6 +91,46 @@ export interface RunnerApplication {
   runner_license_application: RunnerLicenseApplication | null;
 }
 
+export interface RunnerLicenseVerificationDetail {
+  id: string;
+  account_id: string;
+  profile_name: string;
+  license_number_masked: string | null;
+  license_type: string | null;
+  license_class: string;
+  expires_at: string | null;
+  status: string;
+  is_current: boolean;
+  mime_type: string | null;
+  size_bytes: number | null;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+  rejection_reason?: string | null;
+}
+
+export interface RunnerDirectoryItem {
+  id: string;
+  profile_name: string;
+  phone: string | null;
+  email: string | null;
+  role: string;
+  status: string;
+  runner_status: 'APPROVED' | 'SUSPENDED' | string;
+  created_at: string;
+  updated_at: string;
+  current_license: {
+    license_type: string | null;
+    license_class: string;
+    expires_at: string | null;
+    status: string;
+  } | null;
+}
+
+export interface RunnerDirectoryResult {
+  runners: RunnerDirectoryItem[];
+  pagination: AccountPagination;
+}
+
 export interface AuditLog {
   id: string;
   actor_account_id: string;
