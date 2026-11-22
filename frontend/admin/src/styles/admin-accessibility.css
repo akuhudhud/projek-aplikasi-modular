@@ -1,0 +1,71 @@
+
+/* Visible keyboard focus */
+:where(
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [tabindex]:not([tabindex="-1"])
+):focus-visible {
+  outline: 3px solid var(--admin-yellow);
+  outline-offset: 3px;
+  scroll-margin-block: 20px;
+}
+
+/* Keep disabled controls visually distinct */
+:where(button, input, select, textarea):disabled {
+  cursor: not-allowed;
+}
+
+/* Improve text selection visibility */
+::selection {
+  background: var(--admin-yellow);
+  color: #111;
+}
+
+/* Ensure horizontal data tables remain usable */
+.admin-table-wrap {
+  max-width: 100%;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+/* Improve touch interaction */
+.admin-button,
+.admin-tab,
+.admin-sidebar__item {
+  touch-action: manipulation;
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast and forced-colour support */
+@media (forced-colors: active) {
+  :where(
+    button,
+    a,
+    input,
+    select,
+    textarea,
+    [tabindex]:not([tabindex="-1"])
+  ):focus-visible {
+    outline: 3px solid Highlight;
+  }
+
+  .admin-status,
+  .admin-tab--active,
+  .admin-sidebar__item--active {
+    border: 1px solid ButtonText;
+  }
+}
