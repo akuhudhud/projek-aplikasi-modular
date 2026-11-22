@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AdminAccountDirectoryController;
 use App\Http\Controllers\Api\AdminDashboardController;
+use App\Http\Controllers\Api\AdminRunnerDirectoryController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ContactChangeController;
@@ -475,6 +476,14 @@ Route::get('/admin/audit-logs', [
 Route::get('/admin/runner-applications', [
     RunnerController::class,
     'pendingApplications',
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:runner_applications.view',
+]);
+
+Route::get('/admin/runners', [
+    AdminRunnerDirectoryController::class,
+    'index',
 ])->middleware([
     AuthenticateSession::class,
     'admin.permission:runner_applications.view',
