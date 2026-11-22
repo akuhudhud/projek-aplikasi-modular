@@ -133,11 +133,8 @@ describe('RunnerApplicationsPage', () => {
 
     render(<RunnerApplicationsPage account={adminAccount} />);
 
-    expect(
-      await screen.findByText('Runner Ujian')
-    ).toBeTruthy();
-
-    expect(screen.getByText('runner@example.com')).toBeTruthy();
+    expect(await screen.findByText('Runner Ujian')).toBeTruthy();
+    expect(screen.getByText('60123456789')).toBeTruthy();
     expect(screen.getByText('CDL')).toBeTruthy();
     expect(screen.getByText('PENDING')).toBeTruthy();
     expect(screen.getByText('Tarikh Permohonan')).toBeTruthy();
@@ -164,7 +161,6 @@ describe('RunnerApplicationsPage', () => {
       .mockResolvedValue();
 
     render(<RunnerApplicationsPage account={adminAccount} />);
-
     await screen.findByText('Runner Ujian');
 
     fireEvent.change(
@@ -172,9 +168,7 @@ describe('RunnerApplicationsPage', () => {
       { target: { value: 'Dokumen telah disemak.' } }
     );
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Luluskan' })
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Luluskan' }));
 
     await waitFor(() => {
       expect(decide).toHaveBeenCalledWith(
@@ -193,7 +187,6 @@ describe('RunnerApplicationsPage', () => {
       .mockResolvedValue();
 
     render(<RunnerApplicationsPage account={adminAccount} />);
-
     await screen.findByText('Runner Ujian');
 
     fireEvent.change(
@@ -201,9 +194,7 @@ describe('RunnerApplicationsPage', () => {
       { target: { value: 'Dokumen tidak memenuhi syarat.' } }
     );
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Tolak' })
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Tolak' }));
 
     await waitFor(() => {
       expect(decide).toHaveBeenCalledWith(
@@ -222,12 +213,9 @@ describe('RunnerApplicationsPage', () => {
       .mockResolvedValue();
 
     render(<RunnerApplicationsPage account={adminAccount} />);
-
     await screen.findByText('Runner Ujian');
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Luluskan' })
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Luluskan' }));
 
     expect(
       await screen.findByText('Alasan keputusan wajib diisi.')
@@ -241,7 +229,6 @@ describe('RunnerApplicationsPage', () => {
       .mockResolvedValue([application]);
 
     render(<RunnerApplicationsPage account={restrictedAccount} />);
-
     await screen.findByText('Runner Ujian');
 
     expect(
@@ -263,17 +250,13 @@ describe('RunnerApplicationsPage', () => {
     ).mockResolvedValue(licenseDetail);
 
     render(<RunnerApplicationsPage account={adminAccount} />);
-
     await screen.findByText('Runner Ujian');
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Butiran Lesen' })
     );
 
-    expect(
-      await screen.findByText('******5678')
-    ).toBeTruthy();
-
+    expect(await screen.findByText('******5678')).toBeTruthy();
     expect(getLicense).toHaveBeenCalledWith(application.id);
   });
 
@@ -283,10 +266,7 @@ describe('RunnerApplicationsPage', () => {
 
     render(<RunnerApplicationsPage account={adminAccount} />);
 
-    expect(
-      await screen.findByRole('alert')
-    ).toBeTruthy();
-
+    expect(await screen.findByRole('alert')).toBeTruthy();
     expect(screen.getByText('Runner API failed')).toBeTruthy();
   });
 
@@ -303,9 +283,7 @@ describe('RunnerApplicationsPage', () => {
       screen.getByRole('tab', { name: 'Senarai Runner' })
     );
 
-    expect(
-      await screen.findByText('Runner Diluluskan')
-    ).toBeTruthy();
+    expect(await screen.findByText('Runner Diluluskan')).toBeTruthy();
 
     expect(getDirectory).toHaveBeenCalledWith({
       search: undefined,
@@ -398,9 +376,7 @@ describe('RunnerApplicationsPage', () => {
       screen.getByRole('tab', { name: 'Senarai Runner' })
     );
 
-    expect(
-      await screen.findByText('Runner Diluluskan')
-    ).toBeTruthy();
+    expect(await screen.findByText('Runner Diluluskan')).toBeTruthy();
 
     expect(
       screen.getByRole('button', { name: 'Gantung Runner' })
