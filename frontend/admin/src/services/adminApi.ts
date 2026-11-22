@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 
 import type {
@@ -5,7 +6,7 @@ import type {
   AdminAccountDetail,
   AdminProfile,
   ApiResponse,
-  AuditLog,
+  AuditLogResult,
   CreateSuperAdminPayload,
   IdentityVerificationDetail,
   IdentityVerificationQueueResult,
@@ -356,12 +357,19 @@ export async function downloadRunnerLicenseDocument(
   return response.data as Blob;
 }
 
-export async function getAuditLogs(): Promise<AuditLog[]> {
+export async function getAuditLogs(
+  filters: {
+    page?: number;
+    per_page?: number;
+  } = {}
+): Promise<AuditLogResult> {
   const response = await adminApi.get<
-    ApiResponse<{ audit_logs: AuditLog[] }>
-  >('/admin/audit-logs');
+    ApiResponse<AuditLogResult>
+  >('/admin/audit-logs', {
+    params: filters
+  });
 
-  return response.data.data.audit_logs;
+  return response.data.data;
 }
 
 export async function getAdminDashboard(): Promise<AdminDashboard> {
