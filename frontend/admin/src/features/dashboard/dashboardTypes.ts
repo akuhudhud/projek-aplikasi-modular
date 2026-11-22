@@ -1,4 +1,3 @@
-
 export interface DashboardAccountStats {
   total_users: number;
   active_users: number;
@@ -21,6 +20,7 @@ export interface DashboardApplication {
 
 export interface DashboardRunnerApplicationStats {
   pending: number;
+  can_view_recent: boolean;
   recent: DashboardApplication[];
 }
 
