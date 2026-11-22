@@ -174,14 +174,40 @@ class RunnerController extends Controller
         /** @var Account $admin */
         $admin = $request->attributes->get('account');
 
+        $validated = $request->validate([
+            'page' => [
+                'nullable',
+                'integer',
+                'min:1',
+            ],
+            'per_page' => [
+                'nullable',
+                'integer',
+                'min:5',
+                'max:100',
+            ],
+        ]);
+
         try {
-            $applications = $this->runnerStatusService
-                ->pendingApplications($admin);
+            $paginator = $this->runnerStatusService
+                ->pendingApplications(
+                    $admin,
+                    (int) ($validated['page'] ?? 1),
+                    (int) ($validated['per_page'] ?? 15)
+                );
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'applications' => $applications,
+                    'applications' => $paginator->items(),
+                    'pagination' => [
+                        'current_page' => $paginator->currentPage(),
+                        'last_page' => $paginator->lastPage(),
+                        'per_page' => $paginator->perPage(),
+                        'total' => $paginator->total(),
+                        'from' => $paginator->firstItem(),
+                        'to' => $paginator->lastItem(),
+                    ],
                 ],
             ], 200);
         } catch (AuthorizationException $exception) {
