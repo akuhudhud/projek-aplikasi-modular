@@ -182,7 +182,7 @@ describe('IdentityVerificationsPage', () => {
     await screen.findByText('Pengguna Ujian');
 
     fireEvent.click(
-      screen.getByRole('tab', { name: 'Disahkan' })
+      screen.getByRole('button', { name: 'Disahkan' })
     );
 
     await waitFor(() => {
