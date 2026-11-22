@@ -246,7 +246,10 @@ describe('RunnerApplicationsPage race conditions', () => {
       target: { value: 'baharu' }
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cari' }));
+    fireEvent.keyDown(searchInput, {
+      key: 'Enter',
+      code: 'Enter'
+    });
 
     await waitFor(() => {
       expect(getDirectory).toHaveBeenCalledTimes(3);
@@ -337,18 +340,18 @@ describe('RunnerApplicationsPage race conditions', () => {
       name: 'Senarai Runner'
     });
 
-    expect(applicationsTab).toHaveAttribute('tabindex', '0');
-    expect(directoryTab).toHaveAttribute('tabindex', '-1');
+    expect(applicationsTab.getAttribute('tabindex')).toBe('0');
+    expect(directoryTab.getAttribute('tabindex')).toBe('-1');
 
     fireEvent.keyDown(applicationsTab, {
       key: 'ArrowRight'
     });
 
     await waitFor(() => {
-      expect(directoryTab).toHaveAttribute('aria-selected', 'true');
+      expect(directoryTab.getAttribute('aria-selected')).toBe('true');
     });
 
-    expect(directoryTab).toHaveAttribute('tabindex', '0');
-    expect(applicationsTab).toHaveAttribute('tabindex', '-1');
+    expect(directoryTab.getAttribute('tabindex')).toBe('0');
+    expect(applicationsTab.getAttribute('tabindex')).toBe('-1');
   });
 });
