@@ -39,6 +39,14 @@ const adminAccount: AdminProfile = {
   ]
 };
 
+const rootAccount: AdminProfile = {
+  ...adminAccount,
+  id: 'root-001',
+  profile_name: 'Root Super Admin',
+  role: 'ROOT_SUPER_ADMIN',
+  permissions: []
+};
+
 const userAccount: AdminAccount = {
   id: 'user-001',
   profile_name: 'Pengguna Ujian',
@@ -51,6 +59,14 @@ const userAccount: AdminAccount = {
   status: 'ACTIVE',
   created_at: '2026-11-20T10:00:00.000Z',
   updated_at: '2026-11-20T10:00:00.000Z'
+};
+
+const superAdminAccount: AdminAccount = {
+  ...userAccount,
+  id: 'super-admin-001',
+  profile_name: 'Pentadbir Ujian',
+  role: 'SUPER_ADMIN',
+  email: 'superadmin@example.com'
 };
 
 const accountDetail: AdminAccountDetail = {
@@ -241,5 +257,55 @@ describe('AccountsPage', () => {
     expect(
       screen.getByText('Directory API failed')
     ).toBeTruthy();
+  });
+
+  it('memaparkan Pengurusan Super Admin untuk Root sahaja', async () => {
+    vi.spyOn(adminApi, 'getAccounts')
+      .mockImplementation(async (params) => {
+        if (params?.role === 'SUPER_ADMIN') {
+          return mockAccountList([superAdminAccount]);
+        }
+
+        return mockAccountList();
+      });
+
+    render(<AccountsPage account={rootAccount} />);
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Pengurusan Super Admin'
+      })
+    ).toBeTruthy();
+
+    expect(
+      await screen.findByText('Senarai Super Admin')
+    ).toBeTruthy();
+
+    expect(
+      await screen.findByRole('option', {
+        name: /Pentadbir Ujian/
+      })
+    ).toBeTruthy();
+  });
+
+  it('tidak memaparkan Pengurusan Super Admin kepada Super Admin biasa', async () => {
+    vi.spyOn(adminApi, 'getAccounts')
+      .mockResolvedValue(mockAccountList());
+
+    render(<AccountsPage account={adminAccount} />);
+
+    await screen.findByText('Pengguna Ujian');
+
+    expect(
+      screen.queryByRole('heading', {
+        name: 'Pengurusan Super Admin'
+      })
+    ).toBeNull();
+
+    expect(
+      screen.queryByRole('button', {
+        name: 'Tambah Super Admin'
+      })
+    ).toBeNull();
   });
 });
