@@ -24,10 +24,7 @@ interface Props {
 
 type RunnerTab = 'applications' | 'directory';
 
-function hasPermission(
-  account: AdminProfile,
-  permission: string
-): boolean {
+function hasPermission(account: AdminProfile, permission: string): boolean {
   return (
     account.role === 'ROOT_SUPER_ADMIN' ||
     account.permissions?.includes(permission) === true
@@ -50,7 +47,6 @@ function formatDate(value: string | null | undefined): string {
 
 function formatBytes(value: number | null | undefined): string {
   if (!value) return '—';
-
   if (value < 1024) return `${value} B`;
 
   return `${(value / 1024).toFixed(1)} KB`;
@@ -60,8 +56,13 @@ export default function RunnerApplicationsPage({ account }: Props) {
   const [activeTab, setActiveTab] = useState<RunnerTab>('applications');
 
   const [applications, setApplications] = useState<RunnerApplication[]>([]);
-  const [runners, setRunners] = useState<RunnerDirectoryItem[]>([]);
+  const [applicationPage, setApplicationPage] = useState(1);
+  const [applicationLastPage, setApplicationLastPage] = useState(1);
+  const [applicationTotal, setApplicationTotal] = useState(0);
+  const [applicationFrom, setApplicationFrom] = useState<number | null>(null);
+  const [applicationTo, setApplicationTo] = useState<number | null>(null);
 
+  const [runners, setRunners] = useState<RunnerDirectoryItem[]>([]);
   const [runnerSearch, setRunnerSearch] = useState('');
   const [runnerStatusFilter, setRunnerStatusFilter] = useState('');
   const [runnerPage, setRunnerPage] = useState(1);
@@ -80,18 +81,9 @@ export default function RunnerApplicationsPage({ account }: Props) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
-  const canViewApplications = hasPermission(
-    account,
-    'runner_applications.view'
-  );
-  const canApprove = hasPermission(
-    account,
-    'runner_applications.approve'
-  );
-  const canReject = hasPermission(
-    account,
-    'runner_applications.reject'
-  );
+  const canViewApplications = hasPermission(account, 'runner_applications.view');
+  const canApprove = hasPermission(account, 'runner_applications.approve');
+  const canReject = hasPermission(account, 'runner_applications.reject');
   const canReviewLicense = hasPermission(
     account,
     'runner_license_verifications.review'
@@ -99,12 +91,22 @@ export default function RunnerApplicationsPage({ account }: Props) {
   const canSuspend = hasPermission(account, 'runners.suspend');
   const canRestore = hasPermission(account, 'runners.restore');
 
-  async function loadApplications() {
+  async function loadApplications(page = applicationPage) {
     setLoading(true);
     setError('');
 
     try {
-      setApplications(await getRunnerApplications());
+      const result = await getRunnerApplications({
+        page,
+        per_page: 15
+      });
+
+      setApplications(result.applications);
+      setApplicationPage(result.pagination.current_page);
+      setApplicationLastPage(result.pagination.last_page);
+      setApplicationTotal(result.pagination.total);
+      setApplicationFrom(result.pagination.from);
+      setApplicationTo(result.pagination.to);
     } catch (err) {
       setError(getApiError(err));
     } finally {
@@ -137,11 +139,11 @@ export default function RunnerApplicationsPage({ account }: Props) {
 
   useEffect(() => {
     if (activeTab === 'applications') {
-      void loadApplications();
+      void loadApplications(1);
     } else {
       void loadRunners(1);
     }
-    // Initial tab load only; filters are handled by their controls.
+    // Initial tab load only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
@@ -175,7 +177,12 @@ export default function RunnerApplicationsPage({ account }: Props) {
         return next;
       });
 
-      await loadApplications();
+      const nextPage =
+        applications.length === 1 && applicationPage > 1
+          ? applicationPage - 1
+          : applicationPage;
+
+      await loadApplications(nextPage);
     } catch (err) {
       setError(getApiError(err));
     } finally {
@@ -290,10 +297,11 @@ export default function RunnerApplicationsPage({ account }: Props) {
         </div>
 
         <button
+          type="button"
           className="admin-button"
           onClick={() => {
             if (activeTab === 'applications') {
-              void loadApplications();
+              void loadApplications(applicationPage);
             } else {
               void loadRunners(runnerPage);
             }
@@ -351,165 +359,196 @@ export default function RunnerApplicationsPage({ account }: Props) {
               Tiada permohonan Runner yang menunggu semakan.
             </div>
           ) : (
-            <div className="admin-record-list">
-              {applications.map((application) => {
-                const license = application.runner_license_application;
-                const detail = licenseDetails[application.id];
-                const busy = workingId === application.id;
+            <>
+              <div className="admin-page__footnote">
+                Memaparkan {applicationFrom ?? 0}–{applicationTo ?? 0} daripada{' '}
+                {applicationTotal} permohonan
+              </div>
 
-                return (
-                  <article className="admin-record" key={application.id}>
-                    <div className="admin-record__heading">
-                      <div>
-                        <h3>{application.profile_name}</h3>
-                        <span>
-                          {application.phone || application.email || '—'}
+              <div className="admin-record-list">
+                {applications.map((application) => {
+                  const license = application.runner_license_application;
+                  const detail = licenseDetails[application.id];
+                  const busy = workingId === application.id;
+
+                  return (
+                    <article className="admin-record" key={application.id}>
+                      <div className="admin-record__heading">
+                        <div>
+                          <h3>{application.profile_name}</h3>
+                          <span>
+                            {application.phone || application.email || '—'}
+                          </span>
+                        </div>
+
+                        <span className="admin-status">
+                          {application.runner_status}
                         </span>
                       </div>
 
-                      <span className="admin-status">
-                        {application.runner_status}
-                      </span>
-                    </div>
-
-                    <div className="admin-record__details">
-                      <div>
-                        <small>Tarikh Permohonan</small>
-                        <strong>{formatDate(application.created_at)}</strong>
-                      </div>
-                      <div>
-                        <small>Jenis Lesen</small>
-                        <strong>{license?.license_type || '—'}</strong>
-                      </div>
-                      <div>
-                        <small>Kelas Lesen</small>
-                        <strong>{license?.license_class || '—'}</strong>
-                      </div>
-                      <div>
-                        <small>Tarikh Luput</small>
-                        <strong>{formatDate(license?.expires_at)}</strong>
-                      </div>
-                      <div>
-                        <small>Status Dokumen</small>
-                        <strong>{license?.status || 'Tiada rekod'}</strong>
-                      </div>
-                    </div>
-
-                    {license && canReviewLicense && (
-                      <div className="admin-record__actions">
-                        <button
-                          type="button"
-                          className="admin-button"
-                          disabled={licenseLoadingId === application.id}
-                          onClick={() =>
-                            void showLicenseDetails(application.id)
-                          }
-                        >
-                          {licenseLoadingId === application.id
-                            ? 'Memuatkan...'
-                            : 'Butiran Lesen'}
-                        </button>
-
-                        <button
-                          type="button"
-                          className="admin-button"
-                          disabled={documentLoadingId === application.id}
-                          onClick={() =>
-                            void downloadDocument(application.id)
-                          }
-                        >
-                          {documentLoadingId === application.id
-                            ? 'Memuat turun...'
-                            : 'Muat Turun Dokumen'}
-                        </button>
-                      </div>
-                    )}
-
-                    {detail && (
                       <div className="admin-record__details">
                         <div>
-                          <small>Nombor Lesen</small>
-                          <strong>{detail.license_number_masked || '—'}</strong>
+                          <small>Tarikh Permohonan</small>
+                          <strong>{formatDate(application.created_at)}</strong>
                         </div>
                         <div>
                           <small>Jenis Lesen</small>
-                          <strong>{detail.license_type || '—'}</strong>
+                          <strong>{license?.license_type || '—'}</strong>
                         </div>
                         <div>
                           <small>Kelas Lesen</small>
-                          <strong>{detail.license_class || '—'}</strong>
+                          <strong>{license?.license_class || '—'}</strong>
                         </div>
                         <div>
-                          <small>Tarikh Hantar</small>
-                          <strong>{formatDate(detail.submitted_at)}</strong>
+                          <small>Tarikh Luput</small>
+                          <strong>{formatDate(license?.expires_at)}</strong>
                         </div>
                         <div>
-                          <small>Saiz Dokumen</small>
-                          <strong>{formatBytes(detail.size_bytes)}</strong>
-                        </div>
-                        <div>
-                          <small>Tarikh Semakan</small>
-                          <strong>{formatDate(detail.reviewed_at)}</strong>
+                          <small>Status Dokumen</small>
+                          <strong>{license?.status || 'Tiada rekod'}</strong>
                         </div>
                       </div>
-                    )}
 
-                    {(canApprove || canReject) && (
-                      <>
-                        <label htmlFor={`reason-${application.id}`}>
-                          Alasan keputusan
-                        </label>
-
-                        <textarea
-                          id={`reason-${application.id}`}
-                          rows={2}
-                          value={reasons[application.id] || ''}
-                          onChange={(event) =>
-                            updateReason(application.id, event.target.value)
-                          }
-                          placeholder="Masukkan alasan keputusan..."
-                        />
-
+                      {license && canReviewLicense && (
                         <div className="admin-record__actions">
-                          {canApprove && (
-                            <button
-                              type="button"
-                              className="admin-button admin-button--primary"
-                              disabled={busy || !license}
-                              onClick={() =>
-                                void decide(application.id, 'approve')
-                              }
-                            >
-                              {busy ? 'Memproses...' : 'Luluskan'}
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            className="admin-button"
+                            disabled={licenseLoadingId === application.id}
+                            onClick={() =>
+                              void showLicenseDetails(application.id)
+                            }
+                          >
+                            {licenseLoadingId === application.id
+                              ? 'Memuatkan...'
+                              : 'Butiran Lesen'}
+                          </button>
 
-                          {canReject && (
-                            <button
-                              type="button"
-                              className="admin-button admin-button--danger"
-                              disabled={busy || !license}
-                              onClick={() =>
-                                void decide(application.id, 'reject')
-                              }
-                            >
-                              Tolak
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            className="admin-button"
+                            disabled={documentLoadingId === application.id}
+                            onClick={() =>
+                              void downloadDocument(application.id)
+                            }
+                          >
+                            {documentLoadingId === application.id
+                              ? 'Memuat turun...'
+                              : 'Muat Turun Dokumen'}
+                          </button>
                         </div>
-                      </>
-                    )}
+                      )}
 
-                    {!license && (
-                      <p className="admin-page__footnote">
-                        Rekod dokumen lesen PENDING tidak diterima daripada API.
-                        Tindakan keputusan dinyahaktifkan.
-                      </p>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
+                      {detail && (
+                        <div className="admin-record__details">
+                          <div>
+                            <small>Nombor Lesen</small>
+                            <strong>{detail.license_number_masked || '—'}</strong>
+                          </div>
+                          <div>
+                            <small>Jenis Lesen</small>
+                            <strong>{detail.license_type || '—'}</strong>
+                          </div>
+                          <div>
+                            <small>Kelas Lesen</small>
+                            <strong>{detail.license_class || '—'}</strong>
+                          </div>
+                          <div>
+                            <small>Tarikh Hantar</small>
+                            <strong>{formatDate(detail.submitted_at)}</strong>
+                          </div>
+                          <div>
+                            <small>Saiz Dokumen</small>
+                            <strong>{formatBytes(detail.size_bytes)}</strong>
+                          </div>
+                          <div>
+                            <small>Tarikh Semakan</small>
+                            <strong>{formatDate(detail.reviewed_at)}</strong>
+                          </div>
+                        </div>
+                      )}
+
+                      {(canApprove || canReject) && (
+                        <>
+                          <label htmlFor={`reason-${application.id}`}>
+                            Alasan keputusan
+                          </label>
+
+                          <textarea
+                            id={`reason-${application.id}`}
+                            rows={2}
+                            value={reasons[application.id] || ''}
+                            onChange={(event) =>
+                              updateReason(application.id, event.target.value)
+                            }
+                            placeholder="Masukkan alasan keputusan..."
+                          />
+
+                          <div className="admin-record__actions">
+                            {canApprove && (
+                              <button
+                                type="button"
+                                className="admin-button admin-button--primary"
+                                disabled={busy || !license}
+                                onClick={() =>
+                                  void decide(application.id, 'approve')
+                                }
+                              >
+                                {busy ? 'Memproses...' : 'Luluskan'}
+                              </button>
+                            )}
+
+                            {canReject && (
+                              <button
+                                type="button"
+                                className="admin-button admin-button--danger"
+                                disabled={busy || !license}
+                                onClick={() =>
+                                  void decide(application.id, 'reject')
+                                }
+                              >
+                                Tolak
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      )}
+
+                      {!license && (
+                        <p className="admin-page__footnote">
+                          Rekod dokumen lesen PENDING tidak diterima daripada
+                          API. Tindakan keputusan dinyahaktifkan.
+                        </p>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+
+              <div className="admin-record__actions">
+                <button
+                  type="button"
+                  className="admin-button"
+                  disabled={loading || applicationPage <= 1}
+                  onClick={() => void loadApplications(applicationPage - 1)}
+                >
+                  Sebelum
+                </button>
+
+                <span>
+                  Halaman {applicationPage} daripada {applicationLastPage}
+                </span>
+
+                <button
+                  type="button"
+                  className="admin-button"
+                  disabled={loading || applicationPage >= applicationLastPage}
+                  onClick={() => void loadApplications(applicationPage + 1)}
+                >
+                  Seterusnya
+                </button>
+              </div>
+            </>
           )}
         </>
       )}
@@ -532,22 +571,32 @@ export default function RunnerApplicationsPage({ account }: Props) {
             <select
               value={runnerStatusFilter}
               onChange={(event) => {
-                setRunnerStatusFilter(event.target.value);
+                const status = event.target.value;
+                setRunnerStatusFilter(status);
                 setRunnerPage(1);
-                window.setTimeout(() => {
-                  void getRunnerDirectory({
-                    search: runnerSearch.trim() || undefined,
-                    status: event.target.value || undefined,
-                    page: 1,
-                    per_page: 15
-                  }).then((result) => {
+
+                void (async () => {
+                  setLoading(true);
+                  setError('');
+
+                  try {
+                    const result = await getRunnerDirectory({
+                      search: runnerSearch.trim() || undefined,
+                      status: status || undefined,
+                      page: 1,
+                      per_page: 15
+                    });
+
                     setRunners(result.runners);
                     setRunnerPage(result.pagination.current_page);
                     setRunnerLastPage(result.pagination.last_page);
                     setRunnerTotal(result.pagination.total);
-                  }).catch((err) => setError(getApiError(err)))
-                    .finally(() => setLoading(false));
-                }, 0);
+                  } catch (err) {
+                    setError(getApiError(err));
+                  } finally {
+                    setLoading(false);
+                  }
+                })();
               }}
             >
               <option value="">Semua status</option>
@@ -568,9 +617,7 @@ export default function RunnerApplicationsPage({ account }: Props) {
           {loading ? (
             <div className="admin-state">Memuatkan senarai Runner...</div>
           ) : runners.length === 0 ? (
-            <div className="admin-state">
-              Tiada Runner ditemui.
-            </div>
+            <div className="admin-state">Tiada Runner ditemui.</div>
           ) : (
             <>
               <div className="admin-page__footnote">
@@ -580,9 +627,10 @@ export default function RunnerApplicationsPage({ account }: Props) {
               <div className="admin-record-list">
                 {runners.map((runner) => {
                   const busy = workingId === runner.id;
-                  const canAct = runner.runner_status === 'APPROVED'
-                    ? canSuspend
-                    : canRestore;
+                  const canAct =
+                    runner.runner_status === 'APPROVED'
+                      ? canSuspend
+                      : canRestore;
 
                   return (
                     <article className="admin-record" key={runner.id}>
@@ -608,11 +656,15 @@ export default function RunnerApplicationsPage({ account }: Props) {
                         </div>
                         <div>
                           <small>Jenis Lesen</small>
-                          <strong>{runner.current_license?.license_type || '—'}</strong>
+                          <strong>
+                            {runner.current_license?.license_type || '—'}
+                          </strong>
                         </div>
                         <div>
                           <small>Kelas Lesen</small>
-                          <strong>{runner.current_license?.license_class || '—'}</strong>
+                          <strong>
+                            {runner.current_license?.license_class || '—'}
+                          </strong>
                         </div>
                         <div>
                           <small>Tarikh Luput Lesen</small>
@@ -639,31 +691,33 @@ export default function RunnerApplicationsPage({ account }: Props) {
                           />
 
                           <div className="admin-record__actions">
-                            {runner.runner_status === 'APPROVED' && canSuspend && (
-                              <button
-                                type="button"
-                                className="admin-button admin-button--danger"
-                                disabled={busy}
-                                onClick={() =>
-                                  void updateRunnerStatus(runner, 'suspend')
-                                }
-                              >
-                                {busy ? 'Memproses...' : 'Gantung Runner'}
-                              </button>
-                            )}
+                            {runner.runner_status === 'APPROVED' &&
+                              canSuspend && (
+                                <button
+                                  type="button"
+                                  className="admin-button admin-button--danger"
+                                  disabled={busy}
+                                  onClick={() =>
+                                    void updateRunnerStatus(runner, 'suspend')
+                                  }
+                                >
+                                  {busy ? 'Memproses...' : 'Gantung Runner'}
+                                </button>
+                              )}
 
-                            {runner.runner_status === 'SUSPENDED' && canRestore && (
-                              <button
-                                type="button"
-                                className="admin-button admin-button--primary"
-                                disabled={busy}
-                                onClick={() =>
-                                  void updateRunnerStatus(runner, 'restore')
-                                }
-                              >
-                                {busy ? 'Memproses...' : 'Pulihkan Runner'}
-                              </button>
-                            )}
+                            {runner.runner_status === 'SUSPENDED' &&
+                              canRestore && (
+                                <button
+                                  type="button"
+                                  className="admin-button admin-button--primary"
+                                  disabled={busy}
+                                  onClick={() =>
+                                    void updateRunnerStatus(runner, 'restore')
+                                  }
+                                >
+                                  {busy ? 'Memproses...' : 'Pulihkan Runner'}
+                                </button>
+                              )}
                           </div>
                         </>
                       )}
