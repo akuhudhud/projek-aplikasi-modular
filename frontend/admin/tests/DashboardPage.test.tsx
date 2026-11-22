@@ -1,3 +1,4 @@
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   cleanup,
@@ -80,6 +81,25 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Status Runner')).toBeTruthy();
     expect(screen.getByText('120')).toBeTruthy();
     expect(screen.getByText('Jumlah: 80')).toBeTruthy();
+  });
+
+  it('menyediakan ringkasan data carta untuk pembaca skrin', async () => {
+    vi.spyOn(adminApi, 'getAdminDashboard')
+      .mockResolvedValue(dashboardData);
+
+    render(<DashboardPage />);
+
+    const chart = await screen.findByRole('img', {
+      name: /Aktiviti tugasan tujuh hari/
+    });
+
+    expect(chart.getAttribute('aria-label')).toContain(
+      '2026-11-15: 5 dicipta, 2 selesai'
+    );
+
+    expect(chart.getAttribute('aria-label')).toContain(
+      '2026-11-21: 2 dicipta, 3 selesai'
+    );
   });
 
   it('tidak memaparkan butiran pemohon tanpa kebenaran', async () => {
