@@ -49,14 +49,8 @@ const superAdmins: AdminAccount[] = [
 ];
 
 const catalog = [
-  {
-    key: 'accounts.view',
-    label: 'Lihat Akaun'
-  },
-  {
-    key: 'accounts.suspend',
-    label: 'Gantung Akaun'
-  },
+  { key: 'accounts.view', label: 'Lihat Akaun' },
+  { key: 'accounts.suspend', label: 'Gantung Akaun' },
   {
     key: 'runner_applications.view',
     label: 'Lihat Permohonan Runner'
@@ -99,14 +93,12 @@ function mockPermissions(
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  let reject!: (reason?: unknown) => void;
 
-  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+  const promise = new Promise<T>((resolvePromise) => {
     resolve = resolvePromise;
-    reject = rejectPromise;
   });
 
-  return { promise, resolve, reject };
+  return { promise, resolve };
 }
 
 function setup() {
@@ -122,7 +114,9 @@ function setup() {
   return { onRefresh };
 }
 
-async function selectAccount(accountId = 'super-admin-001') {
+async function selectAccount(
+  accountId = 'super-admin-001'
+) {
   await screen.findByRole('option', {
     name: /Pentadbir Satu/
   });
@@ -135,10 +129,9 @@ async function selectAccount(accountId = 'super-admin-001') {
 
 describe('SuperAdminManagement', () => {
   it('memaparkan senarai Super Admin daripada API', async () => {
-    const getAccounts = vi.spyOn(adminApi, 'getAccounts')
-      .mockResolvedValue(mockAccountList());
-
     setup();
+
+    const getAccounts = vi.mocked(adminApi.getAccounts);
 
     expect(
       await screen.findByRole('heading', {
@@ -169,21 +162,18 @@ describe('SuperAdminManagement', () => {
 
     await selectAccount();
 
+    const checkbox = await screen.findByRole(
+      'checkbox',
+      { name: /Lihat Akaun/ }
+    );
+
     expect(
-      await screen.findByRole('checkbox', {
-        name: /Lihat Akaun/
-      })
-    ).toBeTruthy();
+      (checkbox as HTMLInputElement).checked
+    ).toBe(true);
 
     expect(getPermissions).toHaveBeenCalledWith(
       'super-admin-001'
     );
-
-    expect(
-      screen.getByRole('checkbox', {
-        name: /Lihat Akaun/
-      })
-    ).toBeChecked();
   });
 
   it('mengabaikan respons permission lama apabila akaun ditukar', async () => {
@@ -214,11 +204,14 @@ describe('SuperAdminManagement', () => {
       ])
     );
 
+    const suspendCheckbox = await screen.findByRole(
+      'checkbox',
+      { name: /Gantung Akaun/ }
+    );
+
     expect(
-      await screen.findByRole('checkbox', {
-        name: /Gantung Akaun/
-      })
-    ).toBeChecked();
+      (suspendCheckbox as HTMLInputElement).checked
+    ).toBe(true);
 
     firstRequest.resolve(
       mockPermissions('super-admin-001', [
@@ -228,16 +221,16 @@ describe('SuperAdminManagement', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('checkbox', {
+        (screen.getByRole('checkbox', {
           name: /Gantung Akaun/
-        })
-      ).toBeChecked();
+        }) as HTMLInputElement).checked
+      ).toBe(true);
 
       expect(
-        screen.getByRole('checkbox', {
+        (screen.getByRole('checkbox', {
           name: /Lihat Akaun/
-        })
-      ).not.toBeChecked();
+        }) as HTMLInputElement).checked
+      ).toBe(false);
     });
   });
 
@@ -352,11 +345,13 @@ describe('SuperAdminManagement', () => {
       name: /Lihat Akaun/
     });
 
+    const saveButton = screen.getByRole('button', {
+      name: 'Simpan Permission'
+    });
+
     expect(
-      screen.getByRole('button', {
-        name: 'Simpan Permission'
-      })
-    ).toBeDisabled();
+      (saveButton as HTMLButtonElement).disabled
+    ).toBe(true);
 
     expect(updatePermissions).not.toHaveBeenCalled();
   });
