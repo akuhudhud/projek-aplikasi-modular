@@ -90,6 +90,11 @@ export interface RunnerApplication {
   runner_license_application: RunnerLicenseApplication | null;
 }
 
+export interface RunnerApplicationResult {
+  applications: RunnerApplication[];
+  pagination: AccountPagination;
+}
+
 export interface RunnerLicenseVerificationDetail {
   id: string;
   account_id: string;
