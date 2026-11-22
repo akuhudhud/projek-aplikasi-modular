@@ -4,8 +4,7 @@ import {
   cleanup,
   fireEvent,
   render,
-  screen,
-  waitFor
+  screen
 } from '@testing-library/react';
 
 import AccountsPage from '../src/features/accounts/AccountsPage';
@@ -74,10 +73,9 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-describe('AccountsPage detail request ordering', () => {
-  it('tidak membenarkan respons akaun lama menggantikan akaun yang dipilih kemudian', async () => {
-    const firstRequest = deferred<AdminAccountDetail>();
-    const secondRequest = deferred<AdminAccountDetail>();
+describe('AccountsPage detail loading', () => {
+  it('mengunci tindakan Lihat semasa butiran akaun sedang dimuatkan', async () => {
+    const request = deferred<AdminAccountDetail>();
 
     vi.spyOn(adminApi, 'getAccounts').mockResolvedValue({
       accounts: [firstAccount, secondAccount],
@@ -92,13 +90,7 @@ describe('AccountsPage detail request ordering', () => {
     });
 
     vi.spyOn(adminApi, 'getAccountDetail')
-      .mockImplementation((accountId) => {
-        if (accountId === firstAccount.id) {
-          return firstRequest.promise;
-        }
-
-        return secondRequest.promise;
-      });
+      .mockReturnValue(request.promise);
 
     render(<AccountsPage account={admin} />);
 
@@ -110,42 +102,24 @@ describe('AccountsPage detail request ordering', () => {
 
     fireEvent.click(viewButtons[0]);
 
-    await waitFor(() => {
-      expect(adminApi.getAccountDetail).toHaveBeenCalledWith(
-        firstAccount.id
-      );
-    });
+    expect(adminApi.getAccountDetail).toHaveBeenCalledWith(
+      firstAccount.id
+    );
 
-    fireEvent.click(viewButtons[1]);
+    expect(
+      screen.getByRole('status')
+    ).toBeTruthy();
 
-    await waitFor(() => {
-      expect(adminApi.getAccountDetail).toHaveBeenCalledWith(
-        secondAccount.id
-      );
-    });
+    for (const button of viewButtons) {
+      expect((button as HTMLButtonElement).disabled).toBe(true);
+    }
 
-    secondRequest.resolve(detail(secondAccount));
+    request.resolve(detail(firstAccount));
 
     expect(
       await screen.findByRole('heading', {
-        name: 'Pengguna Kedua'
+        name: 'Pengguna Pertama'
       })
     ).toBeTruthy();
-
-    firstRequest.resolve(detail(firstAccount));
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole('heading', {
-          name: 'Pengguna Kedua'
-        })
-      ).toBeTruthy();
-
-      expect(
-        screen.queryByRole('heading', {
-          name: 'Pengguna Pertama'
-        })
-      ).toBeNull();
-    });
   });
 });
