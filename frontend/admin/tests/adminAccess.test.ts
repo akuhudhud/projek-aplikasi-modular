@@ -27,31 +27,29 @@ function createAdmin(
 }
 
 describe('Admin permission access', () => {
-  it('memberikan akses semua halaman kepada Root Super Admin', () => {
+  it('memberikan akses halaman dalam skop kepada Root Super Admin', () => {
     const root = createAdmin('ROOT_SUPER_ADMIN');
 
-    expect(
-      getAccessiblePages(root)
-    ).toEqual([
+    expect(getAccessiblePages(root)).toEqual([
       'dashboard',
       'accounts',
       'runner-applications',
       'identity-verifications',
-      'license-verifications',
       'audit-logs'
     ]);
   });
 
-  it('hanya memberikan halaman berdasarkan permission Super Admin', () => {
+  it('menggunakan permission untuk akses halaman Super Admin', () => {
     const admin = createAdmin('SUPER_ADMIN', [
       'accounts.view',
+      'runner_applications.view',
       'audit_logs.view'
     ]);
 
     expect(canAccessPage(admin, 'dashboard')).toBe(true);
     expect(canAccessPage(admin, 'accounts')).toBe(true);
+    expect(canAccessPage(admin, 'runner-applications')).toBe(true);
     expect(canAccessPage(admin, 'audit-logs')).toBe(true);
-    expect(canAccessPage(admin, 'runner-applications')).toBe(false);
     expect(canAccessPage(admin, 'identity-verifications')).toBe(false);
   });
 
@@ -77,6 +75,7 @@ describe('Admin permission access', () => {
     const admin = createAdmin('SUPER_ADMIN', []);
 
     expect(canAccessPage(admin, 'accounts')).toBe(false);
+    expect(canAccessPage(admin, 'runner-applications')).toBe(false);
     expect(canAccessPage(admin, 'audit-logs')).toBe(false);
   });
 });
