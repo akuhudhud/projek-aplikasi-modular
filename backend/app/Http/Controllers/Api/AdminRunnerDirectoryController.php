@@ -23,7 +23,6 @@ class AdminRunnerDirectoryController extends Controller
         $actor = $request->attributes->get('account');
 
         if (
-            !$actor instanceof Account ||
             !in_array($actor->role, ['ROOT_SUPER_ADMIN', 'SUPER_ADMIN'], true)
         ) {
             throw new AuthorizationException(
