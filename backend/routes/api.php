@@ -98,6 +98,17 @@ Route::get('/me/identity-verification', [
     'showMyStatus',
 ])->middleware(AuthenticateSession::class);
 
+/*
+ * Queue route must be registered before the {accountId} route.
+ */
+Route::get('/admin/identity-verifications', [
+    IdentityVerificationController::class,
+    'index',
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:identity_verifications.review',
+]);
+
 Route::get('/admin/identity-verifications/{accountId}', [
     IdentityVerificationController::class,
     'showForReview',
