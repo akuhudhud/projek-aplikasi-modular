@@ -77,6 +77,18 @@ const application: RunnerApplication = {
   }
 };
 
+const secondApplication: RunnerApplication = {
+  ...application,
+  id: 'runner-pending-002',
+  profile_name: 'Runner Halaman Dua',
+  phone: '60129999999',
+  email: 'runner2@example.com',
+  runner_license_application: {
+    ...application.runner_license_application!,
+    id: 'license-002'
+  }
+};
+
 const runner: RunnerDirectoryItem = {
   id: 'runner-approved-001',
   profile_name: 'Runner Diluluskan',
@@ -111,6 +123,33 @@ const licenseDetail: RunnerLicenseVerificationDetail = {
   reviewed_at: null
 };
 
+function mockApplications(
+  applications: RunnerApplication[] = [application],
+  page = 1,
+  lastPage = 1,
+  total = applications.length
+) {
+  const from = applications.length > 0
+    ? (page - 1) * 15 + 1
+    : null;
+
+  const to = applications.length > 0
+    ? from! + applications.length - 1
+    : null;
+
+  return {
+    applications,
+    pagination: {
+      current_page: page,
+      last_page: lastPage,
+      per_page: 15,
+      total,
+      from,
+      to
+    }
+  };
+}
+
 function mockRunnerDirectory(
   runners: RunnerDirectoryItem[] = [runner]
 ) {
@@ -129,23 +168,28 @@ function mockRunnerDirectory(
 
 describe('RunnerApplicationsPage', () => {
   it('memaparkan senarai permohonan Runner daripada API', async () => {
-    vi.spyOn(adminApi, 'getRunnerApplications')
-      .mockResolvedValue([application]);
+    const getApplications = vi.spyOn(
+      adminApi,
+      'getRunnerApplications'
+    ).mockResolvedValue(mockApplications());
 
     render(<RunnerApplicationsPage account={adminAccount} />);
 
     expect(await screen.findByText('Runner Ujian')).toBeTruthy();
     expect(screen.getByText('60123456789')).toBeTruthy();
     expect(screen.getByText('CDL')).toBeTruthy();
-
     expect(screen.getAllByText('PENDING')).toHaveLength(2);
-
     expect(screen.getByText('Tarikh Permohonan')).toBeTruthy();
+
+    expect(getApplications).toHaveBeenCalledWith({
+      page: 1,
+      per_page: 15
+    });
   });
 
   it('memaparkan keadaan kosong apabila tiada permohonan', async () => {
     vi.spyOn(adminApi, 'getRunnerApplications')
-      .mockResolvedValue([]);
+      .mockResolvedValue(mockApplications([], 1, 1, 0));
 
     render(<RunnerApplicationsPage account={adminAccount} />);
 
@@ -156,9 +200,120 @@ describe('RunnerApplicationsPage', () => {
     ).toBeTruthy();
   });
 
+  it('memaparkan maklumat pagination permohonan', async () => {
+    vi.spyOn(adminApi, 'getRunnerApplications')
+      .mockResolvedValue(mockApplications([application], 2, 4, 46));
+
+    render(<RunnerApplicationsPage account={adminAccount} />);
+
+    expect(await screen.findByText('Runner Ujian')).toBeTruthy();
+    expect(
+      screen.getByText('Memaparkan 16–16 daripada 46 permohonan')
+    ).toBeTruthy();
+    expect(screen.getByText('Halaman 2 daripada 4')).toBeTruthy();
+  });
+
+  it('memuatkan halaman seterusnya apabila diminta', async () => {
+    const getApplications = vi.spyOn(
+      adminApi,
+      'getRunnerApplications'
+    );
+
+    getApplications
+      .mockResolvedValueOnce(
+        mockApplications([application], 1, 2, 16)
+      )
+      .mockResolvedValueOnce(
+        mockApplications([secondApplication], 2, 2, 16)
+      );
+
+    render(<RunnerApplicationsPage account={adminAccount} />);
+
+    expect(await screen.findByText('Runner Ujian')).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Seterusnya' })
+    );
+
+    expect(
+      await screen.findByText('Runner Halaman Dua')
+    ).toBeTruthy();
+
+    expect(getApplications).toHaveBeenLastCalledWith({
+      page: 2,
+      per_page: 15
+    });
+
+    expect(screen.getByText('Halaman 2 daripada 2')).toBeTruthy();
+  });
+
+  it('memuatkan halaman sebelumnya apabila diminta', async () => {
+    const getApplications = vi.spyOn(
+      adminApi,
+      'getRunnerApplications'
+    );
+
+    getApplications
+      .mockResolvedValueOnce(
+        mockApplications([secondApplication], 2, 2, 16)
+      )
+      .mockResolvedValueOnce(
+        mockApplications([application], 1, 2, 16)
+      );
+
+    render(<RunnerApplicationsPage account={adminAccount} />);
+
+    expect(
+      await screen.findByText('Runner Halaman Dua')
+    ).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Sebelum' })
+    );
+
+    expect(await screen.findByText('Runner Ujian')).toBeTruthy();
+
+    expect(getApplications).toHaveBeenLastCalledWith({
+      page: 1,
+      per_page: 15
+    });
+  });
+
+  it('memuat semula halaman semasa dan bukan kembali ke halaman pertama', async () => {
+    const getApplications = vi.spyOn(
+      adminApi,
+      'getRunnerApplications'
+    );
+
+    getApplications
+      .mockResolvedValueOnce(
+        mockApplications([secondApplication], 2, 3, 31)
+      )
+      .mockResolvedValueOnce(
+        mockApplications([secondApplication], 2, 3, 31)
+      );
+
+    render(<RunnerApplicationsPage account={adminAccount} />);
+
+    expect(
+      await screen.findByText('Runner Halaman Dua')
+    ).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Muat Semula' })
+    );
+
+    await waitFor(() => {
+      expect(getApplications).toHaveBeenLastCalledWith({
+        page: 2,
+        per_page: 15
+      });
+    });
+  });
+
   it('menghantar keputusan lulus bersama alasan kepada API', async () => {
     vi.spyOn(adminApi, 'getRunnerApplications')
-      .mockResolvedValue([application]);
+      .mockResolvedValue(mockApplications());
 
     const decide = vi.spyOn(adminApi, 'decideRunnerApplication')
       .mockResolvedValue(undefined);
@@ -184,7 +339,7 @@ describe('RunnerApplicationsPage', () => {
 
   it('menghantar keputusan tolak bersama alasan kepada API', async () => {
     vi.spyOn(adminApi, 'getRunnerApplications')
-      .mockResolvedValue([application]);
+      .mockResolvedValue(mockApplications());
 
     const decide = vi.spyOn(adminApi, 'decideRunnerApplication')
       .mockResolvedValue(undefined);
@@ -210,7 +365,7 @@ describe('RunnerApplicationsPage', () => {
 
   it('mewajibkan alasan sebelum keputusan dihantar', async () => {
     vi.spyOn(adminApi, 'getRunnerApplications')
-      .mockResolvedValue([application]);
+      .mockResolvedValue(mockApplications());
 
     const decide = vi.spyOn(adminApi, 'decideRunnerApplication')
       .mockResolvedValue(undefined);
@@ -229,7 +384,7 @@ describe('RunnerApplicationsPage', () => {
 
   it('tidak memaparkan tindakan keputusan tanpa permission', async () => {
     vi.spyOn(adminApi, 'getRunnerApplications')
-      .mockResolvedValue([application]);
+      .mockResolvedValue(mockApplications());
 
     render(<RunnerApplicationsPage account={restrictedAccount} />);
     await screen.findByText('Runner Ujian');
@@ -245,7 +400,7 @@ describe('RunnerApplicationsPage', () => {
 
   it('memaparkan butiran lesen melalui API apabila diminta', async () => {
     vi.spyOn(adminApi, 'getRunnerApplications')
-      .mockResolvedValue([application]);
+      .mockResolvedValue(mockApplications());
 
     const getLicense = vi.spyOn(
       adminApi,
@@ -275,7 +430,7 @@ describe('RunnerApplicationsPage', () => {
 
   it('membuka direktori Runner dan memaparkan rekod daripada API', async () => {
     vi.spyOn(adminApi, 'getRunnerApplications')
-      .mockResolvedValue([]);
+      .mockResolvedValue(mockApplications([], 1, 1, 0));
 
     const getDirectory = vi.spyOn(adminApi, 'getRunnerDirectory')
       .mockResolvedValue(mockRunnerDirectory());
@@ -298,7 +453,7 @@ describe('RunnerApplicationsPage', () => {
 
   it('menghantar carian direktori Runner kepada API', async () => {
     vi.spyOn(adminApi, 'getRunnerApplications')
-      .mockResolvedValue([]);
+      .mockResolvedValue(mockApplications([], 1, 1, 0));
 
     const getDirectory = vi.spyOn(adminApi, 'getRunnerDirectory')
       .mockResolvedValue(mockRunnerDirectory());
@@ -332,7 +487,7 @@ describe('RunnerApplicationsPage', () => {
 
   it('menggantung Runner dengan alasan tindakan', async () => {
     vi.spyOn(adminApi, 'getRunnerApplications')
-      .mockResolvedValue([]);
+      .mockResolvedValue(mockApplications([], 1, 1, 0));
 
     vi.spyOn(adminApi, 'getRunnerDirectory')
       .mockResolvedValue(mockRunnerDirectory());
@@ -368,7 +523,7 @@ describe('RunnerApplicationsPage', () => {
 
   it('Root boleh melihat direktori Runner tanpa permission individu', async () => {
     vi.spyOn(adminApi, 'getRunnerApplications')
-      .mockResolvedValue([]);
+      .mockResolvedValue(mockApplications([], 1, 1, 0));
 
     vi.spyOn(adminApi, 'getRunnerDirectory')
       .mockResolvedValue(mockRunnerDirectory());
