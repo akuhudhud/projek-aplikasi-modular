@@ -20,11 +20,10 @@ class AdminRunnerDirectoryController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        /** @var Account $actor */
         $actor = $request->attributes->get('account');
 
         if (
-            !$actor
+            !($actor instanceof Account)
             || !in_array($actor->role, ['ROOT_SUPER_ADMIN', 'SUPER_ADMIN'], true)
         ) {
             throw new AuthorizationException(
@@ -155,7 +154,7 @@ class AdminRunnerDirectoryController extends Controller
                     'current_license' => $license ? [
                         'license_type' => $license->license_type,
                         'license_class' => $license->license_class,
-                        'expires_at' => $license->expires_at?->toDateString(),
+                        'expires_at' => $license->expires_at->toDateString(),
                         'status' => $license->status,
                     ] : null,
                 ];
