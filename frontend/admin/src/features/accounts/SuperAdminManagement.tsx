@@ -1,5 +1,5 @@
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 
 import {
@@ -16,6 +16,8 @@ import type {
   AdminPermission,
   CreateSuperAdminPayload
 } from '../../types/admin';
+
+import './SuperAdminManagement.css';
 
 interface SuperAdminManagementProps {
   onRefresh: () => Promise<void>;
@@ -53,6 +55,8 @@ export default function SuperAdminManagement({
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const permissionRequestId = useRef(0);
 
   const loadSuperAdmins = useCallback(async () => {
     setLoadingAccounts(true);
@@ -125,6 +129,8 @@ export default function SuperAdminManagement({
   }
 
   async function selectSuperAdmin(accountId: string) {
+    const requestId = ++permissionRequestId.current;
+
     setSelectedId(accountId);
     setError('');
     setSuccess('');
@@ -139,20 +145,29 @@ export default function SuperAdminManagement({
 
     setJobTitle(selected?.job_title ?? '');
 
-    if (!accountId) return;
+    if (!accountId) {
+      setUpdating(false);
+      return;
+    }
 
     setUpdating(true);
 
     try {
       const result = await getSuperAdminPermissions(accountId);
 
+      if (requestId !== permissionRequestId.current) return;
+
       setCatalog(result.catalog);
       setPermissions(result.permissions);
       setJobTitle(result.account.job_title ?? '');
     } catch (err) {
-      setError(getApiError(err));
+      if (requestId === permissionRequestId.current) {
+        setError(getApiError(err));
+      }
     } finally {
-      setUpdating(false);
+      if (requestId === permissionRequestId.current) {
+        setUpdating(false);
+      }
     }
   }
 
@@ -213,7 +228,7 @@ export default function SuperAdminManagement({
   }
 
   return (
-    <section className="account-detail">
+    <section className="account-detail super-admin-management">
       <div className="admin-page__heading">
         <div>
           <span className="dashboard-page__eyebrow">
