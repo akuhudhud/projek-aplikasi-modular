@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   changeRunnerStatus,
@@ -23,6 +23,11 @@ interface Props {
 }
 
 type RunnerTab = 'applications' | 'directory';
+
+interface DirectoryFilters {
+  search: string;
+  status: string;
+}
 
 function hasPermission(account: AdminProfile, permission: string): boolean {
   return (
@@ -81,7 +86,16 @@ export default function RunnerApplicationsPage({ account }: Props) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
-  const canViewApplications = hasPermission(account, 'runner_applications.view');
+  const activeTabRef = useRef<RunnerTab>('applications');
+  const applicationRequestId = useRef(0);
+  const directoryRequestId = useRef(0);
+  const licenseRequestId = useRef(0);
+  const mountedRef = useRef(true);
+
+  const canViewApplications = hasPermission(
+    account,
+    'runner_applications.view'
+  );
   const canApprove = hasPermission(account, 'runner_applications.approve');
   const canReject = hasPermission(account, 'runner_applications.reject');
   const canReviewLicense = hasPermission(
@@ -91,7 +105,20 @@ export default function RunnerApplicationsPage({ account }: Props) {
   const canSuspend = hasPermission(account, 'runners.suspend');
   const canRestore = hasPermission(account, 'runners.restore');
 
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      applicationRequestId.current += 1;
+      directoryRequestId.current += 1;
+      licenseRequestId.current += 1;
+    };
+  }, []);
+
   async function loadApplications(page = applicationPage) {
+    const requestId = ++applicationRequestId.current;
+
     setLoading(true);
     setError('');
 
@@ -101,6 +128,14 @@ export default function RunnerApplicationsPage({ account }: Props) {
         per_page: 15
       });
 
+      if (
+        !mountedRef.current ||
+        requestId !== applicationRequestId.current ||
+        activeTabRef.current !== 'applications'
+      ) {
+        return;
+      }
+
       setApplications(result.applications);
       setApplicationPage(result.pagination.current_page);
       setApplicationLastPage(result.pagination.last_page);
@@ -108,44 +143,147 @@ export default function RunnerApplicationsPage({ account }: Props) {
       setApplicationFrom(result.pagination.from);
       setApplicationTo(result.pagination.to);
     } catch (err) {
-      setError(getApiError(err));
+      if (
+        mountedRef.current &&
+        requestId === applicationRequestId.current &&
+        activeTabRef.current === 'applications'
+      ) {
+        setError(getApiError(err));
+      }
     } finally {
-      setLoading(false);
+      if (
+        mountedRef.current &&
+        requestId === applicationRequestId.current &&
+        activeTabRef.current === 'applications'
+      ) {
+        setLoading(false);
+      }
     }
   }
 
-  async function loadRunners(page = runnerPage) {
+  async function loadRunners(
+    page = runnerPage,
+    filters: DirectoryFilters = {
+      search: runnerSearch,
+      status: runnerStatusFilter
+    }
+  ) {
+    const requestId = ++directoryRequestId.current;
+
     setLoading(true);
     setError('');
 
     try {
       const result = await getRunnerDirectory({
-        search: runnerSearch.trim() || undefined,
-        status: runnerStatusFilter || undefined,
+        search: filters.search.trim() || undefined,
+        status: filters.status || undefined,
         page,
         per_page: 15
       });
+
+      if (
+        !mountedRef.current ||
+        requestId !== directoryRequestId.current ||
+        activeTabRef.current !== 'directory'
+      ) {
+        return;
+      }
 
       setRunners(result.runners);
       setRunnerPage(result.pagination.current_page);
       setRunnerLastPage(result.pagination.last_page);
       setRunnerTotal(result.pagination.total);
     } catch (err) {
-      setError(getApiError(err));
+      if (
+        mountedRef.current &&
+        requestId === directoryRequestId.current &&
+        activeTabRef.current === 'directory'
+      ) {
+        setError(getApiError(err));
+      }
     } finally {
-      setLoading(false);
+      if (
+        mountedRef.current &&
+        requestId === directoryRequestId.current &&
+        activeTabRef.current === 'directory'
+      ) {
+        setLoading(false);
+      }
     }
   }
 
   useEffect(() => {
     if (activeTab === 'applications') {
+      directoryRequestId.current += 1;
+      licenseRequestId.current += 1;
+      setLicenseLoadingId('');
       void loadApplications(1);
     } else {
+      applicationRequestId.current += 1;
+      licenseRequestId.current += 1;
+      setLicenseLoadingId('');
       void loadRunners(1);
     }
-    // Initial tab load only.
+
+    return () => {
+      if (activeTab === 'applications') {
+        applicationRequestId.current += 1;
+      } else {
+        directoryRequestId.current += 1;
+      }
+
+      licenseRequestId.current += 1;
+    };
+
+    // Tab changes initiate a fresh request for that tab.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  function changeTab(tab: RunnerTab) {
+    if (tab === activeTabRef.current) return;
+
+    activeTabRef.current = tab;
+    setActiveTab(tab);
+    setError('');
+    setMessage('');
+    setLoading(true);
+
+    applicationRequestId.current += 1;
+    directoryRequestId.current += 1;
+    licenseRequestId.current += 1;
+    setLicenseLoadingId('');
+  }
+
+  function handleTabKeyDown(
+    event: React.KeyboardEvent<HTMLButtonElement>
+  ) {
+    const tabs = Array.from(
+      event.currentTarget
+        .closest('[role="tablist"]')
+        ?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? []
+    );
+
+    if (tabs.length === 0) return;
+
+    const currentIndex = tabs.indexOf(event.currentTarget);
+    let nextIndex = currentIndex;
+
+    if (event.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % tabs.length;
+    } else if (event.key === 'ArrowLeft') {
+      nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = tabs.length - 1;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    tabs[nextIndex]?.focus();
+    tabs[nextIndex]?.click();
+  }
 
   async function decide(
     accountId: string,
@@ -164,6 +302,8 @@ export default function RunnerApplicationsPage({ account }: Props) {
 
     try {
       await decideRunnerApplication(accountId, decision, reason);
+
+      if (!mountedRef.current) return;
 
       setMessage(
         decision === 'approve'
@@ -184,9 +324,13 @@ export default function RunnerApplicationsPage({ account }: Props) {
 
       await loadApplications(nextPage);
     } catch (err) {
-      setError(getApiError(err));
+      if (mountedRef.current) {
+        setError(getApiError(err));
+      }
     } finally {
-      setWorkingId('');
+      if (mountedRef.current) {
+        setWorkingId('');
+      }
     }
   }
 
@@ -196,20 +340,41 @@ export default function RunnerApplicationsPage({ account }: Props) {
       return;
     }
 
+    const requestId = ++licenseRequestId.current;
+
     setLicenseLoadingId(accountId);
     setError('');
 
     try {
       const detail = await getRunnerLicenseVerification(accountId);
 
+      if (
+        !mountedRef.current ||
+        requestId !== licenseRequestId.current ||
+        activeTabRef.current !== 'applications'
+      ) {
+        return;
+      }
+
       setLicenseDetails((current) => ({
         ...current,
         [accountId]: detail
       }));
     } catch (err) {
-      setError(getApiError(err));
+      if (
+        mountedRef.current &&
+        requestId === licenseRequestId.current &&
+        activeTabRef.current === 'applications'
+      ) {
+        setError(getApiError(err));
+      }
     } finally {
-      setLicenseLoadingId('');
+      if (
+        mountedRef.current &&
+        requestId === licenseRequestId.current
+      ) {
+        setLicenseLoadingId('');
+      }
     }
   }
 
@@ -224,6 +389,9 @@ export default function RunnerApplicationsPage({ account }: Props) {
 
     try {
       const blob = await downloadRunnerLicenseDocument(accountId);
+
+      if (!mountedRef.current) return;
+
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
 
@@ -232,11 +400,18 @@ export default function RunnerApplicationsPage({ account }: Props) {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(url);
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 1000);
     } catch (err) {
-      setError(getApiError(err));
+      if (mountedRef.current) {
+        setError(getApiError(err));
+      }
     } finally {
-      setDocumentLoadingId('');
+      if (mountedRef.current) {
+        setDocumentLoadingId('');
+      }
     }
   }
 
@@ -258,6 +433,8 @@ export default function RunnerApplicationsPage({ account }: Props) {
     try {
       await changeRunnerStatus(runner.id, action, reason);
 
+      if (!mountedRef.current) return;
+
       setMessage(
         action === 'suspend'
           ? 'Kelayakan Runner berjaya digantung.'
@@ -272,9 +449,13 @@ export default function RunnerApplicationsPage({ account }: Props) {
 
       await loadRunners(runnerPage);
     } catch (err) {
-      setError(getApiError(err));
+      if (mountedRef.current) {
+        setError(getApiError(err));
+      }
     } finally {
-      setWorkingId('');
+      if (mountedRef.current) {
+        setWorkingId('');
+      }
     }
   }
 
@@ -312,23 +493,39 @@ export default function RunnerApplicationsPage({ account }: Props) {
         </button>
       </div>
 
-      <div className="admin-tabs" role="tablist" aria-label="Bahagian Runner">
+      <div
+        className="admin-tabs"
+        role="tablist"
+        aria-label="Bahagian Runner"
+      >
         <button
+          id="runner-tab-applications"
           type="button"
           role="tab"
+          aria-controls="runner-panel-applications"
           aria-selected={activeTab === 'applications'}
-          className={`admin-tab ${activeTab === 'applications' ? 'admin-tab--active' : ''}`}
-          onClick={() => setActiveTab('applications')}
+          tabIndex={activeTab === 'applications' ? 0 : -1}
+          className={`admin-tab ${
+            activeTab === 'applications' ? 'admin-tab--active' : ''
+          }`}
+          onClick={() => changeTab('applications')}
+          onKeyDown={handleTabKeyDown}
         >
           Permohonan
         </button>
 
         <button
+          id="runner-tab-directory"
           type="button"
           role="tab"
+          aria-controls="runner-panel-directory"
           aria-selected={activeTab === 'directory'}
-          className={`admin-tab ${activeTab === 'directory' ? 'admin-tab--active' : ''}`}
-          onClick={() => setActiveTab('directory')}
+          tabIndex={activeTab === 'directory' ? 0 : -1}
+          className={`admin-tab ${
+            activeTab === 'directory' ? 'admin-tab--active' : ''
+          }`}
+          onClick={() => changeTab('directory')}
+          onKeyDown={handleTabKeyDown}
         >
           Senarai Runner
         </button>
@@ -341,26 +538,37 @@ export default function RunnerApplicationsPage({ account }: Props) {
       )}
 
       {message && (
-        <div className="admin-alert admin-alert--success" role="status">
+        <div
+          className="admin-alert admin-alert--success"
+          role="status"
+          aria-live="polite"
+        >
           {message}
         </div>
       )}
 
       {activeTab === 'applications' && (
-        <>
+        <div
+          id="runner-panel-applications"
+          role="tabpanel"
+          aria-labelledby="runner-tab-applications"
+          tabIndex={0}
+        >
           {!canViewApplications ? (
             <div className="admin-state">
               Anda tidak mempunyai kebenaran melihat permohonan Runner.
             </div>
           ) : loading ? (
-            <div className="admin-state">Memuatkan permohonan...</div>
+            <div className="admin-state" role="status" aria-live="polite">
+              Memuatkan permohonan...
+            </div>
           ) : applications.length === 0 ? (
-            <div className="admin-state">
+            <div className="admin-state" role="status">
               Tiada permohonan Runner yang menunggu semakan.
             </div>
           ) : (
             <>
-              <div className="admin-page__footnote">
+              <div className="admin-page__footnote" aria-live="polite">
                 Memaparkan {applicationFrom ?? 0}–{applicationTo ?? 0} daripada{' '}
                 {applicationTotal} permohonan
               </div>
@@ -439,6 +647,12 @@ export default function RunnerApplicationsPage({ account }: Props) {
                         </div>
                       )}
 
+                      {licenseLoadingId === application.id && (
+                        <p role="status" aria-live="polite">
+                          Memuatkan butiran lesen...
+                        </p>
+                      )}
+
                       {detail && (
                         <div className="admin-record__details">
                           <div>
@@ -466,6 +680,12 @@ export default function RunnerApplicationsPage({ account }: Props) {
                             <strong>{formatDate(detail.reviewed_at)}</strong>
                           </div>
                         </div>
+                      )}
+
+                      {documentLoadingId === application.id && (
+                        <p role="status" aria-live="polite">
+                          Sedang memuat turun dokumen lesen...
+                        </p>
                       )}
 
                       {(canApprove || canReject) && (
@@ -507,7 +727,7 @@ export default function RunnerApplicationsPage({ account }: Props) {
                                   void decide(application.id, 'reject')
                                 }
                               >
-                                Tolak
+                                {busy ? 'Memproses...' : 'Tolak'}
                               </button>
                             )}
                           </div>
@@ -535,7 +755,7 @@ export default function RunnerApplicationsPage({ account }: Props) {
                   Sebelum
                 </button>
 
-                <span>
+                <span aria-live="polite">
                   Halaman {applicationPage} daripada {applicationLastPage}
                 </span>
 
@@ -550,59 +770,58 @@ export default function RunnerApplicationsPage({ account }: Props) {
               </div>
             </>
           )}
-        </>
+        </div>
       )}
 
       {activeTab === 'directory' && (
-        <>
+        <div
+          id="runner-panel-directory"
+          role="tabpanel"
+          aria-labelledby="runner-tab-directory"
+          tabIndex={0}
+        >
           <div className="admin-filters">
-            <input
-              type="search"
-              value={runnerSearch}
-              placeholder="Cari nama, telefon atau e-mel Runner"
-              onChange={(event) => setRunnerSearch(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  void loadRunners(1);
-                }
-              }}
-            />
-
-            <select
-              value={runnerStatusFilter}
-              onChange={(event) => {
-                const status = event.target.value;
-                setRunnerStatusFilter(status);
-                setRunnerPage(1);
-
-                void (async () => {
-                  setLoading(true);
-                  setError('');
-
-                  try {
-                    const result = await getRunnerDirectory({
-                      search: runnerSearch.trim() || undefined,
-                      status: status || undefined,
-                      page: 1,
-                      per_page: 15
-                    });
-
-                    setRunners(result.runners);
-                    setRunnerPage(result.pagination.current_page);
-                    setRunnerLastPage(result.pagination.last_page);
-                    setRunnerTotal(result.pagination.total);
-                  } catch (err) {
-                    setError(getApiError(err));
-                  } finally {
-                    setLoading(false);
+            <div>
+              <label htmlFor="runner-directory-search">
+                Cari Runner
+              </label>
+              <input
+                id="runner-directory-search"
+                type="search"
+                value={runnerSearch}
+                placeholder="Cari nama, telefon atau e-mel Runner"
+                onChange={(event) => setRunnerSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    void loadRunners(1);
                   }
-                })();
-              }}
-            >
-              <option value="">Semua status</option>
-              <option value="APPROVED">APPROVED</option>
-              <option value="SUSPENDED">SUSPENDED</option>
-            </select>
+                }}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="runner-directory-status">
+                Tapis status Runner
+              </label>
+              <select
+                id="runner-directory-status"
+                value={runnerStatusFilter}
+                onChange={(event) => {
+                  const status = event.target.value;
+                  setRunnerStatusFilter(status);
+                  setRunnerPage(1);
+
+                  void loadRunners(1, {
+                    search: runnerSearch,
+                    status
+                  });
+                }}
+              >
+                <option value="">Semua status</option>
+                <option value="APPROVED">APPROVED</option>
+                <option value="SUSPENDED">SUSPENDED</option>
+              </select>
+            </div>
 
             <button
               type="button"
@@ -615,12 +834,16 @@ export default function RunnerApplicationsPage({ account }: Props) {
           </div>
 
           {loading ? (
-            <div className="admin-state">Memuatkan senarai Runner...</div>
+            <div className="admin-state" role="status" aria-live="polite">
+              Memuatkan senarai Runner...
+            </div>
           ) : runners.length === 0 ? (
-            <div className="admin-state">Tiada Runner ditemui.</div>
+            <div className="admin-state" role="status">
+              Tiada Runner ditemui.
+            </div>
           ) : (
             <>
-              <div className="admin-page__footnote">
+              <div className="admin-page__footnote" aria-live="polite">
                 Jumlah Runner: {runnerTotal}
               </div>
 
@@ -736,7 +959,7 @@ export default function RunnerApplicationsPage({ account }: Props) {
                   Sebelum
                 </button>
 
-                <span>
+                <span aria-live="polite">
                   Halaman {runnerPage} daripada {runnerLastPage}
                 </span>
 
@@ -751,7 +974,7 @@ export default function RunnerApplicationsPage({ account }: Props) {
               </div>
             </>
           )}
-        </>
+        </div>
       )}
     </section>
   );
