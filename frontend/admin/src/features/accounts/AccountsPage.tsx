@@ -1,17 +1,28 @@
 
 import { useCallback, useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 
 import {
   getAccounts,
   getAccountDetail,
-  getApiError
+  getApiError,
+  suspendAccount,
+  unsuspendAccount,
+  reactivateAccount
 } from '../../services/adminApi';
 
 import type {
   AccountPagination,
   AdminAccount,
-  AdminAccountDetail
+  AdminAccountDetail,
+  AdminProfile
 } from '../../types/admin';
+
+interface AccountsPageProps {
+  account: AdminProfile;
+}
+
+type AccountAction = 'suspend' | 'unsuspend' | 'reactivate';
 
 const EMPTY_PAGINATION: AccountPagination = {
   current_page: 1,
@@ -22,7 +33,13 @@ const EMPTY_PAGINATION: AccountPagination = {
   to: null
 };
 
-export default function AccountsPage() {
+const ACTION_LABELS: Record<AccountAction, string> = {
+  suspend: 'Gantung Akaun',
+  unsuspend: 'Pulihkan Akaun',
+  reactivate: 'Aktifkan Semula Akaun'
+};
+
+export default function AccountsPage({ account }: AccountsPageProps) {
   const [accounts, setAccounts] = useState<AdminAccount[]>([]);
   const [pagination, setPagination] =
     useState<AccountPagination>(EMPTY_PAGINATION);
@@ -37,7 +54,21 @@ export default function AccountsPage() {
 
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const [pendingAction, setPendingAction] =
+    useState<AccountAction | null>(null);
+
+  const [actionReason, setActionReason] = useState('');
+
+  const isRoot = account.role === 'ROOT_SUPER_ADMIN';
+
+  const hasPermission = (permission: string): boolean => {
+    return isRoot || account.permissions.includes(permission);
+  };
 
   const loadAccounts = useCallback(async (page = 1) => {
     setLoading(true);
@@ -68,10 +99,14 @@ export default function AccountsPage() {
   async function openAccount(accountId: string) {
     setDetailLoading(true);
     setSelectedAccount(null);
+    setPendingAction(null);
+    setActionReason('');
     setError('');
+    setSuccess('');
 
     try {
-      setSelectedAccount(await getAccountDetail(accountId));
+      const detail = await getAccountDetail(accountId);
+      setSelectedAccount(detail);
     } catch (err) {
       setError(getApiError(err));
     } finally {
@@ -79,9 +114,133 @@ export default function AccountsPage() {
     }
   }
 
-  function submitSearch(event: React.FormEvent<HTMLFormElement>) {
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSearch(searchInput.trim());
+  }
+
+  function beginAction(action: AccountAction) {
+    setPendingAction(action);
+    setActionReason('');
+    setError('');
+    setSuccess('');
+  }
+
+  function cancelAction() {
+    if (actionLoading) {
+      return;
+    }
+
+    setPendingAction(null);
+    setActionReason('');
+  }
+
+  async function submitAction(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!selectedAccount || !pendingAction || actionLoading) {
+      return;
+    }
+
+    const reason = actionReason.trim();
+
+    if (!reason) {
+      setError('Sebab tindakan wajib diisi.');
+      return;
+    }
+
+    setActionLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      if (pendingAction === 'suspend') {
+        await suspendAccount(selectedAccount.id, reason);
+      } else if (pendingAction === 'unsuspend') {
+        await unsuspendAccount(selectedAccount.id, reason);
+      } else {
+        await reactivateAccount(selectedAccount.id, reason);
+      }
+
+      setSuccess(
+        `${ACTION_LABELS[pendingAction]} berjaya dilaksanakan.`
+      );
+
+      setPendingAction(null);
+      setActionReason('');
+
+      const updatedDetail = await getAccountDetail(selectedAccount.id);
+      setSelectedAccount(updatedDetail);
+
+      await loadAccounts(pagination.current_page);
+    } catch (err) {
+      setError(getApiError(err));
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  function renderAccountActions() {
+    if (!selectedAccount || selectedAccount.role !== 'USER') {
+      return null;
+    }
+
+    const actions: {
+      action: AccountAction;
+      permission: string;
+      className?: string;
+    }[] = [];
+
+    if (
+      selectedAccount.status === 'ACTIVE' &&
+      hasPermission('accounts.suspend')
+    ) {
+      actions.push({
+        action: 'suspend',
+        permission: 'accounts.suspend',
+        className: 'admin-button--danger'
+      });
+    }
+
+    if (
+      selectedAccount.status === 'SUSPENDED' &&
+      hasPermission('accounts.unsuspend')
+    ) {
+      actions.push({
+        action: 'unsuspend',
+        permission: 'accounts.unsuspend'
+      });
+    }
+
+    if (
+      selectedAccount.status === 'DEACTIVATED' &&
+      hasPermission('accounts.reactivate')
+    ) {
+      actions.push({
+        action: 'reactivate',
+        permission: 'accounts.reactivate'
+      });
+    }
+
+    if (actions.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="admin-record__actions">
+        {actions.map(({ action, className }) => (
+          <button
+            key={action}
+            type="button"
+            className={`admin-button ${className ?? ''}`}
+            disabled={actionLoading}
+            onClick={() => beginAction(action)}
+          >
+            {ACTION_LABELS[action]}
+          </button>
+        ))}
+      </div>
+    );
   }
 
   return (
@@ -96,6 +255,7 @@ export default function AccountsPage() {
         </div>
 
         <button
+          type="button"
           className="admin-button"
           onClick={() => void loadAccounts(pagination.current_page)}
           disabled={loading}
@@ -141,7 +301,10 @@ export default function AccountsPage() {
           </select>
         </label>
 
-        <button className="admin-button admin-button--primary" type="submit">
+        <button
+          className="admin-button admin-button--primary"
+          type="submit"
+        >
           Cari
         </button>
       </form>
@@ -152,8 +315,16 @@ export default function AccountsPage() {
         </div>
       )}
 
+      {success && (
+        <div className="admin-alert admin-alert--success" role="status">
+          {success}
+        </div>
+      )}
+
       {detailLoading && (
-        <div className="admin-state">Memuatkan butiran akaun...</div>
+        <div className="admin-state">
+          Memuatkan butiran akaun...
+        </div>
       )}
 
       {selectedAccount && (
@@ -165,9 +336,14 @@ export default function AccountsPage() {
               </span>
               <h3>{selectedAccount.profile_name}</h3>
             </div>
+
             <button
+              type="button"
               className="admin-button"
-              onClick={() => setSelectedAccount(null)}
+              onClick={() => {
+                setSelectedAccount(null);
+                setPendingAction(null);
+              }}
             >
               Tutup
             </button>
@@ -178,46 +354,117 @@ export default function AccountsPage() {
               <small>Nama Paparan</small>
               <strong>{selectedAccount.profile_name}</strong>
             </div>
+
             <div>
               <small>Nama Disahkan</small>
-              <strong>{selectedAccount.verified_name || 'Belum disahkan'}</strong>
+              <strong>
+                {selectedAccount.verified_name || 'Belum disahkan'}
+              </strong>
             </div>
+
             <div>
               <small>Telefon</small>
               <strong>{selectedAccount.phone || '—'}</strong>
             </div>
+
             <div>
               <small>E-mel</small>
               <strong>{selectedAccount.email || '—'}</strong>
             </div>
+
             <div>
               <small>Peranan</small>
               <strong>{selectedAccount.role}</strong>
             </div>
+
             <div>
               <small>Status Akaun</small>
               <strong>{selectedAccount.status}</strong>
             </div>
+
             <div>
               <small>Status Identiti</small>
-              <strong>{selectedAccount.identity_status || 'Tiada rekod'}</strong>
+              <strong>
+                {selectedAccount.identity_status || 'Tiada rekod'}
+              </strong>
             </div>
+
             <div>
               <small>Jawatan</small>
               <strong>{selectedAccount.job_title || '—'}</strong>
             </div>
+
             <div>
               <small>Tarikh Daftar</small>
-              <strong>{new Date(selectedAccount.created_at).toLocaleString('ms-MY')}</strong>
+              <strong>
+                {new Date(selectedAccount.created_at).toLocaleString('ms-MY')}
+              </strong>
             </div>
           </div>
+
+          {renderAccountActions()}
+
+          {pendingAction && (
+            <form
+              className="admin-record"
+              onSubmit={submitAction}
+            >
+              <div className="admin-record__heading">
+                <div>
+                  <h3>{ACTION_LABELS[pendingAction]}</h3>
+                  <span>
+                    Akaun: {selectedAccount.profile_name}
+                  </span>
+                </div>
+              </div>
+
+              <label htmlFor="account-action-reason">
+                Sebab tindakan
+              </label>
+
+              <textarea
+                id="account-action-reason"
+                rows={4}
+                maxLength={1000}
+                required
+                value={actionReason}
+                onChange={(event) =>
+                  setActionReason(event.target.value)
+                }
+                placeholder="Masukkan sebab tindakan ini..."
+              />
+
+              <div className="admin-record__actions">
+                <button
+                  type="submit"
+                  className="admin-button admin-button--primary"
+                  disabled={actionLoading || !actionReason.trim()}
+                >
+                  {actionLoading ? 'Memproses...' : 'Sahkan Tindakan'}
+                </button>
+
+                <button
+                  type="button"
+                  className="admin-button"
+                  disabled={actionLoading}
+                  onClick={cancelAction}
+                >
+                  Batal
+                </button>
+              </div>
+            </form>
+          )}
         </section>
       )}
 
       {loading ? (
-        <div className="admin-state">Memuatkan senarai akaun...</div>
+        <div className="admin-state">
+          Memuatkan senarai akaun...
+        </div>
       ) : accounts.length === 0 ? (
-        <div className="admin-state">Tiada rekod akaun ditemui.</div>
+        <div className="admin-state">
+          Tiada rekod akaun ditemui.
+        </div>
       ) : (
         <>
           <div className="admin-table-wrap">
@@ -233,23 +480,25 @@ export default function AccountsPage() {
                   <th>Tindakan</th>
                 </tr>
               </thead>
+
               <tbody>
-                {accounts.map((account) => (
-                  <tr key={account.id}>
-                    <td>{account.profile_name}</td>
-                    <td>{account.verified_name || '—'}</td>
-                    <td>{account.phone || '—'}</td>
-                    <td>{account.email || '—'}</td>
-                    <td>{account.role}</td>
+                {accounts.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.profile_name}</td>
+                    <td>{item.verified_name || '—'}</td>
+                    <td>{item.phone || '—'}</td>
+                    <td>{item.email || '—'}</td>
+                    <td>{item.role}</td>
                     <td>
                       <span className="admin-status">
-                        {account.status}
+                        {item.status}
                       </span>
                     </td>
                     <td>
                       <button
+                        type="button"
                         className="admin-button admin-button--small"
-                        onClick={() => void openAccount(account.id)}
+                        onClick={() => void openAccount(item.id)}
                       >
                         Lihat
                       </button>
@@ -268,19 +517,30 @@ export default function AccountsPage() {
 
             <div>
               <button
+                type="button"
                 className="admin-button admin-button--small"
                 disabled={loading || pagination.current_page <= 1}
-                onClick={() => void loadAccounts(pagination.current_page - 1)}
+                onClick={() =>
+                  void loadAccounts(pagination.current_page - 1)
+                }
               >
                 Sebelum
               </button>
+
               <span>
                 Halaman {pagination.current_page} / {pagination.last_page}
               </span>
+
               <button
+                type="button"
                 className="admin-button admin-button--small"
-                disabled={loading || pagination.current_page >= pagination.last_page}
-                onClick={() => void loadAccounts(pagination.current_page + 1)}
+                disabled={
+                  loading ||
+                  pagination.current_page >= pagination.last_page
+                }
+                onClick={() =>
+                  void loadAccounts(pagination.current_page + 1)
+                }
               >
                 Seterusnya
               </button>
