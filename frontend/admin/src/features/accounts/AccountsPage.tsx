@@ -18,6 +18,8 @@ import type {
   AdminProfile
 } from '../../types/admin';
 
+import SuperAdminManagement from './SuperAdminManagement';
+
 interface AccountsPageProps {
   account: AdminProfile;
 }
@@ -127,9 +129,7 @@ export default function AccountsPage({ account }: AccountsPageProps) {
   }
 
   function cancelAction() {
-    if (actionLoading) {
-      return;
-    }
+    if (actionLoading) return;
 
     setPendingAction(null);
     setActionReason('');
@@ -138,9 +138,7 @@ export default function AccountsPage({ account }: AccountsPageProps) {
   async function submitAction(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!selectedAccount || !pendingAction || actionLoading) {
-      return;
-    }
+    if (!selectedAccount || !pendingAction || actionLoading) return;
 
     const reason = actionReason.trim();
 
@@ -222,9 +220,7 @@ export default function AccountsPage({ account }: AccountsPageProps) {
       });
     }
 
-    if (actions.length === 0) {
-      return null;
-    }
+    if (actions.length === 0) return null;
 
     return (
       <div className="admin-record__actions">
@@ -263,6 +259,14 @@ export default function AccountsPage({ account }: AccountsPageProps) {
           Muat Semula
         </button>
       </div>
+
+      {isRoot && (
+        <SuperAdminManagement
+          onRefresh={async () => {
+            await loadAccounts(pagination.current_page);
+          }}
+        />
+      )}
 
       <form className="account-filters" onSubmit={submitSearch}>
         <label>
@@ -405,10 +409,7 @@ export default function AccountsPage({ account }: AccountsPageProps) {
           {renderAccountActions()}
 
           {pendingAction && (
-            <form
-              className="admin-record"
-              onSubmit={submitAction}
-            >
+            <form className="admin-record" onSubmit={submitAction}>
               <div className="admin-record__heading">
                 <div>
                   <h3>{ACTION_LABELS[pendingAction]}</h3>
@@ -428,9 +429,7 @@ export default function AccountsPage({ account }: AccountsPageProps) {
                 maxLength={1000}
                 required
                 value={actionReason}
-                onChange={(event) =>
-                  setActionReason(event.target.value)
-                }
+                onChange={(event) => setActionReason(event.target.value)}
                 placeholder="Masukkan sebab tindakan ini..."
               />
 
@@ -520,9 +519,7 @@ export default function AccountsPage({ account }: AccountsPageProps) {
                 type="button"
                 className="admin-button admin-button--small"
                 disabled={loading || pagination.current_page <= 1}
-                onClick={() =>
-                  void loadAccounts(pagination.current_page - 1)
-                }
+                onClick={() => void loadAccounts(pagination.current_page - 1)}
               >
                 Sebelum
               </button>
@@ -538,9 +535,7 @@ export default function AccountsPage({ account }: AccountsPageProps) {
                   loading ||
                   pagination.current_page >= pagination.last_page
                 }
-                onClick={() =>
-                  void loadAccounts(pagination.current_page + 1)
-                }
+                onClick={() => void loadAccounts(pagination.current_page + 1)}
               >
                 Seterusnya
               </button>
