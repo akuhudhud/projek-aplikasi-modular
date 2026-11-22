@@ -1,4 +1,3 @@
-
 export type AdminPage =
   | 'dashboard'
   | 'accounts'
@@ -129,6 +128,43 @@ export interface RunnerDirectoryItem {
 export interface RunnerDirectoryResult {
   runners: RunnerDirectoryItem[];
   pagination: AccountPagination;
+}
+
+export interface IdentityVerificationQueueItem {
+  account_id: string;
+  profile_name: string;
+  phone: string | null;
+  email: string | null;
+  verified_name: string;
+  mykad_number_masked: string;
+  status: 'PENDING' | 'VERIFIED' | 'REJECTED' | string;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+  documents_count: number;
+}
+
+export interface IdentityVerificationQueueResult {
+  verifications: IdentityVerificationQueueItem[];
+  pagination: AccountPagination;
+}
+
+export interface IdentityVerificationDocument {
+  id: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string | null;
+}
+
+export interface IdentityVerificationDetail {
+  account_id: string;
+  profile_name: string;
+  verified_name: string;
+  status: 'PENDING' | 'VERIFIED' | 'REJECTED' | string;
+  mykad_number_masked: string;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+  rejection_reason: string | null;
+  documents: IdentityVerificationDocument[];
 }
 
 export interface AuditLog {
