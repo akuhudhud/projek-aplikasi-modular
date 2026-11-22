@@ -7,9 +7,10 @@ use App\Models\IdentityVerification;
 use App\Models\RunnerLicenseVerification;
 use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 
 class RunnerStatusService
 {
@@ -119,8 +120,11 @@ class RunnerStatusService
         return $applicant->fresh();
     }
 
-    public function pendingApplications(Account $actor): Collection
-    {
+    public function pendingApplications(
+        Account $actor,
+        int $page = 1,
+        int $perPage = 15
+    ): LengthAwarePaginator {
         $this->assertAdministrator($actor);
         $this->assertPermission($actor, 'runner_applications.view');
 
@@ -135,31 +139,64 @@ class RunnerStatusService
             $query->where('role', 'USER');
         }
 
-        $applications = $query
+        $paginator = $query
             ->orderBy('created_at')
-            ->get([
-                'id',
-                'profile_name',
-                'phone',
-                'email',
-                'profile_picture',
-                'role',
-                'status',
-                'runner_status',
-                'created_at',
-                'updated_at',
-            ]);
+            ->orderBy('id')
+            ->paginate(
+                $perPage,
+                [
+                    'id',
+                    'profile_name',
+                    'phone',
+                    'email',
+                    'profile_picture',
+                    'role',
+                    'status',
+                    'runner_status',
+                    'created_at',
+                    'updated_at',
+                ],
+                'page',
+                $page
+            );
 
-        $applications->each(
-            function (Account $application): void {
-                $license = RunnerLicenseVerification::query()
-                    ->where('account_id', $application->id)
-                    ->where(
-                        'status',
-                        RunnerLicenseVerification::STATUS_PENDING
-                    )
-                    ->orderByDesc('submitted_at')
-                    ->first();
+        $accountIds = $paginator->getCollection()
+            ->pluck('id')
+            ->all();
+
+        /** @var Collection<string, RunnerLicenseVerification> $licenses */
+        $licenses = collect();
+
+        if ($accountIds !== []) {
+            $licenses = RunnerLicenseVerification::query()
+                ->whereIn('account_id', $accountIds)
+                ->where(
+                    'status',
+                    RunnerLicenseVerification::STATUS_PENDING
+                )
+                ->orderByDesc('submitted_at')
+                ->orderByDesc('id')
+                ->get([
+                    'id',
+                    'account_id',
+                    'license_type',
+                    'license_class',
+                    'expires_at',
+                    'status',
+                    'submitted_at',
+                    'mime_type',
+                    'size_bytes',
+                ])
+                ->groupBy('account_id')
+                ->map(
+                    fn (Collection $items): RunnerLicenseVerification =>
+                        $items->first()
+                );
+        }
+
+        $paginator->getCollection()->each(
+            function (Account $application) use ($licenses): void {
+                $license = $licenses->get($application->id);
 
                 $application->setAttribute(
                     'runner_license_application',
@@ -170,7 +207,7 @@ class RunnerStatusService
                             'license_type' => $license->license_type,
                             'license_class' => $license->license_class,
                             'expires_at' => $license->expires_at
-                                ->toDateString(),
+                                ?->toDateString(),
                             'status' => $license->status,
                             'submitted_at' => $license->submitted_at,
                             'mime_type' => $license->mime_type,
@@ -180,7 +217,7 @@ class RunnerStatusService
             }
         );
 
-        return $applications;
+        return $paginator;
     }
 
     public function changeStatus(
