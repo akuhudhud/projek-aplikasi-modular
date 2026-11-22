@@ -22,12 +22,24 @@ class AdminRunnerDirectoryController extends Controller
         /** @var Account $actor */
         $actor = $request->attributes->get('account');
 
-        if (!in_array($actor->role, ['ROOT_SUPER_ADMIN', 'SUPER_ADMIN'], true)) {
-            throw new AuthorizationException('Akses pentadbir diperlukan.');
+        if (
+            !$actor instanceof Account ||
+            !in_array($actor->role, ['ROOT_SUPER_ADMIN', 'SUPER_ADMIN'], true)
+        ) {
+            throw new AuthorizationException(
+                'Akses pentadbir diperlukan.'
+            );
         }
 
-        if (!$this->permissionService->allows($actor, 'runner_applications.view')) {
-            throw new AuthorizationException('Tiada kebenaran melihat direktori Runner.');
+        if (
+            !$this->permissionService->allows(
+                $actor,
+                'runner_applications.view'
+            )
+        ) {
+            throw new AuthorizationException(
+                'Tiada kebenaran melihat direktori Runner.'
+            );
         }
 
         $filters = $request->validate([
@@ -56,9 +68,19 @@ class AdminRunnerDirectoryController extends Controller
             $search = trim($filters['search']);
 
             $query->where(function ($builder) use ($search) {
-                $builder->where('profile_name', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                $builder->where(
+                    'profile_name',
+                    'like',
+                    "%{$search}%"
+                )->orWhere(
+                    'phone',
+                    'like',
+                    "%{$search}%"
+                )->orWhere(
+                    'email',
+                    'like',
+                    "%{$search}%"
+                );
             });
         }
 
@@ -87,7 +109,10 @@ class AdminRunnerDirectoryController extends Controller
                 $license = RunnerLicenseVerification::query()
                     ->where('account_id', $runner->id)
                     ->where('is_current', true)
-                    ->where('status', RunnerLicenseVerification::STATUS_VERIFIED)
+                    ->where(
+                        'status',
+                        RunnerLicenseVerification::STATUS_VERIFIED
+                    )
                     ->orderByDesc('submitted_at')
                     ->first();
 
@@ -104,7 +129,7 @@ class AdminRunnerDirectoryController extends Controller
                     'current_license' => $license ? [
                         'license_type' => $license->license_type,
                         'license_class' => $license->license_class,
-                        'expires_at' => $license->expires_at?->toDateString(),
+                        'expires_at' => $license->expires_at->toDateString(),
                         'status' => $license->status,
                     ] : null,
                 ];
