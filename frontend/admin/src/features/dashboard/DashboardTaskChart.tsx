@@ -20,6 +20,14 @@ export default function DashboardTaskChart({
     }).format(new Date(`${date}T12:00:00`));
   }
 
+  const chartDescription = [
+    'Aktiviti tugasan tujuh hari.',
+    ...data.map(
+      (item) =>
+        `${item.date}: ${item.created} dicipta, ${item.completed} selesai`
+    )
+  ].join('. ');
+
   return (
     <section className="dashboard-panel">
       <div className="dashboard-panel__heading">
@@ -30,11 +38,28 @@ export default function DashboardTaskChart({
       </div>
 
       <div className="dashboard-chart-legend">
-        <span><i className="dashboard-chart-legend__created" /> Dicipta</span>
-        <span><i className="dashboard-chart-legend__completed" /> Selesai</span>
+        <span>
+          <i
+            className="dashboard-chart-legend__created"
+            aria-hidden="true"
+          />
+          Dicipta
+        </span>
+
+        <span>
+          <i
+            className="dashboard-chart-legend__completed"
+            aria-hidden="true"
+          />
+          Selesai
+        </span>
       </div>
 
-      <div className="dashboard-chart">
+      <div
+        className="dashboard-chart"
+        role="img"
+        aria-label={chartDescription}
+      >
         {data.map((item) => (
           <div className="dashboard-chart__day" key={item.date}>
             <div className="dashboard-chart__bars">
