@@ -27,21 +27,43 @@ class AuditLogController extends Controller
             ], 403);
         }
 
-        $auditLogs = AuditLog::query()
+        $validated = $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:5', 'max:100'],
+        ]);
+
+        $perPage = (int) ($validated['per_page'] ?? 25);
+        $page = (int) ($validated['page'] ?? 1);
+
+        $paginator = AuditLog::query()
             ->orderByDesc('created_at')
-            ->get([
-                'id',
-                'actor_account_id',
-                'target_account_id',
-                'action',
-                'reason',
-                'created_at',
-            ]);
+            ->orderByDesc('id')
+            ->paginate(
+                $perPage,
+                [
+                    'id',
+                    'actor_account_id',
+                    'target_account_id',
+                    'action',
+                    'reason',
+                    'created_at',
+                ],
+                'page',
+                $page
+            );
 
         return response()->json([
             'success' => true,
             'data' => [
-                'audit_logs' => $auditLogs,
+                'audit_logs' => $paginator->items(),
+                'pagination' => [
+                    'current_page' => $paginator->currentPage(),
+                    'last_page' => $paginator->lastPage(),
+                    'per_page' => $paginator->perPage(),
+                    'total' => $paginator->total(),
+                    'from' => $paginator->firstItem(),
+                    'to' => $paginator->lastItem(),
+                ],
             ],
         ], 200);
     }
