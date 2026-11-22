@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Http\Controllers\Api;
@@ -9,6 +10,7 @@ use App\Services\AdminPermissionService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 
 class AdminRunnerDirectoryController extends Controller
 {
@@ -23,7 +25,8 @@ class AdminRunnerDirectoryController extends Controller
         $actor = $request->attributes->get('account');
 
         if (
-            !in_array($actor->role, ['ROOT_SUPER_ADMIN', 'SUPER_ADMIN'], true)
+            !$actor
+            || !in_array($actor->role, ['ROOT_SUPER_ADMIN', 'SUPER_ADMIN'], true)
         ) {
             throw new AuthorizationException(
                 'Akses pentadbir diperlukan.'
@@ -66,7 +69,7 @@ class AdminRunnerDirectoryController extends Controller
         if (!empty($filters['search'])) {
             $search = trim($filters['search']);
 
-            $query->where(function ($builder) use ($search) {
+            $query->where(function ($builder) use ($search): void {
                 $builder->where(
                     'profile_name',
                     'like',
@@ -103,17 +106,42 @@ class AdminRunnerDirectoryController extends Controller
                 (int) ($filters['page'] ?? 1)
             );
 
-        $runners = $paginator->getCollection()->map(
-            function (Account $runner): array {
-                $license = RunnerLicenseVerification::query()
-                    ->where('account_id', $runner->id)
-                    ->where('is_current', true)
-                    ->where(
-                        'status',
-                        RunnerLicenseVerification::STATUS_VERIFIED
-                    )
-                    ->orderByDesc('submitted_at')
-                    ->first();
+        $runnerIds = $paginator->getCollection()
+            ->pluck('id')
+            ->all();
+
+        /** @var Collection<string, RunnerLicenseVerification> $licenses */
+        $licenses = collect();
+
+        if ($runnerIds !== []) {
+            $licenses = RunnerLicenseVerification::query()
+                ->whereIn('account_id', $runnerIds)
+                ->where('is_current', true)
+                ->where(
+                    'status',
+                    RunnerLicenseVerification::STATUS_VERIFIED
+                )
+                ->orderByDesc('submitted_at')
+                ->orderByDesc('id')
+                ->get([
+                    'id',
+                    'account_id',
+                    'license_type',
+                    'license_class',
+                    'expires_at',
+                    'status',
+                    'submitted_at',
+                ])
+                ->groupBy('account_id')
+                ->map(
+                    fn (Collection $items): RunnerLicenseVerification =>
+                        $items->first()
+                );
+        }
+
+        $runners = $paginator->getCollection()
+            ->map(function (Account $runner) use ($licenses): array {
+                $license = $licenses->get($runner->id);
 
                 return [
                     'id' => $runner->id,
@@ -128,12 +156,12 @@ class AdminRunnerDirectoryController extends Controller
                     'current_license' => $license ? [
                         'license_type' => $license->license_type,
                         'license_class' => $license->license_class,
-                        'expires_at' => $license->expires_at->toDateString(),
+                        'expires_at' => $license->expires_at?->toDateString(),
                         'status' => $license->status,
                     ] : null,
                 ];
-            }
-        );
+            })
+            ->values();
 
         return response()->json([
             'success' => true,
