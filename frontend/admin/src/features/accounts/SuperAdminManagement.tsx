@@ -1,9 +1,10 @@
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 
 import {
   createSuperAdmin,
+  getAccounts,
   getApiError,
   getSuperAdminPermissions,
   updateSuperAdminJobTitle,
@@ -17,7 +18,6 @@ import type {
 } from '../../types/admin';
 
 interface SuperAdminManagementProps {
-  accounts: AdminAccount[];
   onRefresh: () => Promise<void>;
 }
 
@@ -32,12 +32,13 @@ const EMPTY_FORM: CreateSuperAdminPayload = {
 };
 
 export default function SuperAdminManagement({
-  accounts,
   onRefresh
 }: SuperAdminManagementProps) {
+  const [accounts, setAccounts] = useState<AdminAccount[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [loadingAccounts, setLoadingAccounts] = useState(true);
 
   const [form, setForm] = useState<CreateSuperAdminPayload>({
     ...EMPTY_FORM
@@ -47,14 +48,33 @@ export default function SuperAdminManagement({
   const [permissions, setPermissions] = useState<string[]>([]);
   const [catalog, setCatalog] = useState<AdminPermission[]>([]);
   const [jobTitle, setJobTitle] = useState('');
-  const [reason, setReason] = useState('');
+  const [jobTitleReason, setJobTitleReason] = useState('');
+  const [permissionReason, setPermissionReason] = useState('');
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const superAdmins = accounts.filter(
-    (account) => account.role === 'SUPER_ADMIN'
-  );
+  const loadSuperAdmins = useCallback(async () => {
+    setLoadingAccounts(true);
+
+    try {
+      const result = await getAccounts({
+        role: 'SUPER_ADMIN',
+        page: 1,
+        per_page: 100
+      });
+
+      setAccounts(result.accounts);
+    } catch (err) {
+      setError(getApiError(err));
+    } finally {
+      setLoadingAccounts(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSuperAdmins();
+  }, [loadSuperAdmins]);
 
   function updateForm(
     field: keyof CreateSuperAdminPayload,
@@ -64,6 +84,13 @@ export default function SuperAdminManagement({
       ...current,
       [field]: value
     }));
+  }
+
+  async function refreshAll() {
+    await Promise.all([
+      loadSuperAdmins(),
+      onRefresh()
+    ]);
   }
 
   async function submitCreate(event: FormEvent<HTMLFormElement>) {
@@ -89,7 +116,7 @@ export default function SuperAdminManagement({
       setShowCreate(false);
       setSuccess('Akaun Super Admin berjaya diwujudkan.');
 
-      await onRefresh();
+      await refreshAll();
     } catch (err) {
       setError(getApiError(err));
     } finally {
@@ -103,9 +130,10 @@ export default function SuperAdminManagement({
     setSuccess('');
     setPermissions([]);
     setCatalog([]);
-    setReason('');
+    setJobTitleReason('');
+    setPermissionReason('');
 
-    const selected = superAdmins.find(
+    const selected = accounts.find(
       (item) => item.id === accountId
     );
 
@@ -137,7 +165,7 @@ export default function SuperAdminManagement({
   }
 
   async function saveJobTitle() {
-    if (!selectedId || updating || !reason.trim()) return;
+    if (!selectedId || updating || !jobTitleReason.trim()) return;
 
     setUpdating(true);
     setError('');
@@ -147,13 +175,13 @@ export default function SuperAdminManagement({
       await updateSuperAdminJobTitle(
         selectedId,
         jobTitle.trim(),
-        reason.trim()
+        jobTitleReason.trim()
       );
 
       setSuccess('Jawatan Super Admin berjaya dikemas kini.');
-      setReason('');
+      setJobTitleReason('');
 
-      await onRefresh();
+      await refreshAll();
     } catch (err) {
       setError(getApiError(err));
     } finally {
@@ -162,7 +190,7 @@ export default function SuperAdminManagement({
   }
 
   async function savePermissions() {
-    if (!selectedId || updating || !reason.trim()) return;
+    if (!selectedId || updating || !permissionReason.trim()) return;
 
     setUpdating(true);
     setError('');
@@ -172,11 +200,11 @@ export default function SuperAdminManagement({
       await updateSuperAdminPermissions(
         selectedId,
         permissions,
-        reason.trim()
+        permissionReason.trim()
       );
 
       setSuccess('Permission Super Admin berjaya dikemas kini.');
-      setReason('');
+      setPermissionReason('');
     } catch (err) {
       setError(getApiError(err));
     } finally {
@@ -280,6 +308,8 @@ export default function SuperAdminManagement({
               required
               minLength={8}
               maxLength={12}
+              pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,12}"
+              title="Mesti mengandungi huruf besar, huruf kecil dan nombor."
               value={form.password}
               onChange={(event) =>
                 updateForm('password', event.target.value)
@@ -322,7 +352,8 @@ export default function SuperAdminManagement({
                 creating ||
                 !form.profile_name.trim() ||
                 (!form.phone.trim() && !form.email.trim()) ||
-                !form.reason.trim()
+                !form.reason.trim() ||
+                form.password !== form.password_confirmation
               }
             >
               {creating ? 'Menyimpan...' : 'Sahkan Pelantikan'}
@@ -334,7 +365,9 @@ export default function SuperAdminManagement({
       <div className="admin-record">
         <h3>Senarai Super Admin</h3>
 
-        {superAdmins.length === 0 ? (
+        {loadingAccounts ? (
+          <p>Memuatkan senarai Super Admin...</p>
+        ) : accounts.length === 0 ? (
           <p>Tiada akaun Super Admin ditemui.</p>
         ) : (
           <label>
@@ -346,7 +379,8 @@ export default function SuperAdminManagement({
               }
             >
               <option value="">Pilih akaun</option>
-              {superAdmins.map((item) => (
+
+              {accounts.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.profile_name}
                   {item.job_title ? ` — ${item.job_title}` : ''}
@@ -358,91 +392,95 @@ export default function SuperAdminManagement({
       </div>
 
       {selectedId && (
-        <div className="admin-record">
-          <h3>Kemas Kini Jawatan</h3>
+        <>
+          <div className="admin-record">
+            <h3>Kemas Kini Jawatan</h3>
 
-          <label>
-            Jawatan
-            <input
-              maxLength={100}
-              value={jobTitle}
-              onChange={(event) => setJobTitle(event.target.value)}
-            />
-          </label>
+            <label>
+              Jawatan
+              <input
+                maxLength={100}
+                value={jobTitle}
+                onChange={(event) => setJobTitle(event.target.value)}
+              />
+            </label>
 
-          <label>
-            Sebab Perubahan
-            <textarea
-              rows={3}
-              maxLength={1000}
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-            />
-          </label>
+            <label>
+              Sebab Perubahan Jawatan
+              <textarea
+                rows={3}
+                maxLength={1000}
+                value={jobTitleReason}
+                onChange={(event) =>
+                  setJobTitleReason(event.target.value)
+                }
+              />
+            </label>
 
-          <button
-            type="button"
-            className="admin-button admin-button--primary"
-            disabled={updating || !reason.trim()}
-            onClick={() => void saveJobTitle()}
-          >
-            Simpan Jawatan
-          </button>
-        </div>
-      )}
+            <button
+              type="button"
+              className="admin-button admin-button--primary"
+              disabled={updating || !jobTitleReason.trim()}
+              onClick={() => void saveJobTitle()}
+            >
+              Simpan Jawatan
+            </button>
+          </div>
 
-      {selectedId && (
-        <div className="admin-record">
-          <h3>Pengurusan Permission</h3>
+          <div className="admin-record">
+            <h3>Pengurusan Permission</h3>
 
-          {updating && catalog.length === 0 ? (
-            <p>Memuatkan permission...</p>
-          ) : (
-            <div className="admin-permission-list">
-              {catalog.map((permission) => (
-                <label
-                  key={permission.key}
-                  className="admin-permission-item"
-                >
-                  <input
-                    type="checkbox"
-                    checked={permissions.includes(permission.key)}
-                    onChange={() => togglePermission(permission.key)}
-                    disabled={updating}
-                  />
+            {updating && catalog.length === 0 ? (
+              <p>Memuatkan permission...</p>
+            ) : (
+              <div className="admin-permission-list">
+                {catalog.map((permission) => (
+                  <label
+                    key={permission.key}
+                    className="admin-permission-item"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={permissions.includes(permission.key)}
+                      onChange={() => togglePermission(permission.key)}
+                      disabled={updating}
+                    />
 
-                  <span>
-                    <strong>{permission.label}</strong>
-                    <small>{permission.key}</small>
-                  </span>
-                </label>
-              ))}
-            </div>
-          )}
+                    <span>
+                      <strong>{permission.label}</strong>
+                      <small>{permission.key}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
 
-          <label>
-            Sebab Perubahan Permission
-            <textarea
-              rows={3}
-              maxLength={1000}
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-            />
-          </label>
+            <label>
+              Sebab Perubahan Permission
+              <textarea
+                rows={3}
+                maxLength={1000}
+                value={permissionReason}
+                onChange={(event) =>
+                  setPermissionReason(event.target.value)
+                }
+              />
+            </label>
 
-          <button
-            type="button"
-            className="admin-button admin-button--primary"
-            disabled={
-              updating ||
-              catalog.length === 0 ||
-              !reason.trim()
-            }
-            onClick={() => void savePermissions()}
-          >
-            Simpan Permission
-          </button>
-        </div>
+            <button
+              type="button"
+              className="admin-button admin-button--primary"
+              disabled={
+                updating ||
+                catalog.length === 0 ||
+                !permissionReason.trim()
+              }
+              onClick={() => void savePermissions()}
+            >
+              Simpan Permission
+            </button>
+          </div>
+        </>
       )}
     </section>
   );
