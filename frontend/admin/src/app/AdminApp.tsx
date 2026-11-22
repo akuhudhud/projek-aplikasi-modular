@@ -50,7 +50,9 @@ export default function AdminApp() {
           clearSession();
 
           if (mounted) {
-            setLoginError('Akaun ini tidak mempunyai akses pentadbir.');
+            setLoginError(
+              'Akaun ini tidak mempunyai akses pentadbir.'
+            );
           }
 
           return;
@@ -65,7 +67,9 @@ export default function AdminApp() {
           clearSession();
 
           if (mounted) {
-            setLoginError('Sesi telah tamat. Sila log masuk semula.');
+            setLoginError(
+              'Sesi telah tamat. Sila log masuk semula.'
+            );
           }
         } else if (mounted) {
           setLoginError(getApiError(error));
@@ -150,7 +154,7 @@ export default function AdminApp() {
         return <DashboardPage />;
 
       case 'accounts':
-        return <AccountsPage />;
+        return <AccountsPage account={account} />;
 
       case 'runner-applications':
         return <RunnerApplicationsPage />;
