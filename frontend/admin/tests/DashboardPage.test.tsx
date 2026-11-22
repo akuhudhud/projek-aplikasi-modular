@@ -1,4 +1,3 @@
-
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   cleanup,
@@ -32,6 +31,7 @@ const dashboardData = {
   },
   runner_applications: {
     pending: 4,
+    can_view_recent: true,
     recent: [
       {
         id: 'runner-001',
@@ -65,7 +65,7 @@ const dashboardData = {
 };
 
 describe('DashboardPage', () => {
-  it('memaparkan statistik daripada API', async () => {
+  it('memaparkan statistik dan permohonan apabila mempunyai kebenaran', async () => {
     vi.spyOn(adminApi, 'getAdminDashboard')
       .mockResolvedValue(dashboardData);
 
@@ -80,6 +80,31 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Status Runner')).toBeTruthy();
     expect(screen.getByText('120')).toBeTruthy();
     expect(screen.getByText('Jumlah: 80')).toBeTruthy();
+  });
+
+  it('tidak memaparkan butiran pemohon tanpa kebenaran', async () => {
+    vi.spyOn(adminApi, 'getAdminDashboard')
+      .mockResolvedValue({
+        ...dashboardData,
+        runner_applications: {
+          pending: 4,
+          can_view_recent: false,
+          recent: []
+        }
+      });
+
+    render(<DashboardPage />);
+
+    expect(
+      await screen.findByText('Jumlah Pengguna')
+    ).toBeTruthy();
+
+    expect(
+      screen.queryByText('Permohonan Runner Terkini')
+    ).toBeNull();
+
+    expect(screen.queryByText('Runner Test')).toBeNull();
+    expect(screen.getByText('Permohonan Menunggu')).toBeTruthy();
   });
 
   it('memaparkan ralat apabila API gagal', async () => {
@@ -97,12 +122,13 @@ describe('DashboardPage', () => {
     ).toBeTruthy();
   });
 
-  it('memaparkan keadaan kosong apabila tiada permohonan', async () => {
+  it('memaparkan keadaan kosong apabila tiada permohonan yang boleh dilihat', async () => {
     vi.spyOn(adminApi, 'getAdminDashboard')
       .mockResolvedValue({
         ...dashboardData,
         runner_applications: {
           pending: 0,
+          can_view_recent: true,
           recent: []
         }
       });
