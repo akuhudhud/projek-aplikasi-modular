@@ -5,14 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\CoreTask;
+use App\Services\AdminPermissionService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AdminDashboardController extends Controller
 {
-    public function index(Request $request): JsonResponse
-    {
+    public function index(
+        Request $request,
+        AdminPermissionService $permissionService
+    ): JsonResponse {
         $admin = $request->attributes->get('account');
 
         if (
@@ -28,6 +31,11 @@ class AdminDashboardController extends Controller
                 'message' => 'Akses dashboard pentadbir tidak dibenarkan.',
             ], 403);
         }
+
+        $canViewApplications = $permissionService->allows(
+            $admin,
+            'runner_applications.view'
+        );
 
         $runnerStatuses = [
             Account::RUNNER_STATUS_PENDING,
@@ -106,22 +114,27 @@ class AdminDashboardController extends Controller
             ];
         }
 
-        $recentApplications = Account::query()
-            ->where('role', 'USER')
-            ->where(
-                'runner_status',
-                Account::RUNNER_STATUS_PENDING
-            )
-            ->orderByDesc('updated_at')
-            ->limit(5)
-            ->get([
-                'id',
-                'profile_name',
-                'phone',
-                'email',
-                'created_at',
-                'updated_at',
-            ]);
+        $recentApplications = [];
+
+        if ($canViewApplications) {
+            $recentApplications = Account::query()
+                ->where('role', 'USER')
+                ->where(
+                    'runner_status',
+                    Account::RUNNER_STATUS_PENDING
+                )
+                ->orderByDesc('updated_at')
+                ->limit(5)
+                ->get([
+                    'id',
+                    'profile_name',
+                    'phone',
+                    'email',
+                    'created_at',
+                    'updated_at',
+                ])
+                ->all();
+        }
 
         return response()->json([
             'success' => true,
@@ -147,6 +160,7 @@ class AdminDashboardController extends Controller
                     'pending' => $runnerStatusCounts[
                         Account::RUNNER_STATUS_PENDING
                     ],
+                    'can_view_recent' => $canViewApplications,
                     'recent' => $recentApplications,
                 ],
 
