@@ -207,7 +207,7 @@ class RunnerStatusService
                             'license_type' => $license->license_type,
                             'license_class' => $license->license_class,
                             'expires_at' => $license->expires_at
-                                ?->toDateString(),
+                                ->toDateString(),
                             'status' => $license->status,
                             'submitted_at' => $license->submitted_at,
                             'mime_type' => $license->mime_type,
