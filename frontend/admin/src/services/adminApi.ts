@@ -4,12 +4,13 @@ import axios from 'axios';
 import type {
   AccountDirectoryResult,
   AdminAccountDetail,
-  AdminPermission,
   AdminProfile,
   ApiResponse,
   AuditLog,
   CreateSuperAdminPayload,
   RunnerApplication,
+  RunnerDirectoryResult,
+  RunnerLicenseVerificationDetail,
   SuperAdminPermissionResult
 } from '../types/admin';
 
@@ -219,14 +220,6 @@ export async function updateSuperAdminPermissions(
   );
 }
 
-export async function getAdminPermissionCatalog(): Promise<AdminPermission[]> {
-  const response = await adminApi.get<
-    ApiResponse<{ catalog: AdminPermission[] }>
-  >('/admin/permission-catalog');
-
-  return response.data.data.catalog;
-}
-
 export async function getRunnerApplications(): Promise<RunnerApplication[]> {
   const response = await adminApi.get<
     ApiResponse<{ applications: RunnerApplication[] }>
@@ -244,6 +237,61 @@ export async function decideRunnerApplication(
     `/admin/runner-applications/${encodeURIComponent(accountId)}/${decision}`,
     { reason }
   );
+}
+
+export async function getRunnerDirectory(
+  filters: {
+    search?: string;
+    status?: string;
+    page?: number;
+    per_page?: number;
+  } = {}
+): Promise<RunnerDirectoryResult> {
+  const response = await adminApi.get<
+    ApiResponse<RunnerDirectoryResult>
+  >('/admin/runners', {
+    params: filters
+  });
+
+  return response.data.data;
+}
+
+export async function changeRunnerStatus(
+  accountId: string,
+  action: 'suspend' | 'restore',
+  reason: string
+): Promise<void> {
+  await adminApi.post(
+    `/admin/runners/${encodeURIComponent(accountId)}/${action}`,
+    { reason }
+  );
+}
+
+export async function getRunnerLicenseVerification(
+  accountId: string
+): Promise<RunnerLicenseVerificationDetail> {
+  const response = await adminApi.get<
+    ApiResponse<{
+      runner_license_verification: RunnerLicenseVerificationDetail;
+    }>
+  >(
+    `/admin/runner-license-verifications/${encodeURIComponent(accountId)}`
+  );
+
+  return response.data.data.runner_license_verification;
+}
+
+export async function downloadRunnerLicenseDocument(
+  accountId: string
+): Promise<Blob> {
+  const response = await adminApi.get(
+    `/admin/runner-license-verifications/${encodeURIComponent(accountId)}/document`,
+    {
+      responseType: 'blob'
+    }
+  );
+
+  return response.data as Blob;
 }
 
 export async function getAuditLogs(): Promise<AuditLog[]> {
