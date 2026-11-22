@@ -1,0 +1,165 @@
+
+.super-admin-management {
+  width: 100%;
+  min-width: 0;
+}
+
+.super-admin-management > .admin-page__heading {
+  align-items: flex-start;
+}
+
+.super-admin-management > .admin-page__heading h3 {
+  margin: 8px 0;
+  font-size: 18px;
+}
+
+.super-admin-management > .admin-page__heading p {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.super-admin-management > .admin-record {
+  width: 100%;
+  min-width: 0;
+}
+
+.super-admin-management .admin-record h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.super-admin-management .admin-record > label {
+  display: grid;
+  gap: 8px;
+  color: var(--admin-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.super-admin-management .admin-record input:not([type="checkbox"]),
+.super-admin-management .admin-record select,
+.super-admin-management .admin-record textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 10px 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  outline: none;
+  background: #111;
+  color: var(--admin-text);
+  font-size: 13px;
+}
+
+.super-admin-management .admin-record textarea {
+  min-height: 88px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.super-admin-management .admin-record input:focus,
+.super-admin-management .admin-record select:focus,
+.super-admin-management .admin-record textarea:focus {
+  border-color: var(--admin-yellow);
+  box-shadow: 0 0 0 2px rgba(245, 196, 0, .12);
+}
+
+.super-admin-management .admin-record input::placeholder,
+.super-admin-management .admin-record textarea::placeholder {
+  color: #777;
+}
+
+.super-admin-management .admin-record__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.super-admin-management .admin-permission-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.super-admin-management .admin-permission-item {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 7px;
+  background: #151515;
+  cursor: pointer;
+}
+
+.super-admin-management .admin-permission-item input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  margin: 1px 0 0;
+  accent-color: var(--admin-yellow);
+  cursor: pointer;
+}
+
+.super-admin-management .admin-permission-item span {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.super-admin-management .admin-permission-item strong {
+  color: var(--admin-text);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.super-admin-management .admin-permission-item small {
+  overflow-wrap: anywhere;
+  color: var(--admin-muted);
+  font-size: 10px;
+}
+
+.super-admin-management .admin-permission-item:has(input:checked) {
+  border-color: #665400;
+  background: #211d0d;
+}
+
+.super-admin-management .admin-permission-item:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: .65;
+}
+
+.super-admin-management .admin-button:focus-visible,
+.super-admin-management input:focus-visible,
+.super-admin-management select:focus-visible,
+.super-admin-management textarea:focus-visible {
+  outline: 2px solid var(--admin-yellow);
+  outline-offset: 2px;
+}
+
+@media (max-width: 700px) {
+  .super-admin-management .admin-permission-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .super-admin-management {
+    padding: 14px;
+  }
+
+  .super-admin-management > .admin-page__heading {
+    flex-direction: column;
+  }
+
+  .super-admin-management > .admin-page__heading .admin-button {
+    width: 100%;
+  }
+
+  .super-admin-management .admin-record__actions .admin-button {
+    width: 100%;
+  }
+}
