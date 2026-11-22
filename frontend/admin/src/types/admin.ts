@@ -1,3 +1,4 @@
+
 export type AdminPage =
   | 'dashboard'
   | 'accounts'
@@ -174,6 +175,11 @@ export interface AuditLog {
   action: string;
   reason: string | null;
   created_at: string;
+}
+
+export interface AuditLogResult {
+  audit_logs: AuditLog[];
+  pagination: AccountPagination;
 }
 
 export interface AdminProfile {
