@@ -58,10 +58,7 @@ class IdentityVerificationController extends Controller
                 ],
             ], 201);
         } catch (DomainException | InvalidArgumentException $exception) {
-            return $this->errorResponse(
-                $exception->getMessage(),
-                422
-            );
+            return $this->errorResponse($exception->getMessage(), 422);
         }
     }
 
@@ -104,6 +101,100 @@ class IdentityVerificationController extends Controller
         ]);
     }
 
+    /**
+     * Return the paginated identity verification queue for authorised reviewers.
+     *
+     * MyKad is masked before the response is constructed. Storage disk and path
+     * are never selected or returned by this endpoint.
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'status' => [
+                'nullable',
+                'string',
+                'in:PENDING,VERIFIED,REJECTED,ALL',
+            ],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:5', 'max:100'],
+        ]);
+
+        $status = $validated['status'] ?? IdentityVerification::STATUS_PENDING;
+        $search = trim((string) ($validated['search'] ?? ''));
+
+        $query = IdentityVerification::query()
+            ->with(['account:id,profile_name,phone,email'])
+            ->withCount('documents')
+            ->whereHas('account');
+
+        if ($status !== 'ALL') {
+            $query->where('status', $status);
+        }
+
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search): void {
+                $builder
+                    ->where('verified_name', 'like', '%'.$search.'%')
+                    ->orWhereHas('account', function ($accountQuery) use ($search): void {
+                        $accountQuery
+                            ->where('profile_name', 'like', '%'.$search.'%')
+                            ->orWhere('phone', 'like', '%'.$search.'%')
+                            ->orWhere('email', 'like', '%'.$search.'%');
+                    });
+            });
+        }
+
+        $perPage = (int) ($validated['per_page'] ?? 15);
+
+        $paginator = $query
+            ->orderByDesc('submitted_at')
+            ->orderBy('id')
+            ->paginate(
+                $perPage,
+                ['*'],
+                'page',
+                (int) ($validated['page'] ?? 1)
+            );
+
+        $items = $paginator->getCollection()
+            ->map(function (IdentityVerification $verification): array {
+                $mykadNumber = (string) $verification->getRawOriginal(
+                    'mykad_number'
+                );
+
+                return [
+                    'account_id' => $verification->account_id,
+                    'profile_name' => $verification->account->profile_name,
+                    'phone' => $verification->account->phone,
+                    'email' => $verification->account->email,
+                    'verified_name' => $verification->verified_name,
+                    'mykad_number_masked' => str_repeat('*', 8)
+                        .substr($mykadNumber, -4),
+                    'status' => $verification->status,
+                    'submitted_at' => $verification->submitted_at,
+                    'reviewed_at' => $verification->reviewed_at,
+                    'documents_count' => (int) $verification->documents_count,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'verifications' => $items,
+                'pagination' => [
+                    'current_page' => $paginator->currentPage(),
+                    'last_page' => $paginator->lastPage(),
+                    'per_page' => $paginator->perPage(),
+                    'total' => $paginator->total(),
+                    'from' => $paginator->firstItem(),
+                    'to' => $paginator->lastItem(),
+                ],
+            ],
+        ]);
+    }
+
     public function showForReview(
         Request $request,
         string $accountId,
@@ -136,7 +227,9 @@ class IdentityVerificationController extends Controller
             'Identity verification record viewed by authorised reviewer.'
         );
 
-        $mykadNumber = $verification->mykad_number;
+        $mykadNumber = (string) $verification->getRawOriginal(
+            'mykad_number'
+        );
 
         return response()->json([
             'success' => true,
@@ -147,7 +240,7 @@ class IdentityVerificationController extends Controller
                     'verified_name' => $verification->verified_name,
                     'status' => $verification->status,
                     'mykad_number_masked' => str_repeat('*', 8)
-                        . substr($mykadNumber, -4),
+                        .substr($mykadNumber, -4),
                     'submitted_at' => $verification->submitted_at,
                     'reviewed_at' => $verification->reviewed_at,
                     'rejection_reason' =>
