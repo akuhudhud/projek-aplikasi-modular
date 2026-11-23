@@ -64,6 +64,16 @@ function renderLayout(
   };
 }
 
+function getHamburger() {
+  return document.querySelector<HTMLButtonElement>(
+    '.admin-menu-toggle'
+  )!;
+}
+
+function openSidebar() {
+  fireEvent.click(getHamburger());
+}
+
 beforeEach(() => {
   Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
     configurable: true,
@@ -81,9 +91,7 @@ describe('AdminLayout navigation', () => {
     renderLayout();
 
     const sidebar = document.getElementById('admin-sidebar');
-    const hamburger = document.querySelector(
-      '.admin-menu-toggle'
-    ) as HTMLButtonElement;
+    const hamburger = getHamburger();
 
     expect(sidebar?.getAttribute('aria-hidden')).toBe('true');
 
@@ -96,12 +104,62 @@ describe('AdminLayout navigation', () => {
     expect(sidebar?.getAttribute('aria-hidden')).toBe('true');
   });
 
+  it('memindahkan fokus ke menu apabila sidebar dibuka', async () => {
+    renderLayout();
+
+    openSidebar();
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole('button', { name: 'Dashboard' })
+      );
+    });
+  });
+
+  it('memulangkan fokus kepada hamburger apabila sidebar ditutup', async () => {
+    renderLayout();
+
+    openSidebar();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Tutup menu navigasi' })
+    );
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(getHamburger());
+    });
+  });
+
+  it('mengawal pergerakan fokus Tab dan Shift+Tab dalam sidebar', () => {
+    renderLayout();
+
+    openSidebar();
+
+    const sidebar = document.getElementById('admin-sidebar')!;
+    const buttons = Array.from(
+      sidebar.querySelectorAll<HTMLButtonElement>(
+        'button:not([disabled])'
+      )
+    );
+
+    const firstButton = buttons[0];
+    const lastButton = buttons[buttons.length - 1];
+
+    firstButton.focus();
+
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
+
+    expect(document.activeElement).toBe(lastButton);
+
+    fireEvent.keyDown(window, { key: 'Tab' });
+
+    expect(document.activeElement).toBe(firstButton);
+  });
+
   it('menutup sidebar apabila pengguna menekan kawasan luar', () => {
     renderLayout();
 
-    fireEvent.click(
-      document.querySelector('.admin-menu-toggle') as HTMLButtonElement
-    );
+    openSidebar();
 
     expect(
       document.getElementById('admin-sidebar')?.getAttribute('aria-hidden')
@@ -119,9 +177,7 @@ describe('AdminLayout navigation', () => {
   it('membuka submenu tanpa menutup sidebar', () => {
     renderLayout();
 
-    fireEvent.click(
-      document.querySelector('.admin-menu-toggle') as HTMLButtonElement
-    );
+    openSidebar();
 
     const parent = screen.getByRole('button', {
       name: /Pengurusan Pengguna/
@@ -132,6 +188,7 @@ describe('AdminLayout navigation', () => {
     fireEvent.click(parent);
 
     expect(parent.getAttribute('aria-expanded')).toBe('true');
+
     expect(
       screen.getByRole('button', { name: 'Senarai Akaun' })
     ).toBeTruthy();
@@ -144,9 +201,7 @@ describe('AdminLayout navigation', () => {
   it('memaparkan Pengurusan Super Admin kepada Root sahaja', () => {
     const rootView = renderLayout(rootAccount);
 
-    fireEvent.click(
-      document.querySelector('.admin-menu-toggle') as HTMLButtonElement
-    );
+    openSidebar();
 
     fireEvent.click(
       screen.getByRole('button', {
@@ -164,9 +219,7 @@ describe('AdminLayout navigation', () => {
 
     renderLayout(superAdminAccount);
 
-    fireEvent.click(
-      document.querySelector('.admin-menu-toggle') as HTMLButtonElement
-    );
+    openSidebar();
 
     fireEvent.click(
       screen.getByRole('button', {
@@ -199,9 +252,7 @@ describe('AdminLayout navigation', () => {
 
     const clickSpy = vi.spyOn(directoryTab, 'click');
 
-    fireEvent.click(
-      document.querySelector('.admin-menu-toggle') as HTMLButtonElement
-    );
+    openSidebar();
 
     fireEvent.click(
       screen.getByRole('button', {
@@ -229,9 +280,7 @@ describe('AdminLayout navigation', () => {
 
     const scrollSpy = vi.spyOn(target, 'scrollIntoView');
 
-    fireEvent.click(
-      document.querySelector('.admin-menu-toggle') as HTMLButtonElement
-    );
+    openSidebar();
 
     fireEvent.click(
       screen.getByRole('button', {
@@ -248,17 +297,19 @@ describe('AdminLayout navigation', () => {
     target.remove();
   });
 
-  it('menutup sidebar apabila Escape ditekan', () => {
+  it('menutup sidebar apabila Escape ditekan', async () => {
     renderLayout();
 
-    fireEvent.click(
-      document.querySelector('.admin-menu-toggle') as HTMLButtonElement
-    );
+    openSidebar();
 
     fireEvent.keyDown(window, { key: 'Escape' });
 
     expect(
       document.getElementById('admin-sidebar')?.getAttribute('aria-hidden')
     ).toBe('true');
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(getHamburger());
+    });
   });
 });
