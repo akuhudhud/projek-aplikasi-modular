@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import {
   changeRunnerStatus,
   decideRunnerApplication,
-  downloadRunnerLicenseDocument,
   getApiError,
   getRunnerApplications,
   getRunnerDirectory,
+  getRunnerLicenseDocument,
   getRunnerLicenseVerification
 } from '../../services/adminApi';
 
@@ -27,6 +27,11 @@ type RunnerTab = 'applications' | 'directory';
 interface DirectoryFilters {
   search: string;
   status: string;
+}
+
+interface DocumentPreview {
+  url: string;
+  mimeType: string;
 }
 
 function hasPermission(account: AdminProfile, permission: string): boolean {
@@ -79,6 +84,7 @@ export default function RunnerApplicationsPage({ account }: Props) {
   >({});
   const [licenseLoadingId, setLicenseLoadingId] = useState('');
   const [documentLoadingId, setDocumentLoadingId] = useState('');
+  const [documentPreview, setDocumentPreview] = useState<DocumentPreview | null>(null);
 
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -90,7 +96,9 @@ export default function RunnerApplicationsPage({ account }: Props) {
   const applicationRequestId = useRef(0);
   const directoryRequestId = useRef(0);
   const licenseRequestId = useRef(0);
+  const documentRequestId = useRef(0);
   const mountedRef = useRef(true);
+  const previewUrlRef = useRef<string | null>(null);
 
   const canViewApplications = hasPermission(
     account,
@@ -105,6 +113,15 @@ export default function RunnerApplicationsPage({ account }: Props) {
   const canSuspend = hasPermission(account, 'runners.suspend');
   const canRestore = hasPermission(account, 'runners.restore');
 
+  function clearDocumentPreview() {
+    if (previewUrlRef.current) {
+      window.URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
+
+    setDocumentPreview(null);
+  }
+
   useEffect(() => {
     mountedRef.current = true;
 
@@ -113,6 +130,12 @@ export default function RunnerApplicationsPage({ account }: Props) {
       applicationRequestId.current += 1;
       directoryRequestId.current += 1;
       licenseRequestId.current += 1;
+      documentRequestId.current += 1;
+
+      if (previewUrlRef.current) {
+        window.URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = null;
+      }
     };
   }, []);
 
@@ -251,7 +274,11 @@ export default function RunnerApplicationsPage({ account }: Props) {
     applicationRequestId.current += 1;
     directoryRequestId.current += 1;
     licenseRequestId.current += 1;
+    documentRequestId.current += 1;
+
     setLicenseLoadingId('');
+    setDocumentLoadingId('');
+    clearDocumentPreview();
   }
 
   function handleTabKeyDown(
@@ -382,40 +409,50 @@ export default function RunnerApplicationsPage({ account }: Props) {
     }
   }
 
-  async function downloadDocument(accountId: string) {
+  async function showLicenseDocument(accountId: string) {
     if (documentLoadingId) return;
 
     if (!canReviewLicense) {
-      setError('Anda tidak mempunyai kebenaran memuat turun dokumen lesen.');
+      setError('Anda tidak mempunyai kebenaran melihat dokumen lesen.');
       return;
     }
 
+    const requestId = ++documentRequestId.current;
+
     setDocumentLoadingId(accountId);
     setError('');
+    clearDocumentPreview();
 
     try {
-      const blob = await downloadRunnerLicenseDocument(accountId);
+      const blob = await getRunnerLicenseDocument(accountId);
 
-      if (!mountedRef.current) return;
+      if (
+        !mountedRef.current ||
+        requestId !== documentRequestId.current ||
+        activeTabRef.current !== 'applications'
+      ) {
+        return;
+      }
 
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      previewUrlRef.current = url;
 
-      link.href = url;
-      link.download = `lesen-runner-${accountId}`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      window.setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-      }, 1000);
+      setDocumentPreview({
+        url,
+        mimeType: blob.type || 'application/octet-stream'
+      });
     } catch (err) {
-      if (mountedRef.current) {
+      if (
+        mountedRef.current &&
+        requestId === documentRequestId.current
+      ) {
         setError(getApiError(err));
       }
     } finally {
-      if (mountedRef.current) {
+      if (
+        mountedRef.current &&
+        requestId === documentRequestId.current
+      ) {
         setDocumentLoadingId('');
       }
     }
@@ -645,12 +682,12 @@ export default function RunnerApplicationsPage({ account }: Props) {
                             className="admin-button"
                             disabled={Boolean(documentLoadingId)}
                             onClick={() =>
-                              void downloadDocument(application.id)
+                              void showLicenseDocument(application.id)
                             }
                           >
                             {documentLoadingId === application.id
-                              ? 'Memuat turun...'
-                              : 'Muat Turun Dokumen'}
+                              ? 'Memaparkan...'
+                              : 'Paparkan Dokumen'}
                           </button>
                         </div>
                       )}
@@ -692,8 +729,53 @@ export default function RunnerApplicationsPage({ account }: Props) {
 
                       {documentLoadingId === application.id && (
                         <p role="status" aria-live="polite">
-                          Sedang memuat turun dokumen lesen...
+                          Sedang menyediakan paparan dokumen lesen...
                         </p>
+                      )}
+
+                      {documentPreview && documentLoadingId === '' && (
+                        <div className="admin-document-preview">
+                          <div className="admin-record__heading">
+                            <strong>Dokumen Lesen Runner</strong>
+                            <button
+                              type="button"
+                              className="admin-button"
+                              onClick={clearDocumentPreview}
+                            >
+                              Tutup Paparan
+                            </button>
+                          </div>
+
+                          {documentPreview.mimeType.startsWith('image/') ? (
+                            <img
+                              src={documentPreview.url}
+                              alt="Dokumen lesen Runner"
+                              style={{
+                                display: 'block',
+                                maxWidth: '100%',
+                                maxHeight: '640px',
+                                objectFit: 'contain',
+                                margin: '12px auto'
+                              }}
+                            />
+                          ) : documentPreview.mimeType === 'application/pdf' ? (
+                            <iframe
+                              title="Paparan dokumen lesen Runner"
+                              src={`${documentPreview.url}#toolbar=0&navpanes=0`}
+                              style={{
+                                display: 'block',
+                                width: '100%',
+                                minHeight: '560px',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '8px'
+                              }}
+                            />
+                          ) : (
+                            <p role="alert">
+                              Format dokumen ini tidak disokong untuk paparan.
+                            </p>
+                          )}
+                        </div>
                       )}
 
                       {(canApprove || canReject) && (
