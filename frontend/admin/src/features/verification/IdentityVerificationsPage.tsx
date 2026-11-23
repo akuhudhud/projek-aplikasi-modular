@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import {
   decideIdentityVerification,
-  downloadIdentityVerificationDocument,
+  getIdentityVerificationDocument,
   getApiError,
   getIdentityVerificationDetail,
   getIdentityVerifications
@@ -20,6 +20,12 @@ interface Props {
 }
 
 type VerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED' | 'ALL';
+
+interface DocumentPreview {
+  id: string;
+  url: string;
+  mimeType: string;
+}
 
 const STATUS_TABS: Array<{
   value: VerificationStatus;
@@ -97,6 +103,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [documentLoadingId, setDocumentLoadingId] = useState('');
+  const [preview, setPreview] = useState<DocumentPreview | null>(null);
   const [working, setWorking] = useState(false);
 
   const [error, setError] = useState('');
@@ -104,9 +111,18 @@ export default function IdentityVerificationsPage({ account }: Props) {
 
   const queueRequestId = useRef(0);
   const detailRequestId = useRef(0);
+  const documentRequestId = useRef(0);
   const mounted = useRef(false);
 
   const canReview = hasReviewPermission(account);
+
+  useEffect(() => {
+    if (!preview?.url) return;
+
+    return () => {
+      window.URL.revokeObjectURL(preview.url);
+    };
+  }, [preview?.url]);
 
   async function loadQueue(
     nextPage = page,
@@ -143,8 +159,10 @@ export default function IdentityVerificationsPage({ account }: Props) {
           )
         ) {
           detailRequestId.current += 1;
+          documentRequestId.current += 1;
           setDetail(null);
           setDetailLoading(false);
+          setPreview(null);
           return '';
         }
 
@@ -174,6 +192,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
       mounted.current = false;
       queueRequestId.current += 1;
       detailRequestId.current += 1;
+      documentRequestId.current += 1;
     };
     // Initial queue is loaded once when the page opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -181,19 +200,25 @@ export default function IdentityVerificationsPage({ account }: Props) {
 
   function resetDetail() {
     detailRequestId.current += 1;
+    documentRequestId.current += 1;
     setSelectedId('');
     setDetail(null);
     setDetailLoading(false);
+    setDocumentLoadingId('');
+    setPreview(null);
     setRejectionReason('');
   }
 
   async function changeStatus(status: VerificationStatus) {
     detailRequestId.current += 1;
+    documentRequestId.current += 1;
     setActiveStatus(status);
     setPage(1);
     setSelectedId('');
     setDetail(null);
     setDetailLoading(false);
+    setDocumentLoadingId('');
+    setPreview(null);
     setMessage('');
     setError('');
 
@@ -206,11 +231,14 @@ export default function IdentityVerificationsPage({ account }: Props) {
     const nextSearch = searchInput.trim();
 
     detailRequestId.current += 1;
+    documentRequestId.current += 1;
     setSearch(nextSearch);
     setPage(1);
     setSelectedId('');
     setDetail(null);
     setDetailLoading(false);
+    setDocumentLoadingId('');
+    setPreview(null);
     setMessage('');
     setError('');
 
@@ -219,9 +247,12 @@ export default function IdentityVerificationsPage({ account }: Props) {
 
   async function openDetail(item: IdentityVerificationQueueItem) {
     const requestId = ++detailRequestId.current;
+    documentRequestId.current += 1;
 
     setSelectedId(item.account_id);
     setDetail(null);
+    setPreview(null);
+    setDocumentLoadingId('');
     setRejectionReason('');
     setError('');
     setMessage('');
@@ -255,40 +286,51 @@ export default function IdentityVerificationsPage({ account }: Props) {
     }
   }
 
-  async function downloadDocument(documentId: string) {
+  async function showDocument(
+    documentId: string,
+    mimeType: string
+  ) {
     if (!detail || !canReview || documentLoadingId) return;
 
     const accountId = detail.account_id;
+    const requestId = ++documentRequestId.current;
 
     setDocumentLoadingId(documentId);
+    setPreview(null);
     setError('');
 
     try {
-      const blob = await downloadIdentityVerificationDocument(
+      const blob = await getIdentityVerificationDocument(
         accountId,
         documentId
       );
 
-      if (!mounted.current) return;
+      if (
+        !mounted.current ||
+        requestId !== documentRequestId.current
+      ) {
+        return;
+      }
 
       const objectUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
 
-      link.href = objectUrl;
-      link.download = `dokumen-identiti-${documentId}`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      window.setTimeout(() => {
-        window.URL.revokeObjectURL(objectUrl);
-      }, 1000);
+      setPreview({
+        id: documentId,
+        url: objectUrl,
+        mimeType: mimeType.toLowerCase()
+      });
     } catch (err) {
-      if (mounted.current) {
+      if (
+        mounted.current &&
+        requestId === documentRequestId.current
+      ) {
         setError(getApiError(err));
       }
     } finally {
-      if (mounted.current) {
+      if (
+        mounted.current &&
+        requestId === documentRequestId.current
+      ) {
         setDocumentLoadingId('');
       }
     }
@@ -670,14 +712,62 @@ export default function IdentityVerificationsPage({ account }: Props) {
                             className="admin-button"
                             disabled={Boolean(documentLoadingId)}
                             onClick={() =>
-                              void downloadDocument(document.id)
+                              void showDocument(
+                                document.id,
+                                document.mime_type
+                              )
                             }
                           >
                             {documentLoadingId === document.id
-                              ? 'Memuat turun...'
-                              : 'Muat Turun Dokumen'}
+                              ? 'Memaparkan...'
+                              : 'Paparkan Dokumen'}
                           </button>
                         </div>
+
+                        {preview?.id === document.id && (
+                          <div className="admin-document-preview">
+                            <div className="admin-record__heading">
+                              <strong>Pratonton dokumen</strong>
+                              <button
+                                type="button"
+                                className="admin-button"
+                                onClick={() => setPreview(null)}
+                              >
+                                Tutup Paparan
+                              </button>
+                            </div>
+
+                            {preview.mimeType.startsWith('image/') ? (
+                              <img
+                                src={preview.url}
+                                alt="Paparan dokumen identiti"
+                                style={{
+                                  display: 'block',
+                                  maxWidth: '100%',
+                                  maxHeight: '70vh',
+                                  objectFit: 'contain',
+                                  margin: '16px auto'
+                                }}
+                              />
+                            ) : preview.mimeType === 'application/pdf' ? (
+                              <iframe
+                                title="Paparan dokumen identiti PDF"
+                                src={`${preview.url}#toolbar=0&navpanes=0`}
+                                style={{
+                                  display: 'block',
+                                  width: '100%',
+                                  height: '70vh',
+                                  border: '1px solid var(--admin-border, #ddd)',
+                                  borderRadius: '8px'
+                                }}
+                              />
+                            ) : (
+                              <div className="admin-state" role="status">
+                                Format dokumen ini tidak disokong untuk paparan.
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
