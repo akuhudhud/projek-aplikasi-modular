@@ -6,6 +6,7 @@ import AdminApp from './app/AdminApp';
 
 import './styles/admin.css';
 import './styles/admin-accessibility.css';
+import './styles/admin-sidebar.css';
 
 const rootElement = document.getElementById('admin-app');
 
