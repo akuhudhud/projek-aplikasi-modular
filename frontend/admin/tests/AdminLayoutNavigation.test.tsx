@@ -109,11 +109,11 @@ describe('AdminLayout navigation', () => {
       document.getElementById('admin-sidebar')?.getAttribute('aria-hidden')
     ).toBe('false');
 
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: 'Tutup menu navigasi'
-      })
-    );
+    const backdrop = document.querySelector(
+      '.admin-sidebar-backdrop'
+    ) as HTMLButtonElement;
+
+    fireEvent.click(backdrop);
 
     expect(
       document.getElementById('admin-sidebar')?.getAttribute('aria-hidden')
@@ -123,24 +123,22 @@ describe('AdminLayout navigation', () => {
   it('membuka submenu tanpa menutup sidebar', () => {
     renderLayout();
 
-    const hamburger = document.querySelector(
-      '.admin-menu-toggle'
-    ) as HTMLButtonElement;
-
-    fireEvent.click(hamburger);
+    fireEvent.click(
+      document.querySelector('.admin-menu-toggle') as HTMLButtonElement
+    );
 
     const parent = screen.getByRole('button', {
       name: /Pengurusan Pengguna/
     });
 
-    expect(parent.getAttribute('aria-expanded')).toBe('true');
+    expect(parent.getAttribute('aria-expanded')).toBe('false');
 
     fireEvent.click(parent);
 
-    expect(parent.getAttribute('aria-expanded')).toBe('false');
+    expect(parent.getAttribute('aria-expanded')).toBe('true');
     expect(
-      screen.queryByRole('button', { name: 'Senarai Akaun' })
-    ).toBeNull();
+      screen.getByRole('button', { name: 'Senarai Akaun' })
+    ).toBeTruthy();
 
     expect(
       document.getElementById('admin-sidebar')?.getAttribute('aria-hidden')
@@ -152,6 +150,12 @@ describe('AdminLayout navigation', () => {
 
     fireEvent.click(
       document.querySelector('.admin-menu-toggle') as HTMLButtonElement
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /Pengurusan Pengguna/
+      })
     );
 
     expect(
@@ -166,6 +170,12 @@ describe('AdminLayout navigation', () => {
 
     fireEvent.click(
       document.querySelector('.admin-menu-toggle') as HTMLButtonElement
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /Pengurusan Pengguna/
+      })
     );
 
     expect(
@@ -225,6 +235,12 @@ describe('AdminLayout navigation', () => {
 
     fireEvent.click(
       document.querySelector('.admin-menu-toggle') as HTMLButtonElement
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /Pengurusan Pengguna/
+      })
     );
 
     fireEvent.click(
