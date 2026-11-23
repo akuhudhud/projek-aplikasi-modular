@@ -15,7 +15,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class IdentityVerificationController extends Controller
@@ -402,7 +401,7 @@ class IdentityVerificationController extends Controller
         }
     }
 
-    public function downloadDocument(
+    public function showDocument(
         Request $request,
         string $accountId,
         string $documentId,
@@ -453,24 +452,15 @@ class IdentityVerificationController extends Controller
         $auditLogService->record(
             $actor,
             $targetAccount,
-            'IDENTITY_VERIFICATION_DOCUMENT_DOWNLOADED',
-            'Identity verification document downloaded by authorised reviewer.'
+            'IDENTITY_VERIFICATION_DOCUMENT_VIEWED',
+            'Identity verification document viewed by authorised reviewer.'
         );
-
-        $extension = match ($document->mime_type) {
-            'image/jpeg' => 'jpg',
-            'image/png' => 'png',
-            'application/pdf' => 'pdf',
-            default => 'bin',
-        };
-
-        $filename = 'identity-document-' . Str::uuid() . '.' . $extension;
 
         return response($contents, 200, [
             'Content-Type' => $document->mime_type,
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'inline',
             'Content-Length' => (string) strlen($contents),
-            'Cache-Control' => 'private, no-store',
+            'Cache-Control' => 'private, no-store, max-age=0',
             'Pragma' => 'no-cache',
             'X-Content-Type-Options' => 'nosniff',
         ]);
