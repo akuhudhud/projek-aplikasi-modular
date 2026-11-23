@@ -56,10 +56,28 @@ export default function SuperAdminManagement({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const mountedRef = useRef(false);
+  const accountListRequestId = useRef(0);
   const permissionRequestId = useRef(0);
+  const creatingRef = useRef(false);
+  const operationRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      accountListRequestId.current += 1;
+      permissionRequestId.current += 1;
+    };
+  }, []);
 
   const loadSuperAdmins = useCallback(async () => {
-    setLoadingAccounts(true);
+    const requestId = ++accountListRequestId.current;
+
+    if (mountedRef.current) {
+      setLoadingAccounts(true);
+    }
 
     try {
       const result = await getAccounts({
@@ -68,11 +86,28 @@ export default function SuperAdminManagement({
         per_page: 100
       });
 
+      if (
+        !mountedRef.current ||
+        requestId !== accountListRequestId.current
+      ) {
+        return;
+      }
+
       setAccounts(result.accounts);
     } catch (err) {
-      setError(getApiError(err));
+      if (
+        mountedRef.current &&
+        requestId === accountListRequestId.current
+      ) {
+        setError(getApiError(err));
+      }
     } finally {
-      setLoadingAccounts(false);
+      if (
+        mountedRef.current &&
+        requestId === accountListRequestId.current
+      ) {
+        setLoadingAccounts(false);
+      }
     }
   }, []);
 
@@ -100,8 +135,9 @@ export default function SuperAdminManagement({
   async function submitCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (creating) return;
+    if (creatingRef.current || !mountedRef.current) return;
 
+    creatingRef.current = true;
     setCreating(true);
     setError('');
     setSuccess('');
@@ -116,19 +152,29 @@ export default function SuperAdminManagement({
         reason: form.reason.trim()
       });
 
+      if (!mountedRef.current) return;
+
       setForm({ ...EMPTY_FORM });
       setShowCreate(false);
       setSuccess('Akaun Super Admin berjaya diwujudkan.');
 
       await refreshAll();
     } catch (err) {
-      setError(getApiError(err));
+      if (mountedRef.current) {
+        setError(getApiError(err));
+      }
     } finally {
-      setCreating(false);
+      creatingRef.current = false;
+
+      if (mountedRef.current) {
+        setCreating(false);
+      }
     }
   }
 
   async function selectSuperAdmin(accountId: string) {
+    if (operationRef.current || !mountedRef.current) return;
+
     const requestId = ++permissionRequestId.current;
 
     setSelectedId(accountId);
@@ -155,23 +201,36 @@ export default function SuperAdminManagement({
     try {
       const result = await getSuperAdminPermissions(accountId);
 
-      if (requestId !== permissionRequestId.current) return;
+      if (
+        !mountedRef.current ||
+        requestId !== permissionRequestId.current
+      ) {
+        return;
+      }
 
       setCatalog(result.catalog);
       setPermissions(result.permissions);
       setJobTitle(result.account.job_title ?? '');
     } catch (err) {
-      if (requestId === permissionRequestId.current) {
+      if (
+        mountedRef.current &&
+        requestId === permissionRequestId.current
+      ) {
         setError(getApiError(err));
       }
     } finally {
-      if (requestId === permissionRequestId.current) {
+      if (
+        mountedRef.current &&
+        requestId === permissionRequestId.current
+      ) {
         setUpdating(false);
       }
     }
   }
 
   function togglePermission(key: string) {
+    if (updating || operationRef.current) return;
+
     setPermissions((current) =>
       current.includes(key)
         ? current.filter((item) => item !== key)
@@ -180,50 +239,90 @@ export default function SuperAdminManagement({
   }
 
   async function saveJobTitle() {
-    if (!selectedId || updating || !jobTitleReason.trim()) return;
+    const targetId = selectedId;
 
+    if (
+      !targetId ||
+      updating ||
+      operationRef.current ||
+      !jobTitleReason.trim() ||
+      !mountedRef.current
+    ) {
+      return;
+    }
+
+    operationRef.current = true;
     setUpdating(true);
     setError('');
     setSuccess('');
 
     try {
       await updateSuperAdminJobTitle(
-        selectedId,
+        targetId,
         jobTitle.trim(),
         jobTitleReason.trim()
       );
+
+      if (!mountedRef.current) return;
 
       setSuccess('Jawatan Super Admin berjaya dikemas kini.');
       setJobTitleReason('');
 
       await refreshAll();
     } catch (err) {
-      setError(getApiError(err));
+      if (mountedRef.current) {
+        setError(getApiError(err));
+      }
     } finally {
-      setUpdating(false);
+      operationRef.current = false;
+
+      if (mountedRef.current) {
+        setUpdating(false);
+      }
     }
   }
 
   async function savePermissions() {
-    if (!selectedId || updating || !permissionReason.trim()) return;
+    const targetId = selectedId;
+    const selectedPermissions = [...permissions];
 
+    if (
+      !targetId ||
+      updating ||
+      operationRef.current ||
+      !permissionReason.trim() ||
+      catalog.length === 0 ||
+      !mountedRef.current
+    ) {
+      return;
+    }
+
+    operationRef.current = true;
     setUpdating(true);
     setError('');
     setSuccess('');
 
     try {
       await updateSuperAdminPermissions(
-        selectedId,
-        permissions,
+        targetId,
+        selectedPermissions,
         permissionReason.trim()
       );
+
+      if (!mountedRef.current) return;
 
       setSuccess('Permission Super Admin berjaya dikemas kini.');
       setPermissionReason('');
     } catch (err) {
-      setError(getApiError(err));
+      if (mountedRef.current) {
+        setError(getApiError(err));
+      }
     } finally {
-      setUpdating(false);
+      operationRef.current = false;
+
+      if (mountedRef.current) {
+        setUpdating(false);
+      }
     }
   }
 
@@ -243,7 +342,10 @@ export default function SuperAdminManagement({
         <button
           type="button"
           className="admin-button admin-button--primary"
+          disabled={creating}
           onClick={() => {
+            if (creating) return;
+
             setShowCreate((current) => !current);
             setError('');
             setSuccess('');
@@ -275,6 +377,7 @@ export default function SuperAdminManagement({
               required
               maxLength={255}
               value={form.profile_name}
+              disabled={creating}
               onChange={(event) =>
                 updateForm('profile_name', event.target.value)
               }
@@ -286,6 +389,7 @@ export default function SuperAdminManagement({
             <input
               maxLength={100}
               value={form.job_title}
+              disabled={creating}
               onChange={(event) =>
                 updateForm('job_title', event.target.value)
               }
@@ -297,6 +401,7 @@ export default function SuperAdminManagement({
             <input
               type="tel"
               value={form.phone}
+              disabled={creating}
               onChange={(event) =>
                 updateForm('phone', event.target.value)
               }
@@ -309,6 +414,7 @@ export default function SuperAdminManagement({
             <input
               type="email"
               value={form.email}
+              disabled={creating}
               onChange={(event) =>
                 updateForm('email', event.target.value)
               }
@@ -326,6 +432,7 @@ export default function SuperAdminManagement({
               pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,12}"
               title="Mesti mengandungi huruf besar, huruf kecil dan nombor."
               value={form.password}
+              disabled={creating}
               onChange={(event) =>
                 updateForm('password', event.target.value)
               }
@@ -340,6 +447,7 @@ export default function SuperAdminManagement({
               minLength={8}
               maxLength={12}
               value={form.password_confirmation}
+              disabled={creating}
               onChange={(event) =>
                 updateForm('password_confirmation', event.target.value)
               }
@@ -353,6 +461,7 @@ export default function SuperAdminManagement({
               maxLength={1000}
               rows={3}
               value={form.reason}
+              disabled={creating}
               onChange={(event) =>
                 updateForm('reason', event.target.value)
               }
@@ -389,6 +498,7 @@ export default function SuperAdminManagement({
             Pilih Super Admin
             <select
               value={selectedId}
+              disabled={updating || creating}
               onChange={(event) =>
                 void selectSuperAdmin(event.target.value)
               }
@@ -416,6 +526,7 @@ export default function SuperAdminManagement({
               <input
                 maxLength={100}
                 value={jobTitle}
+                disabled={updating}
                 onChange={(event) => setJobTitle(event.target.value)}
               />
             </label>
@@ -426,6 +537,7 @@ export default function SuperAdminManagement({
                 rows={3}
                 maxLength={1000}
                 value={jobTitleReason}
+                disabled={updating}
                 onChange={(event) =>
                   setJobTitleReason(event.target.value)
                 }
@@ -476,6 +588,7 @@ export default function SuperAdminManagement({
                 rows={3}
                 maxLength={1000}
                 value={permissionReason}
+                disabled={updating}
                 onChange={(event) =>
                   setPermissionReason(event.target.value)
                 }
