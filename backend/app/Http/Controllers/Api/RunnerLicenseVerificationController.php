@@ -9,7 +9,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class RunnerLicenseVerificationController extends Controller
 {
@@ -92,7 +91,7 @@ class RunnerLicenseVerificationController extends Controller
         ]);
     }
 
-    public function downloadDocument(
+    public function showDocument(
         Request $request,
         string $accountId,
         AuditLogService $auditLogService
@@ -133,24 +132,15 @@ class RunnerLicenseVerificationController extends Controller
         $auditLogService->record(
             $actor,
             $targetAccount,
-            'RUNNER_LICENSE_DOCUMENT_DOWNLOADED',
-            'Runner license document downloaded by authorised reviewer.'
+            'RUNNER_LICENSE_DOCUMENT_VIEWED',
+            'Runner license document viewed by authorised reviewer.'
         );
-
-        $extension = match ($verification->mime_type) {
-            'image/jpeg' => 'jpg',
-            'image/png' => 'png',
-            'application/pdf' => 'pdf',
-            default => 'bin',
-        };
-
-        $filename = 'runner-license-'.Str::uuid().'.'.$extension;
 
         return response($contents, 200, [
             'Content-Type' => $verification->mime_type,
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Content-Disposition' => 'inline',
             'Content-Length' => (string) strlen($contents),
-            'Cache-Control' => 'private, no-store',
+            'Cache-Control' => 'private, no-store, max-age=0',
             'Pragma' => 'no-cache',
             'X-Content-Type-Options' => 'nosniff',
         ]);
