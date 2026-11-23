@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   cleanup,
   render,
-  screen
+  screen,
+  fireEvent,
+  waitFor
 } from '@testing-library/react';
 
 import DashboardPage from '../src/features/dashboard/DashboardPage';
@@ -140,6 +142,32 @@ describe('DashboardPage', () => {
     expect(
       screen.getByText('Dashboard API failed')
     ).toBeTruthy();
+
+    expect(
+      screen.getByRole('button', { name: 'Cuba Lagi' })
+    ).toBeTruthy();
+  });
+
+  it('membolehkan dashboard dimuatkan semula selepas kegagalan', async () => {
+    const getDashboard = vi.spyOn(adminApi, 'getAdminDashboard')
+      .mockRejectedValueOnce(new Error('Dashboard API failed'))
+      .mockResolvedValueOnce(dashboardData);
+
+    render(<DashboardPage />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Cuba Lagi' })
+    );
+
+    expect(
+      await screen.findByText('Jumlah Pengguna')
+    ).toBeTruthy();
+
+    await waitFor(() => {
+      expect(getDashboard).toHaveBeenCalledTimes(2);
+    });
+
+    expect(screen.getByText('Runner Test')).toBeTruthy();
   });
 
   it('memaparkan keadaan kosong apabila tiada permohonan yang boleh dilihat', async () => {
