@@ -108,14 +108,14 @@ class IdentityVerificationSelfReviewAccessTest extends TestCase
         ]);
     }
 
-    public function test_super_admin_cannot_download_own_identity_document(): void
+    public function test_super_admin_cannot_view_own_identity_document(): void
     {
         $admin = $this->createSuperAdmin();
 
         $document = $this->createOwnIdentityDocument($admin);
 
         $this->authenticate($admin)
-            ->getJson(
+            ->get(
                 '/api/admin/identity-verifications/'.$admin->id
                 .'/documents/'.$document->id
             )
@@ -128,7 +128,7 @@ class IdentityVerificationSelfReviewAccessTest extends TestCase
         $this->assertDatabaseMissing('audit_logs', [
             'actor_account_id' => $admin->id,
             'target_account_id' => $admin->id,
-            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_DOWNLOADED',
+            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_VIEWED',
         ]);
     }
 }
