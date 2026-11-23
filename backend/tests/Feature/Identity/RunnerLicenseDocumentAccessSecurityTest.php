@@ -158,7 +158,7 @@ class RunnerLicenseDocumentAccessSecurityTest extends TestCase
         );
     }
 
-    public function test_unauthenticated_user_cannot_download_license_document(): void
+    public function test_unauthenticated_user_cannot_view_license_document(): void
     {
         $applicant = $this->createAccount();
         $this->createPendingLicense($applicant);
@@ -169,12 +169,12 @@ class RunnerLicenseDocumentAccessSecurityTest extends TestCase
         )->assertUnauthorized();
 
         $this->assertNoAuditLog(
-            'RUNNER_LICENSE_DOCUMENT_DOWNLOADED',
+            'RUNNER_LICENSE_DOCUMENT_VIEWED',
             $applicant
         );
     }
 
-    public function test_admin_without_review_permission_cannot_download_license_document(): void
+    public function test_admin_without_review_permission_cannot_view_license_document(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
         $applicant = $this->createAccount();
@@ -191,12 +191,12 @@ class RunnerLicenseDocumentAccessSecurityTest extends TestCase
             ->assertJsonPath('success', false);
 
         $this->assertNoAuditLog(
-            'RUNNER_LICENSE_DOCUMENT_DOWNLOADED',
+            'RUNNER_LICENSE_DOCUMENT_VIEWED',
             $applicant
         );
     }
 
-    public function test_reviewer_cannot_download_another_accounts_license_document(): void
+    public function test_reviewer_cannot_view_another_accounts_license_document(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
         $this->grantReviewPermission($admin);
@@ -220,12 +220,12 @@ class RunnerLicenseDocumentAccessSecurityTest extends TestCase
             );
 
         $this->assertNoAuditLog(
-            'RUNNER_LICENSE_DOCUMENT_DOWNLOADED',
+            'RUNNER_LICENSE_DOCUMENT_VIEWED',
             $owner
         );
     }
 
-    public function test_reviewer_cannot_download_license_document_when_storage_file_is_missing(): void
+    public function test_reviewer_cannot_view_license_document_when_storage_file_is_missing(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
         $this->grantReviewPermission($admin);
@@ -251,12 +251,12 @@ class RunnerLicenseDocumentAccessSecurityTest extends TestCase
             );
 
         $this->assertNoAuditLog(
-            'RUNNER_LICENSE_DOCUMENT_DOWNLOADED',
+            'RUNNER_LICENSE_DOCUMENT_VIEWED',
             $applicant
         );
     }
 
-    public function test_authorized_reviewer_can_download_plaintext_license_document_with_security_headers(): void
+    public function test_authorized_reviewer_can_view_license_document_inline_with_security_headers(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
         $this->grantReviewPermission($admin);
@@ -273,13 +273,15 @@ class RunnerLicenseDocumentAccessSecurityTest extends TestCase
             $storedContents
         );
 
-        $this->authenticate(
+        $response = $this->authenticate(
             $admin,
             'license-document-authorized-token'
         )->get(
             '/api/admin/runner-license-verifications/'
                 .$applicant->id.'/document'
-        )->assertOk()
+        );
+
+        $response->assertOk()
             ->assertHeader(
                 'Content-Type',
                 'application/pdf'
@@ -289,16 +291,35 @@ class RunnerLicenseDocumentAccessSecurityTest extends TestCase
                 'no-store, private'
             )
             ->assertHeader(
+                'Pragma',
+                'no-cache'
+            )
+            ->assertHeader(
                 'X-Content-Type-Options',
                 'nosniff'
+            )
+            ->assertHeader(
+                'Content-Disposition',
+                'inline'
             );
 
+        $this->assertSame(
+            self::DOCUMENT_CONTENT,
+            $response->getContent()
+        );
+
         $this->assertAuditLogRecorded(
-            'RUNNER_LICENSE_DOCUMENT_DOWNLOADED',
+            'RUNNER_LICENSE_DOCUMENT_VIEWED',
             $admin,
             $applicant,
-            'Runner license document downloaded by authorised reviewer.'
+            'Runner license document viewed by authorised reviewer.'
         );
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
+            'action' => 'RUNNER_LICENSE_DOCUMENT_DOWNLOADED',
+        ]);
     }
 
     public function test_unauthenticated_user_cannot_view_license_verification_record(): void
