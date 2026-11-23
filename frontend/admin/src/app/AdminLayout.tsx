@@ -1,4 +1,5 @@
 
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import AdminSidebar from '../components/navigation/AdminSidebar';
@@ -20,12 +21,55 @@ export default function AdminLayout({
   onNavigate,
   onLogout
 }: AdminLayoutProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  function closeSidebar() {
+    setSidebarOpen(false);
+  }
+
+  function toggleSidebar() {
+    setSidebarOpen((current) => !current);
+  }
+
+  useEffect(() => {
+    if (!sidebarOpen) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        closeSidebar();
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [sidebarOpen]);
+
+  function handleNavigate(page: AdminPage) {
+    onNavigate(page);
+    closeSidebar();
+  }
+
   return (
     <div className="admin-layout">
+      {sidebarOpen && (
+        <button
+          type="button"
+          className="admin-sidebar-backdrop"
+          aria-label="Tutup menu navigasi"
+          onClick={closeSidebar}
+        />
+      )}
+
       <AdminSidebar
         account={account}
         activePage={activePage}
-        onNavigate={onNavigate}
+        isOpen={sidebarOpen}
+        onNavigate={handleNavigate}
       />
 
       <div className="admin-layout__main">
@@ -33,9 +77,13 @@ export default function AdminLayout({
           account={account}
           activePage={activePage}
           onLogout={onLogout}
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={toggleSidebar}
         />
 
-        <main className="admin-content">{children}</main>
+        <main className="admin-content">
+          {children}
+        </main>
       </div>
     </div>
   );
