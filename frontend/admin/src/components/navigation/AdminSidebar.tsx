@@ -5,6 +5,7 @@ import { canAccessPage } from '../../app/adminAccess';
 interface AdminSidebarProps {
   account: AdminProfile;
   activePage: AdminPage;
+  isOpen: boolean;
   onNavigate: (page: AdminPage) => void;
 }
 
@@ -19,6 +20,7 @@ const navigationItems: { id: AdminPage; label: string }[] = [
 export default function AdminSidebar({
   account,
   activePage,
+  isOpen,
   onNavigate
 }: AdminSidebarProps) {
   const accessibleItems = navigationItems.filter((item) =>
@@ -26,22 +28,34 @@ export default function AdminSidebar({
   );
 
   return (
-    <aside className="admin-sidebar">
+    <aside
+      id="admin-sidebar"
+      className={[
+        'admin-sidebar',
+        isOpen ? 'admin-sidebar--open' : ''
+      ].join(' ')}
+      aria-label="Menu utama"
+      aria-hidden={!isOpen}
+    >
       <div className="admin-sidebar__brand">
         <div className="admin-sidebar__logo">SR</div>
+
         <div>
           <strong>SUPER RUNNER</strong>
           <span>ADMINISTRATION</span>
         </div>
       </div>
 
-      <div className="admin-sidebar__section-label">MENU UTAMA</div>
+      <div className="admin-sidebar__section-label">
+        MENU UTAMA
+      </div>
 
       <nav aria-label="Navigasi utama">
         {accessibleItems.map((item) => (
           <button
             type="button"
             key={item.id}
+            tabIndex={isOpen ? 0 : -1}
             className={[
               'admin-sidebar__item',
               activePage === item.id
