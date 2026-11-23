@@ -15,11 +15,11 @@ interface AdminLayoutProps {
 }
 
 const FOCUSABLE_SELECTOR = [
-  'button:not([disabled])',
-  'a[href]',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
+  'button:not([disabled]):not([tabindex="-1"])',
+  'a[href]:not([tabindex="-1"])',
+  'input:not([disabled]):not([tabindex="-1"])',
+  'select:not([disabled]):not([tabindex="-1"])',
+  'textarea:not([disabled]):not([tabindex="-1"])',
   '[tabindex]:not([tabindex="-1"])'
 ].join(',');
 
@@ -79,7 +79,7 @@ export default function AdminLayout({
 
       const focusableElements = Array.from(
         sidebar.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-      ).filter((element) => element.getClientRects().length > 0);
+      );
 
       if (focusableElements.length === 0) {
         event.preventDefault();
