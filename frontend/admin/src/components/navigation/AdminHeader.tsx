@@ -5,6 +5,8 @@ interface AdminHeaderProps {
   account: AdminProfile;
   activePage: AdminPage;
   onLogout: () => void;
+  sidebarOpen: boolean;
+  onToggleSidebar: () => void;
 }
 
 const pageTitles: Record<AdminPage, string> = {
@@ -18,15 +20,37 @@ const pageTitles: Record<AdminPage, string> = {
 export default function AdminHeader({
   account,
   activePage,
-  onLogout
+  onLogout,
+  sidebarOpen,
+  onToggleSidebar
 }: AdminHeaderProps) {
   return (
     <header className="admin-header">
-      <div>
-        <span className="admin-header__eyebrow">
-          SISTEM PENTADBIRAN
-        </span>
-        <h1>{pageTitles[activePage]}</h1>
+      <div className="admin-header__title">
+        <button
+          type="button"
+          className="admin-menu-toggle"
+          onClick={onToggleSidebar}
+          aria-label={
+            sidebarOpen
+              ? 'Tutup menu navigasi'
+              : 'Buka menu navigasi'
+          }
+          aria-expanded={sidebarOpen}
+          aria-controls="admin-sidebar"
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+
+        <div>
+          <span className="admin-header__eyebrow">
+            SISTEM PENTADBIRAN
+          </span>
+
+          <h1>{pageTitles[activePage]}</h1>
+        </div>
       </div>
 
       <div className="admin-header__account">
