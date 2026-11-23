@@ -88,7 +88,7 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
         ]);
     }
 
-    public function test_unauthenticated_user_cannot_download_identity_document(): void
+    public function test_unauthenticated_user_cannot_view_identity_document(): void
     {
         Storage::fake('local');
 
@@ -102,12 +102,12 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
             ->assertJsonPath('success', false);
 
         $this->assertDatabaseMissing('audit_logs', [
-            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_DOWNLOADED',
+            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_VIEWED',
             'target_account_id' => $applicant->id,
         ]);
     }
 
-    public function test_admin_without_review_permission_cannot_download_identity_document(): void
+    public function test_admin_without_review_permission_cannot_view_identity_document(): void
     {
         Storage::fake('local');
 
@@ -118,7 +118,7 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
 
         $this->asAccount(
             $admin,
-            'identity-download-no-permission-token'
+            'identity-view-no-permission-token'
         )->get(
             '/api/admin/identity-verifications/'.$applicant->id
                 .'/documents/'.$document->id
@@ -128,11 +128,11 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
         $this->assertDatabaseMissing('audit_logs', [
             'actor_account_id' => $admin->id,
             'target_account_id' => $applicant->id,
-            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_DOWNLOADED',
+            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_VIEWED',
         ]);
     }
 
-    public function test_reviewer_cannot_download_document_using_another_accounts_id(): void
+    public function test_reviewer_cannot_view_document_using_another_accounts_id(): void
     {
         Storage::fake('local');
 
@@ -146,7 +146,7 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
 
         $this->asAccount(
             $admin,
-            'identity-download-cross-account-token'
+            'identity-view-cross-account-token'
         )->get(
             '/api/admin/identity-verifications/'.$otherAccount->id
                 .'/documents/'.$document->id
@@ -160,11 +160,11 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
         $this->assertDatabaseMissing('audit_logs', [
             'actor_account_id' => $admin->id,
             'target_account_id' => $owner->id,
-            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_DOWNLOADED',
+            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_VIEWED',
         ]);
     }
 
-    public function test_reviewer_cannot_download_document_when_storage_file_is_missing(): void
+    public function test_reviewer_cannot_view_document_when_storage_file_is_missing(): void
     {
         Storage::fake('local');
 
@@ -179,7 +179,7 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
 
         $this->asAccount(
             $admin,
-            'identity-download-missing-file-token'
+            'identity-view-missing-file-token'
         )->get(
             '/api/admin/identity-verifications/'.$applicant->id
                 .'/documents/'.$document->id
@@ -193,11 +193,11 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
         $this->assertDatabaseMissing('audit_logs', [
             'actor_account_id' => $admin->id,
             'target_account_id' => $applicant->id,
-            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_DOWNLOADED',
+            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_VIEWED',
         ]);
     }
 
-    public function test_authorized_reviewer_can_download_plaintext_document_and_access_is_audited(): void
+    public function test_authorized_reviewer_can_view_document_inline_and_access_is_audited(): void
     {
         Storage::fake('local');
 
@@ -217,7 +217,7 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
 
         $response = $this->asAccount(
             $admin,
-            'identity-download-plaintext-document-token'
+            'identity-view-inline-document-token'
         )->get(
             '/api/admin/identity-verifications/'.$applicant->id
                 .'/documents/'.$document->id
@@ -231,7 +231,8 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
             ->assertHeader(
                 'Content-Length',
                 (string) strlen(self::DOCUMENT_CONTENT)
-            );
+            )
+            ->assertHeader('Content-Disposition', 'inline');
 
         $this->assertSame(
             self::DOCUMENT_CONTENT,
@@ -241,8 +242,14 @@ class IdentityVerificationDocumentDownloadSecurityTest extends TestCase
         $this->assertDatabaseHas('audit_logs', [
             'actor_account_id' => $admin->id,
             'target_account_id' => $applicant->id,
+            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_VIEWED',
+            'reason' => 'Identity verification document viewed by authorised reviewer.',
+        ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
             'action' => 'IDENTITY_VERIFICATION_DOCUMENT_DOWNLOADED',
-            'reason' => 'Identity verification document downloaded by authorised reviewer.',
         ]);
 
         $this->assertDatabaseMissing('audit_logs', [
