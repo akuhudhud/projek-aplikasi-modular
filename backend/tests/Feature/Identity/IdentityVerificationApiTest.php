@@ -391,7 +391,7 @@ class IdentityVerificationApiTest extends TestCase
         ]);
     }
 
-    public function test_reviewer_can_download_document_through_protected_endpoint(): void
+    public function test_reviewer_can_view_document_inline_through_protected_endpoint(): void
     {
         Storage::fake('local');
 
@@ -404,14 +404,15 @@ class IdentityVerificationApiTest extends TestCase
 
         $response = $this->asAccount(
             $admin,
-            'identity-document-download-token'
+            'identity-document-view-token'
         )->get(
             '/api/admin/identity-verifications/'.$applicant->id
                 .'/documents/'.$document->id
         );
 
         $response->assertOk()
-            ->assertHeader('X-Content-Type-Options', 'nosniff');
+            ->assertHeader('X-Content-Type-Options', 'nosniff')
+            ->assertHeader('Content-Disposition', 'inline');
 
         $cacheControl = array_map(
             'trim',
@@ -424,8 +425,14 @@ class IdentityVerificationApiTest extends TestCase
         $this->assertDatabaseHas('audit_logs', [
             'actor_account_id' => $admin->id,
             'target_account_id' => $applicant->id,
+            'action' => 'IDENTITY_VERIFICATION_DOCUMENT_VIEWED',
+            'reason' => 'Identity verification document viewed by authorised reviewer.',
+        ]);
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'actor_account_id' => $admin->id,
+            'target_account_id' => $applicant->id,
             'action' => 'IDENTITY_VERIFICATION_DOCUMENT_DOWNLOADED',
-            'reason' => 'Identity verification document downloaded by authorised reviewer.',
         ]);
     }
 }
