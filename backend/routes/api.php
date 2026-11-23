@@ -129,7 +129,7 @@ Route::get(
     '/admin/identity-verifications/{accountId}/documents/{documentId}',
     [
         IdentityVerificationController::class,
-        'downloadDocument',
+        'showDocument',
     ]
 )->middleware([
     AuthenticateSession::class,
@@ -165,7 +165,7 @@ Route::get('/admin/runner-license-verifications/{accountId}', [
 
 Route::get('/admin/runner-license-verifications/{accountId}/document', [
     RunnerLicenseVerificationController::class,
-    'downloadDocument',
+    'showDocument',
 ])->middleware([
     AuthenticateSession::class,
     'admin.permission:runner_license_verifications.review',
