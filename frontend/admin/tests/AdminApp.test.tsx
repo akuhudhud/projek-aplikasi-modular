@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   cleanup,
+  fireEvent,
   render,
   screen,
   waitFor,
@@ -84,6 +85,12 @@ describe('Admin Web Application', () => {
       .mockResolvedValue(adminProfile);
 
     render(<AdminApp />);
+
+    const menuButton = await screen.findByRole('button', {
+      name: 'Buka menu navigasi'
+    });
+
+    fireEvent.click(menuButton);
 
     const navigation = await screen.findByRole('navigation', {
       name: 'Navigasi utama'
