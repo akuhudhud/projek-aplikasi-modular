@@ -68,12 +68,23 @@ export default function AccountsPage({ account }: AccountsPageProps) {
 
   const accountListRequestId = useRef(0);
   const accountDetailRequestId = useRef(0);
+  const mountedRef = useRef(false);
 
   const isRoot = account.role === 'ROOT_SUPER_ADMIN';
 
   const hasPermission = (permission: string): boolean => {
     return isRoot || account.permissions.includes(permission);
   };
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      accountListRequestId.current += 1;
+      accountDetailRequestId.current += 1;
+    };
+  }, []);
 
   const loadAccounts = useCallback(async (page = 1) => {
     const requestId = ++accountListRequestId.current;
@@ -90,16 +101,25 @@ export default function AccountsPage({ account }: AccountsPageProps) {
         per_page: 15
       });
 
-      if (requestId !== accountListRequestId.current) return;
+      if (
+        !mountedRef.current ||
+        requestId !== accountListRequestId.current
+      ) return;
 
       setAccounts(result.accounts);
       setPagination(result.pagination);
     } catch (err) {
-      if (requestId === accountListRequestId.current) {
+      if (
+        mountedRef.current &&
+        requestId === accountListRequestId.current
+      ) {
         setError(getApiError(err));
       }
     } finally {
-      if (requestId === accountListRequestId.current) {
+      if (
+        mountedRef.current &&
+        requestId === accountListRequestId.current
+      ) {
         setLoading(false);
       }
     }
@@ -122,15 +142,24 @@ export default function AccountsPage({ account }: AccountsPageProps) {
     try {
       const detail = await getAccountDetail(accountId);
 
-      if (requestId !== accountDetailRequestId.current) return;
+      if (
+        !mountedRef.current ||
+        requestId !== accountDetailRequestId.current
+      ) return;
 
       setSelectedAccount(detail);
     } catch (err) {
-      if (requestId === accountDetailRequestId.current) {
+      if (
+        mountedRef.current &&
+        requestId === accountDetailRequestId.current
+      ) {
         setError(getApiError(err));
       }
     } finally {
-      if (requestId === accountDetailRequestId.current) {
+      if (
+        mountedRef.current &&
+        requestId === accountDetailRequestId.current
+      ) {
         setDetailLoading(false);
       }
     }
@@ -177,34 +206,50 @@ export default function AccountsPage({ account }: AccountsPageProps) {
       return;
     }
 
+    const accountId = selectedAccount.id;
+    const action = pendingAction;
+    const detailRequest = accountDetailRequestId.current;
+
     setActionLoading(true);
     setError('');
     setSuccess('');
 
     try {
-      if (pendingAction === 'suspend') {
-        await suspendAccount(selectedAccount.id, reason);
-      } else if (pendingAction === 'unsuspend') {
-        await unsuspendAccount(selectedAccount.id, reason);
+      if (action === 'suspend') {
+        await suspendAccount(accountId, reason);
+      } else if (action === 'unsuspend') {
+        await unsuspendAccount(accountId, reason);
       } else {
-        await reactivateAccount(selectedAccount.id, reason);
+        await reactivateAccount(accountId, reason);
       }
 
+      if (!mountedRef.current) return;
+
       setSuccess(
-        `${ACTION_LABELS[pendingAction]} berjaya dilaksanakan.`
+        `${ACTION_LABELS[action]} berjaya dilaksanakan.`
       );
 
       setPendingAction(null);
       setActionReason('');
 
-      const updatedDetail = await getAccountDetail(selectedAccount.id);
+      const updatedDetail = await getAccountDetail(accountId);
+
+      if (
+        !mountedRef.current ||
+        detailRequest !== accountDetailRequestId.current
+      ) return;
+
       setSelectedAccount(updatedDetail);
 
       await loadAccounts(pagination.current_page);
     } catch (err) {
-      setError(getApiError(err));
+      if (mountedRef.current) {
+        setError(getApiError(err));
+      }
     } finally {
-      setActionLoading(false);
+      if (mountedRef.current) {
+        setActionLoading(false);
+      }
     }
   }
 
