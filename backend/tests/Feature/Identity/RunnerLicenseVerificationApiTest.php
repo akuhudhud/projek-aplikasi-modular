@@ -194,7 +194,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
             );
     }
 
-    public function test_authorised_admin_can_view_license_record_and_download_document(): void
+    public function test_authorised_admin_can_view_license_record_and_document_inline(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
         $this->grantReviewPermission($admin);
@@ -209,7 +209,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
 
         $verification = $this->createPendingLicense($applicant);
 
-        // Admin can view the license record for the Runner application.
+        // Admin boleh melihat rekod lesen untuk semakan permohonan Runner.
         $this->asAccount(
             $admin,
             'license-review-token'
@@ -242,34 +242,41 @@ class RunnerLicenseVerificationApiTest extends TestCase
             $applicant
         );
 
-        // Admin can download the license document for review.
+        // Dokumen dipaparkan inline sahaja, bukan sebagai lampiran muat turun.
         $this->asAccount(
             $admin,
             'license-document-token'
         )->get(
             '/api/admin/runner-license-verifications/'
-                .$verification->id.'/document'
+                .$applicant->id.'/document'
         )->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
             ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('Content-Disposition', 'inline')
             ->assertHeader(
                 'Cache-Control',
-                'no-store, private'
+                'private, no-store, max-age=0'
+            )
+            ->assertHeader('Pragma', 'no-cache')
+            ->assertSee(
+                self::TEST_DOCUMENT_CONTENT,
+                false
             );
 
         $this->assertDatabaseHas('audit_logs', [
             'actor_account_id' => $admin->id,
             'target_account_id' => $applicant->id,
-            'action' => 'RUNNER_LICENSE_DOCUMENT_DOWNLOADED',
-            'reason' => 'Runner license document downloaded by authorised reviewer.',
+            'action' => 'RUNNER_LICENSE_DOCUMENT_VIEWED',
+            'reason' => 'Runner license document viewed by authorised reviewer.',
         ]);
 
         $this->assertAuditLogContainsNoSensitiveData(
-            'RUNNER_LICENSE_DOCUMENT_DOWNLOADED',
+            'RUNNER_LICENSE_DOCUMENT_VIEWED',
             $admin,
             $applicant
         );
 
+        // Dokumen kekal dalam storan; ujian tidak menyediakan fungsi muat turun.
         Storage::disk('local')->assertExists(
             $verification->document_path
         );
@@ -308,7 +315,7 @@ class RunnerLicenseVerificationApiTest extends TestCase
         ]);
     }
 
-    public function test_admin_without_review_permission_cannot_download_license_document(): void
+    public function test_admin_without_review_permission_cannot_view_license_document(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
 
@@ -325,13 +332,13 @@ class RunnerLicenseVerificationApiTest extends TestCase
             'license-document-denied-token'
         )->get(
             '/api/admin/runner-license-verifications/'
-                .$verification->id.'/document'
+                .$applicant->id.'/document'
         )->assertForbidden();
 
         $this->assertDatabaseMissing('audit_logs', [
             'actor_account_id' => $admin->id,
             'target_account_id' => $applicant->id,
-            'action' => 'RUNNER_LICENSE_DOCUMENT_DOWNLOADED',
+            'action' => 'RUNNER_LICENSE_DOCUMENT_VIEWED',
         ]);
     }
 }
