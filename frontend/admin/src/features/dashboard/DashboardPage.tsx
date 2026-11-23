@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   getAdminDashboard,
@@ -18,36 +19,54 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    let mounted = true;
+  const mountedRef = useRef(false);
+  const requestIdRef = useRef(0);
 
-    async function loadDashboard() {
+  const loadDashboard = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+
+    if (mountedRef.current) {
       setLoading(true);
       setError('');
-
-      try {
-        const result = await getAdminDashboard();
-
-        if (mounted) {
-          setDashboard(result);
-        }
-      } catch (requestError) {
-        if (mounted) {
-          setError(getApiError(requestError));
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
     }
 
+    try {
+      const result = await getAdminDashboard();
+
+      if (
+        !mountedRef.current ||
+        requestId !== requestIdRef.current
+      ) {
+        return;
+      }
+
+      setDashboard(result);
+    } catch (requestError) {
+      if (
+        mountedRef.current &&
+        requestId === requestIdRef.current
+      ) {
+        setError(getApiError(requestError));
+      }
+    } finally {
+      if (
+        mountedRef.current &&
+        requestId === requestIdRef.current
+      ) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
     void loadDashboard();
 
     return () => {
-      mounted = false;
+      mountedRef.current = false;
+      requestIdRef.current += 1;
     };
-  }, []);
+  }, [loadDashboard]);
 
   function formatStatus(status: string): string {
     return status.replace(/_/g, ' ');
@@ -89,11 +108,19 @@ export default function DashboardPage() {
 
       {!loading && error && (
         <div className="admin-alert admin-alert--error" role="alert">
-          {error}
+          <p>{error}</p>
+
+          <button
+            type="button"
+            className="admin-button admin-button--primary"
+            onClick={() => void loadDashboard()}
+          >
+            Cuba Lagi
+          </button>
         </div>
       )}
 
-      {!loading && dashboard && (
+      {!loading && !error && dashboard && (
         <>
           <div className="dashboard-stats-grid">
             <DashboardStatCard
