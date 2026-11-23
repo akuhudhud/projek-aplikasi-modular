@@ -323,7 +323,7 @@ export async function decideIdentityVerification(
   );
 }
 
-export async function downloadIdentityVerificationDocument(
+export async function getIdentityVerificationDocument(
   accountId: string,
   documentId: string
 ): Promise<Blob> {
@@ -351,7 +351,7 @@ export async function getRunnerLicenseVerification(
   return response.data.data.runner_license_verification;
 }
 
-export async function downloadRunnerLicenseDocument(
+export async function getRunnerLicenseDocument(
   accountId: string
 ): Promise<Blob> {
   const response = await adminApi.get(
