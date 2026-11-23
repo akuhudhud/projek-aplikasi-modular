@@ -234,6 +234,60 @@ describe('SuperAdminManagement', () => {
     });
   });
 
+  it('mengunci pemilihan akaun ketika jawatan sedang disimpan', async () => {
+    const updateRequest = deferred<void>();
+
+    setup();
+
+    vi.spyOn(adminApi, 'getSuperAdminPermissions')
+      .mockResolvedValue(mockPermissions());
+
+    vi.spyOn(adminApi, 'updateSuperAdminJobTitle')
+      .mockReturnValue(updateRequest.promise);
+
+    await selectAccount();
+
+    await screen.findByRole('checkbox', {
+      name: /Lihat Akaun/
+    });
+
+    fireEvent.change(
+      screen.getByLabelText('Jawatan'),
+      { target: { value: 'Pengarah Operasi' } }
+    );
+
+    fireEvent.change(
+      screen.getByLabelText('Sebab Perubahan Jawatan'),
+      { target: { value: 'Penyusunan organisasi.' } }
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Simpan Jawatan'
+      })
+    );
+
+    await waitFor(() => {
+      expect(
+        (screen.getByLabelText('Pilih Super Admin') as HTMLSelectElement)
+          .disabled
+      ).toBe(true);
+    });
+
+    expect(
+      (screen.getByLabelText('Jawatan') as HTMLInputElement).disabled
+    ).toBe(true);
+
+    updateRequest.resolve(undefined);
+
+    await waitFor(() => {
+      expect(
+        (screen.getByLabelText('Pilih Super Admin') as HTMLSelectElement)
+          .disabled
+      ).toBe(false);
+    });
+  });
+
   it('mengemas kini jawatan bersama sebab perubahan', async () => {
     setup();
 
