@@ -274,18 +274,18 @@ describe('RunnerApplicationsPage race conditions', () => {
     ).toBeNull();
   });
 
-  it('mengabaikan butiran lesen lama apabila permintaan lesen baharu selesai dahulu', async () => {
-    const firstDetail = deferred<RunnerLicenseVerificationDetail>();
-    const secondDetail = deferred<RunnerLicenseVerificationDetail>();
+  it('mengunci butiran lesen lain semasa satu permintaan sedang berjalan', async () => {
+    const pendingDetail = deferred<RunnerLicenseVerificationDetail>();
 
     vi.spyOn(adminApi, 'getRunnerApplications')
       .mockResolvedValue(
         applicationsResult([firstApplication, secondApplication])
       );
 
-    vi.spyOn(adminApi, 'getRunnerLicenseVerification')
-      .mockReturnValueOnce(firstDetail.promise)
-      .mockReturnValueOnce(secondDetail.promise);
+    const getLicenseDetail = vi.spyOn(
+      adminApi,
+      'getRunnerLicenseVerification'
+    ).mockReturnValue(pendingDetail.promise);
 
     render(<RunnerApplicationsPage account={account} />);
 
@@ -299,28 +299,113 @@ describe('RunnerApplicationsPage race conditions', () => {
       name: 'Butiran Lesen'
     });
 
+    expect(detailButtons).toHaveLength(2);
+
     fireEvent.click(detailButtons[0]);
+
+    await waitFor(() => {
+      expect(getLicenseDetail).toHaveBeenCalledTimes(1);
+      expect(getLicenseDetail).toHaveBeenCalledWith(firstApplication.id);
+    });
+
+    expect(detailButtons[0].hasAttribute('disabled')).toBe(true);
+    expect(detailButtons[1].hasAttribute('disabled')).toBe(true);
+
     fireEvent.click(detailButtons[1]);
 
-    secondDetail.resolve(
-      licenseDetail(secondApplication.id, '******2222')
-    );
+    expect(getLicenseDetail).toHaveBeenCalledTimes(1);
 
-    expect(
-      await screen.findByText('******2222')
-    ).toBeTruthy();
-
-    firstDetail.resolve(
+    pendingDetail.resolve(
       licenseDetail(firstApplication.id, '******1111')
     );
 
+    expect(
+      await screen.findByText('******1111')
+    ).toBeTruthy();
+
     await waitFor(() => {
       expect(
-        screen.queryByText('******1111')
-      ).toBeNull();
+        screen.getAllByRole('button', { name: 'Butiran Lesen' })
+          .every((button) => !button.hasAttribute('disabled'))
+      ).toBe(true);
+    });
+  });
+
+  it('mengunci tindakan keputusan pada semua permohonan semasa satu tindakan berjalan', async () => {
+    const pendingDecision = deferred<void>();
+
+    vi.spyOn(adminApi, 'getRunnerApplications')
+      .mockResolvedValue(
+        applicationsResult([firstApplication, secondApplication])
+      );
+
+    const decideApplication = vi.spyOn(
+      adminApi,
+      'decideRunnerApplication'
+    ).mockReturnValue(pendingDecision.promise);
+
+    render(<RunnerApplicationsPage account={account} />);
+
+    expect(
+      await screen.findByText('Runner Pertama')
+    ).toBeTruthy();
+
+    expect(screen.getByText('Runner Kedua')).toBeTruthy();
+
+    const reasonFields = screen.getAllByLabelText('Alasan keputusan');
+
+    fireEvent.change(reasonFields[0], {
+      target: { value: 'Dokumen telah disemak.' }
     });
 
-    expect(screen.getByText('******2222')).toBeTruthy();
+    const approveButtons = screen.getAllByRole('button', {
+      name: 'Luluskan'
+    });
+
+    const rejectButtons = screen.getAllByRole('button', {
+      name: 'Tolak'
+    });
+
+    expect(approveButtons).toHaveLength(2);
+    expect(rejectButtons).toHaveLength(2);
+
+    fireEvent.click(approveButtons[0]);
+
+    await waitFor(() => {
+      expect(decideApplication).toHaveBeenCalledTimes(1);
+      expect(decideApplication).toHaveBeenCalledWith(
+        firstApplication.id,
+        'approve',
+        'Dokumen telah disemak.'
+      );
+    });
+
+    expect(
+      screen.getAllByRole('button', { name: 'Memproses...' })
+    ).toHaveLength(4);
+
+    expect(
+      screen.getAllByRole('button', { name: 'Memproses...' })
+        .every((button) => button.hasAttribute('disabled'))
+    ).toBe(true);
+
+    fireEvent.click(approveButtons[1]);
+    fireEvent.click(rejectButtons[1]);
+
+    expect(decideApplication).toHaveBeenCalledTimes(1);
+
+    pendingDecision.resolve();
+
+    await waitFor(() => {
+      expect(adminApi.getRunnerApplications).toHaveBeenCalledTimes(2);
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getAllByRole('button', { name: 'Luluskan' })
+          .every((button) => !button.hasAttribute('disabled'))
+      ).toBe(true);
+    });
   });
 
   it('menyokong navigasi papan kekunci pada tab Runner', async () => {
