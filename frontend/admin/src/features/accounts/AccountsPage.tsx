@@ -283,57 +283,67 @@ export default function AccountsPage({ account }: AccountsPageProps) {
       </div>
 
       {isRoot && (
-        <SuperAdminManagement
-          onRefresh={async () => {
-            await loadAccounts(pagination.current_page);
-          }}
-        />
+        <div
+          id="super-admin-management"
+          className="admin-navigation-target"
+        >
+          <SuperAdminManagement
+            onRefresh={async () => {
+              await loadAccounts(pagination.current_page);
+            }}
+          />
+        </div>
       )}
 
-      <form className="account-filters" onSubmit={submitSearch}>
-        <label>
-          <span>Carian akaun</span>
-          <input
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Nama, telefon atau e-mel"
-          />
-        </label>
+      <div
+        id="account-directory"
+        className="admin-navigation-target"
+      >
+        <form className="account-filters" onSubmit={submitSearch}>
+          <label>
+            <span>Carian akaun</span>
+            <input
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Nama, telefon atau e-mel"
+            />
+          </label>
 
-        <label>
-          <span>Status akaun</span>
-          <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
+          <label>
+            <span>Status akaun</span>
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+            >
+              <option value="">Semua status</option>
+              <option value="ACTIVE">Aktif</option>
+              <option value="SUSPENDED">Digantung</option>
+              <option value="DEACTIVATED">Dinyahaktifkan</option>
+              <option value="DELETED">Dipadam</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Peranan</span>
+            <select
+              value={role}
+              onChange={(event) => setRole(event.target.value)}
+            >
+              <option value="">Semua peranan</option>
+              <option value="USER">Pengguna</option>
+              <option value="SUPER_ADMIN">Super Admin</option>
+              <option value="ROOT_SUPER_ADMIN">Root Super Admin</option>
+            </select>
+          </label>
+
+          <button
+            className="admin-button admin-button--primary"
+            type="submit"
           >
-            <option value="">Semua status</option>
-            <option value="ACTIVE">Aktif</option>
-            <option value="SUSPENDED">Digantung</option>
-            <option value="DEACTIVATED">Dinyahaktifkan</option>
-            <option value="DELETED">Dipadam</option>
-          </select>
-        </label>
-
-        <label>
-          <span>Peranan</span>
-          <select
-            value={role}
-            onChange={(event) => setRole(event.target.value)}
-          >
-            <option value="">Semua peranan</option>
-            <option value="USER">Pengguna</option>
-            <option value="SUPER_ADMIN">Super Admin</option>
-            <option value="ROOT_SUPER_ADMIN">Root Super Admin</option>
-          </select>
-        </label>
-
-        <button
-          className="admin-button admin-button--primary"
-          type="submit"
-        >
-          Cari
-        </button>
-      </form>
+            Cari
+          </button>
+        </form>
+      </div>
 
       {error && (
         <div className="admin-alert admin-alert--error" role="alert">
