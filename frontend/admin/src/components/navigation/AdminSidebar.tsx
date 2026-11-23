@@ -47,7 +47,6 @@ export default function AdminSidebar({
       ].join(' ')}
       aria-label="Menu utama"
       aria-hidden={!isOpen}
-      inert={!isOpen}
     >
       <div className="admin-sidebar__brand">
         <div className="admin-sidebar__logo">SR</div>
@@ -64,6 +63,7 @@ export default function AdminSidebar({
       <nav className="admin-sidebar__nav" aria-label="Navigasi utama">
         <button
           type="button"
+          tabIndex={isOpen ? 0 : -1}
           className={[
             'admin-sidebar__item',
             activePage === 'dashboard'
@@ -79,6 +79,7 @@ export default function AdminSidebar({
           <div className="admin-sidebar__group">
             <button
               type="button"
+              tabIndex={isOpen ? 0 : -1}
               className={[
                 'admin-sidebar__item',
                 'admin-sidebar__parent',
@@ -99,6 +100,7 @@ export default function AdminSidebar({
               <div className="admin-sidebar__children">
                 <button
                   type="button"
+                  tabIndex={isOpen ? 0 : -1}
                   className="admin-sidebar__child"
                   onClick={() => navigate('accounts', 'accounts')}
                 >
@@ -108,6 +110,7 @@ export default function AdminSidebar({
                 {isRoot && (
                   <button
                     type="button"
+                    tabIndex={isOpen ? 0 : -1}
                     className="admin-sidebar__child"
                     onClick={() => navigate('accounts', 'super-admin')}
                   >
@@ -123,6 +126,7 @@ export default function AdminSidebar({
           <div className="admin-sidebar__group">
             <button
               type="button"
+              tabIndex={isOpen ? 0 : -1}
               className={[
                 'admin-sidebar__item',
                 'admin-sidebar__parent',
@@ -143,6 +147,7 @@ export default function AdminSidebar({
               <div className="admin-sidebar__children">
                 <button
                   type="button"
+                  tabIndex={isOpen ? 0 : -1}
                   className="admin-sidebar__child"
                   onClick={() =>
                     navigate('runner-applications', 'applications')
@@ -153,6 +158,7 @@ export default function AdminSidebar({
 
                 <button
                   type="button"
+                  tabIndex={isOpen ? 0 : -1}
                   className="admin-sidebar__child"
                   onClick={() =>
                     navigate('runner-applications', 'directory')
@@ -168,6 +174,7 @@ export default function AdminSidebar({
         {canAccessPage(account, 'identity-verifications') && (
           <button
             type="button"
+            tabIndex={isOpen ? 0 : -1}
             className={[
               'admin-sidebar__item',
               activePage === 'identity-verifications'
@@ -183,6 +190,7 @@ export default function AdminSidebar({
         {canAccessPage(account, 'audit-logs') && (
           <button
             type="button"
+            tabIndex={isOpen ? 0 : -1}
             className={[
               'admin-sidebar__item',
               activePage === 'audit-logs'
