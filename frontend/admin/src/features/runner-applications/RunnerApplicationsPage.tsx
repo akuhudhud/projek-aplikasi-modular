@@ -289,6 +289,8 @@ export default function RunnerApplicationsPage({ account }: Props) {
     accountId: string,
     decision: 'approve' | 'reject'
   ) {
+    if (workingId) return;
+
     const reason = (reasons[accountId] || '').trim();
 
     if (!reason) {
@@ -335,6 +337,8 @@ export default function RunnerApplicationsPage({ account }: Props) {
   }
 
   async function showLicenseDetails(accountId: string) {
+    if (licenseLoadingId) return;
+
     if (!canReviewLicense) {
       setError('Anda tidak mempunyai kebenaran menyemak dokumen lesen.');
       return;
@@ -379,6 +383,8 @@ export default function RunnerApplicationsPage({ account }: Props) {
   }
 
   async function downloadDocument(accountId: string) {
+    if (documentLoadingId) return;
+
     if (!canReviewLicense) {
       setError('Anda tidak mempunyai kebenaran memuat turun dokumen lesen.');
       return;
@@ -419,6 +425,8 @@ export default function RunnerApplicationsPage({ account }: Props) {
     runner: RunnerDirectoryItem,
     action: 'suspend' | 'restore'
   ) {
+    if (workingId) return;
+
     const reason = (reasons[runner.id] || '').trim();
 
     if (!reason) {
@@ -577,7 +585,7 @@ export default function RunnerApplicationsPage({ account }: Props) {
                 {applications.map((application) => {
                   const license = application.runner_license_application;
                   const detail = licenseDetails[application.id];
-                  const busy = workingId === application.id;
+                  const busy = Boolean(workingId);
 
                   return (
                     <article className="admin-record" key={application.id}>
@@ -622,7 +630,7 @@ export default function RunnerApplicationsPage({ account }: Props) {
                           <button
                             type="button"
                             className="admin-button"
-                            disabled={licenseLoadingId === application.id}
+                            disabled={Boolean(licenseLoadingId)}
                             onClick={() =>
                               void showLicenseDetails(application.id)
                             }
@@ -635,7 +643,7 @@ export default function RunnerApplicationsPage({ account }: Props) {
                           <button
                             type="button"
                             className="admin-button"
-                            disabled={documentLoadingId === application.id}
+                            disabled={Boolean(documentLoadingId)}
                             onClick={() =>
                               void downloadDocument(application.id)
                             }
@@ -849,7 +857,7 @@ export default function RunnerApplicationsPage({ account }: Props) {
 
               <div className="admin-record-list">
                 {runners.map((runner) => {
-                  const busy = workingId === runner.id;
+                  const busy = Boolean(workingId);
                   const canAct =
                     runner.runner_status === 'APPROVED'
                       ? canSuspend
