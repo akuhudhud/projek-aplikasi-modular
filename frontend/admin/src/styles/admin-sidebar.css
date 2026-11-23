@@ -28,6 +28,8 @@
 }
 
 .admin-menu-toggle {
+  position: relative;
+  z-index: 1004;
   display: flex;
   width: 42px;
   height: 42px;
@@ -312,11 +314,11 @@
   cursor: pointer;
 }
 
-/* Header stays above backdrop */
+/* Header layering */
 
 .admin-header {
   position: relative;
-  z-index: 1003;
+  z-index: auto;
 }
 
 /* Animation */
