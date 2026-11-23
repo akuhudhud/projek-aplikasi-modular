@@ -99,21 +99,17 @@ describe('AdminLayout navigation', () => {
   it('menutup sidebar apabila pengguna menekan kawasan luar', () => {
     renderLayout();
 
-    const hamburger = document.querySelector(
-      '.admin-menu-toggle'
-    ) as HTMLButtonElement;
-
-    fireEvent.click(hamburger);
+    fireEvent.click(
+      document.querySelector('.admin-menu-toggle') as HTMLButtonElement
+    );
 
     expect(
       document.getElementById('admin-sidebar')?.getAttribute('aria-hidden')
     ).toBe('false');
 
-    const backdrop = document.querySelector(
-      '.admin-sidebar-backdrop'
-    ) as HTMLButtonElement;
-
-    fireEvent.click(backdrop);
+    fireEvent.click(
+      document.querySelector('.admin-sidebar-backdrop') as HTMLButtonElement
+    );
 
     expect(
       document.getElementById('admin-sidebar')?.getAttribute('aria-hidden')
@@ -235,12 +231,6 @@ describe('AdminLayout navigation', () => {
 
     fireEvent.click(
       document.querySelector('.admin-menu-toggle') as HTMLButtonElement
-    );
-
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: /Pengurusan Pengguna/
-      })
     );
 
     fireEvent.click(
