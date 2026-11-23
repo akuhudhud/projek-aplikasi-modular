@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import AdminSidebar from '../components/navigation/AdminSidebar';
@@ -14,6 +14,15 @@ interface AdminLayoutProps {
   onLogout: () => void;
 }
 
+const FOCUSABLE_SELECTOR = [
+  'button:not([disabled])',
+  'a[href]',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])'
+].join(',');
+
 export default function AdminLayout({
   children,
   account,
@@ -22,6 +31,7 @@ export default function AdminLayout({
   onLogout
 }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const wasSidebarOpen = useRef(false);
 
   function closeSidebar() {
     setSidebarOpen(false);
@@ -32,11 +42,68 @@ export default function AdminLayout({
   }
 
   useEffect(() => {
+    const sidebar = document.getElementById('admin-sidebar');
+    const hamburger = document.querySelector<HTMLButtonElement>(
+      '.admin-menu-toggle'
+    );
+
+    if (sidebarOpen) {
+      wasSidebarOpen.current = true;
+
+      const firstFocusable = sidebar?.querySelector<HTMLElement>(
+        FOCUSABLE_SELECTOR
+      );
+
+      firstFocusable?.focus();
+    } else if (wasSidebarOpen.current) {
+      wasSidebarOpen.current = false;
+      hamburger?.focus();
+    }
+  }, [sidebarOpen]);
+
+  useEffect(() => {
     if (!sidebarOpen) return;
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
+        event.preventDefault();
         closeSidebar();
+        return;
+      }
+
+      if (event.key !== 'Tab') return;
+
+      const sidebar = document.getElementById('admin-sidebar');
+
+      if (!sidebar) return;
+
+      const focusableElements = Array.from(
+        sidebar.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+      ).filter((element) => element.getClientRects().length > 0);
+
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+
+      if (event.shiftKey) {
+        if (
+          activeElement === firstElement ||
+          !sidebar.contains(activeElement)
+        ) {
+          event.preventDefault();
+          lastElement.focus();
+        }
+      } else if (
+        activeElement === lastElement ||
+        !sidebar.contains(activeElement)
+      ) {
+        event.preventDefault();
+        firstElement.focus();
       }
     }
 
