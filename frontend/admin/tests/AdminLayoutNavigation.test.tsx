@@ -121,9 +121,7 @@ describe('AdminLayout navigation', () => {
 
     openSidebar();
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Tutup menu navigasi' })
-    );
+    fireEvent.click(getHamburger());
 
     await waitFor(() => {
       expect(document.activeElement).toBe(getHamburger());
@@ -156,7 +154,7 @@ describe('AdminLayout navigation', () => {
     expect(document.activeElement).toBe(firstButton);
   });
 
-  it('menutup sidebar apabila pengguna menekan kawasan luar', () => {
+  it('menutup sidebar apabila pengguna menekan kawasan luar', async () => {
     renderLayout();
 
     openSidebar();
@@ -172,6 +170,10 @@ describe('AdminLayout navigation', () => {
     expect(
       document.getElementById('admin-sidebar')?.getAttribute('aria-hidden')
     ).toBe('true');
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(getHamburger());
+    });
   });
 
   it('membuka submenu tanpa menutup sidebar', () => {
