@@ -269,6 +269,8 @@ export default function IdentityVerificationsPage({ account }: Props) {
         documentId
       );
 
+      if (!mounted.current) return;
+
       const objectUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
 
@@ -282,9 +284,13 @@ export default function IdentityVerificationsPage({ account }: Props) {
         window.URL.revokeObjectURL(objectUrl);
       }, 1000);
     } catch (err) {
-      setError(getApiError(err));
+      if (mounted.current) {
+        setError(getApiError(err));
+      }
     } finally {
-      setDocumentLoadingId('');
+      if (mounted.current) {
+        setDocumentLoadingId('');
+      }
     }
   }
 
