@@ -32,9 +32,7 @@ export default function AdminLayout({
   }
 
   useEffect(() => {
-    if (!sidebarOpen) {
-      return;
-    }
+    if (!sidebarOpen) return;
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -49,9 +47,36 @@ export default function AdminLayout({
     };
   }, [sidebarOpen]);
 
-  function handleNavigate(page: AdminPage) {
+  function handleNavigate(page: AdminPage, section?: string) {
     onNavigate(page);
     closeSidebar();
+
+    if (page === 'runner-applications' && section) {
+      window.setTimeout(() => {
+        const tabId =
+          section === 'directory'
+            ? 'runner-tab-directory'
+            : 'runner-tab-applications';
+
+        document.getElementById(tabId)?.click();
+      }, 0);
+    }
+
+    if (page === 'accounts' && section === 'super-admin') {
+      window.setTimeout(() => {
+        document
+          .getElementById('super-admin-management')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 0);
+    }
+
+    if (page === 'accounts' && section === 'accounts') {
+      window.setTimeout(() => {
+        document
+          .getElementById('account-directory')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 0);
+    }
   }
 
   return (
