@@ -243,25 +243,32 @@ class RunnerLicenseVerificationApiTest extends TestCase
         );
 
         // Dokumen dipaparkan inline sahaja, bukan sebagai lampiran muat turun.
-        $this->asAccount(
+        $response = $this->asAccount(
             $admin,
             'license-document-token'
         )->get(
             '/api/admin/runner-license-verifications/'
                 .$applicant->id.'/document'
-        )->assertOk()
+        );
+
+        $response->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
             ->assertHeader('Content-Type', 'application/pdf')
             ->assertHeader('Content-Disposition', 'inline')
-            ->assertHeader(
-                'Cache-Control',
-                'private, no-store, max-age=0'
-            )
             ->assertHeader('Pragma', 'no-cache')
             ->assertSee(
                 self::TEST_DOCUMENT_CONTENT,
                 false
             );
+
+        $cacheControl = array_map(
+            'trim',
+            explode(',', $response->headers->get('Cache-Control', ''))
+        );
+
+        $this->assertContains('private', $cacheControl);
+        $this->assertContains('no-store', $cacheControl);
+        $this->assertContains('max-age=0', $cacheControl);
 
         $this->assertDatabaseHas('audit_logs', [
             'actor_account_id' => $admin->id,
