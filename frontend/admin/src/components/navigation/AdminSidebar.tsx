@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 
 import type { AdminPage, AdminProfile } from '../../types/admin';
@@ -47,7 +46,6 @@ export default function AdminSidebar({
       ].join(' ')}
       aria-label="Menu utama"
       aria-hidden={!isOpen}
-      inert={!isOpen}
       style={{
         position: 'fixed',
         top: 0,
