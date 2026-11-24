@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 
 import type { AdminPage, AdminProfile } from '../../types/admin';
@@ -37,6 +38,12 @@ export default function AdminSidebar({
     onNavigate(page, section);
   }
 
+  const menuItemStyle = {
+    width: '100%',
+    flex: 'initial',
+    whiteSpace: 'normal' as const
+  };
+
   return (
     <aside
       id="admin-sidebar"
@@ -52,8 +59,10 @@ export default function AdminSidebar({
         left: 0,
         bottom: 0,
         zIndex: 20,
+        display: 'flex',
         width: '250px',
         maxWidth: '85vw',
+        flexDirection: 'column',
         overflowY: 'auto',
         transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
         visibility: isOpen ? 'visible' : 'hidden',
@@ -72,7 +81,17 @@ export default function AdminSidebar({
         MENU UTAMA
       </div>
 
-      <nav className="admin-sidebar__nav" aria-label="Navigasi utama">
+      <nav
+        className="admin-sidebar__nav"
+        aria-label="Navigasi utama"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1fr)',
+          gap: '5px',
+          overflow: 'visible',
+          paddingBottom: 0
+        }}
+      >
         <button
           type="button"
           className={[
@@ -83,6 +102,7 @@ export default function AdminSidebar({
           ].join(' ')}
           aria-current={activePage === 'dashboard' ? 'page' : undefined}
           onClick={() => navigate('dashboard')}
+          style={menuItemStyle}
         >
           <span>Dashboard</span>
         </button>
@@ -100,6 +120,7 @@ export default function AdminSidebar({
               ].join(' ')}
               aria-expanded={Boolean(expanded.users)}
               onClick={() => toggleGroup('users')}
+              style={menuItemStyle}
             >
               <span>Pengurusan Pengguna</span>
               <span className="admin-sidebar__chevron">
@@ -145,6 +166,7 @@ export default function AdminSidebar({
               ].join(' ')}
               aria-expanded={Boolean(expanded.runners)}
               onClick={() => toggleGroup('runners')}
+              style={menuItemStyle}
             >
               <span>Pengurusan Runner</span>
               <span className="admin-sidebar__chevron">
@@ -191,6 +213,7 @@ export default function AdminSidebar({
               activePage === 'identity-verifications' ? 'page' : undefined
             }
             onClick={() => navigate('identity-verifications')}
+            style={menuItemStyle}
           >
             <span>Pengesahan Identiti</span>
           </button>
@@ -207,6 +230,7 @@ export default function AdminSidebar({
             ].join(' ')}
             aria-current={activePage === 'audit-logs' ? 'page' : undefined}
             onClick={() => navigate('audit-logs')}
+            style={menuItemStyle}
           >
             <span>Log Audit</span>
           </button>
