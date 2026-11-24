@@ -24,9 +24,40 @@ export default function AdminHeader({
   sidebarOpen,
   onToggleSidebar
 }: AdminHeaderProps) {
+  const hamburgerStyle = {
+    display: 'flex',
+    width: '40px',
+    height: '40px',
+    flexShrink: 0,
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '5px',
+    padding: 0,
+    border: '1px solid var(--admin-border)',
+    borderRadius: '6px',
+    background: 'var(--admin-panel-soft)',
+    cursor: 'pointer'
+  };
+
+  const hamburgerLineStyle = {
+    display: 'block',
+    width: '18px',
+    height: '2px',
+    borderRadius: '2px',
+    background: 'var(--admin-yellow)'
+  };
+
   return (
     <header className="admin-header">
-      <div className="admin-header__title">
+      <div
+        className="admin-header__title"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '14px'
+        }}
+      >
         <button
           type="button"
           className="admin-menu-toggle"
@@ -38,10 +69,11 @@ export default function AdminHeader({
           }
           aria-expanded={sidebarOpen}
           aria-controls="admin-sidebar"
+          style={hamburgerStyle}
         >
-          <span />
-          <span />
-          <span />
+          <span style={hamburgerLineStyle} />
+          <span style={hamburgerLineStyle} />
+          <span style={hamburgerLineStyle} />
         </button>
 
         <div>
