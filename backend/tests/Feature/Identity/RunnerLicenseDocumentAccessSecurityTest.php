@@ -287,10 +287,6 @@ class RunnerLicenseDocumentAccessSecurityTest extends TestCase
                 'application/pdf'
             )
             ->assertHeader(
-                'Cache-Control',
-                'no-store, private'
-            )
-            ->assertHeader(
                 'Pragma',
                 'no-cache'
             )
@@ -302,6 +298,15 @@ class RunnerLicenseDocumentAccessSecurityTest extends TestCase
                 'Content-Disposition',
                 'inline'
             );
+
+        $cacheControl = array_map(
+            'trim',
+            explode(',', $response->headers->get('Cache-Control', ''))
+        );
+
+        $this->assertContains('private', $cacheControl);
+        $this->assertContains('no-store', $cacheControl);
+        $this->assertContains('max-age=0', $cacheControl);
 
         $this->assertSame(
             self::DOCUMENT_CONTENT,
