@@ -25,6 +25,8 @@ export default function AdminHeader({
   onToggleSidebar
 }: AdminHeaderProps) {
   const hamburgerStyle = {
+    position: 'relative' as const,
+    zIndex: 30,
     display: 'flex',
     width: '40px',
     height: '40px',
