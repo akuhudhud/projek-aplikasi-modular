@@ -46,7 +46,6 @@ export default function AdminSidebar({
         isOpen ? 'admin-sidebar--open' : ''
       ].join(' ')}
       aria-label="Menu utama"
-      aria-hidden={!isOpen}
     >
       <div className="admin-sidebar__brand">
         <div className="admin-sidebar__logo">SR</div>
@@ -63,13 +62,13 @@ export default function AdminSidebar({
       <nav className="admin-sidebar__nav" aria-label="Navigasi utama">
         <button
           type="button"
-          tabIndex={isOpen ? 0 : -1}
           className={[
             'admin-sidebar__item',
             activePage === 'dashboard'
               ? 'admin-sidebar__item--active'
               : ''
           ].join(' ')}
+          aria-current={activePage === 'dashboard' ? 'page' : undefined}
           onClick={() => navigate('dashboard')}
         >
           <span>Dashboard</span>
@@ -79,7 +78,6 @@ export default function AdminSidebar({
           <div className="admin-sidebar__group">
             <button
               type="button"
-              tabIndex={isOpen ? 0 : -1}
               className={[
                 'admin-sidebar__item',
                 'admin-sidebar__parent',
@@ -100,8 +98,8 @@ export default function AdminSidebar({
               <div className="admin-sidebar__children">
                 <button
                   type="button"
-                  tabIndex={isOpen ? 0 : -1}
                   className="admin-sidebar__child"
+                  aria-current={activePage === 'accounts' ? 'page' : undefined}
                   onClick={() => navigate('accounts', 'accounts')}
                 >
                   Senarai Akaun
@@ -110,7 +108,6 @@ export default function AdminSidebar({
                 {isRoot && (
                   <button
                     type="button"
-                    tabIndex={isOpen ? 0 : -1}
                     className="admin-sidebar__child"
                     onClick={() => navigate('accounts', 'super-admin')}
                   >
@@ -126,7 +123,6 @@ export default function AdminSidebar({
           <div className="admin-sidebar__group">
             <button
               type="button"
-              tabIndex={isOpen ? 0 : -1}
               className={[
                 'admin-sidebar__item',
                 'admin-sidebar__parent',
@@ -147,7 +143,6 @@ export default function AdminSidebar({
               <div className="admin-sidebar__children">
                 <button
                   type="button"
-                  tabIndex={isOpen ? 0 : -1}
                   className="admin-sidebar__child"
                   onClick={() =>
                     navigate('runner-applications', 'applications')
@@ -158,7 +153,6 @@ export default function AdminSidebar({
 
                 <button
                   type="button"
-                  tabIndex={isOpen ? 0 : -1}
                   className="admin-sidebar__child"
                   onClick={() =>
                     navigate('runner-applications', 'directory')
@@ -174,13 +168,15 @@ export default function AdminSidebar({
         {canAccessPage(account, 'identity-verifications') && (
           <button
             type="button"
-            tabIndex={isOpen ? 0 : -1}
             className={[
               'admin-sidebar__item',
               activePage === 'identity-verifications'
                 ? 'admin-sidebar__item--active'
                 : ''
             ].join(' ')}
+            aria-current={
+              activePage === 'identity-verifications' ? 'page' : undefined
+            }
             onClick={() => navigate('identity-verifications')}
           >
             <span>Pengesahan Identiti</span>
@@ -190,13 +186,13 @@ export default function AdminSidebar({
         {canAccessPage(account, 'audit-logs') && (
           <button
             type="button"
-            tabIndex={isOpen ? 0 : -1}
             className={[
               'admin-sidebar__item',
               activePage === 'audit-logs'
                 ? 'admin-sidebar__item--active'
                 : ''
             ].join(' ')}
+            aria-current={activePage === 'audit-logs' ? 'page' : undefined}
             onClick={() => navigate('audit-logs')}
           >
             <span>Log Audit</span>
