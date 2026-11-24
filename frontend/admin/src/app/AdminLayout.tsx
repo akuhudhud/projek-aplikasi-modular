@@ -116,7 +116,6 @@ export default function AdminLayout({
 
   function handleNavigate(page: AdminPage, section?: string) {
     onNavigate(page);
-    closeSidebar();
 
     if (page === 'runner-applications' && section) {
       window.setTimeout(() => {
@@ -154,6 +153,14 @@ export default function AdminLayout({
           className="admin-sidebar-backdrop"
           aria-label="Tutup menu navigasi"
           onClick={closeSidebar}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 15,
+            border: 0,
+            background: 'rgba(0, 0, 0, 0.65)',
+            cursor: 'pointer'
+          }}
         />
       )}
 
@@ -164,7 +171,13 @@ export default function AdminLayout({
         onNavigate={handleNavigate}
       />
 
-      <div className="admin-layout__main">
+      <div
+        className="admin-layout__main"
+        style={{
+          width: '100%',
+          marginLeft: 0
+        }}
+      >
         <AdminHeader
           account={account}
           activePage={activePage}
