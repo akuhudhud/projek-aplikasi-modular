@@ -87,21 +87,23 @@ afterEach(() => {
 });
 
 describe('AdminLayout navigation', () => {
-  it('membuka dan menutup sidebar melalui hamburger', () => {
+  it('menyembunyikan sidebar pada permulaan dan toggle melalui hamburger', () => {
     renderLayout();
 
-    const sidebar = document.getElementById('admin-sidebar');
-    const hamburger = getHamburger();
+    const sidebar = document.getElementById('admin-sidebar')!;
 
-    expect(sidebar?.getAttribute('aria-hidden')).toBe('true');
+    expect(sidebar.getAttribute('aria-hidden')).toBe('true');
+    expect(sidebar.style.visibility).toBe('hidden');
 
-    fireEvent.click(hamburger);
+    fireEvent.click(getHamburger());
 
-    expect(sidebar?.getAttribute('aria-hidden')).toBe('false');
+    expect(sidebar.getAttribute('aria-hidden')).toBe('false');
+    expect(sidebar.style.visibility).toBe('visible');
 
-    fireEvent.click(hamburger);
+    fireEvent.click(getHamburger());
 
-    expect(sidebar?.getAttribute('aria-hidden')).toBe('true');
+    expect(sidebar.getAttribute('aria-hidden')).toBe('true');
+    expect(sidebar.style.visibility).toBe('hidden');
   });
 
   it('memindahkan fokus ke menu apabila sidebar dibuka', async () => {
@@ -120,7 +122,6 @@ describe('AdminLayout navigation', () => {
     renderLayout();
 
     openSidebar();
-
     fireEvent.click(getHamburger());
 
     await waitFor(() => {
@@ -130,7 +131,6 @@ describe('AdminLayout navigation', () => {
 
   it('mengawal pergerakan fokus Tab dan Shift+Tab dalam sidebar', () => {
     renderLayout();
-
     openSidebar();
 
     const sidebar = document.getElementById('admin-sidebar')!;
@@ -144,7 +144,6 @@ describe('AdminLayout navigation', () => {
     const lastButton = buttons[buttons.length - 1];
 
     firstButton.focus();
-
     fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
 
     expect(document.activeElement).toBe(lastButton);
@@ -156,7 +155,6 @@ describe('AdminLayout navigation', () => {
 
   it('menutup sidebar apabila pengguna menekan kawasan luar', async () => {
     renderLayout();
-
     openSidebar();
 
     expect(
@@ -178,7 +176,6 @@ describe('AdminLayout navigation', () => {
 
   it('membuka submenu tanpa menutup sidebar', () => {
     renderLayout();
-
     openSidebar();
 
     const parent = screen.getByRole('button', {
@@ -202,7 +199,6 @@ describe('AdminLayout navigation', () => {
 
   it('memaparkan Pengurusan Super Admin kepada Root sahaja', () => {
     const rootView = renderLayout(rootAccount);
-
     openSidebar();
 
     fireEvent.click(
@@ -220,7 +216,6 @@ describe('AdminLayout navigation', () => {
     rootView.unmount();
 
     renderLayout(superAdminAccount);
-
     openSidebar();
 
     fireEvent.click(
@@ -242,7 +237,7 @@ describe('AdminLayout navigation', () => {
     ).toBeTruthy();
   });
 
-  it('membuka tab Direktori Runner dan menutup sidebar', async () => {
+  it('mengekalkan sidebar terbuka selepas memilih Direktori Runner', async () => {
     const { onNavigate } = renderLayout(
       rootAccount,
       'runner-applications'
@@ -270,7 +265,7 @@ describe('AdminLayout navigation', () => {
 
     expect(
       document.getElementById('admin-sidebar')?.getAttribute('aria-hidden')
-    ).toBe('true');
+    ).toBe('false');
   });
 
   it('mengarahkan Root ke bahagian Pengurusan Super Admin', async () => {
@@ -296,12 +291,15 @@ describe('AdminLayout navigation', () => {
       expect(scrollSpy).toHaveBeenCalled();
     });
 
+    expect(
+      document.getElementById('admin-sidebar')?.getAttribute('aria-hidden')
+    ).toBe('false');
+
     target.remove();
   });
 
   it('menutup sidebar apabila Escape ditekan', async () => {
     renderLayout();
-
     openSidebar();
 
     fireEvent.keyDown(window, { key: 'Escape' });
