@@ -46,6 +46,21 @@ export default function AdminSidebar({
         isOpen ? 'admin-sidebar--open' : ''
       ].join(' ')}
       aria-label="Menu utama"
+      aria-hidden={!isOpen}
+      inert={!isOpen}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        bottom: 0,
+        zIndex: 20,
+        width: '250px',
+        maxWidth: '85vw',
+        overflowY: 'auto',
+        transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
+        visibility: isOpen ? 'visible' : 'hidden',
+        transition: 'transform 0.2s ease, visibility 0.2s ease'
+      }}
     >
       <div className="admin-sidebar__brand">
         <div className="admin-sidebar__logo">SR</div>
