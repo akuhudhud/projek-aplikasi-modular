@@ -1,11 +1,11 @@
-
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   cleanup,
   fireEvent,
   render,
   screen,
-  waitFor
+  waitFor,
+  within
 } from '@testing-library/react';
 
 import RunnerApplicationsPage from '../src/features/runner-applications/RunnerApplicationsPage';
@@ -438,5 +438,67 @@ describe('RunnerApplicationsPage race conditions', () => {
 
     expect(directoryTab.getAttribute('tabindex')).toBe('0');
     expect(applicationsTab.getAttribute('tabindex')).toBe('-1');
+  });
+
+  it('memaparkan dokumen lesen hanya pada kad Runner pemiliknya', async () => {
+    vi.spyOn(adminApi, 'getRunnerApplications')
+      .mockResolvedValue(
+        applicationsResult([firstApplication, secondApplication])
+      );
+
+    vi.spyOn(adminApi, 'getRunnerLicenseDocument')
+      .mockResolvedValue(new Blob(['dokumen ujian'], { type: 'image/jpeg' }));
+
+    const createObjectURL = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockReturnValue('blob:runner-license-preview');
+
+    const revokeObjectURL = vi
+      .spyOn(URL, 'revokeObjectURL')
+      .mockImplementation(() => undefined);
+
+    const { container } = render(
+      <RunnerApplicationsPage account={account} />
+    );
+
+    expect(
+      await screen.findByText('Runner Pertama')
+    ).toBeTruthy();
+
+    expect(screen.getByText('Runner Kedua')).toBeTruthy();
+
+    const cards = container.querySelectorAll('.admin-record');
+    expect(cards).toHaveLength(2);
+
+    const firstCard = within(cards[0] as HTMLElement);
+    const secondCard = within(cards[1] as HTMLElement);
+
+    fireEvent.click(
+      firstCard.getByRole('button', { name: 'Paparkan Dokumen' })
+    );
+
+    await waitFor(() => {
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
+    });
+
+    expect(
+      firstCard.getByAltText('Dokumen lesen Runner')
+    ).toBeTruthy();
+
+    expect(
+      secondCard.queryByAltText('Dokumen lesen Runner')
+    ).toBeNull();
+
+    fireEvent.click(
+      firstCard.getByRole('button', { name: 'Tutup Paparan' })
+    );
+
+    expect(revokeObjectURL).toHaveBeenCalledWith(
+      'blob:runner-license-preview'
+    );
+
+    expect(
+      firstCard.queryByAltText('Dokumen lesen Runner')
+    ).toBeNull();
   });
 });
