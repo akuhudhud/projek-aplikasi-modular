@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from 'react';
 
 import {
@@ -30,6 +29,7 @@ interface DirectoryFilters {
 }
 
 interface DocumentPreview {
+  accountId: string;
   url: string;
   mimeType: string;
 }
@@ -438,6 +438,7 @@ export default function RunnerApplicationsPage({ account }: Props) {
       previewUrlRef.current = url;
 
       setDocumentPreview({
+        accountId,
         url,
         mimeType: blob.type || 'application/octet-stream'
       });
@@ -733,50 +734,52 @@ export default function RunnerApplicationsPage({ account }: Props) {
                         </p>
                       )}
 
-                      {documentPreview && documentLoadingId === '' && (
-                        <div className="admin-document-preview">
-                          <div className="admin-record__heading">
-                            <strong>Dokumen Lesen Runner</strong>
-                            <button
-                              type="button"
-                              className="admin-button"
-                              onClick={clearDocumentPreview}
-                            >
-                              Tutup Paparan
-                            </button>
-                          </div>
+                      {documentPreview &&
+                        documentPreview.accountId === application.id &&
+                        documentLoadingId === '' && (
+                          <div className="admin-document-preview">
+                            <div className="admin-record__heading">
+                              <strong>Dokumen Lesen Runner</strong>
+                              <button
+                                type="button"
+                                className="admin-button"
+                                onClick={clearDocumentPreview}
+                              >
+                                Tutup Paparan
+                              </button>
+                            </div>
 
-                          {documentPreview.mimeType.startsWith('image/') ? (
-                            <img
-                              src={documentPreview.url}
-                              alt="Dokumen lesen Runner"
-                              style={{
-                                display: 'block',
-                                maxWidth: '100%',
-                                maxHeight: '640px',
-                                objectFit: 'contain',
-                                margin: '12px auto'
-                              }}
-                            />
-                          ) : documentPreview.mimeType === 'application/pdf' ? (
-                            <iframe
-                              title="Paparan dokumen lesen Runner"
-                              src={`${documentPreview.url}#toolbar=0&navpanes=0`}
-                              style={{
-                                display: 'block',
-                                width: '100%',
-                                minHeight: '560px',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '8px'
-                              }}
-                            />
-                          ) : (
-                            <p role="alert">
-                              Format dokumen ini tidak disokong untuk paparan.
-                            </p>
-                          )}
-                        </div>
-                      )}
+                            {documentPreview.mimeType.startsWith('image/') ? (
+                              <img
+                                src={documentPreview.url}
+                                alt="Dokumen lesen Runner"
+                                style={{
+                                  display: 'block',
+                                  maxWidth: '100%',
+                                  maxHeight: '640px',
+                                  objectFit: 'contain',
+                                  margin: '12px auto'
+                                }}
+                              />
+                            ) : documentPreview.mimeType === 'application/pdf' ? (
+                              <iframe
+                                title="Paparan dokumen lesen Runner"
+                                src={`${documentPreview.url}#toolbar=0&navpanes=0`}
+                                style={{
+                                  display: 'block',
+                                  width: '100%',
+                                  minHeight: '560px',
+                                  border: '1px solid #d1d5db',
+                                  borderRadius: '8px'
+                                }}
+                              />
+                            ) : (
+                              <p role="alert">
+                                Format dokumen ini tidak disokong untuk paparan.
+                              </p>
+                            )}
+                          </div>
+                        )}
 
                       {(canApprove || canReject) && (
                         <>
