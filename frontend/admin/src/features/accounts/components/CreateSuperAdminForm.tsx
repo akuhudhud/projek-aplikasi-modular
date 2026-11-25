@@ -1,3 +1,4 @@
+
 import type { FormEvent } from 'react';
 import type { CreateSuperAdminPayload } from '../../../types/admin';
 
@@ -79,7 +80,7 @@ export default function CreateSuperAdminForm({
         </label>
 
         <label>
-          Pengesahan Kata Laluan
+          Sahkan Kata Laluan
           <input
             type="password"
             value={form.password_confirmation}
