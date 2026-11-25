@@ -1,7 +1,13 @@
-
 <?php
 
 use Illuminate\Contracts\Console\Kernel;
+
+$writeBootDiagnostic = static function (string $message): void {
+    fwrite(STDERR, $message . PHP_EOL);
+    fflush(STDERR);
+};
+
+$writeBootDiagnostic('BOOT_START');
 
 register_shutdown_function(static function (): void {
     $error = error_get_last();
@@ -30,27 +36,42 @@ register_shutdown_function(static function (): void {
         $error['line']
     );
 
-    fwrite(STDOUT, $message);
-    fflush(STDOUT);
+    fwrite(STDERR, $message);
+    fflush(STDERR);
 });
 
 try {
-    require dirname(__DIR__, 2).'/vendor/autoload.php';
+    $backendPath = dirname(__DIR__, 2);
 
-    $app = require dirname(__DIR__, 2).'/bootstrap/app.php';
-    $app->make(Kernel::class)->bootstrap();
+    $writeBootDiagnostic('BOOT_LOADING_AUTOLOAD');
+
+    require $backendPath . '/vendor/autoload.php';
+
+    $writeBootDiagnostic('BOOT_AUTOLOAD_READY');
+
+    $app = require $backendPath . '/bootstrap/app.php';
+
+    $writeBootDiagnostic('BOOT_APP_CREATED');
+
+    $kernel = $app->make(Kernel::class);
+
+    $writeBootDiagnostic('BOOT_KERNEL_CREATED');
+
+    $kernel->bootstrap();
+
+    $writeBootDiagnostic('BOOTSTRAP_COMPLETE');
 
     return $app;
 } catch (Throwable $exception) {
     $message = sprintf(
-        "BOOT_ERROR: %s: %s\n",
+        "BOOT_ERROR: %s: %s in %s:%d\n",
         get_class($exception),
-        $exception->getMessage()
+        $exception->getMessage(),
+        $exception->getFile(),
+        $exception->getLine()
     );
 
-    fwrite(STDOUT, $message);
     fwrite(STDERR, $message);
-    fflush(STDOUT);
     fflush(STDERR);
 
     exit(1);
