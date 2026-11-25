@@ -1,11 +1,10 @@
+
 import type {
   RunnerApplication,
   RunnerLicenseVerificationDetail
 } from '../../../types/admin';
 
-import {
-  formatRunnerDate
-} from '../utils/runnerApplicationUtils';
+import { formatRunnerDate } from '../utils/runnerApplicationUtils';
 
 import RunnerLicenseDetails from './RunnerLicenseDetails';
 import RunnerDocumentPreview from './RunnerDocumentPreview';
@@ -14,7 +13,9 @@ interface RunnerApplicationCardProps {
   application: RunnerApplication;
   licenseDetail?: RunnerLicenseVerificationDetail;
   licenseLoading: boolean;
+  licenseRequestPending: boolean;
   documentLoading: boolean;
+  documentRequestPending: boolean;
   documentPreview: {
     url: string;
     mimeType: string;
@@ -35,7 +36,9 @@ export default function RunnerApplicationCard({
   application,
   licenseDetail,
   licenseLoading,
+  licenseRequestPending,
   documentLoading,
+  documentRequestPending,
   documentPreview,
   canApprove,
   canReject,
@@ -97,7 +100,7 @@ export default function RunnerApplicationCard({
           <button
             type="button"
             className="admin-button"
-            disabled={licenseLoading}
+            disabled={licenseRequestPending}
             onClick={onShowLicenseDetails}
           >
             {licenseLoading ? 'Memuatkan...' : 'Butiran Lesen'}
@@ -106,7 +109,7 @@ export default function RunnerApplicationCard({
           <button
             type="button"
             className="admin-button"
-            disabled={documentLoading}
+            disabled={documentRequestPending}
             onClick={onShowLicenseDocument}
           >
             {documentLoading ? 'Memaparkan...' : 'Paparkan Dokumen'}
