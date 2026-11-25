@@ -10,7 +10,6 @@ use App\Services\AuditLogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class AccountController extends Controller
@@ -75,109 +74,6 @@ class AccountController extends Controller
                 'accounts' => $accounts,
             ],
         ], 200);
-    }
-
-    public function createSuperAdmin(
-        Request $request,
-        AuditLogService $auditLogService
-    ): JsonResponse {
-        $actor = $request->attributes->get('account');
-
-        if (!$actor || $actor->role !== 'ROOT_SUPER_ADMIN') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized.',
-            ], 403);
-        }
-
-        $request->validate([
-            'profile_name' => ['required', 'string', 'max:255'],
-            'job_title' => ['nullable', 'string', 'max:100'],
-            'phone' => [
-                'nullable',
-                'string',
-                'max:30',
-                'required_without:email',
-                'unique:accounts,phone',
-            ],
-            'email' => [
-                'nullable',
-                'email',
-                'max:255',
-                'required_without:phone',
-                'unique:accounts,email',
-            ],
-            'password' => [
-                'required',
-                'string',
-                'min:8',
-                'max:12',
-                'regex:/[A-Z]/',
-                'regex:/[a-z]/',
-                'regex:/[0-9]/',
-            ],
-            'password_confirmation' => [
-                'required',
-                'same:password',
-            ],
-            'reason' => ['required', 'string', 'max:1000'],
-        ]);
-
-        $reason = trim((string) $request->input('reason'));
-
-        if ($reason === '') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Reason is required.',
-            ], 422);
-        }
-
-        $newSuperAdmin = DB::transaction(function () use (
-            $request,
-            $actor,
-            $reason,
-            $auditLogService
-        ): Account {
-            $account = Account::create([
-                'id' => (string) Str::uuid(),
-                'profile_name' => $request->input('profile_name'),
-                'job_title' => $request->input('job_title'),
-                'phone' => $request->input('phone'),
-                'email' => $request->input('email'),
-                'profile_picture' => null,
-                'password' => $request->input('password'),
-                'role' => 'SUPER_ADMIN',
-                'status' => 'ACTIVE',
-            ]);
-
-            $auditLogService->record(
-                $actor,
-                $account,
-                'SUPER_ADMIN_CREATED',
-                $reason
-            );
-
-            return $account;
-        });
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Super Admin created successfully.',
-            'data' => [
-                'account' => [
-                    'id' => $newSuperAdmin->id,
-                    'profile_name' => $newSuperAdmin->profile_name,
-                    'job_title' => $newSuperAdmin->job_title,
-                    'phone' => $newSuperAdmin->phone,
-                    'email' => $newSuperAdmin->email,
-                    'profile_picture' => $newSuperAdmin->profile_picture,
-                    'role' => $newSuperAdmin->role,
-                    'status' => $newSuperAdmin->status,
-                    'created_at' => $newSuperAdmin->created_at,
-                    'updated_at' => $newSuperAdmin->updated_at,
-                ],
-            ],
-        ], 201);
     }
 
     public function updateSuperAdminJobTitle(
