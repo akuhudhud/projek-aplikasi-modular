@@ -219,9 +219,7 @@ class AdminRunnerDirectoryApiTest extends TestCase
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->getJson(
-            '/api/admin/runners?status=APPROVED'
-        );
+        )->getJson('/api/admin/runners?status=APPROVED');
 
         $response->assertOk()
             ->assertJsonPath('data.pagination.total', 1)
@@ -231,7 +229,7 @@ class AdminRunnerDirectoryApiTest extends TestCase
             ]);
     }
 
-    public function test_directory_searches_runner_name_phone_and_email(): void
+    public function test_directory_searches_runner_name(): void
     {
         $root = $this->createAccount(
             'Search Root',
@@ -261,6 +259,57 @@ class AdminRunnerDirectoryApiTest extends TestCase
             ->assertJsonFragment([
                 'id' => $matching->id,
                 'profile_name' => 'Nazim Runner',
+            ]);
+    }
+
+    public function test_directory_searches_runner_phone_and_email(): void
+    {
+        $root = $this->createAccount(
+            'Phone Email Search Root',
+            'runner-directory-phone-email-root@example.com',
+            'ROOT_SUPER_ADMIN'
+        );
+
+        $phoneRunner = $this->makeRunner(
+            'Phone Search Runner',
+            'phone-search-runner@example.com'
+        );
+
+        $emailRunner = $this->makeRunner(
+            'Email Search Runner',
+            'unique-email-search@example.com'
+        );
+
+        Account::query()
+            ->whereKey($phoneRunner->id)
+            ->update([
+                'phone' => '60123456789',
+            ]);
+
+        $token = $this->authenticate($root);
+
+        $phoneResponse = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->getJson('/api/admin/runners?search=60123456789');
+
+        $phoneResponse->assertOk()
+            ->assertJsonPath('data.pagination.total', 1)
+            ->assertJsonFragment([
+                'id' => $phoneRunner->id,
+                'profile_name' => 'Phone Search Runner',
+            ]);
+
+        $emailResponse = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->getJson('/api/admin/runners?search=unique-email-search@example.com');
+
+        $emailResponse->assertOk()
+            ->assertJsonPath('data.pagination.total', 1)
+            ->assertJsonFragment([
+                'id' => $emailRunner->id,
+                'profile_name' => 'Email Search Runner',
             ]);
     }
 
