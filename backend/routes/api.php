@@ -1,9 +1,11 @@
+
 <?php
 
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AdminAccountDirectoryController;
 use App\Http\Controllers\Api\AdminDashboardController;
 use App\Http\Controllers\Api\AdminRunnerDirectoryController;
+use App\Http\Controllers\Api\AdminSuperAdminAppointmentController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ContactChangeController;
@@ -433,9 +435,9 @@ Route::get('/admin/accounts', [
     'admin.permission:accounts.view',
 ]);
 
-Route::post('/admin/accounts', [
-    AccountController::class,
-    'createSuperAdmin',
+Route::post('/admin/accounts/{accountId}/appoint-super-admin', [
+    AdminSuperAdminAppointmentController::class,
+    'appoint',
 ])->middleware(AuthenticateSession::class);
 
 Route::patch('/admin/accounts/{accountId}/job-title', [
