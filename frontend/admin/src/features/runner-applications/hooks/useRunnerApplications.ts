@@ -41,12 +41,9 @@ export default function useRunnerApplications({
         per_page: perPage
       });
 
-      if (!mountedRef.current || requestId !== requestIdRef.current) {
-        return;
-      }
+      if (!mountedRef.current || requestId !== requestIdRef.current) return;
 
       pageRef.current = result.pagination.current_page;
-
       setApplications(result.applications);
       setPage(result.pagination.current_page);
       setLastPage(result.pagination.last_page);
@@ -74,9 +71,11 @@ export default function useRunnerApplications({
   }, []);
 
   useEffect(() => {
-    if (enabled) {
-      void loadApplications(1);
-    }
+    if (enabled) void loadApplications(1);
+
+    return () => {
+      requestIdRef.current += 1;
+    };
   }, [enabled, loadApplications]);
 
   return {
