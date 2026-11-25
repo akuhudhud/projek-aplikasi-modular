@@ -8,6 +8,7 @@ use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Tests\Support\ConcurrencyWorkerDiagnostics;
 use Tests\TestCase;
 
 class MarketplaceAwardConcurrencyTest extends TestCase
@@ -102,15 +103,13 @@ class MarketplaceAwardConcurrencyTest extends TestCase
                 $quotationTwoId
             );
 
-            foreach ($this->workers as $worker) {
-                $ready = fgets($worker['pipes'][1]);
-
-                $this->assertSame(
-                    "READY\n",
-                    $ready,
-                    'An award worker failed to reach the concurrency barrier.'
+            foreach ($this->workers as &$worker) {
+                ConcurrencyWorkerDiagnostics::assertReady(
+                    $worker,
+                    'Marketplace award worker failed to reach READY barrier.'
                 );
             }
+            unset($worker);
 
             foreach ($this->workers as $worker) {
                 fwrite($worker['pipes'][0], "GO\n");
