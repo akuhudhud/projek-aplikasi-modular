@@ -1,388 +1,55 @@
+export {
+  adminApi,
+  getApiError,
+  isUnauthorizedError
+} from './adminApiClient';
 
-import axios from 'axios';
+export {
+  saveSession,
+  clearSession,
+  hasSession,
+  login,
+  getCurrentAdmin,
+  logout
+} from './adminAuthApi';
 
-import type {
-  AccountDirectoryResult,
-  AdminAccountDetail,
-  AdminProfile,
-  ApiResponse,
-  AuditLogResult,
-  CreateSuperAdminPayload,
-  IdentityVerificationDetail,
-  IdentityVerificationQueueResult,
-  RunnerApplicationResult,
-  RunnerDirectoryResult,
-  RunnerLicenseVerificationDetail,
-  SuperAdminPermissionResult
-} from '../types/admin';
+export {
+  getAccounts,
+  getAccountDetail,
+  suspendAccount,
+  unsuspendAccount,
+  reactivateAccount,
+  createSuperAdmin,
+  updateSuperAdminJobTitle,
+  getSuperAdminPermissions,
+  updateSuperAdminPermissions
+} from './adminAccountsApi';
 
-import type { AdminDashboard } from '../features/dashboard/dashboardTypes';
+export type {
+  AccountDirectoryFilters
+} from './adminAccountsApi';
 
-const TOKEN_KEY = 'super_runner_admin_session';
+export {
+  getRunnerApplications,
+  decideRunnerApplication,
+  getRunnerDirectory,
+  changeRunnerStatus,
+  getRunnerLicenseVerification,
+  getRunnerLicenseDocument
+} from './adminRunnerApi';
 
-export const adminApi = axios.create({
-  baseURL: '/api',
-  headers: {
-    Accept: 'application/json'
-  }
-});
+export {
+  getIdentityVerifications,
+  getIdentityVerificationDetail,
+  decideIdentityVerification,
+  getIdentityVerificationDocument
+} from './adminIdentityApi';
 
-adminApi.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem(TOKEN_KEY);
+export type {
+  IdentityVerificationFilters
+} from './adminIdentityApi';
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  return config;
-});
-
-export function saveSession(token: string): void {
-  sessionStorage.setItem(TOKEN_KEY, token);
-}
-
-export function clearSession(): void {
-  sessionStorage.removeItem(TOKEN_KEY);
-}
-
-export function hasSession(): boolean {
-  return Boolean(sessionStorage.getItem(TOKEN_KEY));
-}
-
-export function isUnauthorizedError(error: unknown): boolean {
-  return axios.isAxiosError(error) && error.response?.status === 401;
-}
-
-export function getApiError(error: unknown): string {
-  if (axios.isAxiosError(error)) {
-    return (
-      error.response?.data?.message ||
-      'Permintaan tidak berjaya. Sila cuba lagi.'
-    );
-  }
-
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-
-  return 'Ralat tidak dijangka berlaku.';
-}
-
-export async function login(
-  identifier: string,
-  password: string
-): Promise<AdminProfile> {
-  const isEmail = identifier.includes('@');
-
-  const response = await adminApi.post<
-    ApiResponse<{
-      account: AdminProfile;
-      session: { token: string };
-    }>
-  >('/login', {
-    [isEmail ? 'email' : 'phone']: identifier,
-    password
-  });
-
-  const token = response.data.data.session?.token;
-
-  if (!token) {
-    throw new Error('Token sesi tidak diterima daripada server.');
-  }
-
-  saveSession(token);
-
-  try {
-    return await getCurrentAdmin();
-  } catch (error) {
-    clearSession();
-    throw error;
-  }
-}
-
-export async function getCurrentAdmin(): Promise<AdminProfile> {
-  const response = await adminApi.get<
-    ApiResponse<{ account: AdminProfile }>
-  >('/me');
-
-  return response.data.data.account;
-}
-
-export async function logout(): Promise<void> {
-  try {
-    await adminApi.post('/logout');
-  } finally {
-    clearSession();
-  }
-}
-
-export interface AccountDirectoryFilters {
-  search?: string;
-  status?: string;
-  role?: string;
-  page?: number;
-  per_page?: number;
-}
-
-export async function getAccounts(
-  filters: AccountDirectoryFilters = {}
-): Promise<AccountDirectoryResult> {
-  const response = await adminApi.get<
-    ApiResponse<AccountDirectoryResult>
-  >('/admin/account-directory', {
-    params: filters
-  });
-
-  return response.data.data;
-}
-
-export async function getAccountDetail(
-  accountId: string
-): Promise<AdminAccountDetail> {
-  const response = await adminApi.get<
-    ApiResponse<{ account: AdminAccountDetail }>
-  >(`/admin/account-directory/${encodeURIComponent(accountId)}`);
-
-  return response.data.data.account;
-}
-
-export async function suspendAccount(
-  accountId: string,
-  reason: string
-): Promise<void> {
-  await adminApi.post(
-    `/admin/accounts/${encodeURIComponent(accountId)}/suspend`,
-    { reason }
-  );
-}
-
-export async function unsuspendAccount(
-  accountId: string,
-  reason: string
-): Promise<void> {
-  await adminApi.post(
-    `/admin/accounts/${encodeURIComponent(accountId)}/unsuspend`,
-    { reason }
-  );
-}
-
-export async function reactivateAccount(
-  accountId: string,
-  reason: string
-): Promise<void> {
-  await adminApi.post(
-    `/admin/accounts/${encodeURIComponent(accountId)}/reactivate`,
-    { reason }
-  );
-}
-
-export async function createSuperAdmin(
-  payload: CreateSuperAdminPayload
-): Promise<void> {
-  await adminApi.post('/admin/accounts', payload);
-}
-
-export async function updateSuperAdminJobTitle(
-  accountId: string,
-  jobTitle: string,
-  reason: string
-): Promise<void> {
-  await adminApi.patch(
-    `/admin/accounts/${encodeURIComponent(accountId)}/job-title`,
-    {
-      job_title: jobTitle,
-      reason
-    }
-  );
-}
-
-export async function getSuperAdminPermissions(
-  accountId: string
-): Promise<SuperAdminPermissionResult> {
-  const response = await adminApi.get<
-    ApiResponse<SuperAdminPermissionResult>
-  >(
-    `/admin/accounts/${encodeURIComponent(accountId)}/permissions`
-  );
-
-  return response.data.data;
-}
-
-export async function updateSuperAdminPermissions(
-  accountId: string,
-  permissions: string[],
-  reason: string
-): Promise<void> {
-  await adminApi.put(
-    `/admin/accounts/${encodeURIComponent(accountId)}/permissions`,
-    {
-      permissions,
-      reason
-    }
-  );
-}
-
-export async function getRunnerApplications(
-  filters: {
-    page?: number;
-    per_page?: number;
-  } = {}
-): Promise<RunnerApplicationResult> {
-  const response = await adminApi.get<
-    ApiResponse<RunnerApplicationResult>
-  >('/admin/runner-applications', {
-    params: filters
-  });
-
-  return response.data.data;
-}
-
-export async function decideRunnerApplication(
-  accountId: string,
-  decision: 'approve' | 'reject',
-  reason: string
-): Promise<void> {
-  await adminApi.post(
-    `/admin/runner-applications/${encodeURIComponent(accountId)}/${decision}`,
-    { reason }
-  );
-}
-
-export async function getRunnerDirectory(
-  filters: {
-    search?: string;
-    status?: string;
-    page?: number;
-    per_page?: number;
-  } = {}
-): Promise<RunnerDirectoryResult> {
-  const response = await adminApi.get<
-    ApiResponse<RunnerDirectoryResult>
-  >('/admin/runners', {
-    params: filters
-  });
-
-  return response.data.data;
-}
-
-export async function changeRunnerStatus(
-  accountId: string,
-  action: 'suspend' | 'restore',
-  reason: string
-): Promise<void> {
-  await adminApi.post(
-    `/admin/runners/${encodeURIComponent(accountId)}/${action}`,
-    { reason }
-  );
-}
-
-export interface IdentityVerificationFilters {
-  search?: string;
-  status?: 'PENDING' | 'VERIFIED' | 'REJECTED' | 'ALL';
-  page?: number;
-  per_page?: number;
-}
-
-export async function getIdentityVerifications(
-  filters: IdentityVerificationFilters = {}
-): Promise<IdentityVerificationQueueResult> {
-  const response = await adminApi.get<
-    ApiResponse<IdentityVerificationQueueResult>
-  >('/admin/identity-verifications', {
-    params: filters
-  });
-
-  return response.data.data;
-}
-
-export async function getIdentityVerificationDetail(
-  accountId: string
-): Promise<IdentityVerificationDetail> {
-  const response = await adminApi.get<
-    ApiResponse<{
-      identity_verification: IdentityVerificationDetail;
-    }>
-  >(
-    `/admin/identity-verifications/${encodeURIComponent(accountId)}`
-  );
-
-  return response.data.data.identity_verification;
-}
-
-export async function decideIdentityVerification(
-  accountId: string,
-  decision: 'VERIFIED' | 'REJECTED',
-  rejectionReason?: string
-): Promise<void> {
-  await adminApi.post(
-    `/admin/identity-verifications/${encodeURIComponent(accountId)}/decision`,
-    {
-      decision,
-      rejection_reason: rejectionReason
-    }
-  );
-}
-
-export async function getIdentityVerificationDocument(
-  accountId: string,
-  documentId: string
-): Promise<Blob> {
-  const response = await adminApi.get(
-    `/admin/identity-verifications/${encodeURIComponent(accountId)}/documents/${encodeURIComponent(documentId)}`,
-    {
-      responseType: 'blob'
-    }
-  );
-
-  return response.data as Blob;
-}
-
-export async function getRunnerLicenseVerification(
-  accountId: string
-): Promise<RunnerLicenseVerificationDetail> {
-  const response = await adminApi.get<
-    ApiResponse<{
-      runner_license_verification: RunnerLicenseVerificationDetail;
-    }>
-  >(
-    `/admin/runner-license-verifications/${encodeURIComponent(accountId)}`
-  );
-
-  return response.data.data.runner_license_verification;
-}
-
-export async function getRunnerLicenseDocument(
-  accountId: string
-): Promise<Blob> {
-  const response = await adminApi.get(
-    `/admin/runner-license-verifications/${encodeURIComponent(accountId)}/document`,
-    {
-      responseType: 'blob'
-    }
-  );
-
-  return response.data as Blob;
-}
-
-export async function getAuditLogs(
-  filters: {
-    page?: number;
-    per_page?: number;
-  } = {}
-): Promise<AuditLogResult> {
-  const response = await adminApi.get<
-    ApiResponse<AuditLogResult>
-  >('/admin/audit-logs', {
-    params: filters
-  });
-
-  return response.data.data;
-}
-
-export async function getAdminDashboard(): Promise<AdminDashboard> {
-  const response = await adminApi.get<ApiResponse<AdminDashboard>>(
-    '/admin/dashboard'
-  );
-
-  return response.data.data;
-}
+export {
+  getAuditLogs,
+  getAdminDashboard
+} from './adminReportingApi';
