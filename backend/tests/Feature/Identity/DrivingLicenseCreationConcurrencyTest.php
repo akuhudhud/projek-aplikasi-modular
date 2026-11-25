@@ -7,6 +7,7 @@ use App\Models\DrivingLicenseCatalog;
 use App\Models\DrivingLicenseType;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Tests\Support\ConcurrencyWorkerDiagnostics;
 use Tests\TestCase;
 
 class DrivingLicenseCreationConcurrencyTest extends TestCase
@@ -209,13 +210,13 @@ class DrivingLicenseCreationConcurrencyTest extends TestCase
             ];
         }
 
-        foreach ($this->workers as $worker) {
-            $this->assertSame(
-                "READY\n",
-                fgets($worker['pipes'][1]),
-                'A worker failed to reach the concurrency barrier.'
+        foreach ($this->workers as &$worker) {
+            ConcurrencyWorkerDiagnostics::assertReady(
+                $worker,
+                'Driving license creation worker failed to reach READY barrier.'
             );
         }
+        unset($worker);
 
         foreach ($this->workers as $worker) {
             fwrite($worker['pipes'][0], "GO\n");
