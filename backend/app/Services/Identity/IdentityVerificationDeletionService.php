@@ -58,6 +58,24 @@ class IdentityVerificationDeletionService
                 }
 
                 /*
+                 * Root Super Admin mempunyai akses penuh.
+                 * Super Admin hanya boleh memadam rekod USER.
+                 * Super Admin tidak boleh memadam rekod sendiri.
+                 */
+                if ($actor->role === 'ROOT_SUPER_ADMIN') {
+                    // Tiada sekatan sasaran untuk Root.
+                } elseif (
+                    $actor->role !== 'SUPER_ADMIN'
+                    || $actor->id === $target->id
+                    || $target->role !== 'USER'
+                ) {
+                    abort(
+                        403,
+                        'Super Admin can only delete identity verification data belonging to USER accounts.'
+                    );
+                }
+
+                /*
                  * Rekod identiti tidak boleh dipadam semasa permohonan
                  * Runner masih PENDING atau status Runner APPROVED.
                  */
