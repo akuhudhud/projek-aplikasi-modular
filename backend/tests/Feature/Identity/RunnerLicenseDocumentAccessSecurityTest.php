@@ -63,7 +63,7 @@ class RunnerLicenseDocumentAccessSecurityTest extends TestCase
     {
         AccountPermission::create([
             'account_id' => $account->id,
-            'permission_key' => 'runner_license_verifications.review',
+            'permission_key' => 'runner_applications.view',
         ]);
     }
 
