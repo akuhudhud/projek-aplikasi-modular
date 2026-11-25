@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from 'react';
 
 import {
@@ -11,76 +10,22 @@ import {
 
 import type {
   AdminProfile,
-  IdentityVerificationDetail,
+  IdentityVerificationDetail as IdentityDetail,
   IdentityVerificationQueueItem
 } from '../../types/admin';
 
+import IdentityVerificationQueue from './components/IdentityVerificationQueue';
+import IdentityVerificationDetail from './components/IdentityVerificationDetail';
+
+import {
+  hasReviewPermission,
+  STATUS_TABS,
+  type DocumentPreview,
+  type VerificationStatus
+} from './utils/identityVerificationUtils';
+
 interface Props {
   account: AdminProfile;
-}
-
-type VerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED' | 'ALL';
-
-interface DocumentPreview {
-  id: string;
-  url: string;
-  mimeType: string;
-}
-
-const STATUS_TABS: Array<{
-  value: VerificationStatus;
-  label: string;
-}> = [
-  { value: 'PENDING', label: 'Menunggu' },
-  { value: 'VERIFIED', label: 'Disahkan' },
-  { value: 'REJECTED', label: 'Ditolak' },
-  { value: 'ALL', label: 'Semua' }
-];
-
-function hasReviewPermission(account: AdminProfile): boolean {
-  return (
-    account.role === 'ROOT_SUPER_ADMIN' ||
-    account.permissions?.includes('identity_verifications.review') === true
-  );
-}
-
-function formatDate(value: string | null | undefined): string {
-  if (!value) return '—';
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return value;
-
-  return new Intl.DateTimeFormat('ms-MY', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(date);
-}
-
-function formatBytes(value: number): string {
-  if (value < 1024) return `${value} B`;
-
-  if (value < 1024 * 1024) {
-    return `${(value / 1024).toFixed(1)} KB`;
-  }
-
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function statusLabel(status: string): string {
-  switch (status) {
-    case 'PENDING':
-      return 'MENUNGGU';
-    case 'VERIFIED':
-      return 'DISAHKAN';
-    case 'REJECTED':
-      return 'DITOLAK';
-    default:
-      return status;
-  }
 }
 
 export default function IdentityVerificationsPage({ account }: Props) {
@@ -96,8 +41,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
   const [total, setTotal] = useState(0);
 
   const [selectedId, setSelectedId] = useState('');
-  const [detail, setDetail] =
-    useState<IdentityVerificationDetail | null>(null);
+  const [detail, setDetail] = useState<IdentityDetail | null>(null);
 
   const [rejectionReason, setRejectionReason] = useState('');
   const [loading, setLoading] = useState(true);
@@ -142,9 +86,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
         per_page: 15
       });
 
-      if (!mounted.current || requestId !== queueRequestId.current) {
-        return;
-      }
+      if (!mounted.current || requestId !== queueRequestId.current) return;
 
       setItems(result.verifications);
       setPage(result.pagination.current_page);
@@ -154,9 +96,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
       setSelectedId((currentId) => {
         if (
           currentId &&
-          !result.verifications.some(
-            (item) => item.account_id === currentId
-          )
+          !result.verifications.some((item) => item.account_id === currentId)
         ) {
           detailRequestId.current += 1;
           documentRequestId.current += 1;
@@ -261,35 +201,21 @@ export default function IdentityVerificationsPage({ account }: Props) {
     try {
       const result = await getIdentityVerificationDetail(item.account_id);
 
-      if (
-        !mounted.current ||
-        requestId !== detailRequestId.current
-      ) {
-        return;
-      }
+      if (!mounted.current || requestId !== detailRequestId.current) return;
 
       setDetail(result);
     } catch (err) {
-      if (
-        mounted.current &&
-        requestId === detailRequestId.current
-      ) {
+      if (mounted.current && requestId === detailRequestId.current) {
         setError(getApiError(err));
       }
     } finally {
-      if (
-        mounted.current &&
-        requestId === detailRequestId.current
-      ) {
+      if (mounted.current && requestId === detailRequestId.current) {
         setDetailLoading(false);
       }
     }
   }
 
-  async function showDocument(
-    documentId: string,
-    mimeType: string
-  ) {
+  async function showDocument(documentId: string, mimeType: string) {
     if (!detail || !canReview || documentLoadingId) return;
 
     const accountId = detail.account_id;
@@ -300,17 +226,9 @@ export default function IdentityVerificationsPage({ account }: Props) {
     setError('');
 
     try {
-      const blob = await getIdentityVerificationDocument(
-        accountId,
-        documentId
-      );
+      const blob = await getIdentityVerificationDocument(accountId, documentId);
 
-      if (
-        !mounted.current ||
-        requestId !== documentRequestId.current
-      ) {
-        return;
-      }
+      if (!mounted.current || requestId !== documentRequestId.current) return;
 
       const objectUrl = window.URL.createObjectURL(blob);
 
@@ -320,26 +238,18 @@ export default function IdentityVerificationsPage({ account }: Props) {
         mimeType: mimeType.toLowerCase()
       });
     } catch (err) {
-      if (
-        mounted.current &&
-        requestId === documentRequestId.current
-      ) {
+      if (mounted.current && requestId === documentRequestId.current) {
         setError(getApiError(err));
       }
     } finally {
-      if (
-        mounted.current &&
-        requestId === documentRequestId.current
-      ) {
+      if (mounted.current && requestId === documentRequestId.current) {
         setDocumentLoadingId('');
       }
     }
   }
 
   async function submitDecision(decision: 'VERIFIED' | 'REJECTED') {
-    if (!detail || detail.status !== 'PENDING' || !canReview || working) {
-      return;
-    }
+    if (!detail || detail.status !== 'PENDING' || !canReview || working) return;
 
     const reason = rejectionReason.trim();
 
@@ -379,21 +289,16 @@ export default function IdentityVerificationsPage({ account }: Props) {
           ? {
               ...current,
               status: decision,
-              rejection_reason:
-                decision === 'REJECTED' ? reason : null
+              rejection_reason: decision === 'REJECTED' ? reason : null
             }
           : current
       );
 
       await loadQueue(page, activeStatus, search);
     } catch (err) {
-      if (mounted.current) {
-        setError(getApiError(err));
-      }
+      if (mounted.current) setError(getApiError(err));
     } finally {
-      if (mounted.current) {
-        setWorking(false);
-      }
+      if (mounted.current) setWorking(false);
     }
   }
 
@@ -407,9 +312,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
       <section className="admin-page">
         <div className="admin-page__heading">
           <div>
-            <span className="dashboard-page__eyebrow">
-              MODUL PENGESAHAN
-            </span>
+            <span className="dashboard-page__eyebrow">MODUL PENGESAHAN</span>
             <h2>Pengesahan Identiti</h2>
           </div>
         </div>
@@ -512,325 +415,33 @@ export default function IdentityVerificationsPage({ account }: Props) {
         Jumlah rekod: {total}
       </div>
 
-      {loading ? (
-        <div className="admin-state" role="status" aria-live="polite">
-          Memuatkan senarai permohonan...
-        </div>
-      ) : items.length === 0 ? (
-        <div className="admin-state" role="status">
-          Tiada permohonan ditemui untuk tapisan ini.
-        </div>
-      ) : (
-        <div className="admin-record-list">
-          {items.map((item) => (
-            <article
-              className="admin-record"
-              key={item.account_id}
-            >
-              <div className="admin-record__heading">
-                <div>
-                  <h3>{item.profile_name}</h3>
-                  <span>
-                    {item.phone || item.email || 'Tiada maklumat hubungan'}
-                  </span>
-                </div>
-
-                <span className="admin-status">
-                  {statusLabel(item.status)}
-                </span>
-              </div>
-
-              <div className="admin-record__details">
-                <div>
-                  <small>Nama pada identiti</small>
-                  <strong>{item.verified_name}</strong>
-                </div>
-
-                <div>
-                  <small>Nombor MyKad</small>
-                  <strong>{item.mykad_number_masked}</strong>
-                </div>
-
-                <div>
-                  <small>Tarikh permohonan</small>
-                  <strong>{formatDate(item.submitted_at)}</strong>
-                </div>
-
-                <div>
-                  <small>Dokumen</small>
-                  <strong>{item.documents_count} fail</strong>
-                </div>
-              </div>
-
-              <div className="admin-record__actions">
-                <button
-                  type="button"
-                  className="admin-button admin-button--primary"
-                  disabled={
-                    detailLoading ||
-                    loading ||
-                    selectedId === item.account_id
-                  }
-                  onClick={() => void openDetail(item)}
-                >
-                  {selectedId === item.account_id
-                    ? 'Dipilih'
-                    : 'Lihat Butiran'}
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-
-      {!loading && lastPage > 1 && (
-        <div className="admin-record__actions">
-          <button
-            type="button"
-            className="admin-button"
-            disabled={page <= 1}
-            onClick={() => void loadQueue(page - 1)}
-          >
-            Sebelum
-          </button>
-
-          <span className="admin-page__footnote" aria-live="polite">
-            Halaman {page} daripada {lastPage}
-          </span>
-
-          <button
-            type="button"
-            className="admin-button"
-            disabled={page >= lastPage}
-            onClick={() => void loadQueue(page + 1)}
-          >
-            Seterusnya
-          </button>
-        </div>
-      )}
+      <IdentityVerificationQueue
+        items={items}
+        loading={loading}
+        detailLoading={detailLoading}
+        selectedId={selectedId}
+        page={page}
+        lastPage={lastPage}
+        onOpenDetail={(item) => void openDetail(item)}
+        onPageChange={(nextPage) => void loadQueue(nextPage)}
+      />
 
       {selectedId && (
-        <section
-          className="admin-record"
-          aria-label="Butiran pengesahan identiti"
-          aria-busy={detailLoading}
-        >
-          <div className="admin-page__heading">
-            <div>
-              <span className="dashboard-page__eyebrow">
-                BUTIRAN PERMOHONAN
-              </span>
-              <h2>Semakan Identiti</h2>
-            </div>
-
-            <button
-              type="button"
-              className="admin-button"
-              onClick={closeDetail}
-            >
-              Tutup
-            </button>
-          </div>
-
-          {detailLoading ? (
-            <div className="admin-state" role="status" aria-live="polite">
-              Memuatkan butiran permohonan...
-            </div>
-          ) : detail ? (
-            <>
-              <div className="admin-record__details">
-                <div>
-                  <small>Nama profil</small>
-                  <strong>{detail.profile_name}</strong>
-                </div>
-
-                <div>
-                  <small>Nama sah</small>
-                  <strong>{detail.verified_name}</strong>
-                </div>
-
-                <div>
-                  <small>Nombor MyKad</small>
-                  <strong>{detail.mykad_number_masked}</strong>
-                </div>
-
-                <div>
-                  <small>Status</small>
-                  <strong>{statusLabel(detail.status)}</strong>
-                </div>
-
-                <div>
-                  <small>Tarikh dihantar</small>
-                  <strong>{formatDate(detail.submitted_at)}</strong>
-                </div>
-
-                <div>
-                  <small>Tarikh disemak</small>
-                  <strong>{formatDate(detail.reviewed_at)}</strong>
-                </div>
-              </div>
-
-              {detail.rejection_reason && (
-                <div className="admin-alert admin-alert--error">
-                  <strong>Alasan penolakan:</strong>{' '}
-                  {detail.rejection_reason}
-                </div>
-              )}
-
-              <div>
-                <h3>Dokumen sokongan</h3>
-
-                {detail.documents.length === 0 ? (
-                  <div className="admin-state">
-                    Tiada dokumen dilampirkan.
-                  </div>
-                ) : (
-                  <div className="admin-record-list">
-                    {detail.documents.map((document) => (
-                      <div
-                        className="admin-record"
-                        key={document.id}
-                      >
-                        <div className="admin-record__heading">
-                          <div>
-                            <h3>Dokumen identiti</h3>
-                            <span>{document.mime_type}</span>
-                          </div>
-
-                          <span className="admin-status">
-                            {formatBytes(document.size_bytes)}
-                          </span>
-                        </div>
-
-                        <div className="admin-page__footnote">
-                          Tarikh dimuat naik: {formatDate(document.created_at)}
-                        </div>
-
-                        <div className="admin-record__actions">
-                          <button
-                            type="button"
-                            className="admin-button"
-                            disabled={Boolean(documentLoadingId)}
-                            onClick={() =>
-                              void showDocument(
-                                document.id,
-                                document.mime_type
-                              )
-                            }
-                          >
-                            {documentLoadingId === document.id
-                              ? 'Memaparkan...'
-                              : 'Paparkan Dokumen'}
-                          </button>
-                        </div>
-
-                        {preview?.id === document.id && (
-                          <div className="admin-document-preview">
-                            <div className="admin-record__heading">
-                              <strong>Pratonton dokumen</strong>
-                              <button
-                                type="button"
-                                className="admin-button"
-                                onClick={() => setPreview(null)}
-                              >
-                                Tutup Paparan
-                              </button>
-                            </div>
-
-                            {preview.mimeType.startsWith('image/') ? (
-                              <img
-                                src={preview.url}
-                                alt="Paparan dokumen identiti"
-                                style={{
-                                  display: 'block',
-                                  maxWidth: '100%',
-                                  maxHeight: '70vh',
-                                  objectFit: 'contain',
-                                  margin: '16px auto'
-                                }}
-                              />
-                            ) : preview.mimeType === 'application/pdf' ? (
-                              <iframe
-                                title="Paparan dokumen identiti PDF"
-                                src={`${preview.url}#toolbar=0&navpanes=0`}
-                                style={{
-                                  display: 'block',
-                                  width: '100%',
-                                  height: '70vh',
-                                  border: '1px solid var(--admin-border, #ddd)',
-                                  borderRadius: '8px'
-                                }}
-                              />
-                            ) : (
-                              <div className="admin-state" role="status">
-                                Format dokumen ini tidak disokong untuk paparan.
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {detail.status === 'PENDING' && (
-                <div className="admin-record">
-                  <h3>Keputusan semakan</h3>
-
-                  <label htmlFor="identity-rejection-reason">
-                    Alasan penolakan
-                  </label>
-
-                  <textarea
-                    id="identity-rejection-reason"
-                    rows={3}
-                    maxLength={500}
-                    value={rejectionReason}
-                    onChange={(event) =>
-                      setRejectionReason(event.target.value)
-                    }
-                    placeholder="Wajib diisi jika permohonan ditolak."
-                  />
-
-                  <div className="admin-page__footnote">
-                    Alasan ini hanya disimpan apabila keputusan REJECTED.
-                  </div>
-
-                  <div className="admin-record__actions">
-                    <button
-                      type="button"
-                      className="admin-button admin-button--primary"
-                      disabled={
-                        working ||
-                        detail.documents.length === 0
-                      }
-                      onClick={() => void submitDecision('VERIFIED')}
-                    >
-                      {working ? 'Memproses...' : 'Sahkan Identiti'}
-                    </button>
-
-                    <button
-                      type="button"
-                      className="admin-button admin-button--danger"
-                      disabled={
-                        working ||
-                        detail.documents.length === 0
-                      }
-                      onClick={() => void submitDecision('REJECTED')}
-                    >
-                      Tolak Permohonan
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="admin-state" role="alert">
-              Butiran permohonan tidak dapat dimuatkan.
-            </div>
-          )}
-        </section>
+        <IdentityVerificationDetail
+          detail={detail}
+          loading={detailLoading}
+          documentLoadingId={documentLoadingId}
+          preview={preview}
+          rejectionReason={rejectionReason}
+          working={working}
+          onClose={closeDetail}
+          onShowDocument={(documentId, mimeType) =>
+            void showDocument(documentId, mimeType)
+          }
+          onClosePreview={() => setPreview(null)}
+          onRejectionReasonChange={setRejectionReason}
+          onSubmitDecision={(decision) => void submitDecision(decision)}
+        />
       )}
     </section>
   );
