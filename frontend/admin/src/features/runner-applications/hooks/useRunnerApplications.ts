@@ -5,9 +5,7 @@ import {
   getRunnerApplications
 } from '../../../services/adminApi';
 
-import type {
-  RunnerApplication
-} from '../../../types/admin';
+import type { RunnerApplication } from '../../../types/admin';
 
 interface UseRunnerApplicationsOptions {
   enabled?: boolean;
@@ -29,8 +27,9 @@ export default function useRunnerApplications({
 
   const mountedRef = useRef(false);
   const requestIdRef = useRef(0);
+  const pageRef = useRef(1);
 
-  const loadApplications = useCallback(async (targetPage = page) => {
+  const loadApplications = useCallback(async (targetPage?: number) => {
     const requestId = ++requestIdRef.current;
 
     setLoading(true);
@@ -38,13 +37,15 @@ export default function useRunnerApplications({
 
     try {
       const result = await getRunnerApplications({
-        page: targetPage,
+        page: targetPage ?? pageRef.current,
         per_page: perPage
       });
 
       if (!mountedRef.current || requestId !== requestIdRef.current) {
         return;
       }
+
+      pageRef.current = result.pagination.current_page;
 
       setApplications(result.applications);
       setPage(result.pagination.current_page);
@@ -61,7 +62,7 @@ export default function useRunnerApplications({
         setLoading(false);
       }
     }
-  }, [page, perPage]);
+  }, [perPage]);
 
   useEffect(() => {
     mountedRef.current = true;
