@@ -4,7 +4,6 @@ namespace Tests\Feature\Auth;
 
 use App\Models\Account;
 use App\Models\AccountPermission;
-use App\Models\AuditLog;
 use App\Models\Session;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -105,102 +104,107 @@ class RootSuperAdminGovernanceTest extends TestCase
 
         $token = 'protection-token-'.$accountId;
 
-        Session::create([
-            'id' => $sessionId,
-            'account_id' => $account->id,
-            'token_hash' => hash('sha256', $token),
-            'created_at' => now(),
-            'ended_at' => null,
-        ]);
+        $this->createSessionForAccount(
+            $account,
+            $token,
+            $sessionId
+        );
 
         return [$account, $token];
     }
 
-    public function test_root_super_admin_can_create_super_admin(): void
+    public function test_root_super_admin_can_appoint_existing_user_as_super_admin(): void
     {
         [$root, $token] = $this->createRootSuperAdmin();
+
+        $user = $this->createAccount(
+            'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            'Existing User',
+            '60333333333',
+            'existing-user@example.com',
+            'USER'
+        );
+
+        $originalId = $user->id;
+        $originalPassword = $user->password;
 
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts', [
-            'profile_name' => 'New Super Admin',
-            'phone' => '60222222222',
-            'email' => 'newadmin@example.com',
-            'password' => 'Password1',
-            'password_confirmation' => 'Password1',
-            'reason' => 'Super Admin appointed for platform administration.',
-        ]);
+        )->postJson(
+            '/api/admin/accounts/'.$user->id.'/appoint-super-admin',
+            [
+                'job_title' => 'Operations Manager',
+                'reason' => 'Appointment approved by Root Super Admin.',
+            ]
+        );
 
-        $response
-            ->assertStatus(201)
-            ->assertJson([
-                'success' => true,
-                'message' => 'Super Admin created successfully.',
-            ]);
+        $response->assertSuccessful();
 
         $this->assertDatabaseHas('accounts', [
-            'profile_name' => 'New Super Admin',
-            'phone' => '60222222222',
-            'email' => 'newadmin@example.com',
+            'id' => $originalId,
             'role' => 'SUPER_ADMIN',
             'status' => 'ACTIVE',
+            'profile_name' => 'Existing User',
+            'phone' => '60333333333',
+            'email' => 'existing-user@example.com',
+            'job_title' => 'Operations Manager',
         ]);
+
+        $user->refresh();
+
+        $this->assertSame($originalId, $user->id);
+        $this->assertSame($originalPassword, $user->password);
 
         $this->assertDatabaseHas('audit_logs', [
             'actor_account_id' => $root->id,
-            'action' => 'SUPER_ADMIN_CREATED',
-            'reason' => 'Super Admin appointed for platform administration.',
+            'target_account_id' => $user->id,
+            'action' => 'SUPER_ADMIN_APPOINTED',
+            'reason' => 'Appointment approved by Root Super Admin.',
         ]);
     }
 
-    public function test_super_admin_cannot_create_super_admin(): void
+    public function test_super_admin_cannot_appoint_super_admin(): void
     {
-        $admin = $this->createAccount(
-            'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-            'Super Admin',
-            '60111111111',
-            'admin@example.com',
-            'SUPER_ADMIN'
-        );
+        $admin = $this->createSuperAdmin();
 
-        $token = 'super-admin-creation-token';
+        $token = 'super-admin-appointment-token';
 
         $this->createSessionForAccount(
             $admin,
             $token,
-            'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+            'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+        );
+
+        $user = $this->createAccount(
+            'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            'Existing User',
+            '60333333333',
+            'existing-user@example.com',
+            'USER'
         );
 
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts', [
-            'profile_name' => 'Another Super Admin',
-            'phone' => '60222222222',
-            'email' => 'anotheradmin@example.com',
-            'password' => 'Password1',
-            'password_confirmation' => 'Password1',
-            'reason' => 'Attempted unauthorized Super Admin creation.',
-        ]);
+        )->postJson(
+            '/api/admin/accounts/'.$user->id.'/appoint-super-admin',
+            [
+                'job_title' => 'Manager',
+                'reason' => 'Unauthorized appointment attempt.',
+            ]
+        );
 
-        $response
-            ->assertStatus(403)
-            ->assertJson([
-                'success' => false,
-                'message' => 'Unauthorized.',
-            ]);
+        $response->assertStatus(403);
 
-        $this->assertDatabaseMissing('accounts', [
-            'email' => 'anotheradmin@example.com',
-        ]);
-
-        $this->assertDatabaseMissing('audit_logs', [
-            'action' => 'SUPER_ADMIN_CREATED',
+        $this->assertDatabaseHas('accounts', [
+            'id' => $user->id,
+            'role' => 'USER',
+            'status' => 'ACTIVE',
         ]);
     }
 
-    public function test_regular_user_cannot_create_super_admin(): void
+    public function test_regular_user_cannot_appoint_super_admin(): void
     {
         $user = $this->createAccount(
             'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -210,7 +214,7 @@ class RootSuperAdminGovernanceTest extends TestCase
             'USER'
         );
 
-        $token = 'regular-user-creation-token';
+        $token = 'regular-user-appointment-token';
 
         $this->createSessionForAccount(
             $user,
@@ -218,198 +222,195 @@ class RootSuperAdminGovernanceTest extends TestCase
             'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
         );
 
+        $target = $this->createAccount(
+            'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            'Target User',
+            '60333333333',
+            'target-user@example.com',
+            'USER'
+        );
+
         $response = $this->withHeader(
             'Authorization',
             'Bearer '.$token
-        )->postJson('/api/admin/accounts', [
-            'profile_name' => 'Another Super Admin',
-            'phone' => '60222222222',
-            'email' => 'anotheradmin@example.com',
-            'password' => 'Password1',
-            'password_confirmation' => 'Password1',
-            'reason' => 'Attempted unauthorized Super Admin creation.',
-        ]);
+        )->postJson(
+            '/api/admin/accounts/'.$target->id.'/appoint-super-admin',
+            [
+                'job_title' => 'Manager',
+                'reason' => 'Unauthorized appointment attempt.',
+            ]
+        );
 
         $response->assertStatus(403);
 
-        $this->assertDatabaseMissing('accounts', [
-            'email' => 'anotheradmin@example.com',
-        ]);
-
-        $this->assertDatabaseMissing('audit_logs', [
-            'action' => 'SUPER_ADMIN_CREATED',
+        $this->assertDatabaseHas('accounts', [
+            'id' => $target->id,
+            'role' => 'USER',
         ]);
     }
 
-    public function test_super_admin_creation_requires_session_token(): void
+    public function test_super_admin_appointment_requires_session_token(): void
     {
-        $response = $this->postJson('/api/admin/accounts', [
-            'profile_name' => 'New Super Admin',
-            'phone' => '60222222222',
-            'email' => 'newadmin@example.com',
-            'password' => 'Password1',
-            'password_confirmation' => 'Password1',
-            'reason' => 'Super Admin appointed for platform administration.',
-        ]);
+        $user = $this->createAccount(
+            'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            'Existing User',
+            '60333333333',
+            'existing-user@example.com',
+            'USER'
+        );
 
-        $response
-            ->assertStatus(401)
-            ->assertJson([
-                'success' => false,
-                'message' => 'Unauthenticated.',
-            ]);
-    }
+        $response = $this->postJson(
+            '/api/admin/accounts/'.$user->id.'/appoint-super-admin',
+            [
+                'job_title' => 'Manager',
+                'reason' => 'Approved appointment.',
+            ]
+        );
 
-    public function test_super_admin_creation_requires_reason(): void
-    {
-        [$root, $token] = $this->createRootSuperAdmin();
-
-        $response = $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
-        )->postJson('/api/admin/accounts', [
-            'profile_name' => 'New Super Admin',
-            'phone' => '60222222222',
-            'email' => 'newadmin@example.com',
-            'password' => 'Password1',
-            'password_confirmation' => 'Password1',
-        ]);
-
-        $response
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('reason');
-
-        $this->assertDatabaseMissing('accounts', [
-            'email' => 'newadmin@example.com',
-        ]);
-
-        $this->assertDatabaseMissing('audit_logs', [
-            'actor_account_id' => $root->id,
-            'action' => 'SUPER_ADMIN_CREATED',
-        ]);
-    }
-
-    public function test_super_admin_creation_rejects_blank_reason(): void
-    {
-        [$root, $token] = $this->createRootSuperAdmin();
-
-        $response = $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
-        )->postJson('/api/admin/accounts', [
-            'profile_name' => 'New Super Admin',
-            'phone' => '60222222222',
-            'email' => 'newadmin@example.com',
-            'password' => 'Password1',
-            'password_confirmation' => 'Password1',
-            'reason' => '   ',
-        ]);
-
-        $response
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('reason');
-
-        $this->assertDatabaseMissing('accounts', [
-            'email' => 'newadmin@example.com',
-        ]);
-
-        $this->assertDatabaseMissing('audit_logs', [
-            'actor_account_id' => $root->id,
-            'action' => 'SUPER_ADMIN_CREATED',
-        ]);
-    }
-
-    public function test_created_super_admin_response_contains_safe_fields_only(): void
-    {
-        [$root, $token] = $this->createRootSuperAdmin();
-
-        $response = $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
-        )->postJson('/api/admin/accounts', [
-            'profile_name' => 'New Super Admin',
-            'phone' => '60222222222',
-            'email' => 'newadmin@example.com',
-            'password' => 'Password1',
-            'password_confirmation' => 'Password1',
-            'reason' => 'Super Admin appointed for platform administration.',
-        ]);
-
-        $response
-            ->assertStatus(201)
-            ->assertJsonStructure([
-                'success',
-                'message',
-                'data' => [
-                    'account' => [
-                        'id',
-                        'profile_name',
-                        'job_title',
-                        'phone',
-                        'email',
-                        'profile_picture',
-                        'role',
-                        'status',
-                        'created_at',
-                        'updated_at',
-                    ],
-                ],
-            ]);
-
-        $response
-            ->assertJsonMissingPath('data.account.password')
-            ->assertJsonMissingPath('data.account.reason')
-            ->assertJsonMissingPath('data.account.token_hash')
-            ->assertJsonMissingPath('data.account.failed_login_attempts')
-            ->assertJsonMissingPath('data.account.locked_until');
-
-        $response->assertJsonMissing([
-            'password' => 'Password1',
-        ]);
-
-        $response->assertJsonMissing([
-            'reason' => 'Super Admin appointed for platform administration.',
-        ]);
-
-        $response->assertJsonMissing([
-            'token_hash' => hash('sha256', 'root-super-admin-governance-token'),
-        ]);
-    }
-
-    public function test_created_super_admin_has_no_session_created_automatically(): void
-    {
-        [$root, $token] = $this->createRootSuperAdmin();
-
-        $response = $this->withHeader(
-            'Authorization',
-            'Bearer '.$token
-        )->postJson('/api/admin/accounts', [
-            'profile_name' => 'New Super Admin',
-            'phone' => '60222222222',
-            'email' => 'newadmin@example.com',
-            'password' => 'Password1',
-            'password_confirmation' => 'Password1',
-            'reason' => 'Super Admin appointed for platform administration.',
-        ]);
-
-        $response->assertStatus(201);
-
-        $newAdmin = Account::query()
-            ->where('email', 'newadmin@example.com')
-            ->firstOrFail();
-
-        $this->assertDatabaseCount('sessions', 1);
+        $response->assertStatus(401);
 
         $this->assertDatabaseHas('accounts', [
-            'id' => $newAdmin->id,
-            'role' => 'SUPER_ADMIN',
-            'status' => 'ACTIVE',
+            'id' => $user->id,
+            'role' => 'USER',
+        ]);
+    }
+
+    public function test_super_admin_appointment_requires_reason(): void
+    {
+        [, $token] = $this->createRootSuperAdmin();
+
+        $user = $this->createAccount(
+            'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            'Existing User',
+            '60333333333',
+            'existing-user@example.com',
+            'USER'
+        );
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson(
+            '/api/admin/accounts/'.$user->id.'/appoint-super-admin',
+            [
+                'job_title' => 'Manager',
+            ]
+        );
+
+        $response->assertStatus(422);
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $user->id,
+            'role' => 'USER',
+        ]);
+    }
+
+    public function test_super_admin_appointment_rejects_blank_reason(): void
+    {
+        [, $token] = $this->createRootSuperAdmin();
+
+        $user = $this->createAccount(
+            'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            'Existing User',
+            '60333333333',
+            'existing-user@example.com',
+            'USER'
+        );
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson(
+            '/api/admin/accounts/'.$user->id.'/appoint-super-admin',
+            [
+                'job_title' => 'Manager',
+                'reason' => '   ',
+            ]
+        );
+
+        $response->assertStatus(422);
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $user->id,
+            'role' => 'USER',
+        ]);
+    }
+
+    public function test_super_admin_appointment_response_contains_safe_fields_only(): void
+    {
+        [, $token] = $this->createRootSuperAdmin();
+
+        $user = $this->createAccount(
+            'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            'Existing User',
+            '60333333333',
+            'existing-user@example.com',
+            'USER'
+        );
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson(
+            '/api/admin/accounts/'.$user->id.'/appoint-super-admin',
+            [
+                'job_title' => 'Operations Manager',
+                'reason' => 'Approved appointment.',
+            ]
+        );
+
+        $response->assertSuccessful();
+
+        $response->assertJsonMissingPath('data.password');
+        $response->assertJsonMissingPath('data.password_hash');
+        $response->assertJsonMissingPath('data.token_hash');
+        $response->assertJsonMissingPath('data.remember_token');
+    }
+
+    public function test_super_admin_appointment_preserves_existing_sessions(): void
+    {
+        [, $token] = $this->createRootSuperAdmin();
+
+        $user = $this->createAccount(
+            'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            'Existing User',
+            '60333333333',
+            'existing-user@example.com',
+            'USER'
+        );
+
+        $existingSessionToken = 'existing-user-session-token';
+        $existingSessionId = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+
+        $this->createSessionForAccount(
+            $user,
+            $existingSessionToken,
+            $existingSessionId
+        );
+
+        $response = $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->postJson(
+            '/api/admin/accounts/'.$user->id.'/appoint-super-admin',
+            [
+                'job_title' => 'Operations Manager',
+                'reason' => 'Approved appointment.',
+            ]
+        );
+
+        $response->assertSuccessful();
+
+        $this->assertDatabaseHas('sessions', [
+            'id' => $existingSessionId,
+            'account_id' => $user->id,
+            'token_hash' => hash('sha256', $existingSessionToken),
+            'ended_at' => null,
         ]);
 
-        $this->assertDatabaseHas('audit_logs', [
-            'actor_account_id' => $root->id,
-            'target_account_id' => $newAdmin->id,
-            'action' => 'SUPER_ADMIN_CREATED',
+        $this->assertDatabaseHas('accounts', [
+            'id' => $user->id,
+            'role' => 'SUPER_ADMIN',
         ]);
     }
 
@@ -461,7 +462,7 @@ class RootSuperAdminGovernanceTest extends TestCase
 
     public function test_root_super_admin_can_suspend_super_admin(): void
     {
-        [$root, $token] = $this->createRootSuperAdmin();
+        [, $token] = $this->createRootSuperAdmin();
         $superAdmin = $this->createSuperAdmin();
 
         $response = $this->withHeader(
@@ -571,7 +572,7 @@ class RootSuperAdminGovernanceTest extends TestCase
 
     public function test_root_super_admin_can_unsuspend_super_admin(): void
     {
-        [$root, $token] = $this->createRootSuperAdmin();
+        [, $token] = $this->createRootSuperAdmin();
 
         $superAdmin = $this->createAccount(
             '22222222-2222-4222-8222-222222222222',
@@ -648,7 +649,7 @@ class RootSuperAdminGovernanceTest extends TestCase
 
     public function test_root_super_admin_can_reactivate_super_admin(): void
     {
-        [$root, $token] = $this->createRootSuperAdmin();
+        [, $token] = $this->createRootSuperAdmin();
 
         $superAdmin = $this->createAccount(
             '55555555-5555-4555-8555-555555555555',
