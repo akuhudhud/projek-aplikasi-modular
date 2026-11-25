@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Support\ServiceProvider;
 
 $writeBootDiagnostic = static function (string $message): void {
     fwrite(STDERR, $message . PHP_EOL);
@@ -16,16 +17,14 @@ register_shutdown_function(static function (): void {
         return;
     }
 
-    $fatalTypes = [
+    if (!in_array($error['type'], [
         E_ERROR,
         E_PARSE,
         E_CORE_ERROR,
         E_COMPILE_ERROR,
         E_USER_ERROR,
         E_RECOVERABLE_ERROR,
-    ];
-
-    if (!in_array($error['type'], $fatalTypes, true)) {
+    ], true)) {
         return;
     }
 
@@ -59,21 +58,83 @@ try {
 
     $writeBootDiagnostic('BOOT_KERNEL_CREATED');
 
-    $method = new ReflectionMethod($kernel, 'bootstrappers');
-    $method->setAccessible(true);
+    $bootstrappersMethod = new ReflectionMethod(
+        $kernel,
+        'bootstrappers'
+    );
 
-    $bootstrappers = $method->invoke($kernel);
+    $bootstrappers = $bootstrappersMethod->invoke($kernel);
 
     foreach ($bootstrappers as $bootstrapper) {
-        $writeBootDiagnostic(
-            'BOOTSTRAPPER_START: ' . $bootstrapper
-        );
+        $writeBootDiagnostic('BOOTSTRAPPER_START: ' . $bootstrapper);
 
-        $app->bootstrapWith([$bootstrapper]);
+        if (
+            $bootstrapper ===
+            Illuminate\Foundation\Bootstrap\BootProviders::class
+        ) {
+            $fireCallbacks = new ReflectionMethod(
+                $app,
+                'fireAppCallbacks'
+            );
 
-        $writeBootDiagnostic(
-            'BOOTSTRAPPER_DONE: ' . $bootstrapper
-        );
+            $fireCallbacks->setAccessible(true);
+
+            $bootingProperty = new ReflectionProperty(
+                $app,
+                'bootingCallbacks'
+            );
+
+            $bootingCallbacks = $bootingProperty->getValue($app);
+
+            $fireCallbacks->invokeArgs(
+                $app,
+                [&$bootingCallbacks]
+            );
+
+            $bootProvider = new ReflectionMethod(
+                $app,
+                'bootProvider'
+            );
+
+            $bootProvider->setAccessible(true);
+
+            foreach ($app->getProviders(ServiceProvider::class) as $provider) {
+                $providerName = get_class($provider);
+
+                $writeBootDiagnostic(
+                    'PROVIDER_START: ' . $providerName
+                );
+
+                $bootProvider->invoke($app, $provider);
+
+                $writeBootDiagnostic(
+                    'PROVIDER_DONE: ' . $providerName
+                );
+            }
+
+            $bootedProperty = new ReflectionProperty(
+                $app,
+                'booted'
+            );
+
+            $bootedProperty->setValue($app, true);
+
+            $bootedPropertyCallbacks = new ReflectionProperty(
+                $app,
+                'bootedCallbacks'
+            );
+
+            $bootedCallbacks = $bootedPropertyCallbacks->getValue($app);
+
+            $fireCallbacks->invokeArgs(
+                $app,
+                [&$bootedCallbacks]
+            );
+        } else {
+            $app->bootstrapWith([$bootstrapper]);
+        }
+
+        $writeBootDiagnostic('BOOTSTRAPPER_DONE: ' . $bootstrapper);
     }
 
     $writeBootDiagnostic('BOOT_LOADING_DEFERRED_PROVIDERS');
