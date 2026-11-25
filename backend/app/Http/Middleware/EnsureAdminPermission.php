@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Http\Middleware;
@@ -23,7 +24,7 @@ class EnsureAdminPermission
         $account = $request->attributes->get('account');
 
         if (
-            !$account
+            !$account instanceof Account
             || !$this->permissionService->allows($account, $permission)
         ) {
             return response()->json([
@@ -33,28 +34,53 @@ class EnsureAdminPermission
             ], 403);
         }
 
-        /*
-         * Appointed Super Admins must not access their own identity
-         * verification details or documents.
-         *
-         * Root Super Admin remains unrestricted.
-         */
-        if (
-            $permission === 'identity_verifications.review'
-            && $account instanceof Account
-            && $account->role === 'SUPER_ADMIN'
-        ) {
-            $targetAccountId = $request->route('accountId');
+        // Root Super Admin mempunyai akses penuh.
+        if ($account->role === 'ROOT_SUPER_ADMIN') {
+            return $next($request);
+        }
 
-            if (
-                is_string($targetAccountId)
-                && hash_equals($account->id, $targetAccountId)
-            ) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Administrators cannot review their own identity verification.',
-                ], 403);
-            }
+        // Sekatan sasaran hanya untuk Super Admin.
+        if (
+            $account->role !== 'SUPER_ADMIN'
+            || !in_array($permission, [
+                'identity_verifications.review',
+                'identity_verifications.delete_data',
+            ], true)
+        ) {
+            return $next($request);
+        }
+
+        $targetAccountId = $request->route('accountId');
+
+        // Endpoint senarai tidak mempunyai accountId.
+        if (!is_string($targetAccountId)) {
+            return $next($request);
+        }
+
+        // Elakkan Super Admin mengurus rekod sendiri.
+        if (hash_equals($account->id, $targetAccountId)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Administrators cannot access their own identity verification data.',
+            ], 403);
+        }
+
+        $targetAccount = Account::query()
+            ->select(['id', 'role'])
+            ->whereKey($targetAccountId)
+            ->first();
+
+        // Jika tiada akaun, biarkan controller mengembalikan 404.
+        if ($targetAccount === null) {
+            return $next($request);
+        }
+
+        // Super Admin hanya boleh mengurus akaun USER.
+        if ($targetAccount->role !== 'USER') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Super Admin can only manage identity verification data belonging to USER accounts.',
+            ], 403);
         }
 
         return $next($request);
