@@ -1,111 +1,120 @@
-import type { AccountPagination, AdminAccount } from '../../../types/admin';
+import type { FormEvent } from 'react';
+import type { CreateSuperAdminPayload } from '../../../types/admin';
 
 interface Props {
-  accounts: AdminAccount[];
-  pagination: AccountPagination;
-  loading: boolean;
-  detailLoading: boolean;
-  actionLoading: boolean;
-  onOpenAccount: (accountId: string) => void;
-  onPageChange: (page: number) => void;
+  form: CreateSuperAdminPayload;
+  creating: boolean;
+  onChange: (field: keyof CreateSuperAdminPayload, value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }
 
-export default function AccountDirectoryTable({
-  accounts,
-  pagination,
-  loading,
-  detailLoading,
-  actionLoading,
-  onOpenAccount,
-  onPageChange
+export default function CreateSuperAdminForm({
+  form,
+  creating,
+  onChange,
+  onSubmit
 }: Props) {
-  if (loading) {
-    return (
-      <div className="admin-state" role="status" aria-live="polite">
-        Memuatkan senarai akaun...
-      </div>
-    );
-  }
-
-  if (accounts.length === 0) {
-    return <div className="admin-state">Tiada rekod akaun ditemui.</div>;
-  }
-
   return (
-    <>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <caption>Senarai akaun pengguna</caption>
-          <thead>
-            <tr>
-              <th scope="col">Nama Paparan</th>
-              <th scope="col">Nama Disahkan</th>
-              <th scope="col">Telefon</th>
-              <th scope="col">E-mel</th>
-              <th scope="col">Peranan</th>
-              <th scope="col">Status</th>
-              <th scope="col">Tindakan</th>
-            </tr>
-          </thead>
-          <tbody>
-            {accounts.map((item) => (
-              <tr key={item.id}>
-                <td>{item.profile_name}</td>
-                <td>{item.verified_name || '—'}</td>
-                <td>{item.phone || '—'}</td>
-                <td>{item.email || '—'}</td>
-                <td>{item.role}</td>
-                <td>
-                  <span className="admin-status">{item.status}</span>
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    className="admin-button admin-button--small"
-                    disabled={detailLoading || actionLoading}
-                    onClick={() => onOpenAccount(item.id)}
-                  >
-                    Lihat
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <form className="admin-record" onSubmit={onSubmit}>
+      <h3>Daftar Super Admin Baharu</h3>
 
-      <div className="account-pagination">
-        <span>
-          Memaparkan {pagination.from ?? 0}–{pagination.to ?? 0}
-          {' '}daripada {pagination.total} akaun
-        </span>
+      <div className="admin-record__details">
+        <label>
+          Nama Paparan
+          <input
+            type="text"
+            value={form.profile_name}
+            maxLength={100}
+            required
+            disabled={creating}
+            onChange={(event) => onChange('profile_name', event.target.value)}
+          />
+        </label>
 
-        <div>
-          <button
-            type="button"
-            className="admin-button admin-button--small"
-            disabled={loading || pagination.current_page <= 1}
-            onClick={() => onPageChange(pagination.current_page - 1)}
-          >
-            Sebelum
-          </button>
+        <label>
+          Jawatan
+          <input
+            type="text"
+            value={form.job_title}
+            maxLength={100}
+            required
+            disabled={creating}
+            onChange={(event) => onChange('job_title', event.target.value)}
+          />
+        </label>
 
-          <span>
-            Halaman {pagination.current_page} / {pagination.last_page}
-          </span>
+        <label>
+          Nombor Telefon
+          <input
+            type="tel"
+            value={form.phone}
+            required
+            disabled={creating}
+            onChange={(event) => onChange('phone', event.target.value)}
+          />
+        </label>
 
-          <button
-            type="button"
-            className="admin-button admin-button--small"
-            disabled={
-              loading || pagination.current_page >= pagination.last_page
+        <label>
+          E-mel
+          <input
+            type="email"
+            value={form.email}
+            required
+            disabled={creating}
+            onChange={(event) => onChange('email', event.target.value)}
+          />
+        </label>
+
+        <label>
+          Kata Laluan
+          <input
+            type="password"
+            value={form.password}
+            minLength={8}
+            required
+            disabled={creating}
+            autoComplete="new-password"
+            onChange={(event) => onChange('password', event.target.value)}
+          />
+        </label>
+
+        <label>
+          Pengesahan Kata Laluan
+          <input
+            type="password"
+            value={form.password_confirmation}
+            minLength={8}
+            required
+            disabled={creating}
+            autoComplete="new-password"
+            onChange={(event) =>
+              onChange('password_confirmation', event.target.value)
             }
-            onClick={() => onPageChange(pagination.current_page + 1)}
-          >
-            Seterusnya
-          </button>
-        </div>
+          />
+        </label>
       </div>
-    </>
+
+      <label>
+        Sebab Pelantikan
+        <textarea
+          rows={3}
+          maxLength={1000}
+          value={form.reason}
+          required
+          disabled={creating}
+          onChange={(event) => onChange('reason', event.target.value)}
+        />
+      </label>
+
+      <div className="admin-record__actions">
+        <button
+          type="submit"
+          className="admin-button admin-button--primary"
+          disabled={creating}
+        >
+          {creating ? 'Mewujudkan Akaun...' : 'Daftar Super Admin'}
+        </button>
+      </div>
+    </form>
   );
 }
