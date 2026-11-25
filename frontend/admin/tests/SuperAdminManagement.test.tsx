@@ -481,20 +481,20 @@ describe('SuperAdminManagement', () => {
     );
 
     expect(
-      screen.getByLabelText('Nama Paparan')
-    ).toHaveValue('Ahmad Pengguna');
+      (screen.getByLabelText('Nama Paparan') as HTMLInputElement).value
+    ).toBe('Ahmad Pengguna');
 
     expect(
-      screen.getByLabelText('Nombor Telefon')
-    ).toHaveValue('60123456789');
+      (screen.getByLabelText('Nombor Telefon') as HTMLInputElement).value
+    ).toBe('60123456789');
 
     expect(
-      screen.getByLabelText('E-mel')
-    ).toHaveValue('ahmad@example.com');
+      (screen.getByLabelText('E-mel') as HTMLInputElement).value
+    ).toBe('ahmad@example.com');
 
     expect(
-      screen.getByLabelText('ID Akaun')
-    ).toHaveValue('user-existing-001');
+      (screen.getByLabelText('ID Akaun') as HTMLInputElement).value
+    ).toBe('user-existing-001');
 
     expect(
       screen.queryByLabelText('Kata Laluan')
