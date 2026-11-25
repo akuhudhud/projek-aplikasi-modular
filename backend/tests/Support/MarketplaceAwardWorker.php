@@ -2,12 +2,8 @@
 
 use App\Models\Account;
 use App\Services\MarketplaceService;
-use Illuminate\Contracts\Console\Kernel;
 
-require dirname(__DIR__, 2).'/vendor/autoload.php';
-
-$app = require dirname(__DIR__, 2).'/bootstrap/app.php';
-$app->make(Kernel::class)->bootstrap();
+$app = require __DIR__.'/bootstrap-worker.php';
 
 $customerId = $argv[1] ?? null;
 $requestId = $argv[2] ?? null;
