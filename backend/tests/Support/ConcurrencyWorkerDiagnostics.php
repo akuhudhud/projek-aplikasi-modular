@@ -16,12 +16,13 @@ final class ConcurrencyWorkerDiagnostics
         stream_set_blocking($stdoutPipe, false);
         stream_set_blocking($stderrPipe, false);
 
-        $buffer = '';
-        $deadline = microtime(true) + 30;
+        $stdout = '';
+        $stderr = '';
         $ready = false;
+        $deadline = microtime(true) + 30;
 
         while (microtime(true) < $deadline) {
-            $read = [$stdoutPipe];
+            $read = [$stdoutPipe, $stderrPipe];
             $write = null;
             $except = null;
 
@@ -37,24 +38,35 @@ final class ConcurrencyWorkerDiagnostics
                 break;
             }
 
-            if ($selected > 0) {
-                $chunk = fread($stdoutPipe, 8192);
+            foreach ($read as $stream) {
+                $chunk = fread($stream, 8192);
 
-                if ($chunk !== false && $chunk !== '') {
-                    $buffer .= $chunk;
+                if ($chunk === false || $chunk === '') {
+                    continue;
+                }
 
-                    $newline = strpos($buffer, "\n");
+                if ($stream === $stdoutPipe) {
+                    $stdout .= $chunk;
+
+                    $newline = strpos($stdout, "\n");
 
                     if ($newline !== false) {
-                        $firstLine = substr($buffer, 0, $newline);
+                        $firstLine = substr($stdout, 0, $newline);
 
                         if (rtrim($firstLine, "\r") === 'READY') {
                             $ready = true;
                         }
-
-                        break;
                     }
+                } else {
+                    $stderr .= $chunk;
                 }
+            }
+
+            if ($ready) {
+                stream_set_blocking($stdoutPipe, true);
+                stream_set_blocking($stderrPipe, true);
+
+                return;
             }
 
             $status = proc_get_status($worker['process']);
@@ -64,15 +76,8 @@ final class ConcurrencyWorkerDiagnostics
             }
         }
 
-        if ($ready) {
-            stream_set_blocking($stdoutPipe, true);
-            stream_set_blocking($stderrPipe, true);
-
-            return;
-        }
-
-        $stdout = $buffer . stream_get_contents($stdoutPipe);
-        $stderr = stream_get_contents($stderrPipe);
+        $stdout .= stream_get_contents($stdoutPipe);
+        $stderr .= stream_get_contents($stderrPipe);
 
         $status = proc_get_status($worker['process']);
 
