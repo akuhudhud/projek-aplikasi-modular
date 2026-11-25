@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 
@@ -19,12 +18,15 @@ import type {
 } from '../../types/admin';
 
 import SuperAdminManagement from './SuperAdminManagement';
+import AccountDirectoryTable from './components/AccountDirectoryTable';
+import AccountDetailPanel from './components/AccountDetailPanel';
+
+import type { AccountAction } from './components/AccountDetailPanel';
+import { ACTION_LABELS } from './components/AccountDetailPanel';
 
 interface AccountsPageProps {
   account: AdminProfile;
 }
-
-type AccountAction = 'suspend' | 'unsuspend' | 'reactivate';
 
 const EMPTY_PAGINATION: AccountPagination = {
   current_page: 1,
@@ -33,12 +35,6 @@ const EMPTY_PAGINATION: AccountPagination = {
   total: 0,
   from: null,
   to: null
-};
-
-const ACTION_LABELS: Record<AccountAction, string> = {
-  suspend: 'Gantung Akaun',
-  unsuspend: 'Pulihkan Akaun',
-  reactivate: 'Aktifkan Semula Akaun'
 };
 
 export default function AccountsPage({ account }: AccountsPageProps) {
@@ -72,9 +68,8 @@ export default function AccountsPage({ account }: AccountsPageProps) {
 
   const isRoot = account.role === 'ROOT_SUPER_ADMIN';
 
-  const hasPermission = (permission: string): boolean => {
-    return isRoot || account.permissions.includes(permission);
-  };
+  const hasPermission = (permission: string): boolean =>
+    isRoot || account.permissions.includes(permission);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -225,10 +220,7 @@ export default function AccountsPage({ account }: AccountsPageProps) {
 
       if (!mountedRef.current) return;
 
-      setSuccess(
-        `${ACTION_LABELS[action]} berjaya dilaksanakan.`
-      );
-
+      setSuccess(`${ACTION_LABELS[action]} berjaya dilaksanakan.`);
       setPendingAction(null);
       setActionReason('');
 
@@ -251,59 +243,6 @@ export default function AccountsPage({ account }: AccountsPageProps) {
         setActionLoading(false);
       }
     }
-  }
-
-  function renderAccountActions() {
-    if (!selectedAccount || selectedAccount.role !== 'USER') {
-      return null;
-    }
-
-    const actions: {
-      action: AccountAction;
-      className?: string;
-    }[] = [];
-
-    if (
-      selectedAccount.status === 'ACTIVE' &&
-      hasPermission('accounts.suspend')
-    ) {
-      actions.push({
-        action: 'suspend',
-        className: 'admin-button--danger'
-      });
-    }
-
-    if (
-      selectedAccount.status === 'SUSPENDED' &&
-      hasPermission('accounts.unsuspend')
-    ) {
-      actions.push({ action: 'unsuspend' });
-    }
-
-    if (
-      selectedAccount.status === 'DEACTIVATED' &&
-      hasPermission('accounts.reactivate')
-    ) {
-      actions.push({ action: 'reactivate' });
-    }
-
-    if (actions.length === 0) return null;
-
-    return (
-      <div className="admin-record__actions">
-        {actions.map(({ action, className }) => (
-          <button
-            key={action}
-            type="button"
-            className={`admin-button ${className ?? ''}`}
-            disabled={actionLoading}
-            onClick={() => beginAction(action)}
-          >
-            {ACTION_LABELS[action]}
-          </button>
-        ))}
-      </div>
-    );
   }
 
   return (
@@ -340,10 +279,7 @@ export default function AccountsPage({ account }: AccountsPageProps) {
         </div>
       )}
 
-      <div
-        id="account-directory"
-        className="admin-navigation-target"
-      >
+      <div id="account-directory" className="admin-navigation-target">
         <form className="account-filters" onSubmit={submitSearch}>
           <label>
             <span>Carian akaun</span>
@@ -409,219 +345,31 @@ export default function AccountsPage({ account }: AccountsPageProps) {
       )}
 
       {selectedAccount && (
-        <section className="account-detail" aria-labelledby="account-detail-title">
-          <div className="admin-page__heading">
-            <div>
-              <span className="dashboard-page__eyebrow">
-                BUTIRAN AKAUN
-              </span>
-              <h3 id="account-detail-title">
-                {selectedAccount.profile_name}
-              </h3>
-            </div>
-
-            <button
-              type="button"
-              className="admin-button"
-              disabled={actionLoading}
-              onClick={closeAccountDetail}
-            >
-              Tutup
-            </button>
-          </div>
-
-          <div className="admin-record__details">
-            <div>
-              <small>Nama Paparan</small>
-              <strong>{selectedAccount.profile_name}</strong>
-            </div>
-
-            <div>
-              <small>Nama Disahkan</small>
-              <strong>
-                {selectedAccount.verified_name || 'Belum disahkan'}
-              </strong>
-            </div>
-
-            <div>
-              <small>Telefon</small>
-              <strong>{selectedAccount.phone || '—'}</strong>
-            </div>
-
-            <div>
-              <small>E-mel</small>
-              <strong>{selectedAccount.email || '—'}</strong>
-            </div>
-
-            <div>
-              <small>Peranan</small>
-              <strong>{selectedAccount.role}</strong>
-            </div>
-
-            <div>
-              <small>Status Akaun</small>
-              <strong>{selectedAccount.status}</strong>
-            </div>
-
-            <div>
-              <small>Status Identiti</small>
-              <strong>
-                {selectedAccount.identity_status || 'Tiada rekod'}
-              </strong>
-            </div>
-
-            <div>
-              <small>Jawatan</small>
-              <strong>{selectedAccount.job_title || '—'}</strong>
-            </div>
-
-            <div>
-              <small>Tarikh Daftar</small>
-              <strong>
-                {new Date(selectedAccount.created_at).toLocaleString('ms-MY')}
-              </strong>
-            </div>
-          </div>
-
-          {renderAccountActions()}
-
-          {pendingAction && (
-            <form className="admin-record" onSubmit={submitAction}>
-              <div className="admin-record__heading">
-                <div>
-                  <h3>{ACTION_LABELS[pendingAction]}</h3>
-                  <span>
-                    Akaun: {selectedAccount.profile_name}
-                  </span>
-                </div>
-              </div>
-
-              <label htmlFor="account-action-reason">
-                Sebab tindakan
-              </label>
-
-              <textarea
-                id="account-action-reason"
-                rows={4}
-                maxLength={1000}
-                required
-                value={actionReason}
-                onChange={(event) => setActionReason(event.target.value)}
-                placeholder="Masukkan sebab tindakan ini..."
-              />
-
-              <div className="admin-record__actions">
-                <button
-                  type="submit"
-                  className="admin-button admin-button--primary"
-                  disabled={actionLoading || !actionReason.trim()}
-                >
-                  {actionLoading ? 'Memproses...' : 'Sahkan Tindakan'}
-                </button>
-
-                <button
-                  type="button"
-                  className="admin-button"
-                  disabled={actionLoading}
-                  onClick={cancelAction}
-                >
-                  Batal
-                </button>
-              </div>
-            </form>
-          )}
-        </section>
+        <AccountDetailPanel
+          account={selectedAccount}
+          actionLoading={actionLoading}
+          pendingAction={pendingAction}
+          actionReason={actionReason}
+          canSuspend={hasPermission('accounts.suspend')}
+          canUnsuspend={hasPermission('accounts.unsuspend')}
+          canReactivate={hasPermission('accounts.reactivate')}
+          onClose={closeAccountDetail}
+          onBeginAction={beginAction}
+          onCancelAction={cancelAction}
+          onActionReasonChange={setActionReason}
+          onSubmitAction={(event) => void submitAction(event)}
+        />
       )}
 
-      {loading ? (
-        <div className="admin-state" role="status" aria-live="polite">
-          Memuatkan senarai akaun...
-        </div>
-      ) : accounts.length === 0 ? (
-        <div className="admin-state">
-          Tiada rekod akaun ditemui.
-        </div>
-      ) : (
-        <>
-          <div className="admin-table-wrap">
-            <table className="admin-table">
-              <caption>Senarai akaun pengguna</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Nama Paparan</th>
-                  <th scope="col">Nama Disahkan</th>
-                  <th scope="col">Telefon</th>
-                  <th scope="col">E-mel</th>
-                  <th scope="col">Peranan</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Tindakan</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {accounts.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.profile_name}</td>
-                    <td>{item.verified_name || '—'}</td>
-                    <td>{item.phone || '—'}</td>
-                    <td>{item.email || '—'}</td>
-                    <td>{item.role}</td>
-                    <td>
-                      <span className="admin-status">
-                        {item.status}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="admin-button admin-button--small"
-                        disabled={detailLoading || actionLoading}
-                        onClick={() => void openAccount(item.id)}
-                      >
-                        Lihat
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="account-pagination">
-            <span>
-              Memaparkan {pagination.from ?? 0}–{pagination.to ?? 0}
-              {' '}daripada {pagination.total} akaun
-            </span>
-
-            <div>
-              <button
-                type="button"
-                className="admin-button admin-button--small"
-                disabled={loading || pagination.current_page <= 1}
-                onClick={() => void loadAccounts(pagination.current_page - 1)}
-              >
-                Sebelum
-              </button>
-
-              <span>
-                Halaman {pagination.current_page} / {pagination.last_page}
-              </span>
-
-              <button
-                type="button"
-                className="admin-button admin-button--small"
-                disabled={
-                  loading ||
-                  pagination.current_page >= pagination.last_page
-                }
-                onClick={() => void loadAccounts(pagination.current_page + 1)}
-              >
-                Seterusnya
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      <AccountDirectoryTable
+        accounts={accounts}
+        pagination={pagination}
+        loading={loading}
+        detailLoading={detailLoading}
+        actionLoading={actionLoading}
+        onOpenAccount={(accountId) => void openAccount(accountId)}
+        onPageChange={(nextPage) => void loadAccounts(nextPage)}
+      />
 
       <p className="admin-page__footnote">
         Data direktori dibekalkan oleh API sistem utama. Maklumat identiti
