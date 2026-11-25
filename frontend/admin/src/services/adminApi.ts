@@ -19,7 +19,7 @@ export {
   suspendAccount,
   unsuspendAccount,
   reactivateAccount,
-  createSuperAdmin,
+  appointSuperAdmin,
   updateSuperAdminJobTitle,
   getSuperAdminPermissions,
   updateSuperAdminPermissions
