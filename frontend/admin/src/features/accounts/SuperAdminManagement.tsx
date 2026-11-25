@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 
 import {
-  createSuperAdmin,
+  appointSuperAdmin,
   getAccounts,
   getApiError,
   getSuperAdminPermissions,
@@ -12,8 +12,7 @@ import {
 
 import type {
   AdminAccount,
-  AdminPermission,
-  CreateSuperAdminPayload
+  AdminPermission
 } from '../../types/admin';
 
 import CreateSuperAdminForm from './components/CreateSuperAdminForm';
@@ -26,28 +25,22 @@ interface SuperAdminManagementProps {
   onRefresh: () => Promise<void>;
 }
 
-const EMPTY_FORM: CreateSuperAdminPayload = {
-  profile_name: '',
-  job_title: '',
-  phone: '',
-  email: '',
-  password: '',
-  password_confirmation: '',
-  reason: ''
-};
-
 export default function SuperAdminManagement({
   onRefresh
 }: SuperAdminManagementProps) {
   const [accounts, setAccounts] = useState<AdminAccount[]>([]);
+  const [users, setUsers] = useState<AdminAccount[]>([]);
+
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
-  const [form, setForm] = useState<CreateSuperAdminPayload>({
-    ...EMPTY_FORM
-  });
+  const [search, setSearch] = useState('');
+  const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [appointmentJobTitle, setAppointmentJobTitle] = useState('');
+  const [appointmentReason, setAppointmentReason] = useState('');
 
   const [selectedId, setSelectedId] = useState('');
   const [permissions, setPermissions] = useState<string[]>([]);
@@ -61,6 +54,7 @@ export default function SuperAdminManagement({
 
   const mountedRef = useRef(false);
   const accountListRequestId = useRef(0);
+  const userListRequestId = useRef(0);
   const permissionRequestId = useRef(0);
   const creatingRef = useRef(false);
   const operationRef = useRef(false);
@@ -71,6 +65,7 @@ export default function SuperAdminManagement({
     return () => {
       mountedRef.current = false;
       accountListRequestId.current += 1;
+      userListRequestId.current += 1;
       permissionRequestId.current += 1;
     };
   }, []);
@@ -92,7 +87,9 @@ export default function SuperAdminManagement({
       if (
         !mountedRef.current ||
         requestId !== accountListRequestId.current
-      ) return;
+      ) {
+        return;
+      }
 
       setAccounts(result.accounts);
     } catch (err) {
@@ -112,25 +109,88 @@ export default function SuperAdminManagement({
     }
   }, []);
 
+  const loadEligibleUsers = useCallback(async (searchTerm: string) => {
+    const requestId = ++userListRequestId.current;
+
+    setLoadingUsers(true);
+
+    try {
+      const result = await getAccounts({
+        role: 'USER',
+        status: 'ACTIVE',
+        search: searchTerm.trim() || undefined,
+        page: 1,
+        per_page: 100
+      });
+
+      if (
+        !mountedRef.current ||
+        requestId !== userListRequestId.current
+      ) {
+        return;
+      }
+
+      setUsers(result.accounts);
+
+      if (
+        selectedAccountId &&
+        !result.accounts.some(
+          (account) => account.id === selectedAccountId
+        )
+      ) {
+        setSelectedAccountId('');
+      }
+    } catch (err) {
+      if (
+        mountedRef.current &&
+        requestId === userListRequestId.current
+      ) {
+        setError(getApiError(err));
+      }
+    } finally {
+      if (
+        mountedRef.current &&
+        requestId === userListRequestId.current
+      ) {
+        setLoadingUsers(false);
+      }
+    }
+  }, [selectedAccountId]);
+
   useEffect(() => {
     void loadSuperAdmins();
   }, [loadSuperAdmins]);
 
-  function updateForm(field: keyof CreateSuperAdminPayload, value: string) {
-    setForm((current) => ({
-      ...current,
-      [field]: value
-    }));
-  }
-
   async function refreshAll() {
-    await Promise.all([loadSuperAdmins(), onRefresh()]);
+    await Promise.all([
+      loadSuperAdmins(),
+      onRefresh()
+    ]);
   }
 
-  async function submitCreate(event: FormEvent<HTMLFormElement>) {
+  async function submitAppointment(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
-    if (creatingRef.current || !mountedRef.current) return;
+    if (
+      creatingRef.current ||
+      !mountedRef.current ||
+      !selectedAccountId ||
+      !appointmentJobTitle.trim() ||
+      !appointmentReason.trim()
+    ) {
+      return;
+    }
+
+    const selectedUser = users.find(
+      (user) => user.id === selectedAccountId
+    );
+
+    if (!selectedUser || selectedUser.role !== 'USER') {
+      setError('Akaun USER yang dipilih tidak sah.');
+      return;
+    }
 
     creatingRef.current = true;
     setCreating(true);
@@ -138,28 +198,36 @@ export default function SuperAdminManagement({
     setSuccess('');
 
     try {
-      await createSuperAdmin({
-        ...form,
-        profile_name: form.profile_name.trim(),
-        job_title: form.job_title.trim(),
-        phone: form.phone.trim(),
-        email: form.email.trim(),
-        reason: form.reason.trim()
-      });
+      await appointSuperAdmin(
+        selectedAccountId,
+        appointmentJobTitle.trim(),
+        appointmentReason.trim()
+      );
 
       if (!mountedRef.current) return;
 
-      setForm({ ...EMPTY_FORM });
+      setSelectedAccountId('');
+      setAppointmentJobTitle('');
+      setAppointmentReason('');
+      setSearch('');
+      setUsers([]);
       setShowCreate(false);
-      setSuccess('Akaun Super Admin berjaya diwujudkan.');
+
+      setSuccess(
+        'Pelantikan berjaya. Akaun USER sedia ada telah dinaikkan kepada Super Admin.'
+      );
 
       await refreshAll();
     } catch (err) {
-      if (mountedRef.current) setError(getApiError(err));
+      if (mountedRef.current) {
+        setError(getApiError(err));
+      }
     } finally {
       creatingRef.current = false;
 
-      if (mountedRef.current) setCreating(false);
+      if (mountedRef.current) {
+        setCreating(false);
+      }
     }
   }
 
@@ -176,7 +244,10 @@ export default function SuperAdminManagement({
     setJobTitleReason('');
     setPermissionReason('');
 
-    const selected = accounts.find((item) => item.id === accountId);
+    const selected = accounts.find(
+      (item) => item.id === accountId
+    );
+
     setJobTitle(selected?.job_title ?? '');
 
     if (!accountId) {
@@ -192,7 +263,9 @@ export default function SuperAdminManagement({
       if (
         !mountedRef.current ||
         requestId !== permissionRequestId.current
-      ) return;
+      ) {
+        return;
+      }
 
       setCatalog(result.catalog);
       setPermissions(result.permissions);
@@ -233,7 +306,9 @@ export default function SuperAdminManagement({
       operationRef.current ||
       !jobTitleReason.trim() ||
       !mountedRef.current
-    ) return;
+    ) {
+      return;
+    }
 
     operationRef.current = true;
     setUpdating(true);
@@ -254,11 +329,15 @@ export default function SuperAdminManagement({
 
       await refreshAll();
     } catch (err) {
-      if (mountedRef.current) setError(getApiError(err));
+      if (mountedRef.current) {
+        setError(getApiError(err));
+      }
     } finally {
       operationRef.current = false;
 
-      if (mountedRef.current) setUpdating(false);
+      if (mountedRef.current) {
+        setUpdating(false);
+      }
     }
   }
 
@@ -273,7 +352,9 @@ export default function SuperAdminManagement({
       !permissionReason.trim() ||
       catalog.length === 0 ||
       !mountedRef.current
-    ) return;
+    ) {
+      return;
+    }
 
     operationRef.current = true;
     setUpdating(true);
@@ -292,11 +373,15 @@ export default function SuperAdminManagement({
       setSuccess('Permission Super Admin berjaya dikemas kini.');
       setPermissionReason('');
     } catch (err) {
-      if (mountedRef.current) setError(getApiError(err));
+      if (mountedRef.current) {
+        setError(getApiError(err));
+      }
     } finally {
       operationRef.current = false;
 
-      if (mountedRef.current) setUpdating(false);
+      if (mountedRef.current) {
+        setUpdating(false);
+      }
     }
   }
 
@@ -304,9 +389,15 @@ export default function SuperAdminManagement({
     <section className="account-detail super-admin-management">
       <div className="admin-page__heading">
         <div>
-          <span className="dashboard-page__eyebrow">ROOT SUPER ADMIN</span>
+          <span className="dashboard-page__eyebrow">
+            ROOT SUPER ADMIN
+          </span>
+
           <h3>Pengurusan Super Admin</h3>
-          <p>Pelantikan, jawatan dan permission pentadbir.</p>
+
+          <p>
+            Pelantikan, jawatan dan permission pentadbir.
+          </p>
         </div>
 
         <button
@@ -316,33 +407,58 @@ export default function SuperAdminManagement({
           onClick={() => {
             if (creating) return;
 
-            setShowCreate((current) => !current);
+            const next = !showCreate;
+            setShowCreate(next);
             setError('');
             setSuccess('');
+
+            if (next && users.length === 0) {
+              void loadEligibleUsers(search);
+            }
           }}
         >
-          {showCreate ? 'Tutup Borang' : 'Tambah Super Admin'}
+          {showCreate ? 'Tutup Borang' : 'Lantik Super Admin'}
         </button>
       </div>
 
       {error && (
-        <div className="admin-alert admin-alert--error" role="alert">
+        <div
+          className="admin-alert admin-alert--error"
+          role="alert"
+        >
           {error}
         </div>
       )}
 
       {success && (
-        <div className="admin-alert admin-alert--success" role="status">
+        <div
+          className="admin-alert admin-alert--success"
+          role="status"
+        >
           {success}
         </div>
       )}
 
       {showCreate && (
         <CreateSuperAdminForm
-          form={form}
-          creating={creating}
-          onChange={updateForm}
-          onSubmit={(event) => void submitCreate(event)}
+          users={users}
+          loading={loadingUsers}
+          submitting={creating}
+          search={search}
+          selectedAccountId={selectedAccountId}
+          jobTitle={appointmentJobTitle}
+          reason={appointmentReason}
+          onSearchChange={setSearch}
+          onSearch={() => {
+            setError('');
+            void loadEligibleUsers(search);
+          }}
+          onAccountChange={setSelectedAccountId}
+          onJobTitleChange={setAppointmentJobTitle}
+          onReasonChange={setAppointmentReason}
+          onSubmit={(event) =>
+            void submitAppointment(event)
+          }
         />
       )}
 
@@ -356,16 +472,22 @@ export default function SuperAdminManagement({
         ) : (
           <label>
             Pilih Super Admin
+
             <select
               value={selectedId}
               disabled={updating || creating}
-              onChange={(event) => void selectSuperAdmin(event.target.value)}
+              onChange={(event) =>
+                void selectSuperAdmin(event.target.value)
+              }
             >
               <option value="">Pilih akaun</option>
+
               {accounts.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.profile_name}
-                  {item.job_title ? ` — ${item.job_title}` : ''}
+                  {item.job_title
+                    ? ` — ${item.job_title}`
+                    : ''}
                 </option>
               ))}
             </select>
