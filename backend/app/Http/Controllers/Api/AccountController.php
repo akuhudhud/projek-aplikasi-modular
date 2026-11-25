@@ -242,7 +242,7 @@ class AccountController extends Controller
         }
 
         $validated = $request->validate([
-            'permissions' => ['required', 'array'],
+            'permissions' => ['present', 'array'],
             'permissions.*' => [
                 'required',
                 'string',
