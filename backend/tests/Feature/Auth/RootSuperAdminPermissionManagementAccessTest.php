@@ -210,6 +210,63 @@ class RootSuperAdminPermissionManagementAccessTest extends TestCase
         ]);
     }
 
+    public function test_root_can_revoke_all_super_admin_permissions_with_empty_array(): void
+    {
+        $root = $this->createAccount(
+            'ROOT_SUPER_ADMIN',
+            'permission-revoke-root@example.com'
+        );
+
+        $target = $this->createTargetSuperAdmin();
+
+        AccountPermission::create([
+            'account_id' => $target->id,
+            'permission_key' => 'accounts.view',
+        ]);
+
+        AccountPermission::create([
+            'account_id' => $target->id,
+            'permission_key' => 'audit_logs.view',
+        ]);
+
+        $token = $this->authenticate($root);
+
+        $this->withHeader(
+            'Authorization',
+            'Bearer '.$token
+        )->putJson(
+            '/api/admin/accounts/'.$target->id.'/permissions',
+            [
+                'permissions' => [],
+                'reason' => 'Menarik balik semua akses pentadbir.',
+            ]
+        )
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.permissions', [])
+            ->assertJsonPath('data.changes.granted', [])
+            ->assertJsonPath(
+                'data.changes.revoked',
+                ['accounts.view', 'audit_logs.view']
+            );
+
+        $this->assertDatabaseMissing('account_permissions', [
+            'account_id' => $target->id,
+            'permission_key' => 'accounts.view',
+        ]);
+
+        $this->assertDatabaseMissing('account_permissions', [
+            'account_id' => $target->id,
+            'permission_key' => 'audit_logs.view',
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $root->id,
+            'target_account_id' => $target->id,
+            'action' => 'ADMIN_PERMISSIONS_UPDATED',
+        ]);
+    }
+
     public function test_permission_management_requires_authentication(): void
     {
         $target = $this->createTargetSuperAdmin();
