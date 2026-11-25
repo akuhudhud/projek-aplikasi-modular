@@ -300,7 +300,7 @@ class IdentityVerificationApiTest extends TestCase
             ->assertJsonPath('success', false)
             ->assertJsonPath(
                 'message',
-                'Administrators cannot review their own identity verification.'
+                'Administrators cannot access their own identity verification data.'
             );
 
         $this->assertDatabaseHas('identity_verifications', [
