@@ -153,15 +153,14 @@ Route::get('/me/runner-license-verification', [
 ])->middleware(AuthenticateSession::class);
 
 /*
- * Senarai permohonan mesti didaftarkan sebelum route {accountId}.
- */
-Route::get('/admin/runner-license-verifications', [
-    RunnerLicenseVerificationController::class,
-    'index',
-])->middleware([
-    AuthenticateSession::class,
-    'admin.permission:runner_license_verifications.review',
-]);
+|--------------------------------------------------------------------------
+| Runner License Review
+|--------------------------------------------------------------------------
+| Tiada endpoint senarai lesen standalone.
+| Senarai Runner datang daripada Runner Applications.
+| Butiran dan dokumen lesen dibuka melalui rekod Runner.
+|--------------------------------------------------------------------------
+*/
 
 Route::get('/admin/runner-license-verifications/{accountId}', [
     RunnerLicenseVerificationController::class,
