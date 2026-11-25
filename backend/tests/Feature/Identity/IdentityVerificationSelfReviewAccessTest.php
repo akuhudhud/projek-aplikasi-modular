@@ -98,7 +98,7 @@ class IdentityVerificationSelfReviewAccessTest extends TestCase
             ->assertForbidden()
             ->assertJsonPath(
                 'message',
-                'Administrators cannot review their own identity verification.'
+                'Administrators cannot access their own identity verification data.'
             );
 
         $this->assertDatabaseMissing('audit_logs', [
@@ -122,7 +122,7 @@ class IdentityVerificationSelfReviewAccessTest extends TestCase
             ->assertForbidden()
             ->assertJsonPath(
                 'message',
-                'Administrators cannot review their own identity verification.'
+                'Administrators cannot access their own identity verification data.'
             );
 
         $this->assertDatabaseMissing('audit_logs', [
