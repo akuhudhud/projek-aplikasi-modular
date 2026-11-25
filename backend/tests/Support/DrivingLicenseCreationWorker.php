@@ -4,13 +4,9 @@ use App\Http\Controllers\Api\DrivingLicenseCatalogController;
 use App\Http\Controllers\Api\DrivingLicenseTypeController;
 use App\Models\Account;
 use App\Services\AuditLogService;
-use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Http\Request;
 
-require dirname(__DIR__, 2).'/vendor/autoload.php';
-
-$app = require dirname(__DIR__, 2).'/bootstrap/app.php';
-$app->make(Kernel::class)->bootstrap();
+$app = require __DIR__.'/bootstrap-worker.php';
 
 $mode = $argv[1] ?? null;
 $actorId = $argv[2] ?? null;
