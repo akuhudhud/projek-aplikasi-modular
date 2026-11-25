@@ -22,51 +22,25 @@ final class ConcurrencyWorkerDiagnostics
         $deadline = microtime(true) + 30;
 
         while (microtime(true) < $deadline) {
-            $read = [$stdoutPipe, $stderrPipe];
-            $write = null;
-            $except = null;
+            $stdoutChunk = fread($stdoutPipe, 8192);
+            $stderrChunk = fread($stderrPipe, 8192);
 
-            $selected = @stream_select(
-                $read,
-                $write,
-                $except,
-                0,
-                200000
-            );
+            if ($stdoutChunk !== false && $stdoutChunk !== '') {
+                $stdout .= $stdoutChunk;
+            }
 
-            if ($selected === false) {
+            if ($stderrChunk !== false && $stderrChunk !== '') {
+                $stderr .= $stderrChunk;
+            }
+
+            $firstLine = strtok($stdout, "\n");
+
+            if (
+                $firstLine !== false
+                && rtrim($firstLine, "\r") === 'READY'
+            ) {
+                $ready = true;
                 break;
-            }
-
-            foreach ($read as $stream) {
-                $chunk = fread($stream, 8192);
-
-                if ($chunk === false || $chunk === '') {
-                    continue;
-                }
-
-                if ($stream === $stdoutPipe) {
-                    $stdout .= $chunk;
-
-                    $newline = strpos($stdout, "\n");
-
-                    if ($newline !== false) {
-                        $firstLine = substr($stdout, 0, $newline);
-
-                        if (rtrim($firstLine, "\r") === 'READY') {
-                            $ready = true;
-                        }
-                    }
-                } else {
-                    $stderr .= $chunk;
-                }
-            }
-
-            if ($ready) {
-                stream_set_blocking($stdoutPipe, true);
-                stream_set_blocking($stderrPipe, true);
-
-                return;
             }
 
             $status = proc_get_status($worker['process']);
@@ -74,6 +48,15 @@ final class ConcurrencyWorkerDiagnostics
             if (!$status['running']) {
                 break;
             }
+
+            usleep(10000);
+        }
+
+        if ($ready) {
+            stream_set_blocking($stdoutPipe, true);
+            stream_set_blocking($stderrPipe, true);
+
+            return;
         }
 
         $stdout .= stream_get_contents($stdoutPipe);
