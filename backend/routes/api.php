@@ -1,4 +1,3 @@
-
 <?php
 
 use App\Http\Controllers\Api\AccountController;
@@ -27,62 +26,58 @@ use App\Http\Middleware\AuthenticateSession;
 use App\Http\Middleware\ExpireMarketplaceItems;
 use Illuminate\Support\Facades\Route;
 
+$__apiRouteDiagnostic = static function (string $marker): void {
+    fwrite(STDERR, '[API_ROUTES] '.$marker.PHP_EOL);
+    fflush(STDERR);
+};
+
+$__apiRouteDiagnostic('FILE_START');
+
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/register/complete', [AuthController::class, 'completeRegistration']);
-
 Route::post('/login', [AuthController::class, 'login'])
     ->middleware('throttle:login-ip');
-
 Route::post('/otp/request', [OtpController::class, 'request'])
     ->middleware([
         'throttle:otp-request-ip',
         'throttle:otp-request-contact',
     ]);
-
 Route::post('/otp/verify', [OtpController::class, 'verify'])
     ->middleware([
         'throttle:otp-verify-ip',
         'throttle:otp-verify-id',
     ]);
 
+$__apiRouteDiagnostic('PUBLIC_AUTH_ROUTES_DONE');
+
 Route::get('/me', [AuthController::class, 'me'])
     ->middleware(AuthenticateSession::class);
-
 Route::patch('/me', [AuthController::class, 'updateProfile'])
     ->middleware(AuthenticateSession::class);
-
 Route::post('/me/profile-picture', [ProfilePictureController::class, 'update'])
     ->middleware(AuthenticateSession::class);
-
 Route::post('/me/change-password', [AuthController::class, 'changePassword'])
     ->middleware(AuthenticateSession::class);
-
 Route::post('/me/change-phone/request', [ContactChangeController::class, 'requestPhone'])
     ->middleware(AuthenticateSession::class);
-
 Route::post('/me/change-phone/verify', [ContactChangeController::class, 'verifyPhone'])
     ->middleware(AuthenticateSession::class);
-
 Route::post('/me/change-phone/complete', [ContactChangeController::class, 'completePhone'])
     ->middleware(AuthenticateSession::class);
-
 Route::post('/me/change-email/request', [ContactChangeController::class, 'requestEmail'])
     ->middleware(AuthenticateSession::class);
-
 Route::post('/me/change-email/verify', [ContactChangeController::class, 'verifyEmail'])
     ->middleware(AuthenticateSession::class);
-
 Route::post('/me/change-email/complete', [ContactChangeController::class, 'completeEmail'])
     ->middleware(AuthenticateSession::class);
-
 Route::post('/me/deactivate', [AuthController::class, 'deactivate'])
     ->middleware(AuthenticateSession::class);
-
 Route::post('/me/delete', [AuthController::class, 'delete'])
     ->middleware(AuthenticateSession::class);
-
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware(AuthenticateSession::class);
+
+$__apiRouteDiagnostic('ACCOUNT_ROUTES_DONE');
 
 /*
 |--------------------------------------------------------------------------
@@ -143,6 +138,8 @@ Route::delete('/admin/identity-verifications/{accountId}/data', [
     'admin.permission:identity_verifications.delete_data',
 ]);
 
+$__apiRouteDiagnostic('IDENTITY_ROUTES_DONE');
+
 /*
 |--------------------------------------------------------------------------
 | Runner License Verification
@@ -153,16 +150,6 @@ Route::get('/me/runner-license-verification', [
     RunnerLicenseVerificationController::class,
     'showMyStatus',
 ])->middleware(AuthenticateSession::class);
-
-/*
-|--------------------------------------------------------------------------
-| Runner License Review
-|--------------------------------------------------------------------------
-| Tiada endpoint senarai lesen standalone.
-| Senarai Runner datang daripada Runner Applications.
-| Butiran dan dokumen lesen dibuka melalui rekod Runner.
-|--------------------------------------------------------------------------
-*/
 
 Route::get('/admin/runner-license-verifications/{accountId}', [
     RunnerLicenseVerificationController::class,
@@ -179,6 +166,8 @@ Route::get('/admin/runner-license-verifications/{accountId}/document', [
     AuthenticateSession::class,
     'admin.permission:runner_license_verifications.review',
 ]);
+
+$__apiRouteDiagnostic('RUNNER_LICENSE_ROUTES_DONE');
 
 /*
 |--------------------------------------------------------------------------
@@ -223,6 +212,8 @@ Route::delete('/admin/driving-license-types/{id}', [
     'admin.permission:driving_license_types.manage',
 ]);
 
+$__apiRouteDiagnostic('DRIVING_LICENSE_TYPE_ROUTES_DONE');
+
 /*
 |--------------------------------------------------------------------------
 | Driving License Catalog
@@ -266,6 +257,8 @@ Route::delete('/admin/driving-license-catalog/{id}', [
     'admin.permission:driving_license_catalog.manage',
 ]);
 
+$__apiRouteDiagnostic('DRIVING_LICENSE_CATALOG_ROUTES_DONE');
+
 /*
 |--------------------------------------------------------------------------
 | Core Runner Application
@@ -281,6 +274,8 @@ Route::post('/me/runner-application', [
     RunnerController::class,
     'apply',
 ])->middleware(AuthenticateSession::class);
+
+$__apiRouteDiagnostic('RUNNER_APPLICATION_ROUTES_DONE');
 
 /*
 |--------------------------------------------------------------------------
@@ -316,6 +311,8 @@ Route::patch('/core/tasks/{taskId}/rating', [
     RunnerTaskRatingController::class,
     'storeOrUpdate',
 ])->middleware(AuthenticateSession::class);
+
+$__apiRouteDiagnostic('CORE_TASK_ROUTES_DONE');
 
 /*
 |--------------------------------------------------------------------------
@@ -368,6 +365,8 @@ Route::middleware([
         );
     });
 
+$__apiRouteDiagnostic('MARKETPLACE_ROUTES_DONE');
+
 /*
 |--------------------------------------------------------------------------
 | Runner Public Profiles
@@ -393,6 +392,8 @@ Route::get('/me/runner-profile/analytics', [
     RunnerPublicProfileController::class,
     'analytics',
 ])->middleware(AuthenticateSession::class);
+
+$__apiRouteDiagnostic('PUBLIC_PROFILE_ROUTES_DONE');
 
 /*
 |--------------------------------------------------------------------------
@@ -487,6 +488,8 @@ Route::get('/admin/audit-logs', [
     'admin.permission:audit_logs.view',
 ]);
 
+$__apiRouteDiagnostic('ADMIN_ACCOUNT_ROUTES_DONE');
+
 /*
 |--------------------------------------------------------------------------
 | Core Runner Administration
@@ -540,3 +543,7 @@ Route::post('/admin/runners/{accountId}/restore', [
     AuthenticateSession::class,
     'admin.permission:runners.restore',
 ]);
+
+$__apiRouteDiagnostic('FILE_DONE');
+
+unset($__apiRouteDiagnostic);
