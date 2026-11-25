@@ -1,4 +1,3 @@
-
 export type AdminPage =
   | 'dashboard'
   | 'accounts'
@@ -54,16 +53,6 @@ export interface SuperAdminPermissionResult {
   };
   catalog: AdminPermission[];
   permissions: string[];
-}
-
-export interface CreateSuperAdminPayload {
-  profile_name: string;
-  job_title: string;
-  phone: string;
-  email: string;
-  password: string;
-  password_confirmation: string;
-  reason: string;
 }
 
 export interface RunnerLicenseApplication {
