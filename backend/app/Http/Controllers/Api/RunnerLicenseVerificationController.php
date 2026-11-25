@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Account;
 use App\Models\RunnerLicenseVerification;
 use App\Services\AuditLogService;
 use Illuminate\Http\JsonResponse;
@@ -16,6 +17,8 @@ class RunnerLicenseVerificationController extends Controller
     /**
      * Senarai permohonan untuk reviewer lesen.
      * Tidak mendedahkan nombor telefon, e-mel atau dokumen.
+     *
+     * Endpoint ini kekal tidak didaftarkan dalam routes.
      */
     public function index(Request $request): JsonResponse
     {
@@ -101,6 +104,9 @@ class RunnerLicenseVerificationController extends Controller
         ]);
     }
 
+    /**
+     * Runner melihat status lesen miliknya sendiri.
+     */
     public function showMyStatus(Request $request): JsonResponse
     {
         $account = $request->attributes->get('account');
@@ -120,21 +126,38 @@ class RunnerLicenseVerificationController extends Controller
         ]);
     }
 
+    /**
+     * Admin melihat butiran lesen berdasarkan ID akaun.
+     *
+     * Route parameter hanya menerima account ID.
+     * Record ID tidak boleh digunakan sebagai pengganti.
+     */
     public function showForReview(
         Request $request,
         string $accountId,
         AuditLogService $auditLogService
     ): JsonResponse {
-        $verification = $this->findVerification($accountId);
+        $actor = $request->attributes->get('account');
 
-        if ($verification === null || $verification->account === null) {
+        if (!$actor instanceof Account) {
+            return $this->errorResponse(
+                'Unauthorized.',
+                401
+            );
+        }
+
+        $verification = $this->findVerification(
+            $accountId,
+            $actor
+        );
+
+        if ($verification === null) {
             return $this->errorResponse(
                 'Permohonan pengesahan lesen tidak ditemui.',
                 404
             );
         }
 
-        $actor = $request->attributes->get('account');
         $targetAccount = $verification->account;
 
         $auditLogService->record(
@@ -176,14 +199,30 @@ class RunnerLicenseVerificationController extends Controller
         ]);
     }
 
+    /**
+     * Paparan dokumen lesen secara inline sahaja.
+     * Tiada fungsi muat turun.
+     */
     public function showDocument(
         Request $request,
         string $accountId,
         AuditLogService $auditLogService
     ): Response|JsonResponse {
-        $verification = $this->findVerification($accountId);
+        $actor = $request->attributes->get('account');
 
-        if ($verification === null || $verification->account === null) {
+        if (!$actor instanceof Account) {
+            return $this->errorResponse(
+                'Unauthorized.',
+                401
+            );
+        }
+
+        $verification = $this->findVerification(
+            $accountId,
+            $actor
+        );
+
+        if ($verification === null) {
             return $this->errorResponse(
                 'Dokumen lesen tidak ditemui.',
                 404
@@ -208,7 +247,6 @@ class RunnerLicenseVerificationController extends Controller
             );
         }
 
-        $actor = $request->attributes->get('account');
         $targetAccount = $verification->account;
 
         $auditLogService->record(
@@ -228,23 +266,59 @@ class RunnerLicenseVerificationController extends Controller
         ]);
     }
 
+    /**
+     * Cari rekod lesen berdasarkan ID AKAUN sahaja.
+     *
+     * Peraturan:
+     * - Root Super Admin: akses pentadbiran.
+     * - Super Admin: hanya akaun USER.
+     * - Super Admin tidak boleh menyemak akaun sendiri.
+     * - Akaun Super Admin lain tidak boleh disemak.
+     *
+     * Rekod yang tidak dibenarkan dipulangkan sebagai null
+     * supaya kewujudan rekod tidak didedahkan.
+     */
     private function findVerification(
-        string $identifier
+        string $accountId,
+        Account $actor
     ): ?RunnerLicenseVerification {
-        $byId = RunnerLicenseVerification::query()
+        $verification = RunnerLicenseVerification::query()
             ->with('account')
-            ->whereKey($identifier)
-            ->first();
-
-        if ($byId !== null) {
-            return $byId;
-        }
-
-        return RunnerLicenseVerification::query()
-            ->with('account')
-            ->where('account_id', $identifier)
+            ->where('account_id', $accountId)
             ->orderByDesc('submitted_at')
             ->first();
+
+        if (
+            $verification === null
+            || $verification->account === null
+        ) {
+            return null;
+        }
+
+        $targetAccount = $verification->account;
+
+        // Root Super Admin mempunyai akses pentadbiran.
+        if ($actor->role === 'ROOT_SUPER_ADMIN') {
+            return $verification;
+        }
+
+        // Hanya Super Admin yang dilantik boleh menggunakan
+        // permission semakan lesen.
+        if ($actor->role !== 'SUPER_ADMIN') {
+            return null;
+        }
+
+        // Super Admin tidak boleh menyemak akaun sendiri.
+        if ($targetAccount->id === $actor->id) {
+            return null;
+        }
+
+        // Super Admin hanya boleh menyemak akaun USER.
+        if ($targetAccount->role !== 'USER') {
+            return null;
+        }
+
+        return $verification;
     }
 
     private function statusPayload(
