@@ -9,9 +9,98 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class RunnerLicenseVerificationController extends Controller
 {
+    /**
+     * Senarai permohonan untuk reviewer lesen.
+     * Tidak mendedahkan nombor telefon, e-mel atau dokumen.
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'status' => [
+                'nullable',
+                'string',
+                Rule::in([
+                    RunnerLicenseVerification::STATUS_PENDING,
+                    RunnerLicenseVerification::STATUS_VERIFIED,
+                    RunnerLicenseVerification::STATUS_REJECTED,
+                    'ALL',
+                ]),
+            ],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:5', 'max:100'],
+        ]);
+
+        $status = $validated['status']
+            ?? RunnerLicenseVerification::STATUS_PENDING;
+
+        $query = RunnerLicenseVerification::query()
+            ->with('account:id,profile_name')
+            ->whereHas('account');
+
+        if ($status !== 'ALL') {
+            $query->where('status', $status);
+        }
+
+        if (!empty($validated['search'])) {
+            $search = trim($validated['search']);
+
+            $query->whereHas('account', function ($accountQuery) use ($search) {
+                $accountQuery->where(
+                    'profile_name',
+                    'like',
+                    '%'.$search.'%'
+                );
+            });
+        }
+
+        $query
+            ->orderByDesc('submitted_at')
+            ->orderByDesc('id');
+
+        $perPage = $validated['per_page'] ?? 15;
+
+        $results = $query->paginate(
+            $perPage,
+            ['*'],
+            'page',
+            $validated['page'] ?? 1
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'items' => $results->getCollection()
+                    ->map(function (RunnerLicenseVerification $verification) {
+                        return [
+                            'id' => $verification->id,
+                            'account_id' => $verification->account_id,
+                            'profile_name' => $verification->account->profile_name,
+                            'license_type' => $verification->license_type,
+                            'license_class' => $verification->license_class,
+                            'expires_at' => $verification->expires_at?->toDateString(),
+                            'status' => $verification->status,
+                            'is_current' => $verification->is_current,
+                            'has_document' => !empty($verification->document_path),
+                            'submitted_at' => $verification->submitted_at,
+                            'reviewed_at' => $verification->reviewed_at,
+                        ];
+                    })
+                    ->values(),
+                'pagination' => [
+                    'current_page' => $results->currentPage(),
+                    'last_page' => $results->lastPage(),
+                    'per_page' => $results->perPage(),
+                    'total' => $results->total(),
+                ],
+            ],
+        ]);
+    }
+
     public function showMyStatus(Request $request): JsonResponse
     {
         $account = $request->attributes->get('account');
@@ -38,10 +127,7 @@ class RunnerLicenseVerificationController extends Controller
     ): JsonResponse {
         $verification = $this->findVerification($accountId);
 
-        if (
-            $verification === null
-            || $verification->account === null
-        ) {
+        if ($verification === null || $verification->account === null) {
             return $this->errorResponse(
                 'Permohonan pengesahan lesen tidak ditemui.',
                 404
@@ -73,8 +159,7 @@ class RunnerLicenseVerificationController extends Controller
                     ).substr($licenseNumber, -4),
                     'license_type' => $verification->license_type,
                     'license_class' => $verification->license_class,
-                    'expires_at' => $verification->expires_at
-                        ->toDateString(),
+                    'expires_at' => $verification->expires_at?->toDateString(),
                     'status' => $verification->status,
                     'is_current' => $verification->is_current,
                     'mime_type' => $verification->mime_type,
@@ -98,10 +183,7 @@ class RunnerLicenseVerificationController extends Controller
     ): Response|JsonResponse {
         $verification = $this->findVerification($accountId);
 
-        if (
-            $verification === null
-            || $verification->account === null
-        ) {
+        if ($verification === null || $verification->account === null) {
             return $this->errorResponse(
                 'Dokumen lesen tidak ditemui.',
                 404
@@ -174,7 +256,7 @@ class RunnerLicenseVerificationController extends Controller
             'is_current' => $verification->is_current,
             'license_type' => $verification->license_type,
             'license_class' => $verification->license_class,
-            'expires_at' => $verification->expires_at->toDateString(),
+            'expires_at' => $verification->expires_at?->toDateString(),
             'submitted_at' => $verification->submitted_at,
             'reviewed_at' => $verification->reviewed_at,
             'rejection_reason' =>
