@@ -1,109 +1,137 @@
 
 import type { FormEvent } from 'react';
-import type { CreateSuperAdminPayload } from '../../../types/admin';
+import type { AdminAccount } from '../../../types/admin';
 
 interface Props {
-  form: CreateSuperAdminPayload;
-  creating: boolean;
-  onChange: (field: keyof CreateSuperAdminPayload, value: string) => void;
+  users: AdminAccount[];
+  loading: boolean;
+  submitting: boolean;
+  search: string;
+  selectedAccountId: string;
+  jobTitle: string;
+  reason: string;
+  onSearchChange: (value: string) => void;
+  onSearch: () => void;
+  onAccountChange: (value: string) => void;
+  onJobTitleChange: (value: string) => void;
+  onReasonChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }
 
 export default function CreateSuperAdminForm({
-  form,
-  creating,
-  onChange,
+  users,
+  loading,
+  submitting,
+  search,
+  selectedAccountId,
+  jobTitle,
+  reason,
+  onSearchChange,
+  onSearch,
+  onAccountChange,
+  onJobTitleChange,
+  onReasonChange,
   onSubmit
 }: Props) {
+  const selectedUser = users.find(
+    (user) => user.id === selectedAccountId
+  );
+
   return (
     <form className="admin-record" onSubmit={onSubmit}>
-      <h3>Daftar Super Admin Baharu</h3>
+      <h3>Lantik Super Admin daripada Akaun USER</h3>
+      <p>
+        Pilih akaun pengguna sedia ada. Sistem akan menukar peranan
+        akaun tersebut tanpa mencipta akaun atau ID baharu.
+      </p>
 
       <div className="admin-record__details">
         <label>
-          Nama Paparan
+          Cari Pengguna
           <input
-            type="text"
-            value={form.profile_name}
-            maxLength={100}
-            required
-            disabled={creating}
-            onChange={(event) => onChange('profile_name', event.target.value)}
+            type="search"
+            value={search}
+            placeholder="Nama, nombor telefon atau e-mel"
+            disabled={loading || submitting}
+            onChange={(event) => onSearchChange(event.target.value)}
           />
         </label>
 
-        <label>
-          Jawatan
-          <input
-            type="text"
-            value={form.job_title}
-            maxLength={100}
-            required
-            disabled={creating}
-            onChange={(event) => onChange('job_title', event.target.value)}
-          />
-        </label>
+        <div className="admin-record__actions">
+          <button
+            type="button"
+            className="admin-button"
+            disabled={loading || submitting}
+            onClick={onSearch}
+          >
+            {loading ? 'Memuatkan...' : 'Cari Pengguna'}
+          </button>
+        </div>
 
         <label>
-          Nombor Telefon
-          <input
-            type="tel"
-            value={form.phone}
+          Pilih Akaun USER
+          <select
+            value={selectedAccountId}
             required
-            disabled={creating}
-            onChange={(event) => onChange('phone', event.target.value)}
-          />
-        </label>
-
-        <label>
-          E-mel
-          <input
-            type="email"
-            value={form.email}
-            required
-            disabled={creating}
-            onChange={(event) => onChange('email', event.target.value)}
-          />
-        </label>
-
-        <label>
-          Kata Laluan
-          <input
-            type="password"
-            value={form.password}
-            minLength={8}
-            required
-            disabled={creating}
-            autoComplete="new-password"
-            onChange={(event) => onChange('password', event.target.value)}
-          />
-        </label>
-
-        <label>
-          Sahkan Kata Laluan
-          <input
-            type="password"
-            value={form.password_confirmation}
-            minLength={8}
-            required
-            disabled={creating}
-            autoComplete="new-password"
-            onChange={(event) =>
-              onChange('password_confirmation', event.target.value)
-            }
-          />
+            disabled={loading || submitting}
+            onChange={(event) => onAccountChange(event.target.value)}
+          >
+            <option value="">Pilih pengguna</option>
+            {users.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.profile_name} — {user.phone || user.email || user.id}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
+
+      {selectedUser && (
+        <div className="admin-record__details">
+          <label>
+            Nama Paparan
+            <input value={selectedUser.profile_name} readOnly />
+          </label>
+
+          <label>
+            Nombor Telefon
+            <input value={selectedUser.phone ?? 'Tiada'} readOnly />
+          </label>
+
+          <label>
+            E-mel
+            <input value={selectedUser.email ?? 'Tiada'} readOnly />
+          </label>
+
+          <label>
+            ID Akaun
+            <input value={selectedUser.id} readOnly />
+          </label>
+        </div>
+      )}
+
+      <label>
+        Jawatan Super Admin
+        <input
+          type="text"
+          value={jobTitle}
+          maxLength={100}
+          required
+          disabled={submitting}
+          placeholder="Contoh: Pengurus Operasi"
+          onChange={(event) => onJobTitleChange(event.target.value)}
+        />
+      </label>
 
       <label>
         Sebab Pelantikan
         <textarea
           rows={3}
           maxLength={1000}
-          value={form.reason}
+          value={reason}
           required
-          disabled={creating}
-          onChange={(event) => onChange('reason', event.target.value)}
+          disabled={submitting}
+          onChange={(event) => onReasonChange(event.target.value)}
         />
       </label>
 
@@ -111,9 +139,9 @@ export default function CreateSuperAdminForm({
         <button
           type="submit"
           className="admin-button admin-button--primary"
-          disabled={creating}
+          disabled={submitting || loading || !selectedAccountId}
         >
-          {creating ? 'Mewujudkan Akaun...' : 'Daftar Super Admin'}
+          {submitting ? 'Memproses Pelantikan...' : 'Lantik sebagai Super Admin'}
         </button>
       </div>
     </form>
