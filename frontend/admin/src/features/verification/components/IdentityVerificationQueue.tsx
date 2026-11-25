@@ -1,8 +1,7 @@
 import type { IdentityVerificationQueueItem } from '../../../types/admin';
 import {
   formatDate,
-  statusLabel,
-  type VerificationStatus
+  statusLabel
 } from '../utils/identityVerificationUtils';
 
 interface Props {
