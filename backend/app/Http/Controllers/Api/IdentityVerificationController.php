@@ -101,10 +101,10 @@ class IdentityVerificationController extends Controller
     }
 
     /**
-     * Return the paginated identity verification queue for authorised reviewers.
+     * Return the paginated identity verification queue.
      *
-     * MyKad is masked before the response is constructed. Storage disk and path
-     * are never selected or returned by this endpoint.
+     * Super Admin can only see USER identity records.
+     * Root Super Admin can see all records.
      */
     public function index(Request $request): JsonResponse
     {
@@ -119,6 +119,9 @@ class IdentityVerificationController extends Controller
             'per_page' => ['nullable', 'integer', 'min:5', 'max:100'],
         ]);
 
+        /** @var Account $actor */
+        $actor = $request->attributes->get('account');
+
         $status = $validated['status'] ?? IdentityVerification::STATUS_PENDING;
         $search = trim((string) ($validated['search'] ?? ''));
 
@@ -126,6 +129,13 @@ class IdentityVerificationController extends Controller
             ->with(['account:id,profile_name,phone,email'])
             ->withCount('documents')
             ->whereHas('account');
+
+        // Super Admin hanya boleh melihat rekod akaun USER.
+        if ($actor->role === 'SUPER_ADMIN') {
+            $query->whereHas('account', function ($accountQuery): void {
+                $accountQuery->where('role', 'USER');
+            });
+        }
 
         if ($status !== 'ALL') {
             $query->where('status', $status);
@@ -324,6 +334,14 @@ class IdentityVerificationController extends Controller
                     );
                 }
 
+                // Semakan role dibuat sekali lagi dalam transaksi.
+                if (
+                    $actor->role === 'SUPER_ADMIN'
+                    && $targetAccount->role !== 'USER'
+                ) {
+                    abort(403, 'Super Admin can only review USER identity verification records.');
+                }
+
                 $verification = IdentityVerification::query()
                     ->where('account_id', $targetAccount->id)
                     ->lockForUpdate()
@@ -346,7 +364,6 @@ class IdentityVerificationController extends Controller
                 /*
                  * accounts.profile_name stores the user's profile/display name.
                  * identity_verifications.verified_name stores the verified legal name.
-                 * The legal name must never be exposed through public runner profiles.
                  */
                 $verification->status = $validated['decision'];
                 $verification->reviewer_account_id = $actor->id;
