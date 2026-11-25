@@ -3,7 +3,6 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\Account;
-use App\Models\AuditLog;
 use App\Models\Session;
 use App\Services\AuditLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -65,11 +64,9 @@ class AuditTransactionIntegrityTest extends TestCase
         $this->mock(AuditLogService::class, function ($mock) {
             $mock->shouldReceive('record')
                 ->once()
-                ->andThrow(
-                    new RuntimeException(
-                        'Simulated audit recording failure.'
-                    )
-                );
+                ->andThrow(new RuntimeException(
+                    'Simulated audit recording failure.'
+                ));
         });
 
         $this->withoutExceptionHandling();
@@ -106,7 +103,7 @@ class AuditTransactionIntegrityTest extends TestCase
         ]);
     }
 
-    public function test_super_admin_creation_is_rolled_back_when_audit_recording_fails(): void
+    public function test_super_admin_appointment_is_rolled_back_when_audit_recording_fails(): void
     {
         $root = $this->createAccount(
             'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -116,22 +113,30 @@ class AuditTransactionIntegrityTest extends TestCase
             'ROOT_SUPER_ADMIN'
         );
 
-        $token = 'audit-transaction-super-admin-token';
-
-        $this->createSession(
-            $root,
-            $token,
-            'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+        $user = $this->createAccount(
+            'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            'Existing User',
+            '60222222222',
+            'existing-user-audit-test@example.com',
+            'USER'
         );
+
+        $token = 'audit-transaction-super-admin-token';
+        $userToken = 'existing-user-audit-session-token';
+        $rootSessionId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+        $userSessionId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+
+        $this->createSession($root, $token, $rootSessionId);
+        $this->createSession($user, $userToken, $userSessionId);
+
+        $originalPassword = $user->password;
 
         $this->mock(AuditLogService::class, function ($mock) {
             $mock->shouldReceive('record')
                 ->once()
-                ->andThrow(
-                    new RuntimeException(
-                        'Simulated audit recording failure.'
-                    )
-                );
+                ->andThrow(new RuntimeException(
+                    'Simulated audit recording failure.'
+                ));
         });
 
         $this->withoutExceptionHandling();
@@ -140,14 +145,13 @@ class AuditTransactionIntegrityTest extends TestCase
             $this->withHeader(
                 'Authorization',
                 'Bearer '.$token
-            )->postJson('/api/admin/accounts', [
-                'profile_name' => 'New Super Admin',
-                'phone' => '60222222222',
-                'email' => 'new-admin-audit-test@example.com',
-                'password' => 'Password1',
-                'password_confirmation' => 'Password1',
-                'reason' => 'Approved administrative appointment.',
-            ]);
+            )->postJson(
+                '/api/admin/accounts/'.$user->id.'/appoint-super-admin',
+                [
+                    'job_title' => 'Pengurus Akaun',
+                    'reason' => 'Approved administrative appointment.',
+                ]
+            );
 
             $this->fail(
                 'The audit recording failure should abort the transaction.'
@@ -159,20 +163,43 @@ class AuditTransactionIntegrityTest extends TestCase
             );
         }
 
-        $this->assertDatabaseMissing('accounts', [
-            'email' => 'new-admin-audit-test@example.com',
+        $this->assertDatabaseCount('accounts', 2);
+
+        $this->assertDatabaseHas('accounts', [
+            'id' => $user->id,
+            'profile_name' => 'Existing User',
+            'phone' => '60222222222',
+            'email' => 'existing-user-audit-test@example.com',
+            'password' => $originalPassword,
+            'job_title' => null,
+            'role' => 'USER',
+            'status' => 'ACTIVE',
+        ]);
+
+        $this->assertDatabaseHas('sessions', [
+            'id' => $rootSessionId,
+            'account_id' => $root->id,
+            'ended_at' => null,
+        ]);
+
+        $this->assertDatabaseHas('sessions', [
+            'id' => $userSessionId,
+            'account_id' => $user->id,
+            'token_hash' => hash('sha256', $userToken),
+            'ended_at' => null,
         ]);
 
         $this->assertDatabaseMissing('audit_logs', [
             'actor_account_id' => $root->id,
-            'action' => 'SUPER_ADMIN_CREATED',
+            'target_account_id' => $user->id,
+            'action' => 'SUPER_ADMIN_APPOINTED',
         ]);
     }
 
     public function test_deletion_is_rolled_back_when_audit_recording_fails(): void
     {
         $account = $this->createAccount(
-            'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
             'Delete Transaction User',
             '60333333333',
             'delete-transaction-user@example.com',
@@ -180,18 +207,16 @@ class AuditTransactionIntegrityTest extends TestCase
         );
 
         $token = 'audit-transaction-deletion-token';
-        $sessionId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+        $sessionId = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
 
         $this->createSession($account, $token, $sessionId);
 
         $this->mock(AuditLogService::class, function ($mock) {
             $mock->shouldReceive('record')
                 ->once()
-                ->andThrow(
-                    new RuntimeException(
-                        'Simulated audit recording failure.'
-                    )
-                );
+                ->andThrow(new RuntimeException(
+                    'Simulated audit recording failure.'
+                ));
         });
 
         $this->withoutExceptionHandling();
@@ -232,25 +257,25 @@ class AuditTransactionIntegrityTest extends TestCase
     public function test_suspension_is_rolled_back_when_audit_recording_fails(): void
     {
         $admin = $this->createAccount(
-            'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            '11111111-1111-4111-8111-111111111111',
             'Root Super Admin',
-            '60111111111',
+            '60444444444',
             'root-status-test@example.com',
             'ROOT_SUPER_ADMIN'
         );
 
         $target = $this->createAccount(
-            'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+            '22222222-2222-4222-8222-222222222222',
             'Target User',
-            '60222222222',
+            '60555555555',
             'target-status-test@example.com',
             'USER'
         );
 
         $adminToken = 'admin-status-suspend-token';
         $targetToken = 'target-status-suspend-token';
-        $adminSessionId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
-        $targetSessionId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+        $adminSessionId = '33333333-3333-4333-8333-333333333333';
+        $targetSessionId = '44444444-4444-4444-8444-444444444444';
 
         $this->createSession($admin, $adminToken, $adminSessionId);
         $this->createSession($target, $targetToken, $targetSessionId);
@@ -258,11 +283,9 @@ class AuditTransactionIntegrityTest extends TestCase
         $this->mock(AuditLogService::class, function ($mock) {
             $mock->shouldReceive('record')
                 ->once()
-                ->andThrow(
-                    new RuntimeException(
-                        'Simulated audit recording failure.'
-                    )
-                );
+                ->andThrow(new RuntimeException(
+                    'Simulated audit recording failure.'
+                ));
         });
 
         $this->withoutExceptionHandling();
@@ -308,17 +331,17 @@ class AuditTransactionIntegrityTest extends TestCase
     public function test_reactivation_is_rolled_back_when_audit_recording_fails(): void
     {
         $admin = $this->createAccount(
-            'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            '55555555-5555-4555-8555-555555555555',
             'Root Super Admin',
-            '60111111111',
+            '60666666666',
             'root-reactivation-test@example.com',
             'ROOT_SUPER_ADMIN'
         );
 
         $target = $this->createAccount(
-            'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+            '66666666-6666-4666-8666-666666666666',
             'Deactivated User',
-            '60222222222',
+            '60777777777',
             'deactivated-user@example.com',
             'USER',
             'DEACTIVATED'
@@ -329,17 +352,15 @@ class AuditTransactionIntegrityTest extends TestCase
         $this->createSession(
             $admin,
             $adminToken,
-            'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+            '77777777-7777-4777-8777-777777777777'
         );
 
         $this->mock(AuditLogService::class, function ($mock) {
             $mock->shouldReceive('record')
                 ->once()
-                ->andThrow(
-                    new RuntimeException(
-                        'Simulated audit recording failure.'
-                    )
-                );
+                ->andThrow(new RuntimeException(
+                    'Simulated audit recording failure.'
+                ));
         });
 
         $this->withoutExceptionHandling();
@@ -380,17 +401,17 @@ class AuditTransactionIntegrityTest extends TestCase
     public function test_unsuspension_is_rolled_back_when_audit_recording_fails(): void
     {
         $admin = $this->createAccount(
-            'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            '88888888-8888-4888-8888-888888888888',
             'Root Super Admin',
-            '60111111111',
+            '60888888888',
             'root-unsuspend-test@example.com',
             'ROOT_SUPER_ADMIN'
         );
 
         $target = $this->createAccount(
-            'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+            '99999999-9999-4999-8999-999999999999',
             'Suspended User',
-            '60222222222',
+            '60999999999',
             'suspended-user@example.com',
             'USER',
             'SUSPENDED'
@@ -401,17 +422,15 @@ class AuditTransactionIntegrityTest extends TestCase
         $this->createSession(
             $admin,
             $adminToken,
-            'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+            '10101010-1010-4010-8010-101010101010'
         );
 
         $this->mock(AuditLogService::class, function ($mock) {
             $mock->shouldReceive('record')
                 ->once()
-                ->andThrow(
-                    new RuntimeException(
-                        'Simulated audit recording failure.'
-                    )
-                );
+                ->andThrow(new RuntimeException(
+                    'Simulated audit recording failure.'
+                ));
         });
 
         $this->withoutExceptionHandling();
