@@ -1,3 +1,4 @@
+
 <?php
 
 use App\Http\Controllers\Api\AccountController;
@@ -98,9 +99,6 @@ Route::get('/me/identity-verification', [
     'showMyStatus',
 ])->middleware(AuthenticateSession::class);
 
-/*
- * Queue route must be registered before the {accountId} route.
- */
 Route::get('/admin/identity-verifications', [
     IdentityVerificationController::class,
     'index',
@@ -154,6 +152,17 @@ Route::get('/me/runner-license-verification', [
     RunnerLicenseVerificationController::class,
     'showMyStatus',
 ])->middleware(AuthenticateSession::class);
+
+/*
+ * Senarai permohonan mesti didaftarkan sebelum route {accountId}.
+ */
+Route::get('/admin/runner-license-verifications', [
+    RunnerLicenseVerificationController::class,
+    'index',
+])->middleware([
+    AuthenticateSession::class,
+    'admin.permission:runner_license_verifications.review',
+]);
 
 Route::get('/admin/runner-license-verifications/{accountId}', [
     RunnerLicenseVerificationController::class,
