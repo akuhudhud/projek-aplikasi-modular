@@ -1,3 +1,4 @@
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   cleanup,
@@ -21,6 +22,7 @@ import type {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function deferred<T>() {
@@ -441,21 +443,28 @@ describe('RunnerApplicationsPage race conditions', () => {
   });
 
   it('memaparkan dokumen lesen hanya pada kad Runner pemiliknya', async () => {
+    const createObjectURL = vi.fn()
+      .mockReturnValue('blob:runner-license-preview');
+
+    const revokeObjectURL = vi.fn();
+
+    vi.stubGlobal(
+      'URL',
+      class extends URL {
+        static createObjectURL = createObjectURL;
+        static revokeObjectURL = revokeObjectURL;
+      }
+    );
+
     vi.spyOn(adminApi, 'getRunnerApplications')
       .mockResolvedValue(
         applicationsResult([firstApplication, secondApplication])
       );
 
     vi.spyOn(adminApi, 'getRunnerLicenseDocument')
-      .mockResolvedValue(new Blob(['dokumen ujian'], { type: 'image/jpeg' }));
-
-    const createObjectURL = vi
-      .spyOn(URL, 'createObjectURL')
-      .mockReturnValue('blob:runner-license-preview');
-
-    const revokeObjectURL = vi
-      .spyOn(URL, 'revokeObjectURL')
-      .mockImplementation(() => undefined);
+      .mockResolvedValue(
+        new Blob(['dokumen ujian'], { type: 'image/jpeg' })
+      );
 
     const { container } = render(
       <RunnerApplicationsPage account={account} />
