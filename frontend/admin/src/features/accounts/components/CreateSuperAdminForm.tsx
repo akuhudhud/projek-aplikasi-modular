@@ -1,4 +1,3 @@
-
 import type { FormEvent } from 'react';
 import type { AdminAccount } from '../../../types/admin';
 
@@ -40,9 +39,10 @@ export default function CreateSuperAdminForm({
   return (
     <form className="admin-record" onSubmit={onSubmit}>
       <h3>Lantik Super Admin daripada Akaun USER</h3>
+
       <p>
-        Pilih akaun pengguna sedia ada. Sistem akan menukar peranan
-        akaun tersebut tanpa mencipta akaun atau ID baharu.
+        Pilih akaun pengguna sedia ada. Sistem akan menaikkan
+        peranan akaun tersebut tanpa mencipta akaun atau ID baharu.
       </p>
 
       <div className="admin-record__details">
@@ -53,7 +53,9 @@ export default function CreateSuperAdminForm({
             value={search}
             placeholder="Nama, nombor telefon atau e-mel"
             disabled={loading || submitting}
-            onChange={(event) => onSearchChange(event.target.value)}
+            onChange={(event) =>
+              onSearchChange(event.target.value)
+            }
           />
         </label>
 
@@ -74,12 +76,16 @@ export default function CreateSuperAdminForm({
             value={selectedAccountId}
             required
             disabled={loading || submitting}
-            onChange={(event) => onAccountChange(event.target.value)}
+            onChange={(event) =>
+              onAccountChange(event.target.value)
+            }
           >
             <option value="">Pilih pengguna</option>
+
             {users.map((user) => (
               <option key={user.id} value={user.id}>
-                {user.profile_name} — {user.phone || user.email || user.id}
+                {user.profile_name} —{' '}
+                {user.phone || user.email || user.id}
               </option>
             ))}
           </select>
@@ -90,22 +96,34 @@ export default function CreateSuperAdminForm({
         <div className="admin-record__details">
           <label>
             Nama Paparan
-            <input value={selectedUser.profile_name} readOnly />
+            <input
+              value={selectedUser.profile_name}
+              readOnly
+            />
           </label>
 
           <label>
             Nombor Telefon
-            <input value={selectedUser.phone ?? 'Tiada'} readOnly />
+            <input
+              value={selectedUser.phone ?? 'Tiada'}
+              readOnly
+            />
           </label>
 
           <label>
             E-mel
-            <input value={selectedUser.email ?? 'Tiada'} readOnly />
+            <input
+              value={selectedUser.email ?? 'Tiada'}
+              readOnly
+            />
           </label>
 
           <label>
             ID Akaun
-            <input value={selectedUser.id} readOnly />
+            <input
+              value={selectedUser.id}
+              readOnly
+            />
           </label>
         </div>
       )}
@@ -119,7 +137,9 @@ export default function CreateSuperAdminForm({
           required
           disabled={submitting}
           placeholder="Contoh: Pengurus Operasi"
-          onChange={(event) => onJobTitleChange(event.target.value)}
+          onChange={(event) =>
+            onJobTitleChange(event.target.value)
+          }
         />
       </label>
 
@@ -131,7 +151,9 @@ export default function CreateSuperAdminForm({
           value={reason}
           required
           disabled={submitting}
-          onChange={(event) => onReasonChange(event.target.value)}
+          onChange={(event) =>
+            onReasonChange(event.target.value)
+          }
         />
       </label>
 
@@ -139,9 +161,15 @@ export default function CreateSuperAdminForm({
         <button
           type="submit"
           className="admin-button admin-button--primary"
-          disabled={submitting || loading || !selectedAccountId}
+          disabled={
+            submitting ||
+            loading ||
+            !selectedAccountId
+          }
         >
-          {submitting ? 'Memproses Pelantikan...' : 'Lantik sebagai Super Admin'}
+          {submitting
+            ? 'Memproses Pelantikan...'
+            : 'Lantik sebagai Super Admin'}
         </button>
       </div>
     </form>
