@@ -1,3 +1,4 @@
+
 import type {
   RunnerApplication,
   RunnerLicenseVerificationDetail
@@ -91,7 +92,9 @@ export default function RunnerApplicationsList({
             application={application}
             licenseDetail={licenseDetails[application.id]}
             licenseLoading={licenseLoadingId === application.id}
+            licenseRequestPending={Boolean(licenseLoadingId)}
             documentLoading={documentLoadingId === application.id}
+            documentRequestPending={Boolean(documentLoadingId)}
             documentPreview={
               documentPreview?.accountId === application.id
                 ? {
