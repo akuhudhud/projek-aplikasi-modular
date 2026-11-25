@@ -84,9 +84,11 @@ export default function useRunnerDirectory({
 
   useEffect(() => {
     if (enabled) void loadRunners(1);
-    // Load only when the directory tab becomes active.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled]);
+
+    return () => {
+      requestIdRef.current += 1;
+    };
+  }, [enabled, loadRunners]);
 
   const searchRunners = useCallback(() => {
     pageRef.current = 1;
