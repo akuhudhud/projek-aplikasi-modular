@@ -1,8 +1,8 @@
-
 import { useState } from 'react';
 
 import type { AdminPage, AdminProfile } from '../../types/admin';
 import { canAccessPage } from '../../app/adminAccess';
+import SidebarMenuGroup from './SidebarMenuGroup';
 
 interface AdminSidebarProps {
   account: AdminProfile;
@@ -108,96 +108,60 @@ export default function AdminSidebar({
         </button>
 
         {canViewAccounts && (
-          <div className="admin-sidebar__group">
+          <SidebarMenuGroup
+            title="Pengurusan Pengguna"
+            expanded={Boolean(expanded.users)}
+            active={activePage === 'accounts'}
+            onToggle={() => toggleGroup('users')}
+          >
             <button
               type="button"
-              className={[
-                'admin-sidebar__item',
-                'admin-sidebar__parent',
-                activePage === 'accounts'
-                  ? 'admin-sidebar__item--active'
-                  : ''
-              ].join(' ')}
-              aria-expanded={Boolean(expanded.users)}
-              onClick={() => toggleGroup('users')}
-              style={menuItemStyle}
+              className="admin-sidebar__child"
+              aria-current={activePage === 'accounts' ? 'page' : undefined}
+              onClick={() => navigate('accounts', 'accounts')}
             >
-              <span>Pengurusan Pengguna</span>
-              <span className="admin-sidebar__chevron">
-                {expanded.users ? '−' : '+'}
-              </span>
+              Senarai Akaun
             </button>
 
-            {expanded.users && (
-              <div className="admin-sidebar__children">
-                <button
-                  type="button"
-                  className="admin-sidebar__child"
-                  aria-current={activePage === 'accounts' ? 'page' : undefined}
-                  onClick={() => navigate('accounts', 'accounts')}
-                >
-                  Senarai Akaun
-                </button>
-
-                {isRoot && (
-                  <button
-                    type="button"
-                    className="admin-sidebar__child"
-                    onClick={() => navigate('accounts', 'super-admin')}
-                  >
-                    Pengurusan Super Admin
-                  </button>
-                )}
-              </div>
+            {isRoot && (
+              <button
+                type="button"
+                className="admin-sidebar__child"
+                onClick={() => navigate('accounts', 'super-admin')}
+              >
+                Pengurusan Super Admin
+              </button>
             )}
-          </div>
+          </SidebarMenuGroup>
         )}
 
         {canViewRunners && (
-          <div className="admin-sidebar__group">
+          <SidebarMenuGroup
+            title="Pengurusan Runner"
+            expanded={Boolean(expanded.runners)}
+            active={activePage === 'runner-applications'}
+            onToggle={() => toggleGroup('runners')}
+          >
             <button
               type="button"
-              className={[
-                'admin-sidebar__item',
-                'admin-sidebar__parent',
-                activePage === 'runner-applications'
-                  ? 'admin-sidebar__item--active'
-                  : ''
-              ].join(' ')}
-              aria-expanded={Boolean(expanded.runners)}
-              onClick={() => toggleGroup('runners')}
-              style={menuItemStyle}
+              className="admin-sidebar__child"
+              onClick={() =>
+                navigate('runner-applications', 'applications')
+              }
             >
-              <span>Pengurusan Runner</span>
-              <span className="admin-sidebar__chevron">
-                {expanded.runners ? '−' : '+'}
-              </span>
+              Permohonan Runner
             </button>
 
-            {expanded.runners && (
-              <div className="admin-sidebar__children">
-                <button
-                  type="button"
-                  className="admin-sidebar__child"
-                  onClick={() =>
-                    navigate('runner-applications', 'applications')
-                  }
-                >
-                  Permohonan Runner
-                </button>
-
-                <button
-                  type="button"
-                  className="admin-sidebar__child"
-                  onClick={() =>
-                    navigate('runner-applications', 'directory')
-                  }
-                >
-                  Direktori Runner
-                </button>
-              </div>
-            )}
-          </div>
+            <button
+              type="button"
+              className="admin-sidebar__child"
+              onClick={() =>
+                navigate('runner-applications', 'directory')
+              }
+            >
+              Direktori Runner
+            </button>
+          </SidebarMenuGroup>
         )}
 
         {canAccessPage(account, 'identity-verifications') && (
