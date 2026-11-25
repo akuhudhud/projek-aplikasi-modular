@@ -58,11 +58,11 @@ class RunnerLicenseTargetAuthorizationTest extends TestCase
         ]);
     }
 
-    private function grantReviewPermission(Account $account): void
+    private function grantApplicationViewPermission(Account $account): void
     {
         AccountPermission::create([
             'account_id' => $account->id,
-            'permission_key' => 'runner_license_verifications.review',
+            'permission_key' => 'runner_applications.view',
         ]);
     }
 
@@ -117,7 +117,7 @@ class RunnerLicenseTargetAuthorizationTest extends TestCase
     public function test_super_admin_cannot_review_own_license_using_account_id(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
-        $this->grantReviewPermission($admin);
+        $this->grantApplicationViewPermission($admin);
         $this->createPendingLicense($admin);
 
         $this->authenticate(
@@ -132,7 +132,7 @@ class RunnerLicenseTargetAuthorizationTest extends TestCase
     public function test_super_admin_cannot_bypass_self_review_restriction_using_verification_id(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
-        $this->grantReviewPermission($admin);
+        $this->grantApplicationViewPermission($admin);
 
         $verification = $this->createPendingLicense($admin);
 
@@ -148,7 +148,7 @@ class RunnerLicenseTargetAuthorizationTest extends TestCase
     public function test_super_admin_cannot_view_own_license_document(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
-        $this->grantReviewPermission($admin);
+        $this->grantApplicationViewPermission($admin);
         $this->createPendingLicense($admin);
 
         $this->authenticate(
@@ -164,7 +164,7 @@ class RunnerLicenseTargetAuthorizationTest extends TestCase
     public function test_super_admin_cannot_view_another_super_admin_license(): void
     {
         $reviewer = $this->createAccount('SUPER_ADMIN');
-        $this->grantReviewPermission($reviewer);
+        $this->grantApplicationViewPermission($reviewer);
 
         $targetAdmin = $this->createAccount('SUPER_ADMIN');
         $this->createPendingLicense($targetAdmin);
@@ -182,7 +182,7 @@ class RunnerLicenseTargetAuthorizationTest extends TestCase
     public function test_super_admin_cannot_view_another_super_admin_license_document(): void
     {
         $reviewer = $this->createAccount('SUPER_ADMIN');
-        $this->grantReviewPermission($reviewer);
+        $this->grantApplicationViewPermission($reviewer);
 
         $targetAdmin = $this->createAccount('SUPER_ADMIN');
         $this->createPendingLicense($targetAdmin);
@@ -238,10 +238,10 @@ class RunnerLicenseTargetAuthorizationTest extends TestCase
             );
     }
 
-    public function test_super_admin_with_permission_can_review_user_license(): void
+    public function test_super_admin_with_runner_application_view_permission_can_review_user_license(): void
     {
         $admin = $this->createAccount('SUPER_ADMIN');
-        $this->grantReviewPermission($admin);
+        $this->grantApplicationViewPermission($admin);
 
         $applicant = $this->createAccount();
         $this->createPendingLicense($applicant);
