@@ -2,7 +2,6 @@ import type {
   AccountDirectoryResult,
   AdminAccountDetail,
   ApiResponse,
-  CreateSuperAdminPayload,
   SuperAdminPermissionResult
 } from '../types/admin';
 
@@ -33,7 +32,9 @@ export async function getAccountDetail(
 ): Promise<AdminAccountDetail> {
   const response = await adminApi.get<
     ApiResponse<{ account: AdminAccountDetail }>
-  >(`/admin/account-directory/${encodeURIComponent(accountId)}`);
+  >(
+    `/admin/account-directory/${encodeURIComponent(accountId)}`
+  );
 
   return response.data.data.account;
 }
@@ -68,10 +69,18 @@ export async function reactivateAccount(
   );
 }
 
-export async function createSuperAdmin(
-  payload: CreateSuperAdminPayload
+export async function appointSuperAdmin(
+  accountId: string,
+  jobTitle: string,
+  reason: string
 ): Promise<void> {
-  await adminApi.post('/admin/accounts', payload);
+  await adminApi.post(
+    `/admin/accounts/${encodeURIComponent(accountId)}/appoint-super-admin`,
+    {
+      job_title: jobTitle,
+      reason
+    }
+  );
 }
 
 export async function updateSuperAdminJobTitle(
@@ -93,7 +102,9 @@ export async function getSuperAdminPermissions(
 ): Promise<SuperAdminPermissionResult> {
   const response = await adminApi.get<
     ApiResponse<SuperAdminPermissionResult>
-  >(`/admin/accounts/${encodeURIComponent(accountId)}/permissions`);
+  >(
+    `/admin/accounts/${encodeURIComponent(accountId)}/permissions`
+  );
 
   return response.data.data;
 }
