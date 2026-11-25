@@ -48,6 +48,21 @@ const superAdmins: AdminAccount[] = [
   }
 ];
 
+const users: AdminAccount[] = [
+  {
+    id: 'user-existing-001',
+    profile_name: 'Ahmad Pengguna',
+    verified_name: null,
+    job_title: null,
+    phone: '60123456789',
+    email: 'ahmad@example.com',
+    role: 'USER',
+    status: 'ACTIVE',
+    created_at: '2026-11-20T10:00:00.000Z',
+    updated_at: '2026-11-20T10:00:00.000Z'
+  }
+];
+
 const catalog = [
   { key: 'accounts.view', label: 'Lihat Akaun' },
   { key: 'accounts.suspend', label: 'Gantung Akaun' },
@@ -57,7 +72,7 @@ const catalog = [
   }
 ];
 
-function mockAccountList(accounts = superAdmins) {
+function mockAccountList(accounts: AdminAccount[] = superAdmins) {
   return {
     accounts,
     pagination: {
@@ -105,7 +120,13 @@ function setup() {
   const onRefresh = vi.fn().mockResolvedValue(undefined);
 
   vi.spyOn(adminApi, 'getAccounts')
-    .mockResolvedValue(mockAccountList());
+    .mockImplementation(async (filters) => {
+      if (filters.role === 'USER') {
+        return mockAccountList(users);
+      }
+
+      return mockAccountList(superAdmins);
+    });
 
   render(
     <SuperAdminManagement onRefresh={onRefresh} />
@@ -410,48 +431,48 @@ describe('SuperAdminManagement', () => {
     expect(updatePermissions).not.toHaveBeenCalled();
   });
 
-  it('mewujudkan akaun Super Admin dengan data lengkap', async () => {
-    setup();
+  it('melantik akaun USER sedia ada tanpa mencipta akaun baharu', async () => {
+    const { onRefresh } = setup();
 
-    const create = vi.spyOn(
+    const appoint = vi.spyOn(
       adminApi,
-      'createSuperAdmin'
+      'appointSuperAdmin'
     ).mockResolvedValue(undefined);
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Tambah Super Admin'
+        name: 'Lantik Super Admin'
       })
     );
 
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Lantik Super Admin daripada Akaun USER'
+      })
+    ).toBeTruthy();
+
+    expect(
+      await screen.findByRole('option', {
+        name: /Ahmad Pengguna/
+      })
+    ).toBeTruthy();
+
+    expect(adminApi.getAccounts).toHaveBeenCalledWith({
+      role: 'USER',
+      status: 'ACTIVE',
+      search: undefined,
+      page: 1,
+      per_page: 100
+    });
+
     fireEvent.change(
-      screen.getByLabelText('Nama Paparan'),
-      { target: { value: 'Pentadbir Baharu' } }
+      screen.getByLabelText('Pilih Akaun USER'),
+      { target: { value: 'user-existing-001' } }
     );
 
     fireEvent.change(
-      screen.getByLabelText('Jawatan'),
-      { target: { value: 'Pengurus' } }
-    );
-
-    fireEvent.change(
-      screen.getByLabelText('Nombor Telefon'),
-      { target: { value: '60123456789' } }
-    );
-
-    fireEvent.change(
-      screen.getByLabelText('E-mel'),
-      { target: { value: 'newadmin@example.com' } }
-    );
-
-    fireEvent.change(
-      screen.getByLabelText('Kata Laluan'),
-      { target: { value: 'Password123' } }
-    );
-
-    fireEvent.change(
-      screen.getByLabelText('Sahkan Kata Laluan'),
-      { target: { value: 'Password123' } }
+      screen.getByLabelText('Jawatan Super Admin'),
+      { target: { value: 'Pengurus Operasi' } }
     );
 
     fireEvent.change(
@@ -459,29 +480,82 @@ describe('SuperAdminManagement', () => {
       { target: { value: 'Keperluan operasi.' } }
     );
 
+    expect(
+      screen.getByLabelText('Nama Paparan')
+    ).toHaveValue('Ahmad Pengguna');
+
+    expect(
+      screen.getByLabelText('Nombor Telefon')
+    ).toHaveValue('60123456789');
+
+    expect(
+      screen.getByLabelText('E-mel')
+    ).toHaveValue('ahmad@example.com');
+
+    expect(
+      screen.getByLabelText('ID Akaun')
+    ).toHaveValue('user-existing-001');
+
+    expect(
+      screen.queryByLabelText('Kata Laluan')
+    ).toBeNull();
+
+    expect(
+      screen.queryByLabelText('Sahkan Kata Laluan')
+    ).toBeNull();
+
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Sahkan Pelantikan'
+        name: 'Lantik sebagai Super Admin'
       })
     );
 
     await waitFor(() => {
-      expect(create).toHaveBeenCalledWith({
-        profile_name: 'Pentadbir Baharu',
-        job_title: 'Pengurus',
-        phone: '60123456789',
-        email: 'newadmin@example.com',
-        password: 'Password123',
-        password_confirmation: 'Password123',
-        reason: 'Keperluan operasi.'
-      });
+      expect(appoint).toHaveBeenCalledWith(
+        'user-existing-001',
+        'Pengurus Operasi',
+        'Keperluan operasi.'
+      );
     });
 
     expect(
       await screen.findByText(
-        'Akaun Super Admin berjaya diwujudkan.'
+        'Pelantikan berjaya. Akaun USER sedia ada telah dinaikkan kepada Super Admin.'
       )
     ).toBeTruthy();
+
+    expect(onRefresh).toHaveBeenCalled();
+  });
+
+  it('tidak melantik jika sebab pelantikan kosong', async () => {
+    setup();
+
+    const appoint = vi.spyOn(
+      adminApi,
+      'appointSuperAdmin'
+    ).mockResolvedValue(undefined);
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Lantik Super Admin'
+      })
+    );
+
+    await screen.findByRole('option', {
+      name: /Ahmad Pengguna/
+    });
+
+    fireEvent.change(
+      screen.getByLabelText('Pilih Akaun USER'),
+      { target: { value: 'user-existing-001' } }
+    );
+
+    fireEvent.change(
+      screen.getByLabelText('Jawatan Super Admin'),
+      { target: { value: 'Pengurus Operasi' } }
+    );
+
+    expect(appoint).not.toHaveBeenCalled();
   });
 
   it('memaparkan ralat apabila permintaan permission gagal', async () => {
