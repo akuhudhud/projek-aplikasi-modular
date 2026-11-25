@@ -17,7 +17,7 @@ Route::get('/admin/runner-license-verifications/{accountId}', [
     'showForReview',
 ])->middleware([
     AuthenticateSession::class,
-    'admin.permission:runner_license_verifications.review',
+    'admin.permission:runner_applications.view',
 ]);
 
 Route::get('/admin/runner-license-verifications/{accountId}/document', [
@@ -25,7 +25,7 @@ Route::get('/admin/runner-license-verifications/{accountId}/document', [
     'showDocument',
 ])->middleware([
     AuthenticateSession::class,
-    'admin.permission:runner_license_verifications.review',
+    'admin.permission:runner_applications.view',
 ]);
 
 Route::get('/driving-license-types', [
