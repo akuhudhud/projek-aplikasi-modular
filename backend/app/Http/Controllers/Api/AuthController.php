@@ -319,7 +319,11 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $reason = trim((string) $request->input('reason'));
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $reason = trim($validated['reason']);
 
         if ($reason === '') {
             return response()->json([
@@ -397,7 +401,11 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $reason = trim((string) $request->input('reason'));
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $reason = trim($validated['reason']);
 
         if ($reason === '') {
             return response()->json([
@@ -473,7 +481,11 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $reason = trim((string) $request->input('reason'));
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $reason = trim($validated['reason']);
 
         if ($reason === '') {
             return response()->json([
