@@ -16,6 +16,7 @@ interface Props {
   rejectionReason: string;
   working: boolean;
   canDeleteData: boolean;
+  canDeleteAnyRole?: boolean;
   deletionWorking: boolean;
   onClose: () => void;
   onShowDocument: (documentId: string, mimeType: string) => void;
@@ -33,6 +34,7 @@ export default function IdentityVerificationDetail({
   rejectionReason,
   working,
   canDeleteData,
+  canDeleteAnyRole = false,
   deletionWorking,
   onClose,
   onShowDocument,
@@ -41,6 +43,18 @@ export default function IdentityVerificationDetail({
   onSubmitDecision,
   onDeleteData
 }: Props) {
+  const runnerDeletionBlocked =
+    detail?.runner_status === 'PENDING' ||
+    detail?.runner_status === 'APPROVED';
+
+  const targetRoleAllowed =
+    detail?.account_role === 'USER' || canDeleteAnyRole;
+
+  const canDeleteTarget =
+    canDeleteData &&
+    !runnerDeletionBlocked &&
+    targetRoleAllowed;
+
   return (
     <section
       className="admin-record"
@@ -227,7 +241,7 @@ export default function IdentityVerificationDetail({
             </div>
           )}
 
-          {canDeleteData && (
+          {canDeleteTarget && (
             <IdentityVerificationDataDeletion
               working={deletionWorking}
               onDelete={onDeleteData}
