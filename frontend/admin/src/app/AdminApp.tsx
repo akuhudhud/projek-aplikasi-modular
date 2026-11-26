@@ -8,6 +8,7 @@ import AccountsPage from '../features/accounts/AccountsPage';
 import RunnerApplicationsPage from '../features/runner-applications/RunnerApplicationsPage';
 import AuditLogsPage from '../features/audit-logs/AuditLogsPage';
 import IdentityVerificationsPage from '../features/verification/IdentityVerificationsPage';
+import DrivingLicenseCatalogPage from '../features/driving-license-catalog/DrivingLicenseCatalogPage';
 
 import {
   clearSession,
@@ -170,6 +171,11 @@ export default function AdminApp() {
 
       case 'audit-logs':
         return <AuditLogsPage />;
+
+      case 'driving-license-catalog':
+        return (
+          <DrivingLicenseCatalogPage account={authenticatedAccount} />
+        );
 
       default:
         return <DashboardPage />;
