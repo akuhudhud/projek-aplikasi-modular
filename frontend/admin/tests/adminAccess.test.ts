@@ -35,7 +35,8 @@ describe('Admin permission access', () => {
       'accounts',
       'runner-applications',
       'identity-verifications',
-      'audit-logs'
+      'audit-logs',
+      'driving-license-catalog'
     ]);
   });
 
@@ -53,6 +54,36 @@ describe('Admin permission access', () => {
     expect(canAccessPage(admin, 'identity-verifications')).toBe(false);
   });
 
+  it('memberikan akses katalog lesen melalui permission jenis lesen', () => {
+    const admin = createAdmin('SUPER_ADMIN', [
+      'driving_license_types.manage'
+    ]);
+
+    expect(
+      canAccessPage(admin, 'driving-license-catalog')
+    ).toBe(true);
+  });
+
+  it('memberikan akses katalog lesen melalui permission kelas lesen', () => {
+    const admin = createAdmin('SUPER_ADMIN', [
+      'driving_license_catalog.manage'
+    ]);
+
+    expect(
+      canAccessPage(admin, 'driving-license-catalog')
+    ).toBe(true);
+  });
+
+  it('menolak akses katalog lesen tanpa permission berkaitan', () => {
+    const admin = createAdmin('SUPER_ADMIN', [
+      'accounts.view'
+    ]);
+
+    expect(
+      canAccessPage(admin, 'driving-license-catalog')
+    ).toBe(false);
+  });
+
   it('menggunakan dashboard sebagai halaman lalai', () => {
     const admin = createAdmin('SUPER_ADMIN', [
       'audit_logs.view'
@@ -64,11 +95,15 @@ describe('Admin permission access', () => {
   it('menolak akses halaman untuk akaun biasa', () => {
     const user = createAdmin('USER', [
       'accounts.view',
-      'audit_logs.view'
+      'audit_logs.view',
+      'driving_license_catalog.manage'
     ]);
 
     expect(getAccessiblePages(user)).toEqual([]);
     expect(canAccessPage(user, 'accounts')).toBe(false);
+    expect(
+      canAccessPage(user, 'driving-license-catalog')
+    ).toBe(false);
   });
 
   it('tidak memberikan permission berdasarkan jawatan sahaja', () => {
@@ -77,5 +112,8 @@ describe('Admin permission access', () => {
     expect(canAccessPage(admin, 'accounts')).toBe(false);
     expect(canAccessPage(admin, 'runner-applications')).toBe(false);
     expect(canAccessPage(admin, 'audit-logs')).toBe(false);
+    expect(
+      canAccessPage(admin, 'driving-license-catalog')
+    ).toBe(false);
   });
 });
