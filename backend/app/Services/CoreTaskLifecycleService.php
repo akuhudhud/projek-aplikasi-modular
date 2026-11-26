@@ -15,7 +15,7 @@ use InvalidArgumentException;
 class CoreTaskLifecycleService implements CoreTaskLifecycle
 {
     public function __construct(
-        private AdminOperationalNotificationService $adminNotificationService
+        private ?AdminOperationalNotificationService $adminNotificationService = null
     ) {
     }
 
@@ -253,7 +253,8 @@ class CoreTaskLifecycleService implements CoreTaskLifecycle
         string $severity
     ): void {
         if (
-            $task->module_key !== 'Marketplace'
+            $this->adminNotificationService === null
+            || $task->module_key !== 'Marketplace'
             || $task->source_type !== 'marketplace_request'
             || !$task->source_id
         ) {
