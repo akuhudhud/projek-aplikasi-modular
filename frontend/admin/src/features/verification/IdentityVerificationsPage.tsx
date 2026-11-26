@@ -1,7 +1,9 @@
+
 import { useEffect, useRef, useState } from 'react';
 
 import {
   decideIdentityVerification,
+  deleteIdentityVerificationData,
   getIdentityVerificationDocument,
   getApiError,
   getIdentityVerificationDetail,
@@ -19,6 +21,7 @@ import IdentityVerificationDetail from './components/IdentityVerificationDetail'
 
 import {
   hasReviewPermission,
+  hasDeleteDataPermission,
   STATUS_TABS,
   type DocumentPreview,
   type VerificationStatus
@@ -49,6 +52,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
   const [documentLoadingId, setDocumentLoadingId] = useState('');
   const [preview, setPreview] = useState<DocumentPreview | null>(null);
   const [working, setWorking] = useState(false);
+  const [deletionWorking, setDeletionWorking] = useState(false);
 
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -59,6 +63,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
   const mounted = useRef(false);
 
   const canReview = hasReviewPermission(account);
+  const canDeleteData = hasDeleteDataPermission(account);
 
   useEffect(() => {
     if (!preview?.url) return;
@@ -302,6 +307,34 @@ export default function IdentityVerificationsPage({ account }: Props) {
     }
   }
 
+  async function submitDataDeletion(reason: string) {
+    if (!detail || !canDeleteData || deletionWorking) return;
+
+    const accountId = detail.account_id;
+
+    setDeletionWorking(true);
+    setError('');
+    setMessage('');
+
+    try {
+      await deleteIdentityVerificationData(accountId, reason);
+
+      if (!mounted.current) return;
+
+      setMessage('Data pengesahan identiti dan dokumen berkaitan berjaya dipadam.');
+
+      resetDetail();
+
+      await loadQueue(page, activeStatus, search);
+    } catch (err) {
+      if (mounted.current) {
+        setError(getApiError(err));
+      }
+    } finally {
+      if (mounted.current) setDeletionWorking(false);
+    }
+  }
+
   function closeDetail() {
     resetDetail();
     setError('');
@@ -434,6 +467,8 @@ export default function IdentityVerificationsPage({ account }: Props) {
           preview={preview}
           rejectionReason={rejectionReason}
           working={working}
+          canDeleteData={canDeleteData}
+          deletionWorking={deletionWorking}
           onClose={closeDetail}
           onShowDocument={(documentId, mimeType) =>
             void showDocument(documentId, mimeType)
@@ -441,6 +476,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
           onClosePreview={() => setPreview(null)}
           onRejectionReasonChange={setRejectionReason}
           onSubmitDecision={(decision) => void submitDecision(decision)}
+          onDeleteData={(reason) => void submitDataDeletion(reason)}
         />
       )}
     </section>
