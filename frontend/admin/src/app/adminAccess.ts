@@ -8,6 +8,11 @@ const PAGE_PERMISSIONS: Partial<Record<AdminPage, string>> = {
   'audit-logs': 'audit_logs.view'
 };
 
+const DRIVING_LICENSE_PERMISSIONS = [
+  'driving_license_types.manage',
+  'driving_license_catalog.manage'
+];
+
 export function isAdminAccount(account: AdminProfile): boolean {
   return (
     account.role === 'ROOT_SUPER_ADMIN' ||
@@ -31,6 +36,12 @@ export function canAccessPage(
     return true;
   }
 
+  if (page === 'driving-license-catalog') {
+    return DRIVING_LICENSE_PERMISSIONS.some((permission) =>
+      account.permissions.includes(permission)
+    );
+  }
+
   const requiredPermission = PAGE_PERMISSIONS[page];
 
   return Boolean(
@@ -47,7 +58,8 @@ export function getAccessiblePages(
     'accounts',
     'runner-applications',
     'identity-verifications',
-    'audit-logs'
+    'audit-logs',
+    'driving-license-catalog'
   ];
 
   return pages.filter((page) => canAccessPage(account, page));
