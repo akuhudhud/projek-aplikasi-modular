@@ -31,47 +31,71 @@ class AccountController extends Controller
             ], 403);
         }
 
+        $validated = $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:5', 'max:100'],
+        ]);
+
         $query = Account::query();
 
         if ($actor->role === 'SUPER_ADMIN') {
             $query->where('role', 'USER');
         }
 
-        $accounts = $query
+        $perPage = (int) ($validated['per_page'] ?? 15);
+        $page = (int) ($validated['page'] ?? 1);
+
+        $paginator = $query
             ->with([
                 'identityVerification:id,account_id,verified_name,status',
             ])
             ->orderBy('created_at')
-            ->get([
-                'id',
-                'profile_name',
-                'job_title',
-                'phone',
-                'email',
-                'profile_picture',
-                'role',
-                'status',
-                'created_at',
-                'updated_at',
-            ]);
+            ->orderBy('id')
+            ->paginate(
+                $perPage,
+                [
+                    'id',
+                    'profile_name',
+                    'job_title',
+                    'phone',
+                    'email',
+                    'profile_picture',
+                    'role',
+                    'status',
+                    'created_at',
+                    'updated_at',
+                ],
+                'page',
+                $page
+            );
 
-        $accounts->each(function (Account $account): void {
-            $verification = $account->identityVerification;
+        $paginator->getCollection()->each(
+            function (Account $account): void {
+                $verification = $account->identityVerification;
 
-            $verifiedName = $verification !== null
-                && $verification->status
-                    === IdentityVerification::STATUS_VERIFIED
-                ? $verification->verified_name
-                : null;
+                $verifiedName = $verification !== null
+                    && $verification->status
+                        === IdentityVerification::STATUS_VERIFIED
+                    ? $verification->verified_name
+                    : null;
 
-            $account->setAttribute('verified_name', $verifiedName);
-            $account->unsetRelation('identityVerification');
-        });
+                $account->setAttribute('verified_name', $verifiedName);
+                $account->unsetRelation('identityVerification');
+            }
+        );
 
         return response()->json([
             'success' => true,
             'data' => [
-                'accounts' => $accounts,
+                'accounts' => $paginator->items(),
+                'pagination' => [
+                    'current_page' => $paginator->currentPage(),
+                    'last_page' => $paginator->lastPage(),
+                    'per_page' => $paginator->perPage(),
+                    'total' => $paginator->total(),
+                    'from' => $paginator->firstItem(),
+                    'to' => $paginator->lastItem(),
+                ],
             ],
         ], 200);
     }
