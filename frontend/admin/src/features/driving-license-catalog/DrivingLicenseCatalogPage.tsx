@@ -7,6 +7,7 @@ import {
   updateDrivingLicenseType,
   deactivateDrivingLicenseType,
   getDrivingLicenseTypes,
+  getActiveDrivingLicenseTypes,
   createDrivingLicenseClass,
   updateDrivingLicenseClass,
   deactivateDrivingLicenseClass,
@@ -97,7 +98,9 @@ export default function DrivingLicenseCatalogPage({
       const [typeResults, classResults] = await Promise.all([
         canManageTypes
           ? getDrivingLicenseTypes()
-          : Promise.resolve([]),
+          : canManageClasses
+            ? getActiveDrivingLicenseTypes()
+            : Promise.resolve([]),
 
         canManageClasses
           ? getDrivingLicenseClasses()
@@ -124,7 +127,9 @@ export default function DrivingLicenseCatalogPage({
         const [typeResults, classResults] = await Promise.all([
           canManageTypes
             ? getDrivingLicenseTypes()
-            : Promise.resolve([]),
+            : canManageClasses
+              ? getActiveDrivingLicenseTypes()
+              : Promise.resolve([]),
 
           canManageClasses
             ? getDrivingLicenseClasses()
