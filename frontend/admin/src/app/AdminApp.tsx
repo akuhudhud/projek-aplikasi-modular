@@ -21,6 +21,10 @@ import {
 } from '../services/adminApi';
 
 import {
+  SESSION_EXPIRED_EVENT
+} from '../services/adminApiClient';
+
+import {
   canAccessPage,
   getDefaultAdminPage,
   isAdminAccount
@@ -34,6 +38,28 @@ export default function AdminApp() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [loggingIn, setLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState('');
+
+  useEffect(() => {
+    function handleSessionExpired() {
+      setAccount(null);
+      setActivePage('dashboard');
+      setLoginError('Sesi telah tamat. Sila log masuk semula.');
+      setLoggingIn(false);
+      setCheckingSession(false);
+    }
+
+    window.addEventListener(
+      SESSION_EXPIRED_EVENT,
+      handleSessionExpired
+    );
+
+    return () => {
+      window.removeEventListener(
+        SESSION_EXPIRED_EVENT,
+        handleSessionExpired
+      );
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
