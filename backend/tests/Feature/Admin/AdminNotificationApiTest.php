@@ -193,7 +193,8 @@ class AdminNotificationApiTest extends TestCase
             ->assertNotFound()
             ->assertJsonPath('success', false);
 
-        $this->assertNotNull(
+        // Notification belongs to another account and must remain unread.
+        $this->assertNull(
             $owner->notifications()
                 ->whereKey($notificationId)
                 ->firstOrFail()
