@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 
 import type { AdminPage, AdminProfile } from '../../types/admin';
@@ -21,6 +22,10 @@ export default function AdminSidebar({
 
   const canViewAccounts = canAccessPage(account, 'accounts');
   const canViewRunners = canAccessPage(account, 'runner-applications');
+  const canViewLicenseCatalog = canAccessPage(
+    account,
+    'driving-license-catalog'
+  );
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     users: activePage === 'accounts',
@@ -180,6 +185,27 @@ export default function AdminSidebar({
             style={menuItemStyle}
           >
             <span>Pengesahan Identiti</span>
+          </button>
+        )}
+
+        {canViewLicenseCatalog && (
+          <button
+            type="button"
+            className={[
+              'admin-sidebar__item',
+              activePage === 'driving-license-catalog'
+                ? 'admin-sidebar__item--active'
+                : ''
+            ].join(' ')}
+            aria-current={
+              activePage === 'driving-license-catalog'
+                ? 'page'
+                : undefined
+            }
+            onClick={() => navigate('driving-license-catalog')}
+            style={menuItemStyle}
+          >
+            <span>Katalog Lesen Memandu</span>
           </button>
         )}
 
