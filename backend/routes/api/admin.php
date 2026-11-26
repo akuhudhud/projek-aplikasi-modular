@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AdminAccountDirectoryController;
 use App\Http\Controllers\Api\AdminDashboardController;
+use App\Http\Controllers\Api\AdminNotificationController;
 use App\Http\Controllers\Api\AdminRunnerDirectoryController;
 use App\Http\Controllers\Api\AdminSuperAdminAppointmentController;
 use App\Http\Controllers\Api\AuditLogController;
@@ -15,6 +16,33 @@ Route::get('/admin/dashboard', [
     AdminDashboardController::class,
     'index',
 ])->middleware(AuthenticateSession::class);
+
+/*
+|--------------------------------------------------------------------------
+| Admin Operational Notifications
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/admin/notifications', [
+    AdminNotificationController::class,
+    'index',
+])->middleware(AuthenticateSession::class);
+
+Route::patch('/admin/notifications/read-all', [
+    AdminNotificationController::class,
+    'markAllAsRead',
+])->middleware(AuthenticateSession::class);
+
+Route::patch('/admin/notifications/{notificationId}/read', [
+    AdminNotificationController::class,
+    'markAsRead',
+])->middleware(AuthenticateSession::class);
+
+/*
+|--------------------------------------------------------------------------
+| Account Management
+|--------------------------------------------------------------------------
+*/
 
 Route::get('/admin/account-directory', [
     AdminAccountDirectoryController::class,
@@ -84,6 +112,12 @@ Route::post('/admin/accounts/{accountId}/unsuspend', [
     'admin.permission:accounts.unsuspend',
 ]);
 
+/*
+|--------------------------------------------------------------------------
+| Audit Logs
+|--------------------------------------------------------------------------
+*/
+
 Route::get('/admin/audit-logs', [
     AuditLogController::class,
     'index',
@@ -91,6 +125,12 @@ Route::get('/admin/audit-logs', [
     AuthenticateSession::class,
     'admin.permission:audit_logs.view',
 ]);
+
+/*
+|--------------------------------------------------------------------------
+| Runner Management
+|--------------------------------------------------------------------------
+*/
 
 Route::get('/admin/runner-applications', [
     RunnerController::class,
