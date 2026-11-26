@@ -154,8 +154,8 @@ export interface IdentityVerificationDocument {
 export interface IdentityVerificationDetail {
   account_id: string;
   profile_name: string;
-  account_role: string;
-  runner_status: string | null;
+  account_role?: string;
+  runner_status?: string | null;
   verified_name: string;
   status: 'PENDING' | 'VERIFIED' | 'REJECTED' | string;
   mykad_number_masked: string;
