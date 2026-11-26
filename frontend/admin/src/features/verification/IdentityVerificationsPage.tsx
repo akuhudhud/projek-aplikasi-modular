@@ -64,6 +64,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
 
   const canReview = hasReviewPermission(account);
   const canDeleteData = hasDeleteDataPermission(account);
+  const canDeleteAnyRole = account.role === 'ROOT_SUPER_ADMIN';
 
   useEffect(() => {
     if (!preview?.url) return;
@@ -468,6 +469,7 @@ export default function IdentityVerificationsPage({ account }: Props) {
           rejectionReason={rejectionReason}
           working={working}
           canDeleteData={canDeleteData}
+          canDeleteAnyRole={canDeleteAnyRole}
           deletionWorking={deletionWorking}
           onClose={closeDetail}
           onShowDocument={(documentId, mimeType) =>
