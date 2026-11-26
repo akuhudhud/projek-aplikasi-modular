@@ -1,5 +1,5 @@
 
-import { adminApi } from '../../../services/adminApiClient';
+import { adminApi } from '../../services/adminApiClient';
 
 export interface AdminNotification {
   id: string;
