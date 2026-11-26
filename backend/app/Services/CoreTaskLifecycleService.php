@@ -6,6 +6,7 @@ use App\Contracts\CoreTaskLifecycle;
 use App\Models\Account;
 use App\Models\CoreTask;
 use App\Models\MarketplaceRequest;
+use App\Notifications\AdminOperationalNotification;
 use App\Notifications\MarketplaceEventNotification;
 use DomainException;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,11 @@ use InvalidArgumentException;
 
 class CoreTaskLifecycleService implements CoreTaskLifecycle
 {
+    public function __construct(
+        private AdminOperationalNotificationService $adminNotificationService
+    ) {
+    }
+
     public function start(
         string $taskId,
         string $actorAccountId
@@ -50,6 +56,14 @@ class CoreTaskLifecycleService implements CoreTaskLifecycle
             $task->started_at = now();
             $task->generic_status = CoreTask::STATUS_IN_PROGRESS;
             $task->save();
+
+            $this->notifyMarketplaceAdmins(
+                $task,
+                'marketplace.task_started',
+                'Tugasan Marketplace dimulakan',
+                'Runner telah memulakan tugasan Marketplace.',
+                AdminOperationalNotification::SEVERITY_INFO
+            );
 
             $this->notifyMarketplaceCustomer(
                 $task,
@@ -126,6 +140,14 @@ class CoreTaskLifecycleService implements CoreTaskLifecycle
             $task->arrival_latitude = $latitude;
             $task->arrival_longitude = $longitude;
             $task->save();
+
+            $this->notifyMarketplaceAdmins(
+                $task,
+                'marketplace.task_arrived',
+                'Runner tiba di lokasi tugasan',
+                'Runner telah tiba di lokasi tugasan Marketplace.',
+                AdminOperationalNotification::SEVERITY_INFO
+            );
 
             $this->notifyMarketplaceCustomer(
                 $task,
@@ -204,6 +226,14 @@ class CoreTaskLifecycleService implements CoreTaskLifecycle
             $task->generic_status = CoreTask::STATUS_COMPLETED;
             $task->save();
 
+            $this->notifyMarketplaceAdmins(
+                $task,
+                'marketplace.task_completed',
+                'Tugasan Marketplace selesai',
+                'Runner telah menyelesaikan tugasan Marketplace.',
+                AdminOperationalNotification::SEVERITY_INFO
+            );
+
             $this->notifyMarketplaceCustomer(
                 $task,
                 'marketplace.task_completed',
@@ -213,6 +243,33 @@ class CoreTaskLifecycleService implements CoreTaskLifecycle
 
             return $task->refresh();
         });
+    }
+
+    private function notifyMarketplaceAdmins(
+        CoreTask $task,
+        string $event,
+        string $title,
+        string $message,
+        string $severity
+    ): void {
+        if (
+            $task->module_key !== 'Marketplace'
+            || $task->source_type !== 'marketplace_request'
+            || !$task->source_id
+        ) {
+            return;
+        }
+
+        $this->adminNotificationService->notifyAdmins(
+            event: $event,
+            category: AdminOperationalNotification::CATEGORY_TASK,
+            title: $title,
+            message: $message,
+            severity: $severity,
+            resourceType: 'core_task',
+            resourceId: (string) $task->task_id,
+            actionPath: '/marketplace-tasks'
+        );
     }
 
     private function notifyMarketplaceCustomer(
