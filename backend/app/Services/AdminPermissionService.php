@@ -25,7 +25,6 @@ class AdminPermissionService
         'runners.restore' => 'Memulihkan kelayakan Runner',
         'identity_verifications.review' => 'Menyemak pengesahan identiti',
         'identity_verifications.delete_data' => 'Memadam data pengesahan identiti',
-        'runner_license_verifications.review' => 'Menyemak pengesahan lesen memandu',
         'driving_license_types.manage' => 'Mengurus jenis lesen memandu',
         'driving_license_catalog.manage' => 'Mengurus kelas lesen memandu',
         'audit_logs.view' => 'Melihat rekod audit',
@@ -53,7 +52,6 @@ class AdminPermissionService
         Account $account,
         string $permission
     ): bool {
-        // Root is the owner and bypasses internal permission restrictions.
         if ($account->role === 'ROOT_SUPER_ADMIN') {
             return true;
         }
