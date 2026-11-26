@@ -1,3 +1,4 @@
+
 import type { AdminProfile } from '../../../types/admin';
 
 export type VerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED' | 'ALL';
@@ -22,6 +23,13 @@ export function hasReviewPermission(account: AdminProfile): boolean {
   return (
     account.role === 'ROOT_SUPER_ADMIN' ||
     account.permissions?.includes('identity_verifications.review') === true
+  );
+}
+
+export function hasDeleteDataPermission(account: AdminProfile): boolean {
+  return (
+    account.role === 'ROOT_SUPER_ADMIN' ||
+    account.permissions?.includes('identity_verifications.delete_data') === true
   );
 }
 
