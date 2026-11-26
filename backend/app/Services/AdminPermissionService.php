@@ -18,15 +18,23 @@ class AdminPermissionService
         'accounts.suspend' => 'Menggantung akaun',
         'accounts.unsuspend' => 'Memulihkan akaun yang digantung',
         'accounts.reactivate' => 'Mengaktifkan semula akaun',
+
         'runner_applications.view' => 'Melihat permohonan Runner',
         'runner_applications.approve' => 'Meluluskan permohonan Runner',
         'runner_applications.reject' => 'Menolak permohonan Runner',
+
         'runners.suspend' => 'Menggantung kelayakan Runner',
         'runners.restore' => 'Memulihkan kelayakan Runner',
+
         'identity_verifications.review' => 'Menyemak pengesahan identiti',
         'identity_verifications.delete_data' => 'Memadam data pengesahan identiti',
+
         'driving_license_types.manage' => 'Mengurus jenis lesen memandu',
         'driving_license_catalog.manage' => 'Mengurus kelas lesen memandu',
+
+        'marketplace_requests.view' => 'Melihat Marketplace Request',
+        'marketplace_tasks.view' => 'Melihat Marketplace Task',
+
         'audit_logs.view' => 'Melihat rekod audit',
     ];
 
