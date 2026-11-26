@@ -250,12 +250,14 @@ class IdentityVerificationDeletionTest extends TestCase
         $applicant = $this->createAccount();
         $records = $this->createVerificationWithOneDocument($applicant);
 
+        $reason = 'Permintaan pemadaman sah';
+
         $this->authenticateAccount(
             $admin,
             'identity-delete-authorized-token'
         )->deleteJson(
             '/api/admin/identity-verifications/'.$applicant->id.'/data',
-            ['reason' => 'Permintaan pemadaman sah']
+            ['reason' => $reason]
         )->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath(
@@ -285,6 +287,8 @@ class IdentityVerificationDeletionTest extends TestCase
             ->where('action', 'IDENTITY_VERIFICATION_DATA_DELETED')
             ->firstOrFail();
 
+        $this->assertSame($reason, $audit->reason);
+
         $this->assertStringNotContainsString(
             '900101145678',
             $audit->reason
@@ -303,12 +307,14 @@ class IdentityVerificationDeletionTest extends TestCase
 
         $records = $this->createVerificationWithOneDocument($applicant);
 
+        $reason = 'Pemadaman oleh Root';
+
         $this->authenticateAccount(
             $root,
             'identity-delete-root-token'
         )->deleteJson(
             '/api/admin/identity-verifications/'.$applicant->id.'/data',
-            ['reason' => 'Pemadaman oleh Root']
+            ['reason' => $reason]
         )->assertOk()
             ->assertJsonPath('success', true);
 
@@ -317,6 +323,13 @@ class IdentityVerificationDeletionTest extends TestCase
         ]);
 
         Storage::disk('local')->assertMissing($records['path']);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_account_id' => $root->id,
+            'target_account_id' => $applicant->id,
+            'action' => 'IDENTITY_VERIFICATION_DATA_DELETED',
+            'reason' => $reason,
+        ]);
     }
 
     public function test_deletion_requires_a_reason(): void
