@@ -1,3 +1,4 @@
+
 export {
   adminApi,
   getApiError,
@@ -53,3 +54,14 @@ export {
   getAuditLogs,
   getAdminDashboard
 } from './adminReportingApi';
+
+export {
+  getDrivingLicenseTypes,
+  createDrivingLicenseType,
+  updateDrivingLicenseType,
+  deactivateDrivingLicenseType,
+  getDrivingLicenseClasses,
+  createDrivingLicenseClass,
+  updateDrivingLicenseClass,
+  deactivateDrivingLicenseClass
+} from './adminDrivingLicenseApi';
