@@ -1,3 +1,4 @@
+
 import type {
   ApiResponse,
   IdentityVerificationDetail,
@@ -65,4 +66,20 @@ export async function getIdentityVerificationDocument(
   );
 
   return response.data as Blob;
+}
+
+export async function deleteIdentityVerificationData(
+  accountId: string,
+  reason: string
+): Promise<void> {
+  await adminApi.delete<
+    ApiResponse<null>
+  >(
+    `/admin/identity-verifications/${encodeURIComponent(accountId)}/data`,
+    {
+      data: {
+        reason
+      }
+    }
+  );
 }
