@@ -1,6 +1,12 @@
+
 import type { IdentityVerificationDetail as Detail } from '../../../types/admin';
 import type { DocumentPreview } from '../utils/identityVerificationUtils';
-import { formatBytes, formatDate, statusLabel } from '../utils/identityVerificationUtils';
+import {
+  formatBytes,
+  formatDate,
+  statusLabel
+} from '../utils/identityVerificationUtils';
+import IdentityVerificationDataDeletion from './IdentityVerificationDataDeletion';
 
 interface Props {
   detail: Detail | null;
@@ -9,11 +15,14 @@ interface Props {
   preview: DocumentPreview | null;
   rejectionReason: string;
   working: boolean;
+  canDeleteData: boolean;
+  deletionWorking: boolean;
   onClose: () => void;
   onShowDocument: (documentId: string, mimeType: string) => void;
   onClosePreview: () => void;
   onRejectionReasonChange: (value: string) => void;
   onSubmitDecision: (decision: 'VERIFIED' | 'REJECTED') => void;
+  onDeleteData: (reason: string) => void;
 }
 
 export default function IdentityVerificationDetail({
@@ -23,11 +32,14 @@ export default function IdentityVerificationDetail({
   preview,
   rejectionReason,
   working,
+  canDeleteData,
+  deletionWorking,
   onClose,
   onShowDocument,
   onClosePreview,
   onRejectionReasonChange,
-  onSubmitDecision
+  onSubmitDecision,
+  onDeleteData
 }: Props) {
   return (
     <section
@@ -213,6 +225,13 @@ export default function IdentityVerificationDetail({
                 </button>
               </div>
             </div>
+          )}
+
+          {canDeleteData && (
+            <IdentityVerificationDataDeletion
+              working={deletionWorking}
+              onDelete={onDeleteData}
+            />
           )}
         </>
       ) : (
