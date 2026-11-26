@@ -6,17 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\MarketplaceQuotation;
 use App\Models\MarketplaceRequest;
+use App\Notifications\AdminOperationalNotification;
+use App\Services\AdminOperationalNotificationService;
 use App\Services\MarketplaceService;
 use DomainException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class MarketplaceController extends Controller
 {
     public function __construct(
-        private MarketplaceService $marketplaceService
+        private MarketplaceService $marketplaceService,
+        private AdminOperationalNotificationService $adminNotificationService
     ) {
     }
 
@@ -402,6 +406,21 @@ class MarketplaceController extends Controller
         try {
             $marketplaceRequest = $this->marketplaceService
                 ->createRequest($account, $validated);
+
+            try {
+                $this->adminNotificationService->notifyAdmins(
+                    event: 'marketplace.request_created',
+                    category: AdminOperationalNotification::CATEGORY_REQUEST,
+                    title: 'Marketplace Request baharu',
+                    message: 'Request baharu telah dihantar dan menunggu tindakan operasi.',
+                    severity: AdminOperationalNotification::SEVERITY_WARNING,
+                    resourceType: 'marketplace_request',
+                    resourceId: (string) $marketplaceRequest->request_id,
+                    actionPath: '/marketplace-requests'
+                );
+            } catch (Throwable $notificationException) {
+                report($notificationException);
+            }
 
             return response()->json([
                 'success' => true,
