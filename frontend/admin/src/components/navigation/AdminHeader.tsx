@@ -14,7 +14,8 @@ const pageTitles: Record<AdminPage, string> = {
   accounts: 'Pengurusan Pengguna',
   'runner-applications': 'Pengurusan Runner',
   'identity-verifications': 'Pengesahan Identiti',
-  'audit-logs': 'Log Audit'
+  'audit-logs': 'Log Audit',
+  'driving-license-catalog': 'Katalog Lesen Memandu'
 };
 
 export default function AdminHeader({
