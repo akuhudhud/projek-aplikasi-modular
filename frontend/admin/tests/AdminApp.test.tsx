@@ -11,6 +11,7 @@ import {
 
 import AdminApp from '../src/app/AdminApp';
 import * as adminApi from '../src/services/adminApi';
+import { SESSION_EXPIRED_EVENT, TOKEN_KEY } from '../src/services/adminApiClient';
 import type { AdminProfile } from '../src/types/admin';
 
 afterEach(() => {
@@ -192,5 +193,46 @@ describe('Admin Web Application', () => {
     ).toBeTruthy();
 
     expect(adminApi.hasSession()).toBe(true);
+  });
+
+  it('kembali ke halaman log masuk apabila event tamat sesi diterima', async () => {
+    adminApi.saveSession('valid-admin-token');
+
+    vi.spyOn(adminApi, 'getCurrentAdmin')
+      .mockResolvedValue(adminProfile);
+
+    render(<AdminApp />);
+
+    expect(
+      await screen.findByRole('button', {
+        name: 'Buka menu navigasi'
+      })
+    ).toBeTruthy();
+
+    sessionStorage.removeItem(TOKEN_KEY);
+
+    window.dispatchEvent(
+      new Event(SESSION_EXPIRED_EVENT)
+    );
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Log Masuk Pentadbir'
+      })
+    ).toBeTruthy();
+
+    expect(
+      screen.getByText(
+        'Sesi telah tamat. Sila log masuk semula.'
+      )
+    ).toBeTruthy();
+
+    expect(
+      screen.queryByRole('navigation', {
+        name: 'Navigasi utama'
+      })
+    ).toBeNull();
+
+    expect(adminApi.hasSession()).toBe(false);
   });
 });
