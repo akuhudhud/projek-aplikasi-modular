@@ -1,3 +1,4 @@
+
 import type { ApiResponse } from '../types/admin';
 
 import type {
@@ -17,6 +18,14 @@ export async function getDrivingLicenseTypes(): Promise<DrivingLicenseType[]> {
   const response = await adminApi.get<
     ApiResponse<DrivingLicenseTypeResult>
   >('/admin/driving-license-types');
+
+  return response.data.data.types;
+}
+
+export async function getActiveDrivingLicenseTypes(): Promise<DrivingLicenseType[]> {
+  const response = await adminApi.get<
+    ApiResponse<DrivingLicenseTypeResult>
+  >('/driving-license-types');
 
   return response.data.data.types;
 }
