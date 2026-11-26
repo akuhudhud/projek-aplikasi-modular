@@ -43,7 +43,8 @@ export {
   getIdentityVerifications,
   getIdentityVerificationDetail,
   decideIdentityVerification,
-  getIdentityVerificationDocument
+  getIdentityVerificationDocument,
+  deleteIdentityVerificationData
 } from './adminIdentityApi';
 
 export type {
