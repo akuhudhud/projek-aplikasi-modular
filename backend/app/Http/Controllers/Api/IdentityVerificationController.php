@@ -130,7 +130,6 @@ class IdentityVerificationController extends Controller
             ->withCount('documents')
             ->whereHas('account');
 
-        // Super Admin hanya boleh melihat rekod akaun USER.
         if ($actor->role === 'SUPER_ADMIN') {
             $query->whereHas('account', function ($accountQuery): void {
                 $accountQuery->where('role', 'USER');
@@ -246,6 +245,8 @@ class IdentityVerificationController extends Controller
                 'identity_verification' => [
                     'account_id' => $verification->account_id,
                     'profile_name' => $targetAccount->profile_name,
+                    'account_role' => $targetAccount->role,
+                    'runner_status' => $targetAccount->runner_status,
                     'verified_name' => $verification->verified_name,
                     'status' => $verification->status,
                     'mykad_number_masked' => str_repeat('*', 8)
@@ -334,7 +335,6 @@ class IdentityVerificationController extends Controller
                     );
                 }
 
-                // Semakan role dibuat sekali lagi dalam transaksi.
                 if (
                     $actor->role === 'SUPER_ADMIN'
                     && $targetAccount->role !== 'USER'
@@ -361,10 +361,6 @@ class IdentityVerificationController extends Controller
                     );
                 }
 
-                /*
-                 * accounts.profile_name stores the user's profile/display name.
-                 * identity_verifications.verified_name stores the verified legal name.
-                 */
                 $verification->status = $validated['decision'];
                 $verification->reviewer_account_id = $actor->id;
                 $verification->reviewed_at = now();
