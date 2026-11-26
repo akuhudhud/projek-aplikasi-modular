@@ -8,6 +8,7 @@ use App\Models\Session;
 use App\Services\AdminPermissionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Tests\TestCase;
 
 class MeAdminPermissionsTest extends TestCase
@@ -50,12 +51,50 @@ class MeAdminPermissionsTest extends TestCase
             'Bearer root-permission-token'
         )->getJson('/api/me');
 
+        $permissions = app(AdminPermissionService::class)
+            ->permissionKeys();
+
         $response
             ->assertOk()
             ->assertJsonPath(
                 'data.account.permissions',
-                app(AdminPermissionService::class)->permissionKeys()
+                $permissions
             );
+
+        $this->assertNotContains(
+            'runner_license_verifications.review',
+            $permissions
+        );
+    }
+
+    public function test_legacy_runner_license_permission_is_not_in_catalog(): void
+    {
+        $service = app(AdminPermissionService::class);
+
+        $this->assertNotContains(
+            'runner_license_verifications.review',
+            $service->permissionKeys()
+        );
+
+        $this->assertNotContains(
+            'runner_license_verifications.review',
+            array_column($service->catalog(), 'key')
+        );
+    }
+
+    public function test_legacy_runner_license_permission_cannot_be_assigned(): void
+    {
+        $account = $this->createAccountWithSession(
+            'SUPER_ADMIN',
+            'legacy-permission-token'
+        );
+
+        $this->expectException(InvalidArgumentException::class);
+
+        app(AdminPermissionService::class)->replace(
+            $account,
+            ['runner_license_verifications.review']
+        );
     }
 
     public function test_super_admin_receives_only_assigned_permissions(): void
