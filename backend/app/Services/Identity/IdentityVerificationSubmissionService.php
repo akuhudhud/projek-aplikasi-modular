@@ -5,6 +5,8 @@ namespace App\Services\Identity;
 use App\Models\Account;
 use App\Models\IdentityVerification;
 use App\Models\IdentityVerificationDocument;
+use App\Notifications\AdminOperationalNotification;
+use App\Services\AdminOperationalNotificationService;
 use App\Services\AuditLogService;
 use DomainException;
 use Illuminate\Http\UploadedFile;
@@ -20,7 +22,8 @@ class IdentityVerificationSubmissionService
     private const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
     public function __construct(
-        private AuditLogService $auditLogService
+        private AuditLogService $auditLogService,
+        private AdminOperationalNotificationService $adminNotificationService
     ) {
     }
 
@@ -155,6 +158,17 @@ class IdentityVerificationSubmissionService
                     $account,
                     'IDENTITY_VERIFICATION_SUBMITTED',
                     'Identity verification application submitted or resubmitted.'
+                );
+
+                $this->adminNotificationService->notifyAdmins(
+                    event: 'identity.verification_submitted',
+                    category: AdminOperationalNotification::CATEGORY_IDENTITY_VERIFICATION,
+                    title: 'Pengesahan identiti baharu',
+                    message: 'Dokumen pengesahan identiti baharu menunggu semakan Admin.',
+                    severity: AdminOperationalNotification::SEVERITY_WARNING,
+                    resourceType: 'identity_verification',
+                    resourceId: (string) $verification->id,
+                    actionPath: '/identity-verifications'
                 );
 
                 return $verification->fresh(['documents']);
