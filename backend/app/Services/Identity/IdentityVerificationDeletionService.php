@@ -41,6 +41,7 @@ class IdentityVerificationDeletionService
             DB::transaction(function () use (
                 $actor,
                 $accountId,
+                $reason,
                 &$files,
                 &$fileDeletionStarted,
                 &$fileDeletionFailed,
@@ -190,7 +191,7 @@ class IdentityVerificationDeletionService
                     $actor,
                     $target,
                     'IDENTITY_VERIFICATION_DATA_DELETED',
-                    'Identity verification data and document metadata deleted.'
+                    $reason
                 );
             });
         } catch (Throwable $exception) {
