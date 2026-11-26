@@ -7,6 +7,7 @@ use App\Models\DrivingLicenseCatalog;
 use App\Models\DrivingLicenseType;
 use App\Models\IdentityVerification;
 use App\Models\RunnerLicenseVerification;
+use App\Notifications\AdminOperationalNotification;
 use DomainException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -20,6 +21,11 @@ use Throwable;
 class RunnerLicenseVerificationService
 {
     private const MAX_FILE_BYTES = 10 * 1024 * 1024;
+
+    public function __construct(
+        private AdminOperationalNotificationService $adminNotificationService
+    ) {
+    }
 
     public function submit(
         Account $account,
@@ -247,6 +253,28 @@ class RunnerLicenseVerificationService
                     ]);
 
                 $afterCreate($verification, $lockedAccount);
+
+                $this->adminNotificationService->notifyAdmins(
+                    event: 'runner.application_submitted',
+                    category: AdminOperationalNotification::CATEGORY_RUNNER_APPLICATION,
+                    title: 'Permohonan Runner baharu',
+                    message: 'Permohonan Runner baharu menunggu semakan Admin.',
+                    severity: AdminOperationalNotification::SEVERITY_WARNING,
+                    resourceType: 'account',
+                    resourceId: (string) $lockedAccount->id,
+                    actionPath: '/runner-applications'
+                );
+
+                $this->adminNotificationService->notifyAdmins(
+                    event: 'runner.license_submitted',
+                    category: AdminOperationalNotification::CATEGORY_LICENSE_VERIFICATION,
+                    title: 'Dokumen lesen Runner baharu',
+                    message: 'Dokumen lesen memandu baharu menunggu pengesahan.',
+                    severity: AdminOperationalNotification::SEVERITY_WARNING,
+                    resourceType: 'runner_license_verification',
+                    resourceId: (string) $verification->id,
+                    actionPath: '/runner-applications'
+                );
 
                 return $verification;
             });
