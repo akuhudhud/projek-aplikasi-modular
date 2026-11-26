@@ -95,10 +95,11 @@ describe('DrivingLicenseCatalogPage', () => {
       />
     );
 
-    expect(
-      await screen.findByText('Competent Driving Licence')
-    ).toBeTruthy();
+    const typeNames = await screen.findAllByText(
+      'Competent Driving Licence'
+    );
 
+    expect(typeNames.length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('Probationary Driving Licence')).toBeTruthy();
     expect(screen.getByText('Motosikal')).toBeTruthy();
 
