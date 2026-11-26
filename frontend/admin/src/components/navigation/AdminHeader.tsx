@@ -1,5 +1,6 @@
 
 import type { AdminProfile, AdminPage } from '../../types/admin';
+import AdminNotificationBell from '../../features/notifications/AdminNotificationBell';
 
 interface AdminHeaderProps {
   account: AdminProfile;
@@ -88,7 +89,16 @@ export default function AdminHeader({
         </div>
       </div>
 
-      <div className="admin-header__account">
+      <div
+        className="admin-header__account"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12
+        }}
+      >
+        <AdminNotificationBell />
+
         <div className="admin-header__avatar">
           {account.profile_name.charAt(0).toUpperCase()}
         </div>
