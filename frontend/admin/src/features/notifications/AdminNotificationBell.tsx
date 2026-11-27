@@ -4,12 +4,14 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   getAdminNotifications,
   markAdminNotificationAsRead,
-  markAllAdminNotificationsAsRead
+  markAllAdminNotificationsAsRead,
 } from './adminNotificationService';
 
 import type {
-  AdminNotification
+  AdminNotification,
 } from './adminNotificationService';
+
+import AdminPushToggle from './AdminPushToggle';
 
 export default function AdminNotificationBell() {
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -45,18 +47,11 @@ export default function AdminNotificationBell() {
       }
     };
 
-    document.addEventListener(
-      'visibilitychange',
-      handleVisibilityChange
-    );
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.clearInterval(interval);
-
-      document.removeEventListener(
-        'visibilitychange',
-        handleVisibilityChange
-      );
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [loadNotifications]);
 
@@ -64,16 +59,14 @@ export default function AdminNotificationBell() {
     if (notification.read_at) return;
 
     try {
-      const result = await markAdminNotificationAsRead(
-        notification.id
-      );
+      const result = await markAdminNotificationAsRead(notification.id);
 
       setNotifications((current) =>
         current.map((item) =>
           item.id === notification.id
             ? { ...item, read_at: new Date().toISOString() }
-            : item
-        )
+            : item,
+        ),
       );
 
       setUnreadCount(result.unread_count);
@@ -92,8 +85,8 @@ export default function AdminNotificationBell() {
       setNotifications((current) =>
         current.map((item) => ({
           ...item,
-          read_at: item.read_at ?? new Date().toISOString()
-        }))
+          read_at: item.read_at ?? new Date().toISOString(),
+        })),
       );
 
       setUnreadCount(0);
@@ -113,7 +106,7 @@ export default function AdminNotificationBell() {
       day: '2-digit',
       month: 'short',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   }
 
@@ -142,7 +135,7 @@ export default function AdminNotificationBell() {
           background: 'var(--admin-panel-soft)',
           color: 'var(--admin-text)',
           cursor: 'pointer',
-          fontSize: 20
+          fontSize: 20,
         }}
       >
         <span aria-hidden="true">🔔</span>
@@ -161,7 +154,7 @@ export default function AdminNotificationBell() {
               color: '#fff',
               fontSize: 10,
               fontWeight: 700,
-              lineHeight: '18px'
+              lineHeight: '18px',
             }}
           >
             {unreadCount > 99 ? '99+' : unreadCount}
@@ -179,13 +172,13 @@ export default function AdminNotificationBell() {
             right: 0,
             zIndex: 100,
             width: 'min(360px, calc(100vw - 24px))',
-            maxHeight: 480,
+            maxHeight: 560,
             overflowY: 'auto',
             border: '1px solid var(--admin-border)',
             borderRadius: 10,
             background: 'var(--admin-panel)',
             color: 'var(--admin-text)',
-            boxShadow: '0 12px 32px rgba(0,0,0,.25)'
+            boxShadow: '0 12px 32px rgba(0,0,0,.25)',
           }}
         >
           <div
@@ -195,7 +188,7 @@ export default function AdminNotificationBell() {
               justifyContent: 'space-between',
               gap: 8,
               padding: 14,
-              borderBottom: '1px solid var(--admin-border)'
+              borderBottom: '1px solid var(--admin-border)',
             }}
           >
             <strong>Notifikasi Operasi</strong>
@@ -210,11 +203,20 @@ export default function AdminNotificationBell() {
                 color: 'var(--admin-yellow)',
                 cursor: unreadCount === 0 ? 'default' : 'pointer',
                 fontSize: 12,
-                opacity: unreadCount === 0 ? 0.5 : 1
+                opacity: unreadCount === 0 ? 0.5 : 1,
               }}
             >
               Baca semua
             </button>
+          </div>
+
+          <div
+            style={{
+              padding: 12,
+              borderBottom: '1px solid var(--admin-border)',
+            }}
+          >
+            <AdminPushToggle />
           </div>
 
           {error && (
@@ -224,7 +226,7 @@ export default function AdminNotificationBell() {
                 padding: '8px 14px',
                 margin: 0,
                 color: '#ef4444',
-                fontSize: 12
+                fontSize: 12,
               }}
             >
               {error}
@@ -238,7 +240,7 @@ export default function AdminNotificationBell() {
                 margin: 0,
                 textAlign: 'center',
                 opacity: 0.7,
-                fontSize: 13
+                fontSize: 13,
               }}
             >
               Tiada notifikasi buat masa ini.
@@ -265,7 +267,7 @@ export default function AdminNotificationBell() {
                     : 'transparent',
                   color: 'var(--admin-text)',
                   textAlign: 'left',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
                 }}
               >
                 <div
@@ -273,7 +275,7 @@ export default function AdminNotificationBell() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: 8
+                    gap: 8,
                   }}
                 >
                   <strong style={{ fontSize: 13 }}>
@@ -288,7 +290,7 @@ export default function AdminNotificationBell() {
                         height: 8,
                         flexShrink: 0,
                         borderRadius: '50%',
-                        background: '#eab308'
+                        background: '#eab308',
                       }}
                     />
                   )}
@@ -299,7 +301,7 @@ export default function AdminNotificationBell() {
                     margin: '6px 0',
                     fontSize: 12,
                     lineHeight: 1.5,
-                    opacity: 0.8
+                    opacity: 0.8,
                   }}
                 >
                   {data.message || 'Maklumat operasi baharu.'}
@@ -308,7 +310,7 @@ export default function AdminNotificationBell() {
                 <span
                   style={{
                     fontSize: 11,
-                    opacity: 0.6
+                    opacity: 0.6,
                   }}
                 >
                   {formatDate(notification.created_at)}
