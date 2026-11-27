@@ -12,6 +12,31 @@ use Illuminate\Support\Str;
 
 class AdminPushSubscriptionController extends Controller
 {
+    public function publicKey(Request $request): JsonResponse
+    {
+        $account = $request->attributes->get('account');
+
+        if (!$this->isActiveAdmin($account)) {
+            return $this->forbidden();
+        }
+
+        $publicKey = config('services.webpush.public_key');
+
+        if (!is_string($publicKey) || $publicKey === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Web Push belum dikonfigurasi.',
+            ], 503);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'public_key' => $publicKey,
+            ],
+        ]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $account = $request->attributes->get('account');
