@@ -45,6 +45,11 @@ Route::patch('/admin/notifications/{notificationId}/read', [
 |--------------------------------------------------------------------------
 */
 
+Route::get('/admin/push-public-key', [
+    AdminPushSubscriptionController::class,
+    'publicKey',
+])->middleware(AuthenticateSession::class);
+
 Route::post('/admin/push-subscriptions', [
     AdminPushSubscriptionController::class,
     'store',
