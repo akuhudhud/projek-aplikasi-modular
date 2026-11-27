@@ -1,0 +1,17 @@
+
+{
+  "id": "/",
+  "name": "SUPER RUNNER Admin",
+  "short_name": "SR Admin",
+  "description": "SUPER RUNNER Administration Web App",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#111111",
+  "theme_color": "#eab308",
+  "categories": [
+    "business",
+    "productivity"
+  ]
+}
