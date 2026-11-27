@@ -71,4 +71,12 @@ class Account extends Model
     {
         return $this->hasOne(IdentityVerification::class);
     }
+
+    /**
+     * @return HasMany<AdminPushSubscription, $this>
+     */
+    public function pushSubscriptions(): HasMany
+    {
+        return $this->hasMany(AdminPushSubscription::class);
+    }
 }
