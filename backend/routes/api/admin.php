@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AdminAccountDirectoryController;
 use App\Http\Controllers\Api\AdminDashboardController;
 use App\Http\Controllers\Api\AdminNotificationController;
+use App\Http\Controllers\Api\AdminPushSubscriptionController;
 use App\Http\Controllers\Api\AdminRunnerDirectoryController;
 use App\Http\Controllers\Api\AdminSuperAdminAppointmentController;
 use App\Http\Controllers\Api\AuditLogController;
@@ -36,6 +37,22 @@ Route::patch('/admin/notifications/read-all', [
 Route::patch('/admin/notifications/{notificationId}/read', [
     AdminNotificationController::class,
     'markAsRead',
+])->middleware(AuthenticateSession::class);
+
+/*
+|--------------------------------------------------------------------------
+| Admin Web Push Subscriptions
+|--------------------------------------------------------------------------
+*/
+
+Route::post('/admin/push-subscriptions', [
+    AdminPushSubscriptionController::class,
+    'store',
+])->middleware(AuthenticateSession::class);
+
+Route::delete('/admin/push-subscriptions', [
+    AdminPushSubscriptionController::class,
+    'destroy',
 ])->middleware(AuthenticateSession::class);
 
 /*
