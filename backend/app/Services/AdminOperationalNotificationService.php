@@ -4,18 +4,18 @@ namespace App\Services;
 
 use App\Models\Account;
 use App\Notifications\AdminOperationalNotification;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
+use Throwable;
 
 class AdminOperationalNotificationService
 {
     public function __construct(
         private AdminPermissionService $permissionService,
+        private ?AdminWebPushService $webPushService = null,
     ) {
     }
 
-    /**
-     * Permission required for each operational notification category.
-     */
     private const CATEGORY_PERMISSIONS = [
         AdminOperationalNotification::CATEGORY_REQUEST => 'marketplace_requests.view',
         AdminOperationalNotification::CATEGORY_TASK => 'marketplace_tasks.view',
@@ -84,9 +84,33 @@ class AdminOperationalNotificationService
                     return;
                 }
 
+                // Simpan notifikasi dalam database terlebih dahulu.
                 $account->notify($notification);
 
                 $sent++;
+
+                // Hantar Web Push jika servis tersedia.
+                if ($this->webPushService === null) {
+                    return;
+                }
+
+                try {
+                    $this->webPushService->sendToAccount(
+                        $account,
+                        $notification->toArray($account)
+                    );
+                } catch (Throwable $exception) {
+                    // Kegagalan Web Push tidak boleh menggagalkan
+                    // penyimpanan notifikasi database.
+                    Log::error(
+                        'Admin Web Push dispatch failed.',
+                        [
+                            'account_id' => $account->id,
+                            'event' => $notification->toArray($account)['event'],
+                            'exception' => $exception->getMessage(),
+                        ]
+                    );
+                }
             });
 
         return $sent;
