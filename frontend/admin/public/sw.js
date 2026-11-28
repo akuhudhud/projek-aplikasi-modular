@@ -1,16 +1,10 @@
 
-const CACHE_NAME = 'super-runner-admin-v047';
-
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    (async () => {
-      await self.clients.claim();
-    })()
-  );
+  event.waitUntil(self.clients.claim());
 });
 
 self.addEventListener('push', (event) => {
@@ -21,7 +15,9 @@ self.addEventListener('push', (event) => {
   } catch {
     payload = {
       title: 'SUPER RUNNER',
-      message: event.data ? event.data.text() : 'Notifikasi baharu',
+      message: event.data
+        ? event.data.text()
+        : 'Notifikasi baharu',
     };
   }
 
@@ -48,7 +44,6 @@ self.addEventListener('push', (event) => {
         typeof payload.action_path === 'string'
           ? payload.action_path
           : '/',
-
       event:
         typeof payload.event === 'string'
           ? payload.event
@@ -64,7 +59,8 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const actionPath = event.notification.data?.actionPath || '/';
+  const actionPath =
+    event.notification.data?.actionPath || '/';
 
   let targetUrl;
 
