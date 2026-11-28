@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   disableAdminPush,
   enableAdminPush,
@@ -22,9 +22,16 @@ export default function AdminPushToggle() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const refreshStatus = async () => {
+  const refreshStatus = useCallback(async () => {
+    const status = getAdminPushStatus();
+
+    if (!status.supported) {
+      setState(status);
+      setLoading(false);
+      return;
+    }
+
     try {
-      const status = getAdminPushStatus();
       const subscribed = await isAdminPushSubscribed();
 
       setState({
@@ -32,15 +39,56 @@ export default function AdminPushToggle() {
         permission: status.permission,
         subscribed,
       });
+
+      setError('');
     } catch {
       setError('Tidak berjaya menyemak status notifikasi.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    void refreshStatus();
+    let active = true;
+
+    const checkStatus = async () => {
+      const status = getAdminPushStatus();
+
+      if (!status.supported) {
+        if (active) {
+          setState(status);
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const subscribed = await isAdminPushSubscribed();
+
+        if (active) {
+          setState({
+            supported: status.supported,
+            permission: status.permission,
+            subscribed,
+          });
+          setError('');
+        }
+      } catch {
+        if (active) {
+          setError('Tidak berjaya menyemak status notifikasi.');
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void checkStatus();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleEnable = async () => {
@@ -155,7 +203,10 @@ export default function AdminPushToggle() {
       {state.supported && (
         <button
           type="button"
-          disabled={loading || (!state.subscribed && state.permission === 'denied')}
+          disabled={
+            loading ||
+            (!state.subscribed && state.permission === 'denied')
+          }
           onClick={() =>
             state.subscribed
               ? void handleDisable()
