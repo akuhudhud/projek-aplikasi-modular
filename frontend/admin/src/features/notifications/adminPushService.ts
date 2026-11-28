@@ -47,21 +47,6 @@ function decodeBase64Url(value: string): Uint8Array {
   return output;
 }
 
-function encodeBase64Url(value: ArrayBuffer): string {
-  const bytes = new Uint8Array(value);
-  let binary = '';
-
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-
-  return window
-    .btoa(binary)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-}
-
 function isPushSupported(): boolean {
   return (
     typeof window !== 'undefined' &&
@@ -101,14 +86,11 @@ Promise<ServiceWorkerRegistration> {
     );
   }
 
-  const registration = await navigator.serviceWorker.register(
-    '/sw.js',
-    {
-      scope: '/',
-    }
-  );
+  await navigator.serviceWorker.register('/sw.js', {
+    scope: '/',
+  });
 
-  return navigator.serviceWorker.ready.then(() => registration);
+  return navigator.serviceWorker.ready;
 }
 
 async function getVapidPublicKey(): Promise<string> {
@@ -182,16 +164,31 @@ Promise<PushSubscriptionResponse> {
 
   const publicKey = await getVapidPublicKey();
 
-  let subscription = await registration.pushManager.getSubscription();
+  let subscription =
+    await registration.pushManager.getSubscription();
+
+  let createdSubscription = false;
 
   if (!subscription) {
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: decodeBase64Url(publicKey),
     });
+
+    createdSubscription = true;
   }
 
-  const payload = serializeSubscription(subscription);
+  let payload: PushSubscriptionPayload;
+
+  try {
+    payload = serializeSubscription(subscription);
+  } catch (error) {
+    if (createdSubscription) {
+      await subscription.unsubscribe().catch(() => false);
+    }
+
+    throw error;
+  }
 
   try {
     const response = await adminApi.post<PushSubscriptionResponse>(
@@ -201,9 +198,10 @@ Promise<PushSubscriptionResponse> {
 
     return response.data;
   } catch (error) {
-    // Jika backend gagal menyimpan subscription baharu,
-    // batalkan subscription supaya tiada pendaftaran yatim.
-    if (subscription) {
+    // Batalkan hanya subscription yang baru dicipta.
+    // Subscription sedia ada tidak boleh dibatalkan
+    // hanya kerana permintaan API gagal.
+    if (createdSubscription) {
       await subscription.unsubscribe().catch(() => false);
     }
 
@@ -234,8 +232,7 @@ Promise<PushSubscriptionResponse | null> {
 
   const endpoint = subscription.endpoint;
 
-  // Padam rekod backend dahulu supaya kegagalan API
-  // tidak meninggalkan subscription aktif tanpa rekod.
+  // Padam rekod backend dahulu.
   const response = await adminApi.delete<PushSubscriptionResponse>(
     '/admin/push-subscriptions',
     {
