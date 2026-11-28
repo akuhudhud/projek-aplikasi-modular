@@ -31,7 +31,7 @@ export interface AdminPushStatus {
   subscribed: boolean;
 }
 
-function decodeBase64Url(value: string): Uint8Array {
+function decodeBase64Url(value: string): ArrayBuffer {
   const padding = '='.repeat((4 - (value.length % 4)) % 4);
   const base64 = (value + padding)
     .replace(/-/g, '+')
@@ -44,7 +44,7 @@ function decodeBase64Url(value: string): Uint8Array {
     output[index] = raw.charCodeAt(index);
   }
 
-  return output;
+  return output.buffer as ArrayBuffer;
 }
 
 function isPushSupported(): boolean {
